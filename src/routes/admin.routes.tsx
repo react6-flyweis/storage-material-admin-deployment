@@ -25,9 +25,6 @@ const Customers = lazy(() => import("@/pages/customers/customers"));
 const CustomerInsights = lazy(
   () => import("@/pages/customers/customer-insights"),
 );
-const CustomerDetailLayout = lazy(
-  () => import("@/pages/customers/customer-detail/customer-layout"),
-);
 const CustomerInfo = lazy(
   () => import("@/pages/customers/customer-detail/customer-info"),
 );
@@ -341,7 +338,6 @@ export const adminRoutes: RouteObject[] = [
               // /customers/:id routes
               {
                 path: ":id",
-                element: <CustomerDetailLayout />,
                 children: [
                   { index: true, element: <CustomerInfo /> },
                   { path: "payments", element: <CustomerPayments /> },
