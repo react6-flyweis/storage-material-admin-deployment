@@ -14,6 +14,8 @@ type SuccessDialogProps = {
   onClose: () => void;
   title?: string;
   okLabel?: string;
+  actionLabel?: string;
+  onAction?: () => void;
 };
 
 export default function SuccessDialog({
@@ -21,6 +23,8 @@ export default function SuccessDialog({
   onClose,
   title = "Success!",
   okLabel = "Ok",
+  actionLabel,
+  onAction,
 }: SuccessDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
@@ -39,9 +43,14 @@ export default function SuccessDialog({
           />
         </div>
 
-        <DialogFooter className="sm:justify-center">
+        <DialogFooter className="flex sm:justify-center gap-3 items-center">
+          {actionLabel && onAction ? (
+            <Button onClick={onAction} className="w-1/2" variant="secondary">
+              {actionLabel}
+            </Button>
+          ) : null}
           <DialogClose asChild>
-            <Button onClick={onClose} className="mt-3 w-52">
+            <Button onClick={onClose} className="w-1/2">
               {okLabel}
             </Button>
           </DialogClose>
