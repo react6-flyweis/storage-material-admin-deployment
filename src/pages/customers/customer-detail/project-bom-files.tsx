@@ -120,7 +120,6 @@ export default function ProjectBomFilesPage() {
     );
   }, [searchTerm]);
 
-  const pageCount = Math.max(1, Math.ceil(filteredRows.length / rowsPerPage));
   const currentRows = filteredRows.slice(
     (currentPage - 1) * rowsPerPage,
     currentPage * rowsPerPage,

@@ -7,10 +7,9 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { FolderUp, XCircle, File as FileIcon } from "lucide-react";
+import { FolderUp, XCircle } from "lucide-react";
 
 type Props = {
   title?: string;
