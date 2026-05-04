@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import { MessageSquare } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -78,6 +79,7 @@ const purchaseOrders: PurchaseOrderRow[] = [
 
 export default function AllPurchaseOrdersPage() {
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const navigate = useNavigate();
 
   const allSelected = useMemo(
     () =>
@@ -123,6 +125,7 @@ export default function AllPurchaseOrdersPage() {
                     type="checkbox"
                     checked={allSelected}
                     onChange={(event) => handleToggleAll(event.target.checked)}
+                    onClick={(e) => e.stopPropagation()}
                   />
                 </TableHead>
                 <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 px-3">
@@ -154,7 +157,10 @@ export default function AllPurchaseOrdersPage() {
                   <TableRow
                     key={order.id}
                     data-state={selected ? "selected" : undefined}
-                    className="border-slate-100/80"
+                    className="border-slate-100/80 cursor-pointer hover:bg-slate-50"
+                    onClick={() =>
+                      navigate(`/leads/purchase-orders/${order.id}`)
+                    }
                   >
                     <TableCell className="px-4">
                       <input
@@ -165,6 +171,7 @@ export default function AllPurchaseOrdersPage() {
                         onChange={(event) =>
                           handleToggleOrder(order.id, event.target.checked)
                         }
+                        onClick={(e) => e.stopPropagation()}
                       />
                     </TableCell>
 
