@@ -34,29 +34,20 @@ function randomFrom(arr: string[]) {
 
 const mockContracts = Array.from({ length: 8 }).map((_, i) => {
   const name = randomFrom(NAMES);
-  const email =
-    name
-      .toLowerCase()
-      .replace(/[^a-z\s]/g, "")
-      .trim()
-      .replace(/\s+/g, ".") + "@example.com";
-  const phone = `+39 02 ${Math.floor(1000 + Math.random() * 9000)} ${Math.floor(
-    100 + Math.random() * 900
-  )}`;
-  const statuses = ["Active", "Pending", "Rejected"];
+  const statuses = ["Signed", "Pending", "Rejected"];
   const status = randomFrom(statuses);
   const id = `ID-2025-${1047 + i}`;
+  const dateOfSignature = "12 April 2026";
   return {
     id,
     customerName: name,
-    phone,
-    email,
+    dateOfSignature,
     status,
   };
 });
 
 const STATUS_COLOR_MAP: Record<string, string> = {
-  active: "bg-green-50 text-green-700 border-green-200",
+  signed: "bg-green-50 text-green-700 border-green-200",
   pending: "bg-yellow-50 text-yellow-700 border-yellow-200",
   rejected: "bg-red-50 text-red-700 border-red-200",
   default: "bg-gray-50 text-gray-700 border-gray-200",
@@ -83,8 +74,7 @@ export default function ContractsPage() {
       return (
         (c.id && c.id.toLowerCase().includes(q)) ||
         (c.customerName && c.customerName.toLowerCase().includes(q)) ||
-        (c.phone && c.phone.toLowerCase().includes(q)) ||
-        (c.email && c.email.toLowerCase().includes(q))
+        (c.dateOfSignature && c.dateOfSignature.toLowerCase().includes(q))
       );
     });
   }, [searchQuery, statusFilter]);
@@ -169,13 +159,10 @@ export default function ContractsPage() {
                     Customer Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Phone No.
+                    Date of Signature
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
+                    Contract Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
@@ -195,10 +182,7 @@ export default function ContractsPage() {
                       {contract.customerName}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {contract.phone}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {contract.email}
+                      {contract.dateOfSignature}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Badge
