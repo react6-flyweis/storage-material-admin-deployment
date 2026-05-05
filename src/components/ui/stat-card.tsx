@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { useNavigate } from "react-router";
 
 type StatCardProps = {
-  title: string;
+  title: React.ReactNode;
   value: React.ReactNode;
   icon?: React.ReactNode;
   color?: string;

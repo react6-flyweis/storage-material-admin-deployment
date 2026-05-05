@@ -684,11 +684,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   >
                     <div className="flex items-center gap-2">
                       {item.icon ? (
-                        <span
-                          className={cn(
-                            item.icon ? "text-current" : "text-gray-500",
-                          )}
-                        >
+                        <span className="text-current">
                           {(() => {
                             const Icon = item.icon;
                             return <Icon className="w-4 h-4" />;

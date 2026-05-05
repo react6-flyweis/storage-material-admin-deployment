@@ -1,7 +1,4 @@
 import { Mail, Phone, Calendar, Edit } from "lucide-react";
-import { Card } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import type { AdminEmployeeApiItem } from "@/modules/employees/employees.api";
 
 type PersonalTabProps = {
@@ -55,7 +52,9 @@ export function EmployeePersonalTab({ employee, onEdit }: PersonalTabProps) {
             </div>
             <div>
               <div className="text-gray-500 text-xs">Phone</div>
-              <div className="mt-1 text-gray-900">{employee.phone ?? "N/A"}</div>
+              <div className="mt-1 text-gray-900">
+                {employee.phone ?? "N/A"}
+              </div>
             </div>
           </div>
 
@@ -65,7 +64,9 @@ export function EmployeePersonalTab({ employee, onEdit }: PersonalTabProps) {
             </div>
             <div>
               <div className="text-gray-500 text-xs">Join Date</div>
-              <div className="mt-1 text-gray-900">{formatJoinedDate(employee.createdAt)}</div>
+              <div className="mt-1 text-gray-900">
+                {formatJoinedDate(employee.createdAt)}
+              </div>
             </div>
           </div>
 

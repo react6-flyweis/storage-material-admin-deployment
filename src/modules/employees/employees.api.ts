@@ -59,6 +59,9 @@ export type AdminEmployeeProfileStats = {
   conversionRate: number;
   followUpsCompleted: number;
   revenueGenerated: number;
+  totalProjects?: number;
+  deliveriesHandled?: number;
+  invoicesRaised?: number;
 };
 
 export type AdminEmployeeProfileResponse = {
