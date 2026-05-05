@@ -163,13 +163,14 @@ export default function ScheduleMeeting() {
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Select a client */}
+            {/* Select a customer */}
             <div className="space-y-2">
               <Label htmlFor="client">
-                Select a client <span className="text-red-500">*</span>
+                Select a customer <span className="text-red-500">*</span>
               </Label>
               <ClientSelector
                 value={selectedClient}
+                placeholder="Search Customer"
                 onValueChange={(value) => {
                   const val = value ?? "";
                   setSelectedClient(val);
