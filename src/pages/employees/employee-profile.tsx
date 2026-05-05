@@ -1,59 +1,23 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams, Link } from "react-router";
 import { AddEmployeeDialog } from "@/components/employees/add-employee-dialog";
-import StatCard from "@/components/ui/stat-card";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-// Tabs: using original nav-style tabs (no shadcn Tabs)
-import {
-  Mail,
-  Phone,
-  Calendar,
-  Users,
-  Percent,
-  CheckSquare,
-  Smile,
-  DollarSign,
-  ArrowLeft,
-  Edit,
-} from "lucide-react";
 import { type AdminEmployeeProfileLead } from "@/modules/employees/employees.api";
 import { useAdminEmployeeProfileQuery } from "@/modules/employees/employees.hooks";
 
-type Lead = {
-  id: string;
-  name: string;
-  code?: string;
-  email?: string;
-  phone?: string;
-  location?: string;
-  priority?: string;
-  stage?: string;
-  date?: string;
-};
-
-const formatJoinedDate = (date?: string) => {
-  if (!date) return "N/A";
-
-  const parsedDate = new Date(date);
-  if (Number.isNaN(parsedDate.getTime())) return "N/A";
-
-  return parsedDate.toLocaleDateString("en-US", {
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  });
-};
+import { ArrowLeft } from "lucide-react";
+import type { DateRange as RDateRange } from "react-day-picker";
+import {
+  EmployeeAssignedLeadsTab,
+  type Lead,
+} from "@/pages/employees/employee-assigned-leads-tab";
+import { EmployeeAssignedProjectsTab } from "@/pages/employees/employee-assigned-projects-tab";
+import { EmployeeAssignedPlantProjectsTab } from "@/pages/employees/employee-assigned-plant-projects-tab";
+import { EmployeePersonalTab } from "@/pages/employees/employee-personal-tab";
+import { EmployeePerformanceTab } from "@/pages/employees/employee-performance-tab";
 
 const formatCurrency = (amount?: number) =>
   new Intl.NumberFormat("en-US", {
@@ -62,21 +26,15 @@ const formatCurrency = (amount?: number) =>
     maximumFractionDigits: 0,
   }).format(amount ?? 0);
 
-const formatLeadPhone = (phone?: { number?: string; countryCode?: string }) => {
-  if (!phone?.number && !phone?.countryCode) {
-    return "N/A";
-  }
-
-  return `${phone.countryCode ?? ""} ${phone.number ?? ""}`.trim();
-};
-
-const formatLifecycleStatus = (status?: string) => {
-  if (!status) return "Not set";
-
-  return status
-    .split("_")
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-    .join(" ");
+const formatJoinedDate = (date?: string) => {
+  if (!date) return "N/A";
+  const parsedDate = new Date(date);
+  if (Number.isNaN(parsedDate.getTime())) return "N/A";
+  return parsedDate.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 };
 
 const formatRole = (role?: string) => {
@@ -92,12 +50,18 @@ const formatRole = (role?: string) => {
   }
 };
 
+const formatLifecycleStatus = (status?: string) => {
+  if (!status) return "Not set";
+  return status
+    .split("_")
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
+};
+
 const mapLead = (lead: AdminEmployeeProfileLead): Lead => ({
   id: lead._id,
   name: lead.customerId?.firstName ?? lead.name ?? "Unknown Lead",
   code: lead.customerId?.customerId ?? lead.code ?? lead._id,
-  email: lead.customerId?.email ?? lead.email,
-  phone: formatLeadPhone(lead.customerId?.phone) || lead.phone || "N/A",
   location:
     [lead.buildingType, lead.location || lead.source]
       .filter(Boolean)
@@ -105,12 +69,12 @@ const mapLead = (lead: AdminEmployeeProfileLead): Lead => ({
     lead.location ||
     lead.source ||
     "N/A",
-  priority:
+  quoteValue:
     lead.quoteValue !== undefined
       ? formatCurrency(lead.quoteValue)
       : (lead.priority ?? "N/A"),
-  stage: formatLifecycleStatus(lead.lifecycleStatus ?? lead.stage),
-  date: formatJoinedDate(lead.createdAt),
+  status: formatLifecycleStatus(lead.lifecycleStatus ?? lead.stage),
+  createdAt: lead.createdAt,
 });
 
 export default function EmployeeProfilePage() {
@@ -125,11 +89,66 @@ export default function EmployeeProfilePage() {
 
   const profile = employeeProfileResponse?.data;
   const employee = profile?.employee;
-  const assignedLeads = (profile?.leads ?? []).map(mapLead);
   const employeeStats = profile?.stats;
 
   const [activeTab, setActiveTab] = useState<string>("personal");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [dateRange, setDateRange] = useState<RDateRange | undefined>();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  const assignedLeads = useMemo(
+    () => (profile?.leads ?? []).map(mapLead),
+    [profile?.leads],
+  );
+
+  const filteredAssignedLeads = useMemo(() => {
+    const from = dateRange?.from ? new Date(dateRange.from) : undefined;
+    const to = dateRange?.to ? new Date(dateRange.to) : from;
+
+    if (!from && !to) return assignedLeads;
+
+    const startTime = from
+      ? new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime()
+      : undefined;
+    const endTime = to
+      ? new Date(
+          to.getFullYear(),
+          to.getMonth(),
+          to.getDate(),
+          23,
+          59,
+          59,
+          999,
+        ).getTime()
+      : startTime;
+
+    return assignedLeads.filter((lead) => {
+      if (!lead.createdAt || startTime === undefined || endTime === undefined) {
+        return true;
+      }
+
+      const leadTime = new Date(lead.createdAt).getTime();
+      if (Number.isNaN(leadTime)) return true;
+      return leadTime >= startTime && leadTime <= endTime;
+    });
+  }, [assignedLeads, dateRange]);
+
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredAssignedLeads.length / rowsPerPage),
+  );
+
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+
+  const paginatedAssignedLeads = useMemo(
+    () =>
+      filteredAssignedLeads.slice(
+        (safeCurrentPage - 1) * rowsPerPage,
+        safeCurrentPage * rowsPerPage,
+      ),
+    [filteredAssignedLeads, rowsPerPage, safeCurrentPage],
+  );
 
   if (isLoading) {
     return (
@@ -170,7 +189,6 @@ export default function EmployeeProfilePage() {
         <h2 className="text-lg sm:text-xl font-semibold">Employee Profile</h2>
       </div>
 
-      {/* Header Card */}
       <Card className="px-6 sm:px-8 py-6 sm:py-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
         <div className="flex items-start sm:items-center gap-4">
           <Avatar size="lg">
@@ -209,12 +227,11 @@ export default function EmployeeProfilePage() {
         </div>
       </Card>
 
-      {/* Tabs */}
       <div>
         <div className="border-b">
-          <nav className="flex -mb-px space-x-6 px-6">
+          <nav className="flex -mb-px space-x-6 px-6 overflow-x-auto">
             <button
-              className={`py-4 text-sm ${
+              className={`py-4 text-sm whitespace-nowrap ${
                 activeTab === "personal"
                   ? "border-b-2 border-blue-500 text-blue-600"
                   : "text-gray-600"
@@ -224,17 +241,37 @@ export default function EmployeeProfilePage() {
               Personal Info
             </button>
             <button
-              className={`py-4 text-sm ${
-                activeTab === "assigned"
+              className={`py-4 text-sm whitespace-nowrap ${
+                activeTab === "assignedLeads"
                   ? "border-b-2 border-blue-500 text-blue-600"
                   : "text-gray-600"
               }`}
-              onClick={() => setActiveTab("assigned")}
+              onClick={() => setActiveTab("assignedLeads")}
             >
               Assigned Leads
             </button>
             <button
-              className={`py-4 text-sm ${
+              className={`py-4 text-sm whitespace-nowrap ${
+                activeTab === "assignedProjects"
+                  ? "border-b-2 border-blue-500 text-blue-600"
+                  : "text-gray-600"
+              }`}
+              onClick={() => setActiveTab("assignedProjects")}
+            >
+              Assigned Projects
+            </button>
+            <button
+              className={`py-4 text-sm whitespace-nowrap ${
+                activeTab === "assignedPlantProjects"
+                  ? "border-b-2 border-blue-500 text-blue-600"
+                  : "text-gray-600"
+              }`}
+              onClick={() => setActiveTab("assignedPlantProjects")}
+            >
+              Assigned plant projects
+            </button>
+            <button
+              className={`py-4 text-sm whitespace-nowrap ${
                 activeTab === "performance"
                   ? "border-b-2 border-blue-500 text-blue-600"
                   : "text-gray-600"
@@ -248,245 +285,56 @@ export default function EmployeeProfilePage() {
 
         <div className="pt-6">
           {activeTab === "personal" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white p-6 rounded-lg shadow relative">
-                <h4 className="font-semibold mb-4">Contact Information</h4>
-                <div className="space-y-4 text-sm text-gray-700">
-                  <div className="flex items-start gap-3">
-                    <div className="text-gray-400 mt-0.5">
-                      <Mail className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <div className="text-gray-500 text-xs">Email</div>
-                      <div className="mt-1 text-gray-900">{employee.email}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="text-gray-400 mt-0.5">
-                      <Phone className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <div className="text-gray-500 text-xs">Phone</div>
-                      <div className="mt-1 text-gray-900">
-                        {employee.phone ?? "N/A"}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <div className="text-gray-400 mt-0.5">
-                      <Calendar className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <div className="text-gray-500 text-xs">Join Date</div>
-                      <div className="mt-1 text-gray-900">
-                        {formatJoinedDate(employee.createdAt)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <button
-                    aria-label="Edit contact"
-                    className="absolute right-4 p-4 bottom-4"
-                    onClick={() => setEditDialogOpen(true)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-              <div className="relative bg-white p-6 rounded-lg shadow">
-                <h4 className="font-semibold mb-4">Roles & Permissions</h4>
-                <div className="space-y-3 text-sm text-gray-700">
-                  <div>
-                    <div className="text-gray-500 text-xs">Role</div>
-                    <div className="mt-1">
-                      <span className="inline-block px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-sm">
-                        {formatRole(employee.role)}
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-gray-500 text-xs">Permissions</div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-sm">
-                        Lead Access
-                      </span>
-                      <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-sm">
-                        Follow-ups Access
-                      </span>
-                      <span className="px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-sm">
-                        Reports Access
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  aria-label="Edit roles and permissions"
-                  className="absolute right-4 p-4 bottom-4"
-                  onClick={() => setEditDialogOpen(true)}
-                >
-                  <Edit className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
+            <EmployeePersonalTab
+              employee={employee}
+              onEdit={() => setEditDialogOpen(true)}
+            />
           )}
 
-          {activeTab === "assigned" && (
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden border border-gray-200">
-              <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
-                <h4 className="font-semibold text-gray-900">Assigned Leads</h4>
-                <p className="text-sm text-gray-500 mt-1">
-                  Leads currently associated with this employee.
-                </p>
-              </div>
+          {activeTab === "assignedLeads" && (
+            <EmployeeAssignedLeadsTab
+              leads={paginatedAssignedLeads}
+              dateRange={dateRange}
+              onDateRangeChange={(range) => {
+                setDateRange(range);
+                setCurrentPage(1);
+              }}
+              currentPage={safeCurrentPage}
+              rowsPerPage={rowsPerPage}
+              onPageChange={setCurrentPage}
+              onRowsPerPageChange={(rows) => {
+                setRowsPerPage(rows);
+                setCurrentPage(1);
+              }}
+            />
+          )}
 
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-gray-50">
-                      <TableHead className="text-xs text-gray-500 uppercase tracking-wider">
-                        Lead
-                      </TableHead>
-                      <TableHead className="text-xs text-gray-500 uppercase tracking-wider">
-                        Customer
-                      </TableHead>
-                      <TableHead className="text-xs text-gray-500 uppercase tracking-wider">
-                        Contact
-                      </TableHead>
-                      <TableHead className="text-xs text-gray-500 uppercase tracking-wider">
-                        Quote Value
-                      </TableHead>
-                      <TableHead className="text-xs text-gray-500 uppercase tracking-wider">
-                        Stage
-                      </TableHead>
-                      <TableHead className="text-xs text-gray-500 uppercase tracking-wider">
-                        Date
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {assignedLeads.map((lead: Lead) => (
-                      <TableRow key={lead.id} className="hover:bg-gray-50">
-                        <TableCell>
-                          <div>
-                            <div className="font-medium text-gray-900 truncate">
-                              {lead.name}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              {lead.code}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-gray-700">
-                            {lead.location}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <p className="text-sm text-gray-700 truncate">
-                              {lead.email ?? "N/A"}
-                            </p>
-                            <p className="text-sm text-gray-500 truncate">
-                              {lead.phone ?? "N/A"}
-                            </p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className="rounded-full bg-blue-100 text-blue-700 px-3 py-1 text-sm font-medium">
-                            {lead.priority ?? "N/A"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className="rounded-full bg-yellow-100 text-yellow-700 px-3 py-1 text-sm font-medium">
-                            {lead.stage ?? "N/A"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm font-medium text-gray-700">
-                            {lead.date}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+          {activeTab === "assignedProjects" && (
+            <EmployeeAssignedProjectsTab
+              dateRange={dateRange}
+              onDateRangeChange={(range) => {
+                setDateRange(range);
+                setCurrentPage(1);
+              }}
+            />
+          )}
 
-              {assignedLeads.length === 0 && (
-                <div className="py-8 text-center text-sm text-gray-500 border-t border-gray-200">
-                  No assigned leads found for this employee.
-                </div>
-              )}
-            </div>
+          {activeTab === "assignedPlantProjects" && (
+            <EmployeeAssignedPlantProjectsTab
+              dateRange={dateRange}
+              onDateRangeChange={(range) => {
+                setDateRange(range);
+                setCurrentPage(1);
+              }}
+            />
           )}
 
           {activeTab === "performance" && (
-            <div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                <StatCard
-                  title="Total Leads"
-                  value={
-                    <span className="font-semibold">
-                      {employeeStats?.totalLeads ?? 0}
-                    </span>
-                  }
-                  color="bg-blue-600"
-                  icon={<Users className="h-5 w-5 text-blue-600" />}
-                />
-
-                <StatCard
-                  title="Leads Closed"
-                  value={
-                    <span className="font-semibold">
-                      {employeeStats?.closedLeads ?? 0}
-                    </span>
-                  }
-                  color="bg-yellow-400"
-                  icon={<CheckSquare className="h-5 w-5 text-yellow-400" />}
-                />
-
-                <StatCard
-                  title="Conversion Rate"
-                  value={
-                    <span className="font-semibold">
-                      {employeeStats?.conversionRate ?? 0}%
-                    </span>
-                  }
-                  color="bg-green-500"
-                  icon={<Percent className="h-5 w-5 text-green-500" />}
-                />
-
-                <StatCard
-                  title="Follow-ups Completed"
-                  value={
-                    <span className="font-semibold">
-                      {employeeStats?.followUpsCompleted ?? 0}
-                    </span>
-                  }
-                  color="bg-orange-400"
-                  icon={<Smile className="h-5 w-5 text-orange-400" />}
-                />
-
-                <StatCard
-                  title="Revenue Generated"
-                  value={
-                    <div>
-                      <div className="text-2xl font-semibold">
-                        {formatCurrency(employeeStats?.revenueGenerated)}
-                      </div>
-                      <div className="text-xs opacity-80">Total</div>
-                    </div>
-                  }
-                  color="bg-rose-400"
-                  icon={<DollarSign className="h-5 w-5 text-rose-400" />}
-                />
-              </div>
-            </div>
+            <EmployeePerformanceTab stats={employeeStats} />
           )}
         </div>
       </div>
+
       <AddEmployeeDialog
         open={editDialogOpen}
         onOpenChange={setEditDialogOpen}
