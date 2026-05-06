@@ -1,9 +1,12 @@
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import SuccessDialog from "@/components/success-dialog";
+import AssignPlantPersonDialog from "@/components/customers/assign-plant-person-dialog";
 
 type ActivityLogEntry = {
   id: string;
@@ -123,6 +126,8 @@ function Label({ children }: { children: ReactNode }) {
 
 export default function PurchaseOrderDetailsPage() {
   const navigate = useNavigate();
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [assignPlantDialogOpen, setAssignPlantDialogOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#e9eef8] p-4 sm:p-6">
@@ -152,8 +157,11 @@ export default function PurchaseOrderDetailsPage() {
           >
             Reject
           </Button>
-          <Button className="bg-blue-600 text-white hover:bg-blue-700">
-            Approves PO
+          <Button
+            className="bg-blue-600 text-white hover:bg-blue-700"
+            onClick={() => setSuccessDialogOpen(true)}
+          >
+            Approve PO
           </Button>
         </div>
       </div>
@@ -404,6 +412,23 @@ export default function PurchaseOrderDetailsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <SuccessDialog
+        open={successDialogOpen}
+        onClose={() => setSuccessDialogOpen(false)}
+        title="Approved successfully"
+        actionLabel="Assign to plant"
+        onAction={() => {
+          setSuccessDialogOpen(false);
+          setAssignPlantDialogOpen(true);
+        }}
+      />
+
+      <AssignPlantPersonDialog
+        open={assignPlantDialogOpen}
+        onOpenChange={(open) => setAssignPlantDialogOpen(open)}
+        customerId={details.leadId}
+      />
     </div>
   );
 }
