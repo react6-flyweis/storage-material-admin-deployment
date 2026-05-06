@@ -20,8 +20,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Edit, Trash2, Search, Eye, Users } from "lucide-react";
+import { Trash2, Search, Eye, Users, PenLine } from "lucide-react";
 import { Link, useNavigate } from "react-router";
+import { EditEmployeeDialog } from "@/components/employees/edit-employee-dialog";
+import SuccessDialog from "@/components/success-dialog";
 
 export interface Employee {
   id: string;
@@ -45,6 +47,25 @@ export function EmployeeTable({ employees }: EmployeeTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
+  const [deletedEmployeeName, setDeletedEmployeeName] = useState<string>("");
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
+    null,
+  );
+
+  const handleEditDialogOpenChange = (open: boolean) => {
+    setEditDialogOpen(open);
+    if (!open) {
+      setSelectedEmployee(null);
+    }
+  };
+
+  const handleSaveEmployee = (
+    updatedEmployee: Omit<Employee, "joinedDate" | "leads" | "avatar">,
+  ) => {
+    console.log("Updated employee", updatedEmployee);
+  };
 
   const filteredEmployees = employees.filter((employee) => {
     const q = searchQuery.trim().toLowerCase();
@@ -104,7 +125,7 @@ export function EmployeeTable({ employees }: EmployeeTableProps) {
 
         <div className="flex gap-2">
           <Select value={roleFilter} onValueChange={setRoleFilter}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-35">
               <SelectValue placeholder="All Roles" />
             </SelectTrigger>
             <SelectContent>
@@ -119,7 +140,7 @@ export function EmployeeTable({ employees }: EmployeeTableProps) {
           </Select>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-35">
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent>
@@ -244,16 +265,24 @@ export function EmployeeTable({ employees }: EmployeeTableProps) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
-                        onClick={(e) => e.stopPropagation()}
+                        className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedEmployee(employee);
+                          setEditDialogOpen(true);
+                        }}
                       >
-                        <Edit className="h-4 w-4" />
+                        <PenLine className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDeletedEmployeeName(employee.name);
+                          setIsSuccessDialogOpen(true);
+                        }}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -271,6 +300,25 @@ export function EmployeeTable({ employees }: EmployeeTableProps) {
           </div>
         )}
       </div>
+
+      <SuccessDialog
+        open={isSuccessDialogOpen}
+        onClose={() => setIsSuccessDialogOpen(false)}
+        title={
+          deletedEmployeeName
+            ? `${deletedEmployeeName} Deleted`
+            : "Employee Deleted"
+        }
+        okLabel="OK"
+        icon={<Trash2 className="h-16 w-16 text-red-600 mx-auto" />}
+      />
+
+      <EditEmployeeDialog
+        open={editDialogOpen}
+        onOpenChange={handleEditDialogOpenChange}
+        employee={selectedEmployee ?? undefined}
+        onSave={handleSaveEmployee}
+      />
     </div>
   );
 }
