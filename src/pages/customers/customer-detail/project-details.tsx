@@ -36,7 +36,7 @@ const quickActionButtons1 = [
 const quickActionButtons2 = [
   { label: "Material Delivery", path: "material-delivery" },
   { label: "View Quotation", path: "project-quotation" },
-  { label: "View Agreement", path: "project-agreement" },
+  { label: "View Agreement", path: "/customers/contracts/1" },
   { label: "View Shipper Files", path: "project-shipper-files" },
 ];
 
@@ -168,7 +168,13 @@ export default function ProjectDetailsPage() {
               key={btn.label}
               variant="default"
               className="bg-[#1D51A4] hover:bg-[#1D51A4]/90 text-white rounded-[6px] shadow-sm"
-              onClick={() => navigate(`${basePath}/${btn.path}`)}
+              onClick={() =>
+                navigate(
+                  btn.path.startsWith("/")
+                    ? btn.path
+                    : `${basePath}/${btn.path}`,
+                )
+              }
             >
               {btn.label}
             </Button>
