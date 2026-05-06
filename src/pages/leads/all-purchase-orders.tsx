@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { MessageSquare } from "lucide-react";
+import { Eye } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,6 +12,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import SuccessDialog from "@/components/success-dialog";
+import AssignPlantPersonDialog from "@/components/customers/assign-plant-person-dialog";
 
 type PurchaseOrderRow = {
   id: string;
@@ -23,7 +26,7 @@ type PurchaseOrderRow = {
   assignedCount: string;
   status: "Purchase Order";
   quoteValue: string;
-  unreadChats: number;
+  paymentStatus: string;
 };
 
 const purchaseOrders: PurchaseOrderRow[] = [
@@ -37,7 +40,7 @@ const purchaseOrders: PurchaseOrderRow[] = [
     assignedCount: "1 person assigned",
     status: "Purchase Order",
     quoteValue: "$12,500",
-    unreadChats: 2,
+    paymentStatus: "Received",
   },
   {
     id: "po-2",
@@ -49,7 +52,7 @@ const purchaseOrders: PurchaseOrderRow[] = [
     assignedCount: "1 person assigned",
     status: "Purchase Order",
     quoteValue: "$12,500",
-    unreadChats: 2,
+    paymentStatus: "Received",
   },
   {
     id: "po-3",
@@ -61,7 +64,7 @@ const purchaseOrders: PurchaseOrderRow[] = [
     assignedCount: "1 person assigned",
     status: "Purchase Order",
     quoteValue: "$12,500",
-    unreadChats: 2,
+    paymentStatus: "Received",
   },
   {
     id: "po-4",
@@ -73,12 +76,15 @@ const purchaseOrders: PurchaseOrderRow[] = [
     assignedCount: "1 person assigned",
     status: "Purchase Order",
     quoteValue: "$12,500",
-    unreadChats: 2,
+    paymentStatus: "Received",
   },
 ];
 
 export default function AllPurchaseOrdersPage() {
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [assignPlantDialogOpen, setAssignPlantDialogOpen] = useState(false);
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const allSelected = useMemo(
@@ -144,7 +150,10 @@ export default function AllPurchaseOrdersPage() {
                   Quote Value
                 </TableHead>
                 <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 px-3">
-                  Chat
+                  Payment Status
+                </TableHead>
+                <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 px-3">
+                  Actions
                 </TableHead>
               </TableRow>
             </TableHeader>
@@ -225,17 +234,36 @@ export default function AllPurchaseOrdersPage() {
                     </TableCell>
 
                     <TableCell className="px-3 py-3">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs text-blue-700"
-                        aria-label={`Open chat for ${order.leadName}`}
-                      >
-                        <MessageSquare className="h-3.5 w-3.5" />
-                        Chat
-                        <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
-                          {order.unreadChats}
-                        </span>
-                      </button>
+                      <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-0 rounded-full text-[11px] font-medium px-3 py-0.5">
+                        {order.paymentStatus}
+                      </Badge>
+                    </TableCell>
+
+                    <TableCell className="px-3 py-3">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          aria-label={`View ${order.leadName}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/leads/purchase-orders/${order.id}`);
+                          }}
+                          className="text-purple-600"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+
+                        <Button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveOrderId(order.id);
+                            setSuccessDialogOpen(true);
+                          }}
+                        >
+                          Approve PO
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -244,6 +272,28 @@ export default function AllPurchaseOrdersPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <SuccessDialog
+        open={successDialogOpen}
+        onClose={() => setSuccessDialogOpen(false)}
+        title="Approved successfully"
+        actionLabel="Assign to plant"
+        onAction={() => {
+          setSuccessDialogOpen(false);
+          setAssignPlantDialogOpen(true);
+        }}
+      />
+
+      <AssignPlantPersonDialog
+        open={assignPlantDialogOpen}
+        onOpenChange={(open) => {
+          setAssignPlantDialogOpen(open);
+          if (!open) {
+            setActiveOrderId(null);
+          }
+        }}
+        customerId={activeOrderId}
+      />
     </div>
   );
 }
