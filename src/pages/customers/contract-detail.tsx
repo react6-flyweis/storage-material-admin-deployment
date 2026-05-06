@@ -361,17 +361,13 @@ export default function ContractDetail() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <Button
-            variant="outline"
             onClick={() => navigate("/customers/contracts")}
-            className="gap-2"
+            className="gap-2 bg-blue-600 hover:bg-blue-700"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
           </Button>
-          <Button
-            onClick={handleDownload}
-            className="gap-2 bg-blue-600 hover:bg-blue-700"
-          >
+          <Button onClick={handleDownload}>
             <Download className="h-4 w-4" />
             Download Contract
           </Button>
