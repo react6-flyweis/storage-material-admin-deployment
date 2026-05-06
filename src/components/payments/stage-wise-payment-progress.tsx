@@ -4,25 +4,18 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 const stageData = [
   {
-    title: "Deposit Paid",
+    title: "Initial Payment",
     completed: 80,
     clients: 12,
     amount: 250000,
     color: "#22c55e",
   },
   {
-    title: "Mid Payment",
-    completed: 50,
-    clients: 8,
-    amount: 280000,
-    color: "#eab308",
-  },
-  {
-    title: "Final Settlement",
+    title: "Final Payment",
     completed: 25,
     clients: 4,
     amount: 250000,
-    color: "#6b7280",
+    color: "#155EEF",
   },
 ];
 
@@ -82,12 +75,12 @@ export default function StageWisePaymentProgress({
   className?: string;
 }) {
   return (
-    <Card className={cn("w-full p-6", className)}>
+    <Card className={cn("w-full p-6 rounded-sm", className)}>
       <h2 className="text-lg font-semibold text-gray-900 mb-6">
         Stage wise payment progress
       </h2>
 
-      <div className="grid grid-cols-3 gap-8">
+      <div className="grid grid-cols-2 gap-8">
         {stageData.map((stage) => (
           <StageCircle
             key={stage.title}
