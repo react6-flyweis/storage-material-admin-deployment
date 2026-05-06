@@ -2,7 +2,7 @@ import { useEmployeePerformanceQuery } from "@/modules/employees/employees.hooks
 import MetricCard from "@/components/employee-performance/MetricCard";
 import PerformanceChart from "@/components/employee-performance/PerformanceChart";
 import TopPerformerCard from "@/components/employee-performance/TopPerformerCard";
-import PerformanceTable from "@/components/employee-performance/PerformanceTable";
+// import PerformanceTable from "@/components/employee-performance/PerformanceTable";
 import { getApiErrorMessage } from "@/lib/api-error";
 
 const CHART_COLORS = [
@@ -93,33 +93,25 @@ export default function EmployeePerformancePage() {
     <div className="space-y-6 p-5">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Employee Performance</h1>
+          <h1 className="text-3xl font-bold">Sales Employee Performance</h1>
           <p className="text-gray-600 mt-1">
-            Overview of staff performance and earnings.
+            Add, edit, and manage employees, teams, roles, and permissions.
           </p>
         </div>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center gap-2">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a5 5 0 00-5 5v1h10v-1a5 5 0 00-5-5zM15 8a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V8z" />
-          </svg>
-          Add Employee
-        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-white rounded-lg p-6 shadow-sm">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">Revenue Distribution</h2>
+            <div className="text-sm text-gray-500">Total: {totalLeads}</div>
+          </div>
           <div className="flex flex-col md:flex-row items-center gap-6">
             <PerformanceChart data={performanceData} />
 
             <div className="flex-1">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold">Revenue Distribution</h2>
-                <div className="text-sm text-gray-500">Total: {totalLeads}</div>
+                <h2 className="text-lg font-semibold">Performance Breakdown</h2>
               </div>
 
               <div className="space-y-3">
@@ -178,7 +170,7 @@ export default function EmployeePerformancePage() {
       </div>
 
       {/* Employee performance table */}
-      <PerformanceTable data={performanceData} />
+      {/* <PerformanceTable data={performanceData} /> */}
     </div>
   );
 }
