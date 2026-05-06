@@ -121,6 +121,7 @@ const PurchaseOrderDetails = lazy(
   () => import("@/pages/leads/purchase-order-details"),
 );
 const QuotationList = lazy(() => import("@/pages/leads/quotation-list"));
+const QuotationDetails = lazy(() => import("@/pages/leads/quotation-details"));
 
 // employees section
 const Employees = lazy(() => import("@/pages/employees/employees"));
@@ -207,6 +208,9 @@ const CogsAnalysis = lazy(
 const ExpensesPage = lazy(
   () => import("@/modules/accounts/pages/management/ExpensesPage"),
 );
+const ProductLibrary = lazy(
+  () => import("@/pages/product-library/product-library"),
+);
 const IncomePage = lazy(
   () => import("@/modules/accounts/pages/management/IncomePage"),
 );
@@ -267,6 +271,7 @@ export const adminRoutes: RouteObject[] = [
           { path: "sales-tax-filing", element: <SalesTaxFiling /> },
           { path: "pipeline-stages", element: <PipelineStages /> },
           { path: "sales-tax", element: <SalesTaxReportingLegacy /> },
+          { path: "product-library", element: <ProductLibrary /> },
 
           // leads routes
           {
@@ -284,6 +289,8 @@ export const adminRoutes: RouteObject[] = [
                 ],
               },
               { path: "quotation-list", element: <QuotationList /> },
+              { path: "quotation-details", element: <QuotationDetails /> },
+              { path: "quotation-details/:id", element: <QuotationDetails /> },
 
               // /leads/follow-up routes
               {
@@ -411,6 +418,7 @@ export const adminRoutes: RouteObject[] = [
             children: [
               { index: true, element: <Payments /> },
               { path: "sales-tax-reporting", element: <SalesTaxReporting /> },
+              { path: "sales-tax-filing", element: <SalesTaxFiling /> },
               {
                 path: "detailed-tax-report",
                 element: <DetailedTaxReportPage />,
