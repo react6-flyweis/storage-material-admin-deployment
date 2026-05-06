@@ -21,7 +21,45 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FieldGroup, FieldLegend, FieldSeparator } from "@/components/ui/field";
 import { Plus } from "lucide-react";
+
+const permissionItem = z.object({
+  main: z.boolean().optional(),
+  view: z.boolean().optional(),
+  edit: z.boolean().optional(),
+  delete: z.boolean().optional(),
+});
+
+const permissionsSchema = z.object({
+  lead_access: permissionItem.optional(),
+  follow_ups_access: permissionItem.optional(),
+  reports_access: permissionItem.optional(),
+  ai_support_access: permissionItem.optional(),
+  settings_access: permissionItem.optional(),
+  employees: permissionItem.optional(),
+  tax_report: permissionItem.optional(),
+  insights: permissionItem.optional(),
+  add_new_lead: permissionItem.optional(),
+  schedule_meeting: permissionItem.optional(),
+  generate_report: permissionItem.optional(),
+});
+
+type PermissionKey = keyof z.infer<typeof permissionsSchema>;
+
+const PERMISSIONS: { key: PermissionKey; label: string }[] = [
+  { key: "lead_access", label: "Lead access" },
+  { key: "follow_ups_access", label: "Follow-ups Access" },
+  { key: "reports_access", label: "Reports Access" },
+  { key: "ai_support_access", label: "AI Support Access" },
+  { key: "settings_access", label: "Settings Access" },
+  { key: "employees", label: "Employees" },
+  { key: "tax_report", label: "Tax & Report" },
+  { key: "insights", label: "Insights" },
+  { key: "add_new_lead", label: "Add new lead" },
+  { key: "schedule_meeting", label: "Schedule meeting" },
+  { key: "generate_report", label: "Generate Report" },
+];
 
 const addEmployeeSchema = z.object({
   name: z.string().min(1, "Full name is required"),
@@ -31,6 +69,7 @@ const addEmployeeSchema = z.object({
   team: z.string().min(1, "Team is required"),
   status: z.enum(["active", "inactive"]).optional(),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  permissions: permissionsSchema.optional(),
 });
 
 type AddEmployeeForm = z.infer<typeof addEmployeeSchema>;
@@ -50,6 +89,7 @@ const defaultFormValues: AddEmployeeForm = {
   team: "Sales",
   status: "active",
   password: "",
+  permissions: {},
 };
 
 export function AddEmployeeDialog({
@@ -79,14 +119,15 @@ export function AddEmployeeDialog({
       team: "Sales",
       status: "active",
       password: "",
+      permissions: {},
     },
   });
 
   useEffect(() => {
-    if (openState && initialValues) {
+    if (open && initialValues) {
       reset({ ...defaultFormValues, ...initialValues });
     }
-  }, [openState, initialValues, reset]);
+  }, [open, initialValues, reset]);
 
   const setOpen = (val: boolean) => {
     if (!isControlled) setOpenState(val);
@@ -170,7 +211,7 @@ export function AddEmployeeDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="team">Team / Division</Label>
+              <Label htmlFor="team">Department</Label>
               <Controller
                 control={control}
                 name="team"
@@ -244,6 +285,64 @@ export function AddEmployeeDialog({
                 </p>
               )}
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Confirm Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter password"
+                {...register("password")}
+              />
+              {errors.password && (
+                <p className="text-destructive text-sm">
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <FieldGroup>
+              <FieldLegend>Permissions</FieldLegend>
+              <FieldSeparator />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {PERMISSIONS.map((p) => (
+                  <div key={p.key as string} className="border-b pb-3">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        {...register(`permissions.${p.key}.main`)}
+                      />
+                      <Label>{p.label}</Label>
+                    </div>
+                    <div className="flex items-center gap-4 ml-6 mt-2 text-sm">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          {...register(`permissions.${p.key}.view`)}
+                        />
+                        <span className="text-muted-foreground">View</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          {...register(`permissions.${p.key}.edit`)}
+                        />
+                        <span className="text-muted-foreground">Edit</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          {...register(`permissions.${p.key}.delete`)}
+                        />
+                        <span className="text-muted-foreground">Delete</span>
+                      </label>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </FieldGroup>
           </div>
 
           <div className="flex justify-end gap-3 pt-2">
