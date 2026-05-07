@@ -14,12 +14,13 @@ import type { DateRange as RDateRange } from "react-day-picker";
 interface Props {
   value?: RDateRange;
   onChange?: (v: RDateRange | undefined) => void;
+  className?: string;
 }
 
-export default function DateRangePicker({ value, onChange }: Props) {
+export default function DateRangePicker({ value, onChange, className }: Props) {
   const [open, setOpen] = React.useState(false);
   const [range, setRange] = React.useState<RDateRange | undefined>(
-    value || undefined
+    value || undefined,
   );
 
   React.useEffect(() => setRange(value || undefined), [value]);
@@ -40,9 +41,9 @@ export default function DateRangePicker({ value, onChange }: Props) {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <div
-          role="button w-full"
+          role="button"
           tabIndex={0}
-          className="relative inline-block"
+          className={cn("relative inline-block rounded-xl", className)}
         >
           <Input
             readOnly
