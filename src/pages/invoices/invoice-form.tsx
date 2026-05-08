@@ -2,7 +2,6 @@ import { useForm, Controller, useFieldArray, useWatch } from "react-hook-form";
 import { Calendar, Plus, UserPlus } from "lucide-react";
 import { useState } from "react";
 import InvoiceLineItem from "./invoice-line-item";
-import AddProjectDialog from "@/components/add-project-dialog";
 import AddMarkupDialog from "@/components/add-markup-dialog";
 import AddDiscountDialog from "@/components/add-discount-dialog";
 import AddDepositDialog from "@/components/add-deposit-dialog";
@@ -44,8 +43,6 @@ export interface InvoiceFormValues {
   depositValue: string;
   paymentScheduleType: "%" | "$";
   paymentSchedulePayments: { name: string; amount: string }[];
-  projectId: string;
-  projectName: string;
   clientId: string;
   clientName: string;
   clientAvatar: string;
@@ -72,8 +69,6 @@ export default function InvoiceForm() {
         depositValue: "",
         paymentScheduleType: "%",
         paymentSchedulePayments: [],
-        projectId: "",
-        projectName: "",
         clientId: "",
         clientName: "",
         clientAvatar: "",
@@ -115,7 +110,6 @@ export default function InvoiceForm() {
   const depositValue = watchedValues?.depositValue ?? "";
   const paymentScheduleType = watchedValues?.paymentScheduleType ?? "%";
   const paymentSchedulePayments = watchedValues?.paymentSchedulePayments ?? [];
-  const projectId = watchedValues?.projectId ?? "";
   const clientId = watchedValues?.clientId ?? "";
   const clientName = watchedValues?.clientName ?? "";
   const clientAvatar = watchedValues?.clientAvatar ?? "";
@@ -268,7 +262,7 @@ export default function InvoiceForm() {
 
     return {
       // Current UI doesn't capture dedicated leadId/quotationId yet.
-      leadId: (data.projectId || "").trim(),
+      leadId: "",
       quotationId: (data.poNumber || "").trim(),
       date: data.date
         ? new Date(`${data.date}T00:00:00.000Z`).toISOString()
@@ -321,8 +315,6 @@ export default function InvoiceForm() {
         subtotal: calculateSubtotal(),
         taxAmount: calculateTax(),
         total: calculateTotal(),
-        projectId: values.projectId,
-        projectName: values.projectName,
       },
     });
   };
@@ -384,28 +376,6 @@ export default function InvoiceForm() {
           {/* Right: Invoice Meta & Client Add */}
           <div className="flex-1 max-w-2xl flex flex-col gap-6">
             <div className="flex flex-wrap justify-end gap-3">
-              <AddProjectDialog
-                initialSelected={projectId || null}
-                onDone={(project) => {
-                  if (!project) {
-                    setValue("projectId", "");
-                    setValue("projectName", "");
-                    return;
-                  }
-
-                  setValue("projectId", project.id);
-                  setValue("projectName", project.name);
-                }}
-              >
-                <Button
-                  variant="outline"
-                  className="border-blue-200 text-blue-600 hover:bg-blue-50 w-fit sm:w-auto h-12 px-8 flex items-center gap-2 rounded-md"
-                >
-                  <Plus className="w-4 h-4" />
-                  ADD PROJECT
-                </Button>
-              </AddProjectDialog>
-
               <AddClientDialog
                 initialSelected={clientId || null}
                 onDone={(client) => {
