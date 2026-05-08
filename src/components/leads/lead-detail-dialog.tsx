@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link, useNavigate } from "react-router";
+// import { useNavigate } from "react-router";
 import {
   Dialog,
   DialogTrigger,
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, FileText, User } from "lucide-react";
+import { CheckCircle, FileText, MessageSquareIcon, User } from "lucide-react";
 import ChatDialog from "./chat-dialog";
 import QuoteSummaryDialog from "./quote-summary-dialog";
 import TrackOrderLifecycleDialog from "./track-order-lifecycle-dialog";
@@ -257,7 +257,7 @@ export default function LeadDetailDialog({
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isConversationHistoryOpen, setIsConversationHistoryOpen] =
     useState(false);
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const effectiveLeadId = lead.backendId ?? lead.id;
   const isDialogOpen = open ?? internalOpen;
 
@@ -397,10 +397,10 @@ export default function LeadDetailDialog({
     onOpenChange?.(nextOpen);
   };
 
-  const handleOpenPayments = () => {
-    onOpenChange?.(false);
-    navigate(`/leads/${encodeURIComponent(lead.id)}/payments`);
-  };
+  // const handleOpenPayments = () => {
+  //   onOpenChange?.(false);
+  //   navigate(`/leads/${encodeURIComponent(lead.id)}/payments`);
+  // };
 
   return (
     <>
@@ -420,18 +420,17 @@ export default function LeadDetailDialog({
                 Leads Details - {customer?.firstName ?? lead.name}
               </DialogTitle>
               {/* badge or edit lead button */}
-              {escalationReason ? (
+              {escalationReason && (
                 <div className="bg-red-100 px-2 py-1 rounded  text-xs">
                   <span className="text-red-700 font-semibold">Escalated </span>{" "}
                   <span className="font-semibold">
                     | Reason: {escalationReason}
                   </span>
                 </div>
-              ) : (
-                <Link to={`/leads/${lead.id}/edit`}>
-                  <Button>Edit lead</Button>
-                </Link>
               )}
+              {/* // <Link to={`/leads/${lead.id}/edit`}>
+                //   <Button>Edit lead</Button>
+                // </Link> */}
             </div>
             <DialogDescription className="mt-1 text-sm text-gray-500">
               {customer?.customerId ?? lead.id}
@@ -471,12 +470,21 @@ export default function LeadDetailDialog({
               >
                 See Quotation
               </Button>
+              {/* assign a person */}
+              <Button
+                variant="outline"
+                size="sm"
+                className={topActionButtonClass}
+              >
+                Assign a person
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
                 className={topActionButtonClass}
                 onClick={() => setIsChatOpen(true)}
               >
+                <MessageSquareIcon className="h-4 w-4" />
                 Open Chat
               </Button>
               <Button
@@ -485,7 +493,7 @@ export default function LeadDetailDialog({
                 className={topActionButtonClass}
                 onClick={() => setIsConversationHistoryOpen(true)}
               >
-                Chat History
+                Call History
               </Button>
               <Button
                 variant="outline"
@@ -503,14 +511,14 @@ export default function LeadDetailDialog({
               >
                 Documents
               </Button>
-              <Button
+              {/* <Button
                 variant="outline"
                 size="sm"
                 className={topActionButtonClass}
                 onClick={handleOpenPayments}
               >
                 Payments
-              </Button>
+              </Button> */}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
