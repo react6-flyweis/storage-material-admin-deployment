@@ -6,12 +6,11 @@ import {
   Download,
   MessageSquare,
   Eye,
-  Edit,
-  FileText,
   Users,
   UserCheck,
   UserX,
   Mail,
+  Pen,
 } from "lucide-react";
 import ImportLeadsDialog from "@/components/leads/import-leads-dialog";
 import AssignSalesDialog from "@/components/leads/assign-sales-dialog";
@@ -19,6 +18,14 @@ import CreateQuotationDialog from "@/components/leads/create-quotation-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import StatCard from "@/components/ui/stat-card";
 import LeadDetailDialog from "@/components/leads/lead-detail-dialog";
 import ChatDialog from "@/components/leads/chat-dialog";
@@ -479,11 +486,11 @@ export default function LeadsPage() {
         {/* Table */}
         <Card className="p-0">
           <CardContent className="p-0">
-            <div className="overflow-x-auto overflow-y-auto ">
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b">
-                  <tr>
-                    <th className="px-4 py-3 text-left">
+            <div className="overflow-y-auto">
+              <Table>
+                <TableHeader className="bg-gray-50 border-b">
+                  <TableRow className="hover:bg-transparent border-b">
+                    <TableHead className="px-4 py-3 text-left">
                       <input
                         type="checkbox"
                         checked={
@@ -495,44 +502,47 @@ export default function LeadsPage() {
                         }
                         className="rounded border-gray-300"
                       />
-                    </th>
-                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    </TableHead>
+                    <TableHead className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Lead Info
-                    </th>
-                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    </TableHead>
+                    <TableHead className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Assigned To
-                    </th>
-                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    </TableHead>
+                    <TableHead className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Score
-                    </th>
-                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    </TableHead>
+                    <TableHead className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
-                    </th>
-                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    </TableHead>
+                    <TableHead className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Quote Value
-                    </th>
-                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    </TableHead>
+                    <TableHead className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Chat
-                    </th>
-                    <th className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    </TableHead>
+                    <TableHead className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody className="bg-white divide-y divide-gray-200">
                   {isLeadsLoading && (
-                    <tr>
-                      <td
+                    <TableRow>
+                      <TableCell
                         colSpan={8}
                         className="px-6 py-8 text-center text-sm text-gray-500"
                       >
                         Loading leads...
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )}
                   {filteredLeads.map((lead, index) => (
-                    <tr key={lead.id + index} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 sm:px-4 sm:py-4">
+                    <TableRow
+                      key={lead.id + index}
+                      className="hover:bg-gray-50"
+                    >
+                      <TableCell className="px-3 py-2 sm:px-4 sm:py-4">
                         <input
                           type="checkbox"
                           checked={selectedLeads.includes(lead.id)}
@@ -541,8 +551,8 @@ export default function LeadsPage() {
                           }
                           className="rounded border-gray-300"
                         />
-                      </td>
-                      <td className="px-3 py-2 sm:px-6 sm:py-4">
+                      </TableCell>
+                      <TableCell className="">
                         <div className="flex flex-col">
                           <span className="font-medium text-gray-900 text-nowrap whitespace-nowrap">
                             {lead.name}
@@ -554,8 +564,8 @@ export default function LeadsPage() {
                             {lead.workshop} · {lead.category}
                           </span>
                         </div>
-                      </td>
-                      <td className="px-3 py-2 sm:px-6 sm:py-4">
+                      </TableCell>
+                      <TableCell className="">
                         <div className="flex items-center gap-2">
                           {lead.assignedTo ? (
                             <>
@@ -593,8 +603,8 @@ export default function LeadsPage() {
                             </>
                           )}
                         </div>
-                      </td>
-                      <td className="px-3 py-2 sm:px-6 sm:py-4">
+                      </TableCell>
+                      <TableCell className="">
                         <div className="min-w-32">
                           <div className="relative h-4 w-full rounded-full bg-gray-200 overflow-hidden">
                             <div
@@ -614,41 +624,41 @@ export default function LeadsPage() {
                             </span>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-3 py-2 sm:px-6 sm:py-4">
+                      </TableCell>
+                      <TableCell className="">
                         <Badge
                           className={getStatusBadgeColor(lead.statusColor)}
                           variant="secondary"
                         >
                           {lead.status}
                         </Badge>
-                      </td>
-                      <td className="px-3 py-2 sm:px-6 sm:py-4">
+                      </TableCell>
+                      <TableCell className="">
                         <span className="font-medium text-gray-900">
                           {lead.quoteValue}
                         </span>
-                      </td>
-                      <td className="px-3 py-2 sm:px-6 sm:py-4">
+                      </TableCell>
+                      <TableCell className="">
                         <ChatDialog
                           lead={lead}
                           trigger={
                             <Button
-                              variant="ghost"
                               size="sm"
-                              className="relative p-2 h-8 w-8"
+                              className="relative rounded-full border-blue-200  text-blue-700 hover:bg-blue-100 text-xs h-6 bg-blue-50"
                             >
-                              <MessageSquare className="h-4 w-4 text-blue-600" />
+                              <MessageSquare className="size-3 text-blue-500" />
+                              Chat
                               {lead.chatCount > 0 && (
-                                <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">
+                                <span className="absolute -top-2 -right-2 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-red-500 px-1.5 text-[11px] font-semibold leading-none text-white shadow-sm">
                                   {lead.chatCount}
                                 </span>
                               )}
                             </Button>
                           }
                         />
-                      </td>
-                      <td className="px-3 py-2 sm:px-6 sm:py-4">
-                        <div className="flex items-center gap-2">
+                      </TableCell>
+                      <TableCell className="">
+                        <div className="flex items-center gap-1">
                           <LeadDetailDialog
                             lead={lead}
                             trigger={
@@ -657,27 +667,30 @@ export default function LeadsPage() {
                                 size="sm"
                                 className="p-2 h-8 w-8"
                               >
-                                <Eye className="h-4 w-4 text-gray-600" />
+                                <Eye className="h-4 w-4 text-blue-600" />
                               </Button>
                             }
                           />
                           <AssignSalesDialog
                             trigger={
                               <Button variant="ghost" size="icon">
-                                <UserPlus />
+                                <UserPlus className="text-green-600" />
                               </Button>
                             }
                           />
-                          <Link to={`/leads/${lead.id}/edit`}>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="p-2 h-8 w-8"
-                            >
-                              <Edit className="h-4 w-4 text-gray-600" />
-                            </Button>
-                          </Link>
                           <CreateQuotationDialog
+                            leadData={{ name: lead.name, id: lead.id }}
+                            trigger={
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="p-2 h-8 w-8"
+                              >
+                                <Pen className="h-4 w-4 text-emerald-600" />
+                              </Button>
+                            }
+                          />
+                          {/* <CreateQuotationDialog
                             leadData={{ name: lead.name, id: lead.id }}
                             trigger={
                               <Button
@@ -688,23 +701,23 @@ export default function LeadsPage() {
                                 <FileText className="h-4 w-4 text-gray-600" />
                               </Button>
                             }
-                          />
+                          /> */}
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
                   {!isLeadsLoading && filteredLeads.length === 0 && (
-                    <tr>
-                      <td
+                    <TableRow>
+                      <TableCell
                         colSpan={8}
                         className="px-6 py-8 text-center text-sm text-gray-500"
                       >
                         No leads match your search or filters.
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </CardContent>
         </Card>
