@@ -7,11 +7,23 @@ import type { AdminCustomer } from "@/modules/customers/customers.api";
 import CustomersTable, {
   type CustomerListItem,
 } from "@/components/customers/customers-table";
-import { Briefcase, CirclePlay, Users } from "lucide-react";
+
+import totalCustomersIcon from "@/assets/icons/customers/total-customers.svg";
+import activeCustomersIcon from "@/assets/icons/customers/active-customers.svg";
+import totalProjectsIcon from "@/assets/icons/customers/total-projects.svg";
+import projectsInExecutionIcon from "@/assets/icons/customers/projects-execution.svg";
+import { CirclePlay } from "lucide-react";
 
 type Customer = CustomerListItem & {
   createdAt: Date;
   isReturning?: boolean;
+};
+
+type StatCard = {
+  title: string;
+  value: string | number;
+  icon: string;
+  iconBgClassName: string;
 };
 
 function mapApiCustomerToCustomer(apiCustomer: AdminCustomer): Customer {
@@ -139,6 +151,45 @@ export default function CustomersPage() {
     setCurrentPage(1);
   };
 
+  const statCards: StatCard[] = [
+    {
+      title: "Total Customers",
+      value: stats.total,
+      icon: totalCustomersIcon,
+      iconBgClassName: "bg-blue-500",
+    },
+    {
+      title: "Active Customers",
+      value: stats.active,
+      icon: activeCustomersIcon,
+      iconBgClassName: "bg-orange-500",
+    },
+    {
+      title: "Total Projects",
+      value: 78,
+      icon: totalProjectsIcon,
+      iconBgClassName: "bg-teal-700",
+    },
+    {
+      title: "Project in Execution",
+      value: 32,
+      icon: projectsInExecutionIcon,
+      iconBgClassName: "bg-pink-500",
+    },
+    {
+      title: "Project Not Assigned",
+      value: 24,
+      icon: activeCustomersIcon,
+      iconBgClassName: "bg-orange-500",
+    },
+    {
+      title: "Completed Projects",
+      value: 18,
+      icon: totalProjectsIcon,
+      iconBgClassName: "bg-teal-700",
+    },
+  ];
+
   return (
     <>
       <FilterTabs
@@ -172,99 +223,24 @@ export default function CustomersPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-          {/* Total Customers Card */}
-          <div className="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
-            <div className="flex flex-col items-start gap-3">
-              <div className="bg-blue-500 rounded-full p-4">
-                <Users className="h-8 w-8 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-gray-600 text-sm font-medium">
-                  Total Customers
-                </p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {stats.total}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Active Customers Card */}
-          <div className="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
-            <div className="flex flex-col items-start gap-3">
-              <div className="bg-orange-500 rounded-full p-4">
-                <Briefcase className="h-8 w-8 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-gray-600 text-sm font-medium">
-                  Active Customers
-                </p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {stats.active}
-                </p>
+          {statCards.map(({ title, value, icon: Icon, iconBgClassName }) => (
+            <div
+              key={title}
+              className="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow"
+            >
+              <div className="flex flex-col items-start gap-3">
+                <div className={`${iconBgClassName} rounded-full p-4`}>
+                  <img src={Icon} alt={title} className="h-8 w-8 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-gray-600 text-sm font-medium">{title}</p>
+                  <p className="text-2xl font-bold text-gray-900 mt-1">
+                    {value}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
-
-          {/* Total Projects Card */}
-          <div className="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
-            <div className="flex flex-col items-start gap-3">
-              <div className="bg-teal-700 rounded-full p-4">
-                <Briefcase className="h-8 w-8 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-gray-600 text-sm font-medium">
-                  Total Projects
-                </p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">78</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Project in Execution Card */}
-          <div className="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
-            <div className="flex flex-col items-start gap-3">
-              <div className="bg-pink-500 rounded-full p-4">
-                <Briefcase className="h-8 w-8 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-gray-600 text-sm font-medium">
-                  Project in Execution
-                </p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">32</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Project Not Assigned Card */}
-          <div className="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
-            <div className="flex flex-col items-start gap-3">
-              <div className="bg-orange-500 rounded-full p-4">
-                <Briefcase className="h-8 w-8 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-gray-600 text-sm font-medium">
-                  Project Not Assigned
-                </p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">24</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Completed Projects Card */}
-          <div className="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
-            <div className="flex flex-col items-start gap-3">
-              <div className="bg-teal-700 rounded-full p-4">
-                <Briefcase className="h-8 w-8 text-white" />
-              </div>
-              <div className="flex-1">
-                <p className="text-gray-600 text-sm font-medium">
-                  Completed Projects
-                </p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">18</p>
-              </div>
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* Table */}
