@@ -1,4 +1,4 @@
-import { Shield, Users } from "lucide-react";
+import { SaveIcon, Shield, Users } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -445,7 +445,7 @@ export default function RolePermissions() {
   };
 
   return (
-    <div className="xl:px-5 px-2 md:pt-5 pb-10 space-y-5">
+    <div className="p-5 space-y-5">
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>
           <h1 className="xl:text-4xl text-2xl font-bold text-slate-800">
@@ -459,14 +459,11 @@ export default function RolePermissions() {
         <div className="flex items-center gap-3">
           <AddRoleDialog onRoleCreated={handleRoleCreated} />
           <Button
-            variant="outline"
-            className={cn(
-              "border-slate-200",
-              hasChanges ? "text-slate-700" : "text-slate-400",
-            )}
+            className={cn({ "bg-green-600": hasChanges })}
             disabled={!hasChanges}
             onClick={handleSaveChanges}
           >
+            <SaveIcon />
             Save Changes
           </Button>
         </div>
