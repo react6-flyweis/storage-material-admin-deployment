@@ -664,9 +664,7 @@ export function Sidebar({
                       sideOffset={14}
                       style={{
                         backgroundColor: group.color,
-                      }}
-                      arrowStyle={{
-                        color: group.color,
+                        "--foreground": group.color,
                       }}
                     >
                       {group.label}
