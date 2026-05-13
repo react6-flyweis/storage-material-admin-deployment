@@ -3,7 +3,7 @@ import { Search, Eye, CheckCircle, XCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+// import { Badge } from "@/components/ui/badge";
 import StatCard from "@/components/ui/stat-card";
 import { useNavigate } from "react-router";
 import {
@@ -46,17 +46,17 @@ const mockContracts = Array.from({ length: 8 }).map((_, i) => {
   };
 });
 
-const STATUS_COLOR_MAP: Record<string, string> = {
-  signed: "bg-green-50 text-green-700 border-green-200",
-  pending: "bg-yellow-50 text-yellow-700 border-yellow-200",
-  rejected: "bg-red-50 text-red-700 border-red-200",
-  default: "bg-gray-50 text-gray-700 border-gray-200",
-};
+// const STATUS_COLOR_MAP: Record<string, string> = {
+//   signed: "bg-green-50 text-green-700 border-green-200",
+//   pending: "bg-yellow-50 text-yellow-700 border-yellow-200",
+//   rejected: "bg-red-50 text-red-700 border-red-200",
+//   default: "bg-gray-50 text-gray-700 border-gray-200",
+// };
 
-function getStatusClasses(status?: string) {
-  if (!status) return STATUS_COLOR_MAP.default;
-  return STATUS_COLOR_MAP[status.toLowerCase()] || STATUS_COLOR_MAP.default;
-}
+// function getStatusClasses(status?: string) {
+//   if (!status) return STATUS_COLOR_MAP.default;
+//   return STATUS_COLOR_MAP[status.toLowerCase()] || STATUS_COLOR_MAP.default;
+// }
 
 export default function ContractsPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -161,9 +161,9 @@ export default function ContractsPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Date of Signature
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Contract Status
-                  </th>
+                  </th> */}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
@@ -184,14 +184,14 @@ export default function ContractsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {contract.dateOfSignature}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    {/* <td className="px-6 py-4 whitespace-nowrap">
                       <Badge
                         variant="outline"
                         className={getStatusClasses(contract.status)}
                       >
                         {contract.status}
                       </Badge>
-                    </td>
+                    </td> */}
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <Button
                         variant="ghost"
