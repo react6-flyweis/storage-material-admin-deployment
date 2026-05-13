@@ -14,7 +14,7 @@ import AddFollowUpDialog from "@/components/follow-up/add-follow-up-dialog";
 import LeadCommunicationTimeline from "@/components/leads/lead-communication-timeline";
 import AiScriptGenerator from "@/components/follow-up/ai-script-generator";
 import LeadScoring from "@/components/follow-up/lead-scoring";
-import FollowUpKpis from "@/components/follow-up/follow-up-kpis";
+// import FollowUpKpis from "@/components/follow-up/follow-up-kpis";
 import { useFollowUpStatsQuery } from "@/modules/followups/followups.hooks";
 
 export default function FollowUpPage() {
@@ -85,7 +85,7 @@ export default function FollowUpPage() {
         <AiScriptGenerator />
         <LeadCommunicationTimeline />
 
-        <FollowUpKpis />
+        {/* <FollowUpKpis /> */}
         <LeadScoring />
       </div>
 
