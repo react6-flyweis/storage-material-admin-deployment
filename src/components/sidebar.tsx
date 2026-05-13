@@ -14,8 +14,8 @@ import employeesIcon from "@/assets/icons/sidebar/employees.svg";
 import finance from "@/assets/icons/sidebar/finance.svg";
 import escalatedLeadsIcon from "@/assets/icons/sidebar/escalated-leads.svg";
 import followupIcon from "@/assets/icons/sidebar/followup.svg";
-import followupKpiIcon from "@/assets/icons/sidebar/followup-kpi.svg";
-import insightIcon from "@/assets/icons/sidebar/insight.svg";
+// import followupKpiIcon from "@/assets/icons/sidebar/followup-kpi.svg";
+// import insightIcon from "@/assets/icons/sidebar/insight.svg";
 import invoiceListIcon from "@/assets/icons/sidebar/invoice-list.svg";
 import invoices from "@/assets/icons/sidebar/invoices.svg";
 import leadScoringIcon from "@/assets/icons/sidebar/lead-scoring.svg";
@@ -42,13 +42,20 @@ import vendorInvoicesIcon from "@/assets/icons/sidebar/vendor-invoices.svg";
 import { Button } from "./ui/button";
 import activeBgImage from "@/assets/images/active-bg.png";
 import { cn } from "@/lib/utils";
+import { useEmployeeCountsStore } from "@/modules/employees/employees.store";
 import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   ChevronUpIcon,
   XIcon,
+  PanelLeftCloseIcon,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type NavGroup =
   | "dashboard"
@@ -82,7 +89,7 @@ interface NavigationGroup {
   id: NavGroup;
   icon: string;
   label: string;
-  color: string;
+  color: string; //hex string
   link: string;
   items: NavigationItem[];
 }
@@ -114,7 +121,7 @@ const navigationGroups: NavigationGroup[] = [
     id: "dashboard" as NavGroup,
     icon: dashboardIcon,
     label: "Dashboard",
-    color: "bg-[#1e3a8a]",
+    color: "#1e3a8a",
     link: "/dashboard",
     items: [],
   },
@@ -122,7 +129,7 @@ const navigationGroups: NavigationGroup[] = [
     id: "users" as NavGroup,
     icon: customer,
     label: "Customer",
-    color: "bg-[#EAB308]",
+    color: "#EAB308",
     link: "/customers",
     items: [
       { path: "/customers/meetings", label: "Meetings", icon: meetingsIcon },
@@ -143,7 +150,7 @@ const navigationGroups: NavigationGroup[] = [
     id: "links" as NavGroup,
     icon: leadsIcon,
     label: "Leads",
-    color: "bg-[#a855f7]",
+    color: "#a855f7",
     link: "/leads",
     items: [
       {
@@ -181,17 +188,17 @@ const navigationGroups: NavigationGroup[] = [
             label: "Lead Scoring",
             icon: leadScoringIcon,
           },
-          {
-            path: "/leads/follow-up/kpis",
-            label: "Follow-Up KPIs",
-            icon: followupKpiIcon,
-          },
+          // {
+          //   path: "/leads/follow-up/kpis",
+          //   label: "Follow-Up KPIs",
+          //   icon: followupKpiIcon,
+          // },
           // insights
-          {
-            path: "/leads/follow-up/insights",
-            label: "Insights",
-            icon: insightIcon,
-          },
+          // {
+          //   path: "/leads/follow-up/insights",
+          //   label: "Insights",
+          //   icon: insightIcon,
+          // },
         ],
       },
       // { path: "/leads/ai-marketing", label: "AI Support" },
@@ -217,7 +224,7 @@ const navigationGroups: NavigationGroup[] = [
     id: "teams" as NavGroup,
     icon: employee,
     label: "Employee Management",
-    color: "bg-[#ea580c]",
+    color: "#ea580c",
     link: "/employees",
     items: [
       {
@@ -276,7 +283,7 @@ const navigationGroups: NavigationGroup[] = [
     id: "product-library" as NavGroup,
     icon: productLibraryIcon,
     label: "Product Library",
-    color: "bg-[#55A6F7]",
+    color: "#55A6F7",
     link: "/product-library",
     items: [],
   },
@@ -284,7 +291,7 @@ const navigationGroups: NavigationGroup[] = [
     id: "settings" as NavGroup,
     icon: payments,
     label: "Payments",
-    color: "bg-[#16a34a]",
+    color: "#16a34a",
     link: "/payments",
     items: [
       // tax & report : Sales tax reporting
@@ -319,8 +326,8 @@ const navigationGroups: NavigationGroup[] = [
         icon: paymentApprovalIcon,
       },
       {
-        label: "Payment Status Dashboard",
-        path: "/payments/payment-status-dashboard",
+        label: "Payment Status",
+        path: "/payments/payment-status",
         icon: paymentStatusIcon,
       },
     ],
@@ -329,7 +336,7 @@ const navigationGroups: NavigationGroup[] = [
     id: "role-permissions" as NavGroup,
     icon: reportsIcon,
     label: "Role Permissions",
-    color: "bg-[#000000]",
+    color: "#000000",
     link: "/role-permissions",
     items: [],
   },
@@ -337,7 +344,7 @@ const navigationGroups: NavigationGroup[] = [
     id: "documents" as NavGroup,
     icon: invoices,
     label: "Invoices",
-    color: "bg-[#a855f7]",
+    color: "#a855f7",
     link: "/invoice",
     items: [
       // invite list
@@ -364,7 +371,7 @@ const navigationGroups: NavigationGroup[] = [
     id: "gallery" as NavGroup,
     icon: plant,
     label: "Plant",
-    color: "bg-[#0ea5e9]",
+    color: "#0ea5e9",
     link: "/plant",
     items: [
       { path: "/plant/equipment_management", label: "Equipment" },
@@ -418,7 +425,7 @@ const navigationGroups: NavigationGroup[] = [
     id: "accounts" as NavGroup,
     icon: finance,
     label: "Financial Overview",
-    color: "bg-[#f97316]",
+    color: "#f97316",
     link: "/accounts",
     items: [
       { path: "/accounts/payment_overview", label: "Payment Overview" },
@@ -433,7 +440,7 @@ const navigationGroups: NavigationGroup[] = [
     id: "construction" as NavGroup,
     icon: construction,
     label: "Construction",
-    color: "bg-[#dc2626]",
+    color: "#dc2626",
     link: "/construction",
     items: [
       { path: "/construction/projects", label: "Project & Calendar" },
@@ -446,20 +453,30 @@ const navigationGroups: NavigationGroup[] = [
     id: "messages" as NavGroup,
     icon: communication,
     label: "Communication",
-    color: "bg-gray-400",
+    color: "#9ca3af",
     link: "/communication",
-    items: [{ path: "/communication/ai-chat", label: "AI Chat" }],
+    items: [
+      // { path: "/communication/ai-chat", label: "AI Chat" }
+    ],
   },
 ];
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
+  isMainCollapsed?: boolean;
+  setIsMainCollapsed?: (val: boolean) => void;
 }
 
-export function Sidebar({ isOpen, onClose }: SidebarProps) {
+export function Sidebar({
+  isOpen,
+  onClose,
+  isMainCollapsed = false,
+  setIsMainCollapsed,
+}: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const employeeCounts = useEmployeeCountsStore();
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
     () => {
       return new Set(
@@ -473,6 +490,20 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   );
 
   const currentPath = location.pathname;
+
+  const getEmployeeBadge = (path: string, fallbackBadge?: number) => {
+    if (path === "/employees") {
+      return employeeCounts.total;
+    }
+
+    const teamParam = new URLSearchParams(path.split("?")[1] ?? "").get("team");
+
+    if (!teamParam) {
+      return fallbackBadge;
+    }
+
+    return employeeCounts.byTeam[teamParam.toLowerCase()] ?? 0;
+  };
 
   // Determine active group based on current path
   const activeGroup =
@@ -560,6 +591,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const handleGroupChange = (group: (typeof navigationGroups)[0]) => {
     navigate(group.link);
+    setIsMainCollapsed(false);
     // Close sidebar on mobile after navigation
     if (window.innerWidth < 768) {
       onClose();
@@ -589,45 +621,71 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         }`}
       >
         {/* Icon Sidebar */}
-        <aside className="w-14 pt-28 bg-[#2563eb] h-screen flex flex-col items-center gap-4 z-20">
+        <aside
+          className="w-18 pt-28 pb-8 bg-[#2563eb] h-screen flex flex-col items-center gap-4 z-20 overflow-y-auto thin-scrollbar relative"
+          style={{ scrollbarGutter: "stable" }}
+        >
           <nav className="flex flex-col gap-3">
             {navigationGroups.map((group) => {
               const iconSrc = group.icon as string;
               const isActive = activeGroup.id === group.id;
 
               return (
-                <button
-                  key={group.id}
-                  onClick={() => handleGroupChange(group)}
-                  className={`relative flex items-center justify-center transition-all `}
-                  title={group.label}
-                >
-                  {isActive && (
-                    <img
-                      src={activeBgImage}
-                      alt="Active background"
-                      className="absolute -right-3 max-w-13 object-contain"
-                    />
+                <Tooltip key={group.id}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => handleGroupChange(group)}
+                      className={`relative flex items-center justify-center transition-all `}
+                    >
+                      {isActive && (
+                        <img
+                          src={activeBgImage}
+                          alt="Active background"
+                          className="absolute -right-3 max-w-13 object-contain"
+                        />
+                      )}
+                      <div
+                        style={{
+                          backgroundColor: group.color,
+                        }}
+                        className={`z-10 w-9 h-9 flex items-center justify-center rounded-full`}
+                      >
+                        <img
+                          src={iconSrc}
+                          alt={group.label}
+                          className="max-w-5 max-h-5 object-contain"
+                        />
+                      </div>
+                    </button>
+                  </TooltipTrigger>
+                  {isMainCollapsed && (
+                    <TooltipContent
+                      side="right"
+                      sideOffset={14}
+                      style={{
+                        backgroundColor: group.color,
+                      }}
+                      arrowStyle={{
+                        color: group.color,
+                      }}
+                    >
+                      {group.label}
+                    </TooltipContent>
                   )}
-                  <div
-                    className={`z-10 w-9 h-9 flex items-center justify-center rounded-full ${
-                      group.color
-                    } ${isActive ? "" : ""}`}
-                  >
-                    <img
-                      src={iconSrc}
-                      alt={group.label}
-                      className="max-w-5 max-h-5 object-contain"
-                    />
-                  </div>
-                </button>
+                </Tooltip>
               );
             })}
           </nav>
         </aside>
 
         {/* Main Sidebar */}
-        <aside className="w-56 bg-[#E8EFF9] h-full flex flex-col overflow-y-auto thin-scrollbar z-30">
+        <aside
+          className={cn(
+            "bg-[#E8EFF9] h-full flex flex-col overflow-y-auto thin-scrollbar z-30 transition-all duration-300",
+            isMainCollapsed ? "w-0 opacity-0 overflow-hidden" : "w-56",
+          )}
+          style={{ scrollbarGutter: "stable" }}
+        >
           {/* Header */}
           <div className="p-2 border-b relative">
             {/* Close button for mobile */}
@@ -637,11 +695,22 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             >
               <XIcon className="h-5 w-5" />
             </button>
-            <div className="flex items-center gap-3">
-              <div>
-                <h2 className="text-lg font-bold text-gray-800">Admin Panel</h2>
-                <p className="text-xs text-gray-500">admin@steelpro.com</p>
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-800">
+                    Admin Panel
+                  </h2>
+                  <p className="text-xs text-gray-500">admin@steelpro.com</p>
+                </div>
               </div>
+              <button
+                onClick={() => setIsMainCollapsed(true)}
+                className="hidden lg:block p-1 mt-1 text-gray-500 hover:bg-gray-200 rounded"
+                title="Collapse Sidebar"
+              >
+                <PanelLeftCloseIcon className="size-5" />
+              </button>
             </div>
             <div className="flex items-center justify-between mt-1 text-xs text-gray-400">
               <Button
@@ -670,12 +739,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               <NavLink
                 to={activeGroup.link}
                 onClick={handleNavClick}
-                className={() =>
-                  cn(
-                    "block px-4 py-2 rounded-md transition-colors text-sm w-[95%] mb-5 text-white",
-                    activeGroup.color,
-                  )
-                }
+                style={{
+                  backgroundColor: activeGroup.color,
+                }}
+                className="block px-4 py-2 rounded-md transition-colors text-sm w-[95%] mb-5 text-white"
               >
                 <div className="flex items-center gap-2">
                   <span>{activeGroup.label}</span>
@@ -724,19 +791,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                                 key={subItem.path}
                                 to={subItem.path}
                                 onClick={handleNavClick}
+                                style={
+                                  isActiveExact
+                                    ? { backgroundColor: activeGroup.color }
+                                    : {}
+                                }
                                 className={() =>
                                   cn(
                                     "block px-4 py-2 rounded transition-colors text-sm",
                                     {
-                                      [`text-white ${activeGroup.color}`]:
-                                        isActiveExact,
+                                      "text-white": isActiveExact,
                                       "bg-white shadow": !isActiveExact,
-                                      // islast
-                                      "mb-6":
-                                        subItem ===
-                                        item.subItems?.[
-                                          item.subItems.length - 1
-                                        ],
                                     },
                                   )
                                 }
@@ -764,9 +829,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                                     <span>{subItem.label}</span>
                                   </div>
 
-                                  {subItem.badge ? (
+                                  {getEmployeeBadge(
+                                    subItem.path,
+                                    subItem.badge,
+                                  ) !== undefined ? (
                                     <div className="flex items-center justify-center w-7 h-7 rounded-full bg-gray-50 shadow text-sm text-gray-600">
-                                      {subItem.badge}
+                                      {getEmployeeBadge(
+                                        subItem.path,
+                                        subItem.badge,
+                                      )}
                                     </div>
                                   ) : null}
                                 </div>
@@ -784,28 +855,32 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                     key={item.path}
                     to={item.path}
                     onClick={handleNavClick}
-                    className={({ isActive }) =>
-                      cn(
-                        "block px-4 py-2 rounded transition-colors text-sm",
-                        {
-                          [`text-white ${activeGroup.color}`]: isActive,
-                        },
-                        {
-                          "bg-white shadow-lg": !isActive,
-                        },
-                      )
-                    }
                   >
                     {({ isActive }) => (
-                      <div className="flex items-center gap-2">
-                        <SidebarItemIcon
-                          src={item.icon}
-                          alt={item.label}
-                          className={cn({
-                            "brightness-0 invert": isActive,
-                          })}
-                        />
-                        <span>{item.label}</span>
+                      <div
+                        style={
+                          isActive ? { backgroundColor: activeGroup.color } : {}
+                        }
+                        className={cn(
+                          "block px-4 py-2 rounded transition-colors text-sm",
+                          {
+                            "text-white": isActive,
+                          },
+                          {
+                            "bg-white shadow-lg": !isActive,
+                          },
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <SidebarItemIcon
+                            src={item.icon}
+                            alt={item.label}
+                            className={cn({
+                              "brightness-0 invert": isActive,
+                            })}
+                          />
+                          <span>{item.label}</span>
+                        </div>
                       </div>
                     )}
                   </NavLink>
