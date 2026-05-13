@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
-import { X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -116,22 +115,11 @@ export function EditEmployeeDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto p-0">
-        <div className="relative border-b px-6 py-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">
-              Edit Employee
-            </DialogTitle>
-          </DialogHeader>
-          <DialogClose asChild>
-            <button
-              type="button"
-              className="absolute right-4 top-4 rounded-full p-2 text-gray-500 hover:bg-slate-100 hover:text-gray-700"
-              aria-label="Close"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </DialogClose>
-        </div>
+        <DialogHeader className="border-b px-6 py-6">
+          <DialogTitle className="text-xl font-semibold">
+            Edit Employee
+          </DialogTitle>
+        </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 px-6 py-6">
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
