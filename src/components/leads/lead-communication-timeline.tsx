@@ -76,18 +76,19 @@ export default function LeadCommunicationTimeline() {
           <CardDescription>Recent activities</CardDescription>
         </div>
 
-        {/* <div className="flex items-center space-x-2" data-slot="card-action">
-          <Link to="/leads/follow-up/communication-timeline">
+        <div className="flex items-center space-x-2" data-slot="card-action">
+          <Link to="/leads/1/notes">
             <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
               + Add Note
             </Button>
           </Link>
-          <Link to="/leads/follow-up/communication-timeline">
+          <Link to="/leads/1/calls">
             <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Phone className="" />
               Log Call
             </Button>
           </Link>
-        </div> */}
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-3">
