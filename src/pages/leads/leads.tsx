@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
+import type { DateRange } from "react-day-picker";
 import {
   UserPlus,
   Download,
@@ -39,6 +40,8 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import FilterTabs, { type Period } from "@/components/FilterTabs";
+import TitleSubtitle from "@/components/TitleSubtitle";
+import DateRangeFilter from "@/components/ui/date-range-filter";
 import { apiClient } from "@/modules/auth/auth.api";
 
 type LeadsStatsData = {
@@ -183,6 +186,7 @@ export default function LeadsPage() {
   const [assignments, setAssignments] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [period, setPeriod] = useState<Period>("Month");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [successOpen, setSuccessOpen] = useState(false);
   const page = 1;
@@ -298,10 +302,42 @@ export default function LeadsPage() {
     return true;
   };
 
+  const isInDateRange = (date: Date) => {
+    if (!dateRange?.from && !dateRange?.to) return true;
+
+    const leadDate = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate(),
+    );
+    const from = dateRange.from
+      ? new Date(
+          dateRange.from.getFullYear(),
+          dateRange.from.getMonth(),
+          dateRange.from.getDate(),
+        )
+      : undefined;
+    const to = dateRange.to
+      ? new Date(
+          dateRange.to.getFullYear(),
+          dateRange.to.getMonth(),
+          dateRange.to.getDate(),
+        )
+      : from;
+
+    if (from && leadDate < from) return false;
+    if (to && leadDate > to) return false;
+    return true;
+  };
+
   // Compute filtered leads based on search + filters
   const filteredLeads = leads.filter((lead) => {
     // Period filter
     if (!isInPeriod(lead.createdAt)) {
+      return false;
+    }
+
+    if (!isInDateRange(lead.createdAt)) {
       return false;
     }
 
@@ -358,9 +394,13 @@ export default function LeadsPage() {
       />
       <div className="p-4 sm:p-6 space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl sm:text-3xl text-gray-900">Leads</h1>
-          <p className="text-gray-500 mt-1">Assign and view leads</p>
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <TitleSubtitle title="Leads" subtitle="Assign and view leads" />
+          <DateRangeFilter
+            value={dateRange}
+            onChange={setDateRange}
+            className="max-w-xs bg-white"
+          />
         </div>
 
         {/* Stats Cards */}
