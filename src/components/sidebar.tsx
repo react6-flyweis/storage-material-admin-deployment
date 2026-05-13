@@ -622,7 +622,7 @@ export function Sidebar({
       >
         {/* Icon Sidebar */}
         <aside
-          className="w-18 pt-28 pb-8 bg-[#2563eb] h-screen flex flex-col items-center gap-4 z-20 overflow-y-auto thin-scrollbar relative"
+          className="w-18 pt-28 pb-8 bg-sidebar h-screen flex flex-col items-center gap-4 z-20 overflow-y-auto thin-scrollbar relative"
           style={{ scrollbarGutter: "stable" }}
         >
           <nav className="flex flex-col gap-3">
