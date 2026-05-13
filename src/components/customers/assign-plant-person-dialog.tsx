@@ -46,8 +46,8 @@ export default function AssignPlantPersonDialog({
   const { control, handleSubmit, reset } = useForm<FormValues>({
     defaultValues: {
       assignPlant: "James Lee",
-      priority: "Low",
-      panel: "Plant",
+      // priority: "Low",
+      // panel: "Plant",
       notes: "James Lee",
     },
   });
@@ -91,7 +91,7 @@ export default function AssignPlantPersonDialog({
 
         <form onSubmit={handleSubmit(onAssign)} className="space-y-4 p-4">
           <div>
-            <Label htmlFor="assignPlant">Assign Plant</Label>
+            <Label htmlFor="assignPlant">Assign Employee</Label>
             <Controller
               control={control}
               name="assignPlant"
@@ -110,7 +110,7 @@ export default function AssignPlantPersonDialog({
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {/* <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="priority">Priority</Label>
               <Controller
@@ -150,7 +150,7 @@ export default function AssignPlantPersonDialog({
                 )}
               />
             </div>
-          </div>
+          </div> */}
 
           <div>
             <Label htmlFor="notes">Notes</Label>
@@ -167,17 +167,14 @@ export default function AssignPlantPersonDialog({
             />
           </div>
 
-          <DialogFooter className="p-4 flex flex-wrap gap-3 justify-end">
+          <DialogFooter className="p-4 pb-0 border-t flex flex-wrap gap-3 justify-end">
             <DialogClose asChild>
-              <Button variant="ghost" type="button" className="min-w-35">
+              <Button size="lg" variant="secondary" type="button" className="">
                 Cancel
               </Button>
             </DialogClose>
-            <Button
-              type="submit"
-              className="min-w-35 bg-blue-600 hover:bg-blue-700"
-            >
-              Assign to Plant
+            <Button size="lg" type="submit" className="">
+              Assign Project
             </Button>
           </DialogFooter>
         </form>
