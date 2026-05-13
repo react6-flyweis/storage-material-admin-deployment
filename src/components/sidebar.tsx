@@ -464,8 +464,8 @@ const navigationGroups: NavigationGroup[] = [
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
-  isMainCollapsed?: boolean;
-  setIsMainCollapsed?: (val: boolean) => void;
+  isMainCollapsed: boolean;
+  setIsMainCollapsed: (val: boolean) => void;
 }
 
 export function Sidebar({
