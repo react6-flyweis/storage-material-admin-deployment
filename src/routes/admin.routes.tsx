@@ -158,6 +158,27 @@ const PaymentStatusDashboard = lazy(
   () => import("@/pages/payments/payment-status-dashboard"),
 );
 
+const ProductLibrary = lazy(
+  () => import("@/pages/product-library/product-library"),
+);
+
+// Finance
+const FinancialOverview = lazy(
+  () => import("@/pages/finance/financial-overview"),
+);
+const WipProfitsPage = lazy(() => import("@/pages/finance/wip-profits"));
+const ProfitLossPage = lazy(() => import("@/pages/finance/profit-loss"));
+const ExpensesManagement = lazy(
+  () => import("@/pages/finance/expenses-management"),
+);
+const FreightCostTracking = lazy(
+  () => import("@/pages/finance/freight-cost-tracking"),
+);
+const MarginAnalysisPage = lazy(
+  () => import("@/pages/finance/margin-analysis"),
+);
+const BudgetActualPage = lazy(() => import("@/pages/finance/budget-actual"));
+
 // Invoice section
 const InvoiceForm = lazy(() => import("@/pages/invoices/invoice-form"));
 const InvoiceList = lazy(() => import("@/pages/invoices/invoice-list"));
@@ -208,44 +229,6 @@ const UsageTrackingView = lazy(
 const PlantDashboard = lazy(() => import("@/plant/pages/PlantPage"));
 
 // Financial Accounts section
-
-const PaymentOverview = lazy(
-  () => import("@/modules/accounts/pages/PaymentOverview"),
-);
-const OrdersAndPaymentsPage = lazy(
-  () => import("@/modules/accounts/pages/OrdersAndPaymentsPage"),
-);
-const WipProfitPage = lazy(
-  () => import("@/modules/accounts/pages/analysis/WipProfitPage"),
-);
-const CogsAnalysis = lazy(
-  () => import("@/modules/accounts/pages/analysis/CogsAnalysis"),
-);
-const ExpensesPage = lazy(
-  () => import("@/modules/accounts/pages/management/ExpensesPage"),
-);
-const ProductLibrary = lazy(
-  () => import("@/pages/product-library/product-library"),
-);
-const IncomePage = lazy(
-  () => import("@/modules/accounts/pages/management/IncomePage"),
-);
-const LaborExpensesPage = lazy(
-  () => import("@/modules/accounts/pages/management/LaborExpensesPage"),
-);
-const AccountsDashboard = lazy(
-  () => import("@/modules/accounts/pages/Dashboard"),
-);
-const NewInvoice = lazy(() => import("@/modules/accounts/pages/NewInvoice"));
-const InvoicePreview = lazy(
-  () => import("@/modules/accounts/pages/InvoicePreview"),
-);
-const FinancialReportPage = lazy(
-  () => import("@/modules/accounts/pages/management/FinancialReportPage"),
-);
-const TaxationPage = lazy(
-  () => import("@/modules/accounts/pages/management/TaxationPage"),
-);
 
 // Construction Panel (lazy imports)
 const ConstructionDashboard = lazy(
@@ -563,57 +546,20 @@ export const adminRoutes: RouteObject[] = [
 
           // Financial accounts routes
           {
-            path: "/accounts",
+            path: "finance",
             children: [
-              { index: true, element: <AccountsDashboard /> },
+              { index: true, element: <FinancialOverview /> },
+              { path: "budget-actual", element: <BudgetActualPage /> },
+              { path: "wip-profits", element: <WipProfitsPage /> },
+              { path: "profit-loss", element: <ProfitLossPage /> },
+              { path: "expenses", element: <ExpensesManagement /> },
               {
-                path: "",
-                element: <AccountsDashboard />,
+                path: "freight-cost-tracking",
+                element: <FreightCostTracking />,
               },
               {
-                path: "payment_overview",
-                element: <PaymentOverview />,
-              },
-              {
-                path: "payments/new-invoice",
-                element: <NewInvoice />,
-              },
-              {
-                path: "payments/invoice/preview",
-                element: <InvoicePreview />,
-              },
-              {
-                path: "order_payments",
-                element: <OrdersAndPaymentsPage />,
-              },
-              {
-                path: "cogs_analysis",
-                element: <CogsAnalysis />,
-              },
-
-              {
-                path: "expenses",
-                element: <ExpensesPage />,
-              },
-              {
-                path: "wip_profit",
-                element: <WipProfitPage />,
-              },
-              {
-                path: "reports",
-                element: <FinancialReportPage />,
-              },
-              {
-                path: "taxation",
-                element: <TaxationPage />,
-              },
-              {
-                path: "income",
-                element: <IncomePage />,
-              },
-              {
-                path: "labor_expenses",
-                element: <LaborExpensesPage />,
+                path: "margin-analysis",
+                element: <MarginAnalysisPage />,
               },
             ],
           },
