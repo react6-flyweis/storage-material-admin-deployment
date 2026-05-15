@@ -119,7 +119,7 @@ export default function Dashboard() {
       {/* Tabs */}
       <FilterTabs initialPeriod={period} onPeriodChange={setPeriod} />
 
-      <div className="lg:pr-5 lg:pt-5 p-5 lg:p-0 space-y-5">
+      <div className="p-5  space-y-5">
         {/* Header */}
         <div className="">
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
