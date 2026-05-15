@@ -42,7 +42,7 @@ export function AdminLayout() {
           ref={scrollRef}
           className={cn(
             "flex-1 flex flex-col ml-0 overflow-auto transition-all duration-300",
-            isMainCollapsed ? "lg:ml-[72px]" : "lg:ml-[296px]",
+            isMainCollapsed ? "lg:ml-18" : "lg:ml-74",
           )}
         >
           <Header onMenuClick={toggleSidebar} />
