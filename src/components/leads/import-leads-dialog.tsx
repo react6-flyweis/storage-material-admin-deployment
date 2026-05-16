@@ -14,8 +14,7 @@ import { Upload } from "lucide-react";
 import * as XLSX from "xlsx";
 import uploadIcon from "@/assets/icons/upload.svg";
 import SuccessDialog from "@/components/success-dialog";
-import { apiClient } from "@/modules/auth/auth.api";
-import { queryClient } from "@/lib/query-client";
+import { useImportLeadsMutation } from "@/modules/leads/leads.hooks";
 import { getApiErrorMessage } from "@/lib/api-error";
 
 const REQUIRED_HEADERS = ["name", "email", "phone", "projectType"] as const;
@@ -119,8 +118,8 @@ export default function ImportLeadsDialog() {
   const [previewRows, setPreviewRows] = useState<string[][]>([]);
   const [isParsingFile, setIsParsingFile] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [isImporting, setIsImporting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const importLeadsMutation = useImportLeadsMutation();
 
   const onChoose = () => inputRef.current?.click();
 
@@ -162,19 +161,14 @@ export default function ImportLeadsDialog() {
   };
 
   const handleImport = async () => {
-    if (!selectedFile || isImporting) return;
+    if (!selectedFile || importLeadsMutation.isPending) return;
 
-    setIsImporting(true);
     setErrorMessage(null);
 
     try {
       const csv = parsedCsv || (await parseLeadFile(selectedFile)).csv;
 
-      await apiClient.post("/api/admin/leads/import", {
-        csv,
-      });
-
-      await queryClient.invalidateQueries({ queryKey: ["leads", "admin"] });
+      await importLeadsMutation.mutateAsync({ csv });
 
       setSelectedFile(null);
       setParsedCsv("");
@@ -188,8 +182,6 @@ export default function ImportLeadsDialog() {
     } catch (error) {
       const fallbackMessage = "Unable to import leads. Please try again.";
       setErrorMessage(getApiErrorMessage(error, fallbackMessage));
-    } finally {
-      setIsImporting(false);
     }
   };
 
@@ -326,10 +318,13 @@ export default function ImportLeadsDialog() {
             className="w-40"
             onClick={handleImport}
             disabled={
-              !selectedFile || !parsedCsv || isParsingFile || isImporting
+              !selectedFile ||
+              !parsedCsv ||
+              isParsingFile ||
+              importLeadsMutation.isPending
             }
           >
-            {isImporting ? "Importing..." : "Import Leads"}
+            {importLeadsMutation.isPending ? "Importing..." : "Import Leads"}
           </Button>
         </DialogFooter>
       </DialogContent>
