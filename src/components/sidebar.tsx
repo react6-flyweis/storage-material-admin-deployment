@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate } from "react-router";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import dashboardIcon from "@/assets/icons/sidebar/dashboard.svg";
 import activityLogIcon from "@/assets/icons/sidebar/activity-log.svg";
 import aiScriptIcon from "@/assets/icons/sidebar/ai-script.svg";
@@ -60,11 +60,6 @@ import {
   XIcon,
   ArrowLeft,
 } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 type NavGroup =
   | "dashboard"
@@ -516,6 +511,16 @@ export function Sidebar({
   const location = useLocation();
   const navigate = useNavigate();
   const employeeCounts = useEmployeeCountsStore();
+  const iconSidebarScrollRef = useRef<HTMLDivElement | null>(null);
+  const [hoveredGroup, setHoveredGroup] = useState<{
+    label: string;
+    top: number;
+    left: number;
+  } | null>(null);
+  const [activePillPosition, setActivePillPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(
     () => {
       return new Set(
@@ -527,9 +532,6 @@ export function Sidebar({
       );
     },
   );
-
-  const iconSidebarRef = useRef<HTMLElement | null>(null);
-  // const [hasScrollbar, setHasScrollbar] = useState(false);
 
   const currentPath = location.pathname;
 
@@ -565,6 +567,40 @@ export function Sidebar({
         return currentPath.startsWith(item.path);
       });
     }) || navigationGroups[0];
+
+  useLayoutEffect(() => {
+    const updateActivePillPosition = () => {
+      const scrollContainer = iconSidebarScrollRef.current;
+      const activeButton = scrollContainer?.querySelector<HTMLButtonElement>(
+        `[data-group-id="${activeGroup.id}"]`,
+      );
+
+      if (!activeButton) {
+        setActivePillPosition(null);
+        return;
+      }
+
+      const rect = activeButton.getBoundingClientRect();
+
+      setActivePillPosition({
+        top: rect.top + rect.height / 2,
+        left: rect.right - 12,
+      });
+    };
+
+    updateActivePillPosition();
+
+    const scrollContainer = iconSidebarScrollRef.current;
+    scrollContainer?.addEventListener("scroll", updateActivePillPosition, {
+      passive: true,
+    });
+    window.addEventListener("resize", updateActivePillPosition);
+
+    return () => {
+      scrollContainer?.removeEventListener("scroll", updateActivePillPosition);
+      window.removeEventListener("resize", updateActivePillPosition);
+    };
+  }, [activeGroup.id, isOpen]);
 
   // Auto-expand collapsible section if any of its child routes is active
   useEffect(() => {
@@ -689,75 +725,84 @@ export function Sidebar({
         }`}
       >
         {/* Icon Sidebar */}
-        <aside
-          ref={iconSidebarRef}
-          // change the width to w-18 when scrollbar is there
-          // Move the scrollbar to the left by flipping container direction to rtl
-          // and forcing the inner content back to ltr so layout is unchanged.
-          style={{ scrollbarGutter: "stable", direction: "rtl" }}
-          className={`w-18 pt-28 pb-8 bg-sidebar h-screen flex flex-col items-center gap-4 z-20 overflow-y-auto thin-scrollbar relative`}
-        >
-          <div style={{ direction: "ltr" }}>
-            <nav className="flex flex-col gap-5">
-              {navigationGroups.map((group) => {
-                const iconSrc = group.icon as string;
-                const isActive = activeGroup.id === group.id;
+        <aside className="sidebar relative z-40 w-18 h-screen bg-sidebar overflow-visible">
+          <div
+            ref={iconSidebarScrollRef}
+            style={{ scrollbarGutter: "stable", direction: "rtl" }}
+            className="h-full pt-28 pb-8 flex flex-col items-center gap-4 overflow-y-scroll overflow-x-visible thin-scrollbar"
+          >
+            <div style={{ direction: "ltr" }}>
+              <nav className="flex flex-col gap-5">
+                {navigationGroups.map((group) => {
+                  const iconSrc = group.icon as string;
 
-                const groupButton = (
-                  <button
-                    onClick={() => handleGroupChange(group)}
-                    className="relative flex items-center justify-center transition-all"
-                  >
-                    {isActive && (
-                      <img
-                        src={activeBgImage}
-                        alt="Active background"
-                        className="absolute -right-3 max-w-14 object-contain"
-                      />
-                    )}
-                    <div
-                      style={{
-                        backgroundColor: group.color,
+                  return (
+                    <button
+                      key={group.id}
+                      data-group-id={group.id}
+                      onClick={() => handleGroupChange(group)}
+                      onMouseEnter={(event) => {
+                        const rect =
+                          event.currentTarget.getBoundingClientRect();
+                        setHoveredGroup({
+                          label: group.label,
+                          top: rect.top + rect.height / 2,
+                          left: rect.left - 4,
+                        });
                       }}
-                      className="z-10 size-10 flex items-center justify-center rounded-full"
+                      onMouseLeave={() => setHoveredGroup(null)}
+                      className="relative flex items-center justify-center transition-all group focus:outline-none"
                     >
-                      <img
-                        src={iconSrc}
-                        alt={group.label}
-                        className="max-w-5 max-h-5 object-contain"
-                      />
-                    </div>
-                  </button>
-                );
-
-                return (
-                  <Tooltip key={group.id}>
-                    <TooltipTrigger asChild>
-                      <div>{groupButton}</div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      side="right"
-                      sideOffset={14}
-                      // silent ts error
-                      style={{
-                        backgroundColor: group.color,
-                        // @ts-expect-error: next-line
-                        "--foreground": group.color,
-                      }}
-                    >
-                      {group.label}
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              })}
-            </nav>
+                      <div
+                        style={{
+                          backgroundColor: group.color,
+                        }}
+                        className="z-50 relative size-10 flex items-center justify-center rounded-full group-hover:scale-105"
+                      >
+                        <img
+                          src={iconSrc}
+                          alt={group.label}
+                          className="max-w-5 max-h-5 object-contain"
+                        />
+                      </div>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
           </div>
+
+          {isOpen && activePillPosition && (
+            <img
+              src={activeBgImage}
+              alt=""
+              aria-hidden="true"
+              className="pointer-events-none fixed z-40 w-14 object-contain"
+              style={{
+                top: activePillPosition.top,
+                left: activePillPosition.left,
+                transform: "translateY(-50%)",
+              }}
+            />
+          )}
+
+          {hoveredGroup && (
+            <div
+              className="fixed flex items-center bg-white rounded-full py-1 px-4 pointer-events-none whitespace-nowrap shadow-[0_10px_20px_-5px_rgba(0,0,0,0.1),0_8px_8px_-6px_rgba(0,0,0,0.1)] z-40 -translate-y-1/2"
+              style={{ top: hoveredGroup.top, left: hoveredGroup.left }}
+            >
+              <div className="w-10 h-10 shrink-0" />
+              <span className="font-normal text-black text-sm lg:text-base tracking-tight">
+                {hoveredGroup.label}
+              </span>
+            </div>
+          )}
         </aside>
 
         {/* Main Sidebar */}
         <aside
           className={cn(
-            "bg-[#E8EFF9] h-full flex flex-col overflow-y-auto thin-scrollbar z-30 transition-all duration-300",
+            "sidebar bg-[#E8EFF9] h-full flex flex-col overflow-y-auto thin-scrollbar z-30 transition-all duration-300",
             isMainCollapsed ? "w-0 opacity-0 overflow-hidden" : "w-56",
           )}
           style={{ scrollbarGutter: "stable" }}
