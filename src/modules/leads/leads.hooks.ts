@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/modules/auth/auth.api";
+import { importLeadsProvider, type ImportLeadsPayload } from "./leads.api";
 
 type EscalationStatus = "pending" | "assigned" | "resolved";
 
@@ -56,5 +57,20 @@ export function useEscalatedLeadsQuery() {
     queryKey: ["admin", "escalations"],
     queryFn: getEscalationsProvider,
     staleTime: 60 * 1000,
+  });
+}
+
+export function useImportLeadsMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: ImportLeadsPayload) => importLeadsProvider(payload),
+    onSuccess: (response) => {
+      if (!response.success) {
+        return;
+      }
+
+      void queryClient.invalidateQueries({ queryKey: ["leads", "admin"] });
+    },
   });
 }
