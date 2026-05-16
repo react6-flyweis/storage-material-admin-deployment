@@ -88,70 +88,21 @@ export default function CustomerDetailLayout() {
     address: customer.address,
   };
 
-  const projectHistory = [
-    {
-      project: "Project 1",
-      jobId: "PRO-001",
-      projectName: "ABC Building",
-      amount: "$5,0000",
-      status: "Completed",
-      startDate: "Apr 02, 2024",
-      endDate: "May 02, 2024",
-    },
-    {
-      project: "Project 2",
-      jobId: "PRO-002",
-      projectName: "XYZ Building",
-      amount: "$5,0000",
-      status: "Completed",
-      startDate: "Apr 02, 2024",
-      endDate: "May 02, 2024",
-    },
-    {
-      project: "Project 3",
-      jobId: "PRO-003",
-      projectName: "PQR Building",
-      amount: "$5,0000",
-      status: "In progress",
-      startDate: "Apr 02, 2024",
-      endDate: "May 02, 2024",
-    },
-  ];
+  function humanizeStatus(s?: string) {
+    if (!s) return "-";
+    return s.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
 
-  const invoiceRows = [
-    {
-      invoiceNumber: "INV001",
-      dueDate: "24 Dec 2024",
-      amount: "$500",
-      paid: "$500",
-      amountDue: "$500",
-      status: "Paid",
-    },
-    {
-      invoiceNumber: "INV002",
-      dueDate: "10 Dec 2024",
-      amount: "$1500",
-      paid: "$1500",
-      amountDue: "$1500",
-      status: "Paid",
-    },
-    {
-      invoiceNumber: "INV003",
-      dueDate: "27 Nov 2024",
-      amount: "$600",
-      paid: "$600",
-      amountDue: "$600",
-      status: "Paid",
-    },
-    {
-      invoiceNumber: "INV004",
-      dueDate: "18 Nov 2024",
-      amount: "$1000",
-      paid: "$1000",
-      amountDue: "$1000",
-      status: "Unpaid",
-    },
-  ];
+  function formatDate(value?: string | null) {
+    if (!value) return "-";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "-";
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "2-digit",
+      year: "numeric",
+    });
+  }
 
   const photos = [photo1, photo2, photo3, photo4, photo5];
 
@@ -260,42 +211,46 @@ export default function CustomerDetailLayout() {
                 </tr>
               </thead>
               <tbody>
-                {projectHistory.map((project, index) => (
-                  <tr
-                    key={index}
-                    className="border-b last:border-0 hover:bg-transparent"
-                  >
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      {project.project}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {project.jobId}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {project.projectName}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {project.amount}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`text-sm ${
-                          project.status === "Completed"
-                            ? "text-green-600"
-                            : "text-orange-600"
-                        }`}
-                      >
-                        {project.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {project.startDate}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {project.endDate}
-                    </td>
-                  </tr>
-                ))}
+                {(customerDetailResponse?.data.projects ?? []).map(
+                  (p, index) => (
+                    <tr
+                      key={p._id ?? index}
+                      className="border-b last:border-0 hover:bg-transparent"
+                    >
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {p.buildingType || "N/A"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {p._id}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {p.location || "N/A"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {formatCurrency(p.quoteValue ?? 0)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`text-sm ${
+                            (p.lifecycleStatus || "")
+                              .toLowerCase()
+                              .includes("completed")
+                              ? "text-green-600"
+                              : "text-orange-600"
+                          }`}
+                        >
+                          {humanizeStatus(p.lifecycleStatus)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {formatDate(p.createdAt)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {formatDate(p.updatedAt)}
+                      </td>
+                    </tr>
+                  ),
+                )}
               </tbody>
             </table>
           </div>
@@ -370,50 +325,76 @@ export default function CustomerDetailLayout() {
                 </tr>
               </thead>
               <tbody>
-                {invoiceRows.map((invoice) => (
-                  <tr
-                    key={invoice.invoiceNumber}
-                    className="border-b last:border-0 hover:bg-transparent"
-                  >
-                    <td className="px-6 py-4 text-sm font-medium text-orange-500">
-                      {invoice.invoiceNumber}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {invoice.dueDate}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {invoice.amount}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {invoice.paid}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {invoice.amountDue}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold text-white ${
-                          invoice.status === "Paid"
-                            ? "bg-emerald-500"
-                            : "bg-red-600"
-                        }`}
-                      >
-                        <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-white" />
-                        {invoice.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {invoice.status === "Unpaid" ? (
-                        <Button
-                          type="button"
-                          className="h-6 rounded-md bg-indigo-600 px-2.5 text-xs font-medium text-white hover:bg-indigo-700"
+                {(customerDetailResponse?.data.invoices ?? []).map((inv) => {
+                  const invoiceDate = inv.date ? new Date(inv.date) : null;
+                  const dueDate =
+                    invoiceDate && typeof inv.daysToPay === "number"
+                      ? new Date(
+                          invoiceDate.getTime() +
+                            inv.daysToPay * 24 * 60 * 60 * 1000,
+                        )
+                      : invoiceDate;
+
+                  const amount = inv.totalAmount ?? 0;
+                  const paid = inv.paidAt ? amount : (inv.depositAmount ?? 0);
+                  const amountDue = Math.max(
+                    0,
+                    amount - (inv.depositAmount ?? 0),
+                  );
+
+                  return (
+                    <tr
+                      key={inv._id ?? inv.invoiceNumber}
+                      className="border-b last:border-0 hover:bg-transparent"
+                    >
+                      <td className="px-6 py-4 text-sm font-medium text-orange-500">
+                        {inv.invoiceNumber ??
+                          inv._id?.slice(-6).toUpperCase() ??
+                          "-"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {dueDate
+                          ? dueDate.toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "2-digit",
+                              year: "numeric",
+                            })
+                          : "-"}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {formatCurrency(amount)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {formatCurrency(paid)}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700">
+                        {formatCurrency(amountDue)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold text-white ${
+                            (inv.status || "").toLowerCase() === "paid"
+                              ? "bg-emerald-500"
+                              : "bg-red-600"
+                          }`}
                         >
-                          Mark as paid
-                        </Button>
-                      ) : null}
-                    </td>
-                  </tr>
-                ))}
+                          <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-white" />
+                          {inv.status ?? "-"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {inv.status === "Unpaid" ? (
+                          <Button
+                            type="button"
+                            className="h-6 rounded-md bg-indigo-600 px-2.5 text-xs font-medium text-white hover:bg-indigo-700"
+                          >
+                            Mark as paid
+                          </Button>
+                        ) : null}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
