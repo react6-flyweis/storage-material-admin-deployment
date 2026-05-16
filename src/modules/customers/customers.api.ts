@@ -47,13 +47,50 @@ export type AdminCustomerProject = {
   updatedAt?: string;
 };
 
+export type AdminCustomerInvoiceLineItem = {
+  images?: string[];
+  items?: string[];
+  rate?: number;
+  markup?: number;
+  quantity?: number;
+  tax?: number;
+  total?: number;
+  _id?: string;
+};
+
+export type AdminCustomerInvoice = {
+  _id: string;
+  leadId?: string;
+  customerId?: string;
+  quotationId?: string;
+  createdBy?: string;
+  invoiceNumber?: string;
+  date?: string;
+  paymentScheduleId?: string;
+  daysToPay?: number;
+  poNumber?: string;
+  lineItems?: AdminCustomerInvoiceLineItem[];
+  subtotal?: number;
+  markupTotal?: number;
+  discount?: number;
+  depositAmount?: number;
+  totalAmount?: number;
+  status?: string;
+  sentAt?: string;
+  paidBy?: string;
+  paidAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  __v?: number;
+};
+
 export type GetAdminCustomerDetailData = {
   customer: AdminCustomer;
   totalPaid: number;
   totalPending: number;
   totalInvoices: number;
   projects: AdminCustomerProject[];
-  invoices: unknown[];
+  invoices: AdminCustomerInvoice[];
 };
 
 export type GetAdminCustomerDetailResponse = {
