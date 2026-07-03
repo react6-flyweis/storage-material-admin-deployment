@@ -1,6 +1,8 @@
-import { useState } from "react";
-import { ArrowLeft, Minus, Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, Minus, Plus, Loader2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getLeadDetailProvider, updateLeadProvider } from "@/modules/leads/leads.api";
 import SuccessDialog from "@/components/success-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,12 +20,13 @@ type LeadFormData = {
   firstName: string;
   lastName: string;
   email: string;
+  countryCode: string;
   phone: string;
   companyName: string;
   jobTitle: string;
   leadSource: string;
   leadStatus: string;
-  estimatedValue: string;
+  quoteValue: number;
   priority: string;
   notes: string;
   width: number;
@@ -34,18 +37,21 @@ type LeadFormData = {
   doors: number;
   windows: number;
   insulation: number;
+  projectName: string;
+  location: string;
 };
 
 const getInitialFormData = (): LeadFormData => ({
   firstName: "",
   lastName: "",
   email: "",
+  countryCode: "+1",
   phone: "",
   companyName: "",
   jobTitle: "",
   leadSource: "",
   leadStatus: "New",
-  estimatedValue: "",
+  quoteValue: 0,
   priority: "Medium",
   notes: "",
   width: 0,
@@ -56,6 +62,8 @@ const getInitialFormData = (): LeadFormData => ({
   doors: 0,
   windows: 0,
   insulation: 0,
+  projectName: "",
+  location: "",
 });
 
 interface CounterInputProps {
@@ -128,12 +136,106 @@ export default function EditLeadPage() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const queryClient = useQueryClient();
+
+  const { data: response, isLoading } = useQuery({
+    queryKey: ["lead", "detail", leadId],
+    queryFn: () => getLeadDetailProvider(leadId!),
+    enabled: !!leadId,
+  });
+
+  useEffect(() => {
+    if (response?.data) {
+      const lead = response.data.lead;
+      const customer = response.data.customer;
+
+      setFormData({
+        firstName: customer?.firstName || "",
+        lastName: customer?.lastName || "",
+        email: customer?.email || "",
+        countryCode: (() => {
+          const p = typeof customer?.phone === 'object' ? customer?.phone?.number : (customer?.phone || "");
+          if (p.startsWith("+44")) return "+44";
+          if (p.startsWith("+91")) return "+91";
+          if (p.startsWith("+61")) return "+61";
+          if (p.startsWith("+86")) return "+86";
+          return "+1";
+        })(),
+        phone: (() => {
+          const p = typeof customer?.phone === 'object' ? customer?.phone?.number : (customer?.phone || "");
+          if (p.startsWith("+44")) return p.slice(3).trim();
+          if (p.startsWith("+91")) return p.slice(3).trim();
+          if (p.startsWith("+61")) return p.slice(3).trim();
+          if (p.startsWith("+86")) return p.slice(3).trim();
+          if (p.startsWith("+1")) return p.slice(2).trim();
+          const digits = p.replace(/\D/g, "");
+          return digits.startsWith("1") ? digits.slice(1) : digits;
+        })(),
+        companyName: customer?.company || lead?.company || "",
+        jobTitle: lead?.jobTitle || "",
+        leadSource: lead?.source || "",
+        leadStatus: lead?.lifecycleStatus || "New",
+        quoteValue: Number(lead?.quoteValue) || 0,
+        priority: lead?.priority || "Medium",
+        notes: lead?.notes || "",
+        width: Number(lead?.width) || 0,
+        length: Number(lead?.length) || 0,
+        height: Number(lead?.height) || 0,
+        roofStyle: lead?.roofStyle || "",
+        buildingType: lead?.buildingType || "",
+        doors: Number(lead?.numDoors) || 0,
+        windows: Number(lead?.numWindows) || 0,
+        insulation: Number(lead?.numInsulation) || 0,
+        projectName: lead?.projectName || "",
+        location: lead?.location || "",
+      });
+    }
+  }, [response]);
+
+  const updateMutation = useMutation({
+    mutationFn: (payload: any) => updateLeadProvider(leadId!, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["lead", "detail", leadId] });
+      setShowSuccess(true);
+      setTimeout(() => navigate('/leads'), 1500);
+    },
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Lead updated:", leadId, formData);
-    setShowSuccess(true);
-    setTimeout(() => navigate("/leads"), 500);
+    updateMutation.mutate({
+      customerFirstName: formData.firstName,
+      customerLastName: formData.lastName,
+      customerEmail: formData.email,
+      customerPhone: `${formData.countryCode} ${formData.phone}`.trim(),
+      company: formData.companyName,
+      jobTitle: formData.jobTitle,
+      source: formData.leadSource,
+      lifecycleStatus: formData.leadStatus,
+      quoteValue: Number(formData.quoteValue) || 0,
+      priority: formData.priority,
+      notes: formData.notes,
+      width: Number(formData.width) || 0,
+      length: Number(formData.length) || 0,
+      height: Number(formData.height) || 0,
+      roofStyle: formData.roofStyle,
+      buildingType: formData.buildingType,
+      doors: Number(formData.doors) || 0,
+      windows: Number(formData.windows) || 0,
+      insulation: Number(formData.insulation) || 0,
+      projectName: formData.projectName,
+      location: formData.location,
+    });
   };
+
+  if (isLoading) {
+    return (
+      <div className="w-full min-h-screen flex items-center justify-center bg-[#eef2ff]">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full min-h-0 p-4 sm:p-6">
@@ -158,12 +260,12 @@ export default function EditLeadPage() {
 
       <form
         onSubmit={handleSubmit}
-        className="max-w-5xl rounded-lg border border-slate-200 bg-white px-5 py-6 shadow-sm sm:px-6"
+        className="w-full rounded-lg border border-slate-200 bg-white px-5 py-6 shadow-sm sm:px-6"
       >
         <div className="space-y-7">
           <section>
             <h2 className="mb-4 text-base font-semibold text-slate-800">
-              Personal Infoirmation
+              Personal Information
             </h2>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
@@ -178,6 +280,7 @@ export default function EditLeadPage() {
                   placeholder="Enter First Name"
                   className="h-10"
                   required
+                  disabled
                 />
               </div>
               <div className="space-y-2">
@@ -192,6 +295,7 @@ export default function EditLeadPage() {
                   placeholder="Enter Last Name"
                   className="h-10"
                   required
+                  disabled
                 />
               </div>
               <div className="space-y-2">
@@ -207,164 +311,93 @@ export default function EditLeadPage() {
                   placeholder="Enter Email Address"
                   className="h-10"
                   required
+                  disabled
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone" className="text-xs text-slate-600">
                   Phone Number <span className="text-red-500">*</span>
                 </Label>
-                <Input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  placeholder="Enter Phone Number"
-                  className="h-10"
-                  required
-                />
+                <div className="flex gap-2">
+                  <Select
+                    value={formData.countryCode}
+                    onValueChange={(value) => handleSelectChange("countryCode", value)}
+                    disabled
+                  >
+                    <SelectTrigger className="w-[110px] h-10 shrink-0">
+                      <SelectValue placeholder="Code" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="+1">🇺🇸 +1</SelectItem>
+                      <SelectItem value="+44">🇬🇧 +44</SelectItem>
+                      <SelectItem value="+91">🇮🇳 +91</SelectItem>
+                      <SelectItem value="+61">🇦🇺 +61</SelectItem>
+                      <SelectItem value="+86">🇨🇳 +86</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    placeholder="Enter Phone Number"
+                    className="h-10 flex-1"
+                    required
+                    disabled
+                  />
+                </div>
               </div>
             </div>
           </section>
 
-          <section>
-            <h2 className="mb-4 text-base font-semibold text-slate-800">
-              Company Information
-            </h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="companyName" className="text-xs text-slate-600">
-                  Company Name <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="companyName"
-                  name="companyName"
-                  value={formData.companyName}
-                  onChange={handleInputChange}
-                  placeholder="Enter company name"
-                  className="h-10"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="jobTitle" className="text-xs text-slate-600">
-                  Job title <span className="text-red-500">*</span>
-                </Label>
-                <Input
-                  id="jobTitle"
-                  name="jobTitle"
-                  value={formData.jobTitle}
-                  onChange={handleInputChange}
-                  placeholder="Enter job title"
-                  className="h-10"
-                  required
-                />
-              </div>
-            </div>
-          </section>
+
+
+
 
           <section>
             <h2 className="mb-4 text-base font-semibold text-slate-800">
-              Lead Details
+              Project & Site Location
             </h2>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="leadSource" className="text-xs text-slate-600">
-                  Lead Source <span className="text-red-500">*</span>
-                </Label>
-                <Select
-                  value={formData.leadSource}
-                  onValueChange={(value) =>
-                    handleSelectChange("leadSource", value)
-                  }
-                >
-                  <SelectTrigger id="leadSource" className="h-10">
-                    <SelectValue placeholder="Select lead source" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="website">Website</SelectItem>
-                    <SelectItem value="referral">Referral</SelectItem>
-                    <SelectItem value="social-media">Social Media</SelectItem>
-                    <SelectItem value="cold-call">Cold Call</SelectItem>
-                    <SelectItem value="email-campaign">
-                      Email Campaign
-                    </SelectItem>
-                    <SelectItem value="trade-show">Trade Show</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="leadStatus" className="text-xs text-slate-600">
-                  Lead Status
-                </Label>
-                <Select
-                  value={formData.leadStatus}
-                  onValueChange={(value) =>
-                    handleSelectChange("leadStatus", value)
-                  }
-                >
-                  <SelectTrigger id="leadStatus" className="h-10">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="New">New</SelectItem>
-                    <SelectItem value="Contacted">Contacted</SelectItem>
-                    <SelectItem value="Qualified">Qualified</SelectItem>
-                    <SelectItem value="Proposal Sent">Proposal Sent</SelectItem>
-                    <SelectItem value="Negotiation">Negotiation</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="estimatedValue"
-                  className="text-xs text-slate-600"
-                >
-                  Estimated Value
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="projectName" className="text-xs text-slate-600">
+                  Project Name
                 </Label>
                 <Input
-                  id="estimatedValue"
-                  name="estimatedValue"
-                  value={formData.estimatedValue}
+                  id="projectName"
+                  name="projectName"
+                  value={formData.projectName}
                   onChange={handleInputChange}
-                  placeholder="Enter Estimated Value"
+                  placeholder="Enter Project Name"
                   className="h-10"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="priority" className="text-xs text-slate-600">
-                  Priority
-                </Label>
-                <Select
-                  value={formData.priority}
-                  onValueChange={(value) =>
-                    handleSelectChange("priority", value)
-                  }
-                >
-                  <SelectTrigger id="priority" className="h-10">
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Low">Low</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                    <SelectItem value="High">High</SelectItem>
-                    <SelectItem value="Urgent">Urgent</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="notes" className="text-xs text-slate-600">
-                  Notes
+                <Label htmlFor="location" className="text-xs text-slate-600">
+                  Location (City, State)
                 </Label>
-                <Textarea
-                  id="notes"
-                  name="notes"
-                  value={formData.notes}
+                <Input
+                  id="location"
+                  name="location"
+                  value={formData.location}
                   onChange={handleInputChange}
-                  placeholder="Add any additional notes about this lead"
-                  rows={3}
-                  className="resize-none"
+                  placeholder="Enter Location"
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="quoteValue" className="text-xs text-slate-600">
+                  Quote Value
+                </Label>
+                <Input
+                  id="quoteValue"
+                  name="quoteValue"
+                  type="number"
+                  value={formData.quoteValue || ""}
+                  onChange={(e) => setFormData(p => ({ ...p, quoteValue: Number(e.target.value) }))}
+                  placeholder="Enter Quote Value"
+                  className="h-10"
                 />
               </div>
             </div>
@@ -396,54 +429,63 @@ export default function EditLeadPage() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="roofStyle" className="text-xs text-slate-600">
-                  Roof Style
-                </Label>
-                <Select
-                  value={formData.roofStyle}
-                  onValueChange={(value) =>
-                    handleSelectChange("roofStyle", value)
-                  }
-                >
-                  <SelectTrigger id="roofStyle" className="h-10">
-                    <SelectValue placeholder="Select Roof Style" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gable">Gable</SelectItem>
-                    <SelectItem value="hip">Hip</SelectItem>
-                    <SelectItem value="flat">Flat</SelectItem>
-                    <SelectItem value="mansard">Mansard</SelectItem>
-                    <SelectItem value="gambrel">Gambrel</SelectItem>
-                    <SelectItem value="shed">Shed</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="roofStyle" className="text-xs text-slate-600">
+                    Roof Style
+                  </Label>
+                  <Select
+                    key={formData.roofStyle || "roofStyle"}
+                    value={formData.roofStyle || undefined}
+                    onValueChange={(value) =>
+                      handleSelectChange("roofStyle", value)
+                    }
+                  >
+                    <SelectTrigger id="roofStyle" className="h-10">
+                      <SelectValue placeholder="Select Roof Style" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="gable">Gable</SelectItem>
+                      <SelectItem value="hip">Hip</SelectItem>
+                      <SelectItem value="flat">Flat</SelectItem>
+                      <SelectItem value="mansard">Mansard</SelectItem>
+                      <SelectItem value="gambrel">Gambrel</SelectItem>
+                      <SelectItem value="shed">Shed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="space-y-2">
-                <Label
-                  htmlFor="buildingType"
-                  className="text-xs text-slate-600"
-                >
-                  Building Type
-                </Label>
-                <Select
-                  value={formData.buildingType}
-                  onValueChange={(value) =>
-                    handleSelectChange("buildingType", value)
-                  }
-                >
-                  <SelectTrigger id="buildingType" className="h-10">
-                    <SelectValue placeholder="Select Building Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="residential">Residential</SelectItem>
-                    <SelectItem value="commercial">Commercial</SelectItem>
-                    <SelectItem value="industrial">Industrial</SelectItem>
-                    <SelectItem value="agricultural">Agricultural</SelectItem>
-                    <SelectItem value="warehouse">Warehouse</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="buildingType"
+                    className="text-xs text-slate-600"
+                  >
+                    Building Type
+                  </Label>
+                  <Select
+                    key={formData.buildingType || "buildingType"}
+                    value={formData.buildingType || undefined}
+                    onValueChange={(value) =>
+                      handleSelectChange("buildingType", value)
+                    }
+                  >
+                    <SelectTrigger id="buildingType" className="h-10">
+                      <SelectValue placeholder="Select Building Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="arch-buildings">Arch Buildings</SelectItem>
+                      <SelectItem value="aviation">Aviation</SelectItem>
+                      <SelectItem value="carports">Carports</SelectItem>
+                      <SelectItem value="workshops">Workshops</SelectItem>
+                      <SelectItem value="agricultural">Agricultural</SelectItem>
+                      <SelectItem value="warehouses">Warehouses</SelectItem>
+                      <SelectItem value="commercial">Commercial</SelectItem>
+                      <SelectItem value="sales-storage">Sales Storage</SelectItem>
+                      <SelectItem value="barndominiums">Barndominiums</SelectItem>
+                      <SelectItem value="garages">Garages</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -480,8 +522,10 @@ export default function EditLeadPage() {
             </Button>
             <Button
               type="submit"
+              disabled={updateMutation.isPending}
               className="h-10 min-w-28 bg-blue-600 hover:bg-blue-700"
             >
+              {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Save Lead
             </Button>
           </div>

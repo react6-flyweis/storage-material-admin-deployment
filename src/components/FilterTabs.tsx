@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export type Period = "Today" | "Week" | "Month";
+export type Period = "Today" | "Week" | "Month" | "All Time";
 
 type Props = {
   initialPeriod?: Period;
@@ -8,7 +8,7 @@ type Props = {
 };
 
 export default function FilterTabs({
-  initialPeriod = "Today",
+  initialPeriod = "All Time",
   onPeriodChange,
 }: Props) {
   const [period, setPeriod] = useState<Period>(initialPeriod);
@@ -53,6 +53,8 @@ export default function FilterTabs({
       {button("Week", "bg-[#6B93CE]", "z-20")}
 
       {button("Month", "bg-[#4A72B7]", "z-10")}
+
+      {button("All Time", "bg-[#2C4875]", "z-0")}
     </div>
   );
 }

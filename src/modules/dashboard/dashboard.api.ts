@@ -14,9 +14,12 @@ export type LeadStatsResponse = {
   data: LeadStatsData;
 };
 
-export async function getLeadStatsProvider() {
+export async function getLeadStatsProvider(startDate?: string, endDate?: string) {
   const response = await apiClient.get<LeadStatsResponse>(
     "/api/admin/dashboard/lead-stats",
+    {
+      params: { startDate, endDate },
+    },
   );
 
   return response.data;

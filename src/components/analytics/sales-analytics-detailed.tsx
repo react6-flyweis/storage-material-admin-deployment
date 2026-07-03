@@ -12,10 +12,13 @@ import {
 
 interface Props {
   setActiveReport: (v: string | null) => void;
+  analyticsData?: any;
+  period?: string;
+  setPeriod?: (v: string) => void;
 }
 
 const SalesAnalyticsDetailed = forwardRef<HTMLDivElement, Props>(
-  ({ setActiveReport }, ref) => {
+  ({ setActiveReport, analyticsData, period, setPeriod }, ref) => {
     const [successOpen, setSuccessOpen] = useState(false);
     return (
       <div ref={ref} className="bg-white rounded-lg shadow p-6 w-full min-h-0">
@@ -44,13 +47,13 @@ const SalesAnalyticsDetailed = forwardRef<HTMLDivElement, Props>(
               <label className="text-sm text-muted-foreground mr-2">
                 Timeframe
               </label>
-              <Select defaultValue="monthly">
+              <Select value={period || "monthly"} onValueChange={(val) => setPeriod && setPeriod(val)}>
                 <SelectTrigger className="w-36">
                   <SelectValue placeholder="Monthly" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="weekly">Weekly</SelectItem>
                   <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
                   <SelectItem value="yearly">Yearly</SelectItem>
                 </SelectContent>
               </Select>
@@ -60,15 +63,21 @@ const SalesAnalyticsDetailed = forwardRef<HTMLDivElement, Props>(
 
         <div className="flex flex-col md:flex-row gap-4 mb-6 ">
           <div className="flex-1 bg-blue-50 rounded-lg p-4">
-            <div className="text-2xl font-bold text-blue-600">$331,000</div>
+            <div className="text-2xl font-bold text-blue-600">
+              ${analyticsData?.detailedSummary?.totalRevenue?.toLocaleString() || "331,000"}
+            </div>
             <div className="text-sm text-muted-foreground">Total Revenue</div>
           </div>
           <div className="flex-1 bg-green-50 rounded-lg p-4">
-            <div className="text-2xl font-bold text-green-700">828</div>
+            <div className="text-2xl font-bold text-green-700">
+              {analyticsData?.detailedSummary?.totalLeads || "828"}
+            </div>
             <div className="text-sm text-muted-foreground">Total Leads</div>
           </div>
           <div className="flex-1 bg-purple-50 rounded-lg p-4">
-            <div className="text-2xl font-bold text-purple-600">205</div>
+            <div className="text-2xl font-bold text-purple-600">
+              {analyticsData?.detailedSummary?.conversions || "205"}
+            </div>
             <div className="text-sm text-muted-foreground">Conversions</div>
           </div>
         </div>
@@ -85,22 +94,34 @@ const SalesAnalyticsDetailed = forwardRef<HTMLDivElement, Props>(
               </tr>
             </thead>
             <tbody className="text-sm">
-              {[
-                ["Jan", "$45,000", "120", "28", "23.3%"],
-                ["Feb", "$52,000", "135", "32", "23.7%"],
-                ["Mar", "$48,000", "128", "30", "23.4%"],
-                ["Apr", "$61,000", "145", "38", "26.2%"],
-                ["May", "$58,000", "142", "35", "24.6%"],
-                ["Jun", "$67,000", "158", "42", "26.6%"],
-              ].map((row) => (
-                <tr key={row[0]} className="border-b">
-                  <td className="py-4 font-medium">{row[0]}</td>
-                  <td className="py-4">{row[1]}</td>
-                  <td className="py-4">{row[2]}</td>
-                  <td className="py-4">{row[3]}</td>
-                  <td className="py-4">{row[4]}</td>
-                </tr>
-              ))}
+              {analyticsData?.monthlyBreakdown ? (
+                analyticsData.monthlyBreakdown.map((row: any) => (
+                  <tr key={row.monthKey || row.month} className="border-b">
+                    <td className="py-4 font-medium">{row.month}</td>
+                    <td className="py-4">${row.revenue?.toLocaleString()}</td>
+                    <td className="py-4">{row.leads}</td>
+                    <td className="py-4">{row.conversions}</td>
+                    <td className="py-4">{row.conversionRate}%</td>
+                  </tr>
+                ))
+              ) : (
+                [
+                  ["Jan", "$45,000", "120", "28", "23.3%"],
+                  ["Feb", "$52,000", "135", "32", "23.7%"],
+                  ["Mar", "$48,000", "128", "30", "23.4%"],
+                  ["Apr", "$61,000", "145", "38", "26.2%"],
+                  ["May", "$58,000", "142", "35", "24.6%"],
+                  ["Jun", "$67,000", "158", "42", "26.6%"],
+                ].map((row) => (
+                  <tr key={row[0]} className="border-b">
+                    <td className="py-4 font-medium">{row[0]}</td>
+                    <td className="py-4">{row[1]}</td>
+                    <td className="py-4">{row[2]}</td>
+                    <td className="py-4">{row[3]}</td>
+                    <td className="py-4">{row[4]}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Search, Calendar, Clock, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { useMeetingsQuery } from "@/modules/meetings/meetings.hooks";
+import { useMeetingsQuery, useCompleteMeetingMutation } from "@/modules/meetings/meetings.hooks";
+import { toast } from "sonner";
 import type { AdminMeeting } from "@/modules/meetings/meetings.api";
 import {
   Select,
@@ -44,7 +45,7 @@ function mapApiMeetingToUI(apiMeeting: AdminMeeting): Meeting {
   const dateObject = new Date(apiMeeting.meetingTime);
   const hasValidDate = !Number.isNaN(dateObject.getTime());
 
-  const status = apiMeeting.status?.toLowerCase();
+  const status = apiMeeting.status?.toLowerCase().trim();
   let formattedStatus: Meeting["status"] = "Scheduled";
   if (status === "completed") {
     formattedStatus = "Completed";
@@ -77,14 +78,25 @@ function mapApiMeetingToUI(apiMeeting: AdminMeeting): Meeting {
 export default function Meetings() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
   const {
     data: meetingsResponse,
     isLoading,
     isError,
     error,
     refetch,
-  } = useMeetingsQuery();
+  } = useMeetingsQuery({ search: debouncedSearch, status: statusFilter });
+
+  const { mutate: completeMeeting, isPending: isCompleting } = useCompleteMeetingMutation();
 
   const meetings = useMemo(() => {
     const responseData = meetingsResponse?.data;
@@ -105,20 +117,7 @@ export default function Meetings() {
     });
   }, [meetingsResponse]);
 
-  const filteredMeetings = meetings.filter((meeting) => {
-    const q = searchQuery.trim().toLowerCase();
-    const matchesSearch =
-      q === "" ||
-      meeting.title.toLowerCase().includes(q) ||
-      meeting.organizer.toLowerCase().includes(q) ||
-      meeting.date.toLowerCase().includes(q) ||
-      meeting.time.toLowerCase().includes(q) ||
-      meeting.type.toLowerCase().includes(q);
-    const matchesStatus =
-      statusFilter === "all" ||
-      meeting.status.toLowerCase() === statusFilter.toLowerCase();
-    return matchesSearch && matchesStatus;
-  });
+  const filteredMeetings = meetings;
 
   const getStatusColor = (status: Meeting["status"]) => {
     switch (status) {
@@ -126,8 +125,8 @@ export default function Meetings() {
         return "bg-green-100 text-green-700 hover:bg-green-100";
       case "Scheduled":
         return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100";
-      case "Cancelled":
-        return "bg-red-100 text-red-700 hover:bg-red-100";
+      // case "Cancelled":
+      //   return "bg-red-100 text-red-700 hover:bg-red-100";
       default:
         return "bg-gray-100 text-gray-700 hover:bg-gray-100";
     }
@@ -152,7 +151,7 @@ export default function Meetings() {
               className="pl-10 w-full"
             />
           </div>
-
+{/* 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-48">
               <SelectValue placeholder="All Status" />
@@ -161,9 +160,8 @@ export default function Meetings() {
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="scheduled">Scheduled</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
-          </Select>
+          </Select> */}
         </div>
 
         <Button
@@ -236,8 +234,25 @@ export default function Meetings() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-2 mt-2">
-                  {meeting.status !== "Completed" && (
+                {meeting.status !== "Completed" && meeting.status !== "Cancelled" && (
+                  <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                    <Button
+                      size="sm"
+                      className="w-full sm:flex-1 bg-green-200 text-green-700 hover:bg-green-300 hover:text-green-800"
+                      disabled={isCompleting}
+                      onClick={() => {
+                        completeMeeting(meeting.id, {
+                          onSuccess: () => {
+                            toast.success("Meeting marked as completed!");
+                          },
+                          onError: () => {
+                            toast.error("Failed to complete meeting.");
+                          }
+                        });
+                      }}
+                    >
+                      Complete
+                    </Button>
                     <Button
                       size="sm"
                       className="w-full sm:flex-1 bg-blue-200 text-blue-600 hover:bg-blue-100 hover:text-blue-700"
@@ -247,17 +262,17 @@ export default function Meetings() {
                     >
                       Edit
                     </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    className="w-full sm:flex-1 bg-orange-200 text-orange-600 hover:bg-orange-100 hover:text-orange-700"
-                    onClick={() =>
-                      navigate(`/customers/meetings/reschedule/${meeting.id}`)
-                    }
-                  >
-                    Reschedule meeting
-                  </Button>
-                </div>
+                    <Button
+                      size="sm"
+                      className="w-full sm:flex-1 bg-orange-200 text-orange-600 hover:bg-orange-100 hover:text-orange-700"
+                      onClick={() =>
+                        navigate(`/customers/meetings/reschedule/${meeting.id}`)
+                      }
+                    >
+                      Reschedule meeting
+                    </Button>
+                  </div>
+                )}
               </Card>
             ))}
       </div>

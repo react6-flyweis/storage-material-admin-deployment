@@ -62,7 +62,7 @@ const ProfileView: React.FC<ProfileViewProps> = () => {
       <div className="flex flex-wrap md:items-center items-start justify-between mt-2 xl:mt-0">
         <div className="flex items-start gap-4 flex-wrap">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/accounts')}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-medium"
           >
             <MoveLeft className="w-4 h-4" />

@@ -14,89 +14,34 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import SuccessDialog from "@/components/success-dialog";
-import AssignPlantPersonDialog from "@/components/customers/assign-plant-person-dialog";
-
-type PurchaseOrderRow = {
-  id: string;
-  leadName: string;
-  quoteId: string;
-  location: string;
-  poNumber: string;
-  assignedToName: string;
-  assignedCount: string;
-  status: "Purchase Order";
-  quoteValue: string;
-  paymentStatus: string;
-};
-
-const purchaseOrders: PurchaseOrderRow[] = [
-  {
-    id: "po-1",
-    leadName: "John Doe",
-    quoteId: "Q-2025-1047",
-    location: "Workshop , Texas",
-    poNumber: "PO-09876",
-    assignedToName: "Sarah Lee",
-    assignedCount: "1 person assigned",
-    status: "Purchase Order",
-    quoteValue: "$12,500",
-    paymentStatus: "Received",
-  },
-  {
-    id: "po-2",
-    leadName: "John Doe",
-    quoteId: "Q-2025-1047",
-    location: "Workshop , Texas",
-    poNumber: "PO-09876",
-    assignedToName: "Sarah Lee",
-    assignedCount: "1 person assigned",
-    status: "Purchase Order",
-    quoteValue: "$12,500",
-    paymentStatus: "Received",
-  },
-  {
-    id: "po-3",
-    leadName: "John Doe",
-    quoteId: "Q-2025-1047",
-    location: "Workshop , Texas",
-    poNumber: "PO-09876",
-    assignedToName: "Sarah Lee",
-    assignedCount: "1 person assigned",
-    status: "Purchase Order",
-    quoteValue: "$12,500",
-    paymentStatus: "Received",
-  },
-  {
-    id: "po-4",
-    leadName: "John Doe",
-    quoteId: "Q-2025-1047",
-    location: "Workshop , Texas",
-    poNumber: "PO-09876",
-    assignedToName: "Sarah Lee",
-    assignedCount: "1 person assigned",
-    status: "Purchase Order",
-    quoteValue: "$12,500",
-    paymentStatus: "Received",
-  },
-];
+import {
+  usePurchaseOrdersQuery,
+  useUpdatePurchaseOrderStatusMutation,
+} from "@/modules/purchase-orders/purchase-orders.hooks";
+import AssignPoPlantDialog from "@/components/leads/assign-po-plant-dialog";
+import { toast } from "sonner";
 
 export default function AllPurchaseOrdersPage() {
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
-  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [assignPlantDialogOpen, setAssignPlantDialogOpen] = useState(false);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  const { data: purchaseOrdersData, isLoading } = usePurchaseOrdersQuery();
+  const updateStatusMutation = useUpdatePurchaseOrderStatusMutation();
+
+  const purchaseOrders = purchaseOrdersData?.data?.orders || [];
 
   const allSelected = useMemo(
     () =>
       purchaseOrders.length > 0 &&
       selectedOrderIds.length === purchaseOrders.length,
-    [selectedOrderIds],
+    [selectedOrderIds, purchaseOrders]
   );
 
   const handleToggleAll = (checked: boolean) => {
     if (checked) {
-      setSelectedOrderIds(purchaseOrders.map((order) => order.id));
+      setSelectedOrderIds(purchaseOrders.map((order) => order._id));
       return;
     }
     setSelectedOrderIds([]);
@@ -109,6 +54,25 @@ export default function AllPurchaseOrdersPage() {
     }
     setSelectedOrderIds((prev) => prev.filter((id) => id !== orderId));
   };
+
+  const handleApprovePO = (orderId: string) => {
+    updateStatusMutation.mutate(
+      { poOrderId: orderId, status: "approved" },
+      {
+        onSuccess: () => {
+          setActiveOrderId(orderId);
+          setAssignPlantDialogOpen(true);
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || "Failed to approve PO");
+        }
+      }
+    );
+  };
+
+  if (isLoading) {
+    return <div className="p-6 text-center">Loading Purchase Orders...</div>;
+  }
 
   return (
     <div className="p-4 sm:p-6 space-y-5 bg-[#e9eef8] min-h-[calc(100vh-80px)]">
@@ -146,8 +110,11 @@ export default function AllPurchaseOrdersPage() {
                 <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 px-3">
                   Status
                 </TableHead>
-                <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 px-3">
+                {/* <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 px-3">
                   Quote Value
+                </TableHead> */}
+                <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 px-3">
+                  Invoice Amount
                 </TableHead>
                 <TableHead className="text-[11px] uppercase tracking-wide text-slate-500 px-3">
                   Payment Status
@@ -160,25 +127,31 @@ export default function AllPurchaseOrdersPage() {
 
             <TableBody>
               {purchaseOrders.map((order) => {
-                const selected = selectedOrderIds.includes(order.id);
+                const selected = selectedOrderIds.includes(order._id);
+                const leadName = order.customerId ? `${order.customerId.firstName || ""} ${order.customerId.lastName || ""}`.trim() || "Unknown Customer" : "Unknown Customer";
+                const projectName = order.leadId?.projectName || "";
+                const quoteId = order.leadId?.jobId || order.quotationId?.quoteNumber || "Unknown Project";
+                const location = order.leadId?.location || order.customerId?.location || "Unknown Location";
+                const assignedToName = order.assignedTo?.name || "Unassigned";
+                const assignedCount = order.assignedTo ? "1 person assigned" : "No one assigned";
+                const quoteValue = order.leadId?.quoteValue || order.invoiceId?.totalAmount || 0;
+                const invoiceStatus = order.invoicePayment?.status || order.invoiceId?.status || "Pending";
+                const paymentStatus = invoiceStatus.charAt(0).toUpperCase() + invoiceStatus.slice(1);
 
                 return (
                   <TableRow
-                    key={order.id}
+                    key={order._id}
                     data-state={selected ? "selected" : undefined}
-                    className="border-slate-100/80 cursor-pointer hover:bg-slate-50"
-                    onClick={() =>
-                      navigate(`/leads/purchase-orders/${order.id}`)
-                    }
+                    className="border-slate-100/80 hover:bg-slate-50"
                   >
                     <TableCell className="px-4">
                       <input
-                        aria-label={`Select ${order.leadName}`}
+                        aria-label={`Select ${leadName}`}
                         className="h-3.5 w-3.5 rounded border-slate-300"
                         type="checkbox"
                         checked={selected}
                         onChange={(event) =>
-                          handleToggleOrder(order.id, event.target.checked)
+                          handleToggleOrder(order._id, event.target.checked)
                         }
                         onClick={(e) => e.stopPropagation()}
                       />
@@ -186,38 +159,43 @@ export default function AllPurchaseOrdersPage() {
 
                     <TableCell className="px-3 py-3">
                       <div>
-                        <p className="text-sm text-slate-900">
-                          {order.leadName}
+                        <p className="text-sm font-medium text-slate-900">
+                          {leadName}
                         </p>
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          {order.quoteId}
+                        {projectName && (
+                          <p className="text-[12px] text-slate-500 mt-0.5">
+                            {projectName}
+                          </p>
+                        )}
+                        <p className="text-[12px] text-slate-500 mt-0.5">
+                          {quoteId}
                         </p>
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          {order.location}
+                          {location}
                         </p>
                       </div>
                     </TableCell>
 
                     <TableCell className="px-3 py-3 text-sm text-slate-800">
-                      {order.poNumber}
+                      {order.poNumber || "N/A"}
                     </TableCell>
 
                     <TableCell className="px-3 py-3">
                       <div className="flex items-start gap-2.5">
                         <Avatar className="h-5 w-5 bg-green-100">
                           <AvatarFallback className="text-[10px] text-green-700">
-                            {order.assignedToName
+                            {assignedToName !== "Unassigned" ? assignedToName
                               .split(" ")
                               .map((part) => part[0])
-                              .join("")}
+                              .join("") : "?"}
                           </AvatarFallback>
                         </Avatar>
                         <div>
                           <p className="text-xs text-slate-700">
-                            {order.assignedToName}
+                            {assignedToName}
                           </p>
                           <p className="text-[11px] text-slate-500 mt-1">
-                            {order.assignedCount}
+                            {assignedCount}
                           </p>
                         </div>
                       </div>
@@ -225,17 +203,25 @@ export default function AllPurchaseOrdersPage() {
 
                     <TableCell className="px-3 py-3">
                       <Badge className="bg-violet-100 text-violet-700 hover:bg-violet-100 border-0 rounded-full text-[11px] font-medium px-2.5 py-0.5">
-                        {order.status}
+                        {order.status || "Pending"}
                       </Badge>
                     </TableCell>
 
+                    {/* <TableCell className="px-3 py-3 text-sm font-semibold text-slate-900">
+                      ${quoteValue.toLocaleString()}
+                    </TableCell> */}
+
                     <TableCell className="px-3 py-3 text-sm font-semibold text-slate-900">
-                      {order.quoteValue}
+                      ${(order.invoiceAmount || order.invoicePayment?.amount || order.invoiceId?.totalAmount || 0).toLocaleString()}
                     </TableCell>
 
                     <TableCell className="px-3 py-3">
-                      <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-0 rounded-full text-[11px] font-medium px-3 py-0.5">
-                        {order.paymentStatus}
+                      <Badge className={`border-0 rounded-full text-[11px] font-medium px-3 py-0.5 ${
+                        paymentStatus.toLowerCase() === "paid" 
+                          ? "bg-green-100 text-green-700 hover:bg-green-100" 
+                          : "bg-yellow-100 text-yellow-700 hover:bg-yellow-100"
+                      }`}>
+                        {paymentStatus}
                       </Badge>
                     </TableCell>
 
@@ -243,26 +229,46 @@ export default function AllPurchaseOrdersPage() {
                       <div className="flex items-center gap-3">
                         <button
                           type="button"
-                          aria-label={`View ${order.leadName}`}
+                          aria-label={`View ${leadName}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/leads/purchase-orders/${order.id}`);
+                            navigate(`/leads/purchase-orders/${order._id}`);
                           }}
                           className="text-purple-600"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
 
-                        <Button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveOrderId(order.id);
-                            setSuccessDialogOpen(true);
-                          }}
-                        >
-                          Approve PO
-                        </Button>
+                        {order.status === "approved" && !order.assignedTo && paymentStatus.toLowerCase() === "paid" ? (
+                          <Button
+                            type="button"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveOrderId(order._id);
+                              setAssignPlantDialogOpen(true);
+                            }}
+                          >
+                            Assign Plant
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            disabled={
+                              (updateStatusMutation.isPending && activeOrderId === order._id) ||
+                              order.status === "approved" ||
+                              order.status === "rejected" ||
+                              paymentStatus.toLowerCase() !== "paid"
+                            }
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleApprovePO(order._id);
+                            }}
+                            title={paymentStatus.toLowerCase() !== "paid" ? "Lead must be paid to approve" : ""}
+                          >
+                            {updateStatusMutation.isPending && activeOrderId === order._id ? "Approving..." : order.status === "approved" ? "Approved PO" : "Approve PO"}
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -273,18 +279,7 @@ export default function AllPurchaseOrdersPage() {
         </CardContent>
       </Card>
 
-      <SuccessDialog
-        open={successDialogOpen}
-        onClose={() => setSuccessDialogOpen(false)}
-        title="Approved successfully"
-        actionLabel="Assign to plant"
-        onAction={() => {
-          setSuccessDialogOpen(false);
-          setAssignPlantDialogOpen(true);
-        }}
-      />
-
-      <AssignPlantPersonDialog
+      <AssignPoPlantDialog
         open={assignPlantDialogOpen}
         onOpenChange={(open) => {
           setAssignPlantDialogOpen(open);
@@ -292,7 +287,7 @@ export default function AllPurchaseOrdersPage() {
             setActiveOrderId(null);
           }
         }}
-        customerId={activeOrderId}
+        poOrderId={activeOrderId}
       />
     </div>
   );

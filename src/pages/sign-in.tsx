@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -131,12 +131,12 @@ export default function SignIn() {
           </Button>
 
           <div className="text-center">
-            <a
-              href="#"
+            <Link
+              to="/forgot-password"
               className="text-sm text-blue-500 hover:text-blue-600 hover:underline"
             >
               Forgot Password?
-            </a>
+            </Link>
           </div>
         </form>
       </div>

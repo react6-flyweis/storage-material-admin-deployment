@@ -96,7 +96,7 @@ export default function PipelineStages() {
           <Button
             variant="default"
             size="default"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/')}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />

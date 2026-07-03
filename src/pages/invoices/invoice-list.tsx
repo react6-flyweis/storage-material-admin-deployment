@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState, useEffect } from "react";
 import {
   FileText,
   Download,
@@ -7,9 +7,12 @@ import {
   CheckCircle,
   CreditCard,
   AlertCircle,
+  Eye,
 } from "lucide-react";
+import { useNavigate } from "react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -28,129 +31,22 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import Pagination from "@/components/Pagination";
+import { useGetInvoicesQuery, useGetInvoiceStatsQuery } from "@/modules/invoices/invoices.hooks";
 
-type Invoice = {
-  id: string;
-  invoiceNumber: string;
-  customer: string;
-  project: string;
-  dueDate: string; // ISO
-  amount: number;
-  paid: number;
-  status: "Paid" | "Unpaid";
-};
 
-const initialInvoices: Invoice[] = [
-  {
-    id: "1",
-    invoiceNumber: "INV001",
-    customer: "Carl Evans",
-    project: "ABC Site A",
-    dueDate: "2024-12-24",
-    amount: 500,
-    paid: 500,
-    status: "Paid",
-  },
-  {
-    id: "2",
-    invoiceNumber: "INV002",
-    customer: "Minerva Rameriz",
-    project: "ABC Site A",
-    dueDate: "2024-12-10",
-    amount: 1500,
-    paid: 1500,
-    status: "Paid",
-  },
-  {
-    id: "3",
-    invoiceNumber: "INV003",
-    customer: "Robert Lamon",
-    project: "ABC Site A",
-    dueDate: "2024-11-27",
-    amount: 600,
-    paid: 600,
-    status: "Paid",
-  },
-  {
-    id: "4",
-    invoiceNumber: "INV004",
-    customer: "Patricia Lewis",
-    project: "ABC Site A",
-    dueDate: "2024-11-18",
-    amount: 1000,
-    paid: 1000,
-    status: "Paid",
-  },
-  {
-    id: "5",
-    invoiceNumber: "INV005",
-    customer: "Mark Joslyn",
-    project: "ABC Site A",
-    dueDate: "2024-11-06",
-    amount: 1200,
-    paid: 1200,
-    status: "Paid",
-  },
-  {
-    id: "6",
-    invoiceNumber: "INV006",
-    customer: "Marsha Betts",
-    project: "ABC Site A",
-    dueDate: "2024-10-25",
-    amount: 800,
-    paid: 800,
-    status: "Paid",
-  },
-  {
-    id: "7",
-    invoiceNumber: "INV007",
-    customer: "Daniel Jude",
-    project: "ABC Site A",
-    dueDate: "2024-10-14",
-    amount: 2000,
-    paid: 2000,
-    status: "Paid",
-  },
-  {
-    id: "8",
-    invoiceNumber: "INV008",
-    customer: "Emma Bates",
-    project: "ABC Site A",
-    dueDate: "2024-10-03",
-    amount: 100,
-    paid: 100,
-    status: "Paid",
-  },
-  {
-    id: "9",
-    invoiceNumber: "INV009",
-    customer: "Richard Fralick",
-    project: "ABC Site A",
-    dueDate: "2024-09-20",
-    amount: 300,
-    paid: 300,
-    status: "Paid",
-  },
-  {
-    id: "10",
-    invoiceNumber: "INV010",
-    customer: "Michelle Robison",
-    project: "ABC Site A",
-    dueDate: "2024-09-10",
-    amount: 5000,
-    paid: 0,
-    status: "Unpaid",
-  },
-];
 
 function formatCurrency(n: number) {
   return `$${n.toLocaleString()}`;
 }
 
+function cleanProjectName(name: string) {
+  if (!name) return "";
+  return name.replace(/\s+\d{4}-\d{2}-\d{2}T[\d-]+Z$/, "").trim();
+}
+
 export default function InvoiceListPage() {
-  const [invoices, setInvoices] = useState(initialInvoices);
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const [customerFilter, setCustomerFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [dateRange, setDateRange] = useState<RDateRange | undefined>(undefined);
 
@@ -158,58 +54,36 @@ export default function InvoiceListPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const filtered = useMemo(() => {
-    return invoices.filter((inv) => {
-      if (customerFilter !== "All" && inv.customer !== customerFilter)
-        return false;
-      if (statusFilter !== "All" && inv.status !== statusFilter) return false;
-      if (dateRange) {
-        const due = new Date(inv.dueDate);
-        if (dateRange.from && dateRange.to) {
-          if (due < dateRange.from || due > dateRange.to) return false;
-        } else if (dateRange.from) {
-          if (due < dateRange.from) return false;
-        } else if (dateRange.to) {
-          if (due > dateRange.to) return false;
-        }
-      }
-      if (
-        query &&
-        !`${inv.invoiceNumber} ${inv.customer}`
-          .toLowerCase()
-          .includes(query.toLowerCase())
-      )
-        return false;
-      return true;
-    });
-  }, [invoices, customerFilter, statusFilter, query, dateRange]);
+  // Debounce search query
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 500);
+    return () => clearTimeout(timer);
+  }, [query]);
 
-  const totalAmount = filtered.reduce((s, i) => s + i.amount, 0);
-  const totalPaid = filtered.reduce((s, i) => s + i.paid, 0);
-  const totalUnpaid = filtered.reduce((s, i) => s + (i.amount - i.paid), 0);
-  const overdue = filtered.reduce((s, i) => {
-    const now = new Date();
-    const due = new Date(i.dueDate);
-    if (due < now && i.amount - i.paid > 0) return s + (i.amount - i.paid);
-    return s;
-  }, 0);
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedQuery, statusFilter, dateRange]);
 
-  // page slice
-  const totalItems = filtered.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / rowsPerPage));
-  const current = Math.min(currentPage, totalPages);
-  const start = (current - 1) * rowsPerPage;
-  const paginated = filtered.slice(start, start + rowsPerPage);
+  const { data: responseData, isLoading } = useGetInvoicesQuery({
+    page: currentPage,
+    limit: rowsPerPage,
+    search: debouncedQuery || undefined,
+    status: statusFilter === "All" ? undefined : statusFilter.toLowerCase(),
+    startDate: dateRange?.from ? dateRange.from.toISOString() : undefined,
+    endDate: dateRange?.to ? dateRange.to.toISOString() : undefined,
+  });
 
-  const markAsPaid = (invoiceId: string) => {
-    setInvoices((prev) =>
-      prev.map((invoice) =>
-        invoice.id === invoiceId
-          ? { ...invoice, paid: invoice.amount, status: "Paid" }
-          : invoice,
-      ),
-    );
-  };
+  const invoices = responseData?.data?.invoices || [];
+  const totalItems = responseData?.data?.total || 0;
+
+  const { data: statsData } = useGetInvoiceStatsQuery();
+
+  const totalAmount = statsData?.data?.totalAmount || 0;
+  const totalPaid = statsData?.data?.totalPaid || 0;
+  const totalUnpaid = statsData?.data?.totalUnpaid || 0;
+  const overdue = statsData?.data?.overdue || 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -279,6 +153,16 @@ export default function InvoiceListPage() {
         <CardContent>
           <div className="flex flex-col md:flex-row gap-4 items-end">
             <div className="w-full flex-1">
+              <label className="text-xs text-gray-500">Search</label>
+              <Input
+                placeholder="Search name, email, project..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+
+            <div className="w-full flex-1">
               <label className="text-xs text-gray-500">Choose Date</label>
               <div className="relative mt-1">
                 <DateRangePicker value={dateRange} onChange={setDateRange} />
@@ -293,21 +177,24 @@ export default function InvoiceListPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All">All</SelectItem>
+                  <SelectItem value="Draft">Draft</SelectItem>
+                  <SelectItem value="Sent">Sent</SelectItem>
                   <SelectItem value="Paid">Paid</SelectItem>
-                  <SelectItem value="Unpaid">Unpaid</SelectItem>
+                  <SelectItem value="Overdue">Overdue</SelectItem>
+                  <SelectItem value="Cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <Button
+              variant="outline"
               onClick={() => {
                 setQuery("");
-                setCustomerFilter("All");
                 setStatusFilter("All");
                 setDateRange(undefined);
               }}
-              className="bg-orange-500 text-white px-6 py-2"
+              className="px-6 py-2"
             >
-              Search
+              Reset
             </Button>
           </div>
         </CardContent>
@@ -347,9 +234,6 @@ export default function InvoiceListPage() {
                     Invoice Number
                   </TableHead>
                   <TableHead className="text-left px-6 py-3 text-sm text-gray-600">
-                    Customer
-                  </TableHead>
-                  <TableHead className="text-left px-6 py-3 text-sm text-gray-600">
                     Project
                   </TableHead>
                   <TableHead className="text-left px-6 py-3 text-sm text-gray-600">
@@ -362,7 +246,7 @@ export default function InvoiceListPage() {
                     Paid
                   </TableHead>
                   <TableHead className="text-left px-6 py-3 text-sm text-gray-600">
-                    Amount Due
+                    Due
                   </TableHead>
                   <TableHead className="text-left px-6 py-3 text-sm text-gray-600">
                     Status
@@ -373,54 +257,77 @@ export default function InvoiceListPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginated.map((inv) => (
-                  <TableRow key={inv.id}>
-                    <TableCell className="text-orange-500 font-medium px-6 py-4">
-                      {inv.invoiceNumber}
-                    </TableCell>
-                    <TableCell>{inv.customer}</TableCell>
-                    <TableCell>{inv.project}</TableCell>
-                    <TableCell>
-                      {new Date(inv.dueDate).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>{formatCurrency(inv.amount)}</TableCell>
-                    <TableCell>{formatCurrency(inv.paid)}</TableCell>
-                    <TableCell>
-                      {formatCurrency(inv.amount - inv.paid)}
-                    </TableCell>
-                    <TableCell className="px-6 py-4">
-                      {inv.status === "Paid" ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500 px-2 py-0.5 text-xs font-semibold text-white">
-                          <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                          Paid
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">
-                          <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                          Unpaid
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="px-6 py-4">
-                      {inv.status === "Unpaid" ? (
-                        <Button
-                          type="button"
-                          onClick={() => markAsPaid(inv.id)}
-                          className="h-6 rounded-md bg-indigo-600 px-2.5 text-xs font-medium text-white hover:bg-indigo-700"
-                        >
-                          Mark as paid
-                        </Button>
-                      ) : null}
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-10">
+                      Loading invoices...
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : invoices.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-10 text-gray-500">
+                      No invoices found
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  invoices.map((inv) => {
+                    const isPaid = inv.status.toLowerCase() === "paid";
+                    const paidAmount = isPaid ? inv.amount : 0;
+                    return (
+                      <TableRow key={inv.invoice?.id || inv.invoiceNumber}>
+                        <TableCell className="text-left text-orange-500 font-medium px-6 py-4">
+                          {inv.invoiceNumber}
+                        </TableCell>
+                        <TableCell className="text-left px-6 py-4">{cleanProjectName(inv.projectName)||'-'}</TableCell>
+                        <TableCell className="text-left px-6 py-4">
+                          {new Date(inv.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </TableCell>
+                        <TableCell className="text-left px-6 py-4">{formatCurrency(inv.amount)}</TableCell>
+                        <TableCell className="text-left px-6 py-4">{formatCurrency(paidAmount)}</TableCell>
+                        <TableCell className="text-left px-6 py-4">
+                          {formatCurrency(inv.amount - paidAmount)}
+                        </TableCell>
+                        <TableCell className="text-left px-6 py-4">
+                          {isPaid ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500 px-2 py-0.5 text-xs font-semibold text-white">
+                              <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                              Paid
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">
+                              <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                              {inv.status || "Unpaid"}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-left px-6 py-4">
+                          <button
+                            onClick={() => navigate(`/invoice/preview`, { 
+                              state: { 
+                                invoiceId: inv.invoice?._id,
+                                invoiceNumber: inv.invoiceNumber, 
+                                date: inv.dueDate, 
+                                total: inv.amount, 
+                                subtotal: inv.amount, 
+                                items: inv.invoice?.lineItems || [] 
+                              } 
+                            })}
+                            className="text-black hover:text-gray-700"
+                          >
+                            <Eye className="w-5 h-5" />
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
               </TableBody>
             </Table>
           </div>
 
           <Pagination
             totalItems={totalItems}
-            currentPage={current}
+            currentPage={currentPage}
             rowsPerPage={rowsPerPage}
             onPageChange={(p) => setCurrentPage(p)}
             onRowsPerPageChange={(r) => {

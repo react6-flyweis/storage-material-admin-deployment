@@ -11,24 +11,78 @@ import {
   Truck,
   Upload,
 } from "lucide-react";
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router";
 import SuccessDialog from "@/components/success-dialog";
+import { useGetLeadBudgetQuery, useUpdateLeadBudgetMutation } from "@/modules/leads/leads.hooks";
+import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
 
 export default function BudgetPlanning() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+  const leadId = id || "";
+
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [successDialogTitle, setSuccessDialogTitle] = useState("Success!");
 
+  const { data: leadData } = useLeadDetailQuery(leadId);
+  const project = leadData?.data?.lead;
+
+  const { data: budgetData, isLoading } = useGetLeadBudgetQuery(leadId);
+  const updateBudgetMutation = useUpdateLeadBudgetMutation();
+
+  const [budget, setBudget] = useState({
+    materialBudget: 0,
+    logisticBudget: 0,
+    productionBudget: 0,
+    shipperBudget: 0,
+    otherCost: 0,
+  });
+
+  useEffect(() => {
+    if (budgetData?.data?.budget) {
+      const b = budgetData.data.budget;
+      setBudget({
+        materialBudget: b.materialBudget || 0,
+        logisticBudget: b.logisticBudget || 0,
+        productionBudget: b.productionBudget || 0,
+        shipperBudget: b.shipperBudget || 0,
+        otherCost: b.otherCost || 0,
+      });
+    }
+  }, [budgetData]);
+
   const handleSaveDraft = () => {
-    setSuccessDialogTitle("Draft Saved");
-    setSuccessDialogOpen(true);
+    updateBudgetMutation.mutate({ leadId, payload: budget }, {
+      onSuccess: () => {
+        setSuccessDialogTitle("Draft Saved");
+        setSuccessDialogOpen(true);
+      }
+    });
   };
 
   const handleUpdateBudget = () => {
-    setSuccessDialogTitle("Update successfully");
-    setSuccessDialogOpen(true);
+    updateBudgetMutation.mutate({ leadId, payload: budget }, {
+      onSuccess: () => {
+        setSuccessDialogTitle("Update successfully");
+        setSuccessDialogOpen(true);
+      }
+    });
   };
+
+  const handleInputChange = (field: keyof typeof budget, value: string) => {
+    const numValue = parseFloat(value.replace(/[^0-9.-]+/g, "")) || 0;
+    setBudget(prev => ({ ...prev, [field]: numValue }));
+  };
+
+  const totalEstimateCost = budgetData?.data?.budget?.totalBudget || 
+    (budget.materialBudget + budget.logisticBudget + budget.productionBudget + budget.shipperBudget + budget.otherCost);
+  
+  const quoteValue = project?.quoteValue || 0;
+  
+  // Use server expectedProfit if available, otherwise calculate it
+  const expectedProfit = budgetData?.data?.budget?.expectedProfit ?? (quoteValue > 0 ? quoteValue - totalEstimateCost : 0);
+  const expectedProfitPercent = quoteValue > 0 ? ((expectedProfit / quoteValue) * 100).toFixed(1) : "0";
 
   return (
     <div className="flex h-full flex-col ">
@@ -39,7 +93,7 @@ export default function BudgetPlanning() {
             <Button
               variant="default"
               className="bg-blue-500 hover:bg-blue-600 text-white flex items-center gap-2"
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/customers')}
             >
               <ArrowLeft className="h-4 w-4" />
               Back
@@ -81,11 +135,11 @@ export default function BudgetPlanning() {
             <div className="flex-1">
               <div className="flex items-center gap-4">
                 <h2 className="text-lg font-bold text-gray-900">
-                  Project 1- ABC Warehouse
+                  {project?.projectName || "Unnamed Project"}
                 </h2>
                 <span className="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
                   <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-emerald-600"></span>
-                  In Progress
+                  {project?.lifecycleStatus || "In Progress"}
                 </span>
               </div>
               <p className="text-sm text-gray-500 mt-1">Q-2025-1047</p>
@@ -105,14 +159,14 @@ export default function BudgetPlanning() {
               <CircleDollarSign className="h-5 w-5 text-gray-400" />
               <div>
                 <p className="text-xs text-gray-500">Total Quote Value</p>
-                <p className="text-sm font-medium text-gray-900">$1,250,000</p>
+                <p className="text-sm font-medium text-gray-900">${quoteValue.toLocaleString()}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <CircleDollarSign className="h-5 w-5 text-gray-400" />
               <div>
                 <p className="text-xs text-gray-500">Total Estimate Cost</p>
-                <p className="text-sm font-medium text-gray-900">$1,038,500</p>
+                <p className="text-sm font-medium text-gray-900">${totalEstimateCost.toLocaleString()}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -120,7 +174,7 @@ export default function BudgetPlanning() {
               <div>
                 <p className="text-xs text-gray-500">Expected Profit</p>
                 <p className="text-sm font-medium text-emerald-600">
-                  $211,500(16%)
+                  ${expectedProfit.toLocaleString()} ({expectedProfitPercent}%)
                 </p>
               </div>
             </div>
@@ -150,10 +204,12 @@ export default function BudgetPlanning() {
               </label>
               <div className="flex gap-4">
                 <Input
-                  defaultValue="$ 343,000.00"
+                  type="number"
+                  value={budget.materialBudget}
+                  onChange={(e) => handleInputChange("materialBudget", e.target.value)}
                   className="flex-1 text-gray-900 bg-white"
                 />
-                <Button className="bg-[#1E50A5] hover:bg-[#1a438c] text-white w-24">
+                <Button onClick={handleUpdateBudget} className="bg-[#1E50A5] hover:bg-[#1a438c] text-white w-24">
                   Update
                 </Button>
               </div>
@@ -181,10 +237,12 @@ export default function BudgetPlanning() {
               </label>
               <div className="flex gap-4">
                 <Input
-                  defaultValue="$ 343,000.00"
+                  type="number"
+                  value={budget.logisticBudget}
+                  onChange={(e) => handleInputChange("logisticBudget", e.target.value)}
                   className="flex-1 text-gray-900 bg-white"
                 />
-                <Button className="bg-[#1E50A5] hover:bg-[#1a438c] text-white w-24">
+                <Button onClick={handleUpdateBudget} className="bg-[#1E50A5] hover:bg-[#1a438c] text-white w-24">
                   Update
                 </Button>
               </div>
@@ -212,10 +270,12 @@ export default function BudgetPlanning() {
               </label>
               <div className="flex gap-4">
                 <Input
-                  defaultValue="$ 343,000.00"
+                  type="number"
+                  value={budget.productionBudget}
+                  onChange={(e) => handleInputChange("productionBudget", e.target.value)}
                   className="flex-1 text-gray-900 bg-white"
                 />
-                <Button className="bg-[#1E50A5] hover:bg-[#1a438c] text-white w-24">
+                <Button onClick={handleUpdateBudget} className="bg-[#1E50A5] hover:bg-[#1a438c] text-white w-24">
                   Update
                 </Button>
               </div>
@@ -243,10 +303,12 @@ export default function BudgetPlanning() {
               </label>
               <div className="flex gap-4">
                 <Input
-                  defaultValue="$ 343,000.00"
+                  type="number"
+                  value={budget.shipperBudget}
+                  onChange={(e) => handleInputChange("shipperBudget", e.target.value)}
                   className="flex-1 text-gray-900 bg-white"
                 />
-                <Button className="bg-[#1E50A5] hover:bg-[#1a438c] text-white w-24">
+                <Button onClick={handleUpdateBudget} className="bg-[#1E50A5] hover:bg-[#1a438c] text-white w-24">
                   Update
                 </Button>
               </div>
@@ -272,10 +334,12 @@ export default function BudgetPlanning() {
               </label>
               <div className="flex gap-4">
                 <Input
-                  defaultValue="$ 343,000.00"
+                  type="number"
+                  value={budget.otherCost}
+                  onChange={(e) => handleInputChange("otherCost", e.target.value)}
                   className="flex-1 text-gray-900 bg-white"
                 />
-                <Button className="bg-[#1E50A5] hover:bg-[#1a438c] text-white w-24">
+                <Button onClick={handleUpdateBudget} className="bg-[#1E50A5] hover:bg-[#1a438c] text-white w-24">
                   Update
                 </Button>
               </div>

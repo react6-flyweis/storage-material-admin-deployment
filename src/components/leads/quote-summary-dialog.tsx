@@ -7,97 +7,208 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Building2,
+  MapPin,
+  Ruler,
+  Wind,
+  CloudSnow,
+  Truck,
+  DollarSign,
+  CheckCircle2,
+  Plus,
+  FileDown,
+} from "lucide-react";
+import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  leadId?: string;
 };
 
-export default function QuoteSummaryDialog({ open, onOpenChange }: Props) {
+const INCLUDED_ITEMS = [
+  "Primary Frame Structure (Rigid Frame)",
+  "Secondary Framing (Purlins & Girts)",
+  "Roof & Wall Panels (26-gauge, 30-year warranty)",
+  "Trim & Fasteners Package",
+  "Detailed Engineering Drawings",
+  "Engineer-Stamped Structural Calculations",
+  "Foundation Anchor Bolts",
+];
+
+const OPTIONAL_ADDONS = [
+  { label: "Roll-up / Overhead Doors", price: "+$1,200 each" },
+  { label: "Walk-in Doors & Windows", price: "+$450 each" },
+  { label: "Skylights (4×4 polycarbonate)", price: "+$320 each" },
+  { label: "Insulation Package (roof + wall)", price: "+$2,800" },
+  { label: "Color Upgrade (custom RAL)", price: "+$450" },
+  { label: "Gutter & Downspout System", price: "+$1,800" },
+  { label: "Concrete Foundation Prep", price: "By quote" },
+];
+
+export default function QuoteSummaryDialog({ open, onOpenChange, leadId }: Props) {
+  const { data: leadQueryData } = useLeadDetailQuery(leadId || "");
+  const lead = leadQueryData?.data?.lead;
+  const ai = lead?.aiQuoteData;
+
+  const buildingType = lead?.buildingType || "—";
+  const location = lead?.location || "—";
+  const width = lead?.width || "—";
+  const length = lead?.length || "—";
+  const height = lead?.height || "—";
+  const roofStyle = lead?.roofStyle || "—";
+  const delivery = ai?.details?.deliveryWeeks || "8–12 weeks";
+  const priceMin = ai?.priceMin ? `$${Number(ai.priceMin).toLocaleString()}` : "—";
+  const priceMax = ai?.priceMax ? `$${Number(ai.priceMax).toLocaleString()}` : "—";
+  const sqft = ai?.details?.sqft || (lead?.width && lead?.length ? `${lead.width * lead.length}` : "—");
+  const windLoad = ai?.details?.windLoad || "90 mph";
+  const snowLoad = ai?.details?.snowLoad || "20 psf";
+  const complexity = ai?.complexity;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[95vh] overflow-y-scroll gap-0">
-        <DialogHeader>
-          <DialogTitle className="text-lg font-semibold ">
-            ✅ Quote Summary Quote Summary
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-2xl max-h-[92vh] overflow-y-auto p-0 gap-0">
+        {/* Header */}
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-5 rounded-t-xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-blue-200 uppercase tracking-wider font-medium mb-1">Request For Quotation</p>
+              <h2 className="text-xl font-bold">Custom Steel Building Quote</h2>
+              {lead?.jobId && (
+                <p className="text-blue-200 text-sm mt-0.5">{lead.jobId} · {lead.projectName || "Project"}</p>
+              )}
+            </div>
+            {complexity && (
+              <div className="text-center">
+                <div className="text-3xl font-bold">{complexity}</div>
+                <div className="text-xs text-blue-200">Complexity</div>
+                <div className="text-xs text-blue-200">/ 5</div>
+              </div>
+            )}
+          </div>
+        </div>
 
-        <div className="mt-4 space-y-6">
-          {/* Quote Header */}
+        <div className="p-6 space-y-6">
+          {/* Building Specs */}
           <div>
-            <h3 className="text-lg font-semibold ">
-              Your Custom Steel Building Quote
-            </h3>
-            <ul className="list-disc pl-6 mt-3 space-y-2 text-sm text-gray-700">
-              <li>Building Type: Workshop</li>
-              <li>Dimensions: 30' × 40' × 12'</li>
-              <li>Roof Style: Gable Roof</li>
-              <li>
-                Location: Dallas, TX (designed for 120 mph wind load, 20 psf
-                snow load)
-              </li>
-              <li>Estimated Delivery: 4-6 weeks</li>
-            </ul>
+            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Building Specifications</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-start gap-2.5 p-3 bg-gray-50 rounded-xl border">
+                <Building2 className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[11px] text-gray-400 uppercase font-medium">Building Type</p>
+                  <p className="text-sm font-semibold text-gray-800 capitalize">{buildingType}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2.5 p-3 bg-gray-50 rounded-xl border">
+                <MapPin className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[11px] text-gray-400 uppercase font-medium">Location</p>
+                  <p className="text-sm font-semibold text-gray-800">{location}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2.5 p-3 bg-gray-50 rounded-xl border">
+                <Ruler className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[11px] text-gray-400 uppercase font-medium">Dimensions (W × L × H)</p>
+                  <p className="text-sm font-semibold text-gray-800">{width}' × {length}' × {height}'</p>
+                  {sqft !== "—" && <p className="text-xs text-gray-400">{sqft} sq ft</p>}
+                </div>
+              </div>
+              <div className="flex items-start gap-2.5 p-3 bg-gray-50 rounded-xl border">
+                <Building2 className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[11px] text-gray-400 uppercase font-medium">Roof Style</p>
+                  <p className="text-sm font-semibold text-gray-800 capitalize">{roofStyle}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2.5 p-3 bg-gray-50 rounded-xl border">
+                <Wind className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[11px] text-gray-400 uppercase font-medium">Wind Load</p>
+                  <p className="text-sm font-semibold text-gray-800">{windLoad}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2.5 p-3 bg-gray-50 rounded-xl border">
+                <CloudSnow className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-[11px] text-gray-400 uppercase font-medium">Snow Load</p>
+                  <p className="text-sm font-semibold text-gray-800">{snowLoad}</p>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Estimated Price Range */}
-          <div className="">
+          {/* Price Range */}
+          <div className="rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100 p-5">
             <div className="flex items-center gap-2 mb-2">
-              <h4 className="text-base font-semibold text-gray-900">
-                💰 Estimated Price Range
-              </h4>
+              <DollarSign className="h-4 w-4 text-green-600" />
+              <h4 className="text-sm font-bold text-green-800">Estimated Price Range</h4>
+              {ai && <Badge className="bg-green-100 text-green-700 border-none text-xs">AI Estimate</Badge>}
             </div>
-            <p className="text-2xl font-bold text-gray-900">
-              $24,500 – $28,000
+            <p className="text-3xl font-bold text-gray-900 mt-1">
+              {priceMin} – {priceMax}
             </p>
-            <p className="text-sm text-gray-600 mt-2">
-              (This is an instant estimate based on your inputs. Final pricing
-              will be confirmed after engineering review and foundation
-              requirements.)
+            <p className="text-xs text-gray-500 mt-2">
+              This is an AI-assisted estimate based on project inputs. Final pricing will be confirmed after engineering review and site survey.
             </p>
+            {ai?.basis && (
+              <p className="text-xs text-green-700 font-medium mt-2 italic">"{ai.basis}"</p>
+            )}
+            <div className="flex items-center gap-2 mt-3">
+              <Truck className="h-3.5 w-3.5 text-gray-400" />
+              <span className="text-xs text-gray-500">Estimated Delivery: <strong className="text-gray-700">{delivery}</strong></span>
+            </div>
           </div>
 
           {/* What's Included */}
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <h4 className="text-base font-semibold text-gray-900">
-                📦 What's Included
-              </h4>
+            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-green-500" /> What's Included
+            </h3>
+            <div className="space-y-2">
+              {INCLUDED_ITEMS.map((item, i) => (
+                <div key={i} className="flex items-center gap-2.5">
+                  <div className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+                  <span className="text-sm text-gray-700">{item}</span>
+                </div>
+              ))}
             </div>
-            <ul className="list-disc pl-6 space-y-2 text-sm text-gray-700">
-              <li>Pre-engineered steel frame</li>
-              <li>Roof & wall panels (26-gauge, 30-year warranty)</li>
-              <li>Trim & fasteners</li>
-              <li>Detailed installation drawings</li>
-              <li>Engineer-stamped plans (where required)</li>
-            </ul>
           </div>
 
           {/* Optional Add-Ons */}
           <div>
-            <div className="flex items-center gap-2 mb-3">
-              <h4 className="text-base font-semibold text-gray-900">
-                🛠 Optional Add-Ons
-              </h4>
+            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+              <Plus className="h-4 w-4 text-blue-500" /> Optional Add-Ons
+            </h3>
+            <div className="space-y-2">
+              {OPTIONAL_ADDONS.map((addon, i) => (
+                <div key={i} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                  <span className="text-sm text-gray-700">{addon.label}</span>
+                  <span className="text-sm font-semibold text-blue-600">{addon.price}</span>
+                </div>
+              ))}
             </div>
-            <ul className="list-disc pl-6 space-y-2 text-sm text-gray-700">
-              <li>Roll-up doors</li>
-              <li>Walk-in doors & windows</li>
-              <li>Skylights</li>
-              <li>Insulation package</li>
-              <li>Color customization</li>
-            </ul>
+          </div>
+
+          {/* Disclaimer */}
+          <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4 text-xs text-yellow-700">
+            <strong>Note:</strong> This RFQ summary is based on the lead's project data and AI estimate. The formal quotation must be created separately using the "Create Quotation" form.
           </div>
         </div>
 
-        <DialogFooter className="mt-6 flex items-center sm:justify-center gap-4">
+        <DialogFooter className="px-6 py-4 border-t flex items-center sm:justify-center gap-3">
           <DialogClose asChild>
-            <Button variant="outline" className="rounded w-44 border-primary">
-              Back
+            <Button variant="outline" className="w-36 border-gray-300">
+              Close
             </Button>
           </DialogClose>
-          <Button className="rounded">Downloadable PDF Quote</Button>
+          <Button className="w-52 bg-blue-600 hover:bg-blue-700 flex items-center gap-2">
+            <FileDown className="h-4 w-4" />
+            Download PDF Quote
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

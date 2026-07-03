@@ -89,7 +89,7 @@ export default function ProjectDrawingsPage() {
       <div className="flex items-center gap-4 mb-6">
         <Button
           variant="default"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/customers')}
           className="bg-[#3B82F6] hover:bg-[#3B82F6]/90 text-white rounded-md px-4 py-2"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />

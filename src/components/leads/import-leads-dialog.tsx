@@ -17,8 +17,6 @@ import SuccessDialog from "@/components/success-dialog";
 import { useImportLeadsMutation } from "@/modules/leads/leads.hooks";
 import { getApiErrorMessage } from "@/lib/api-error";
 
-const REQUIRED_HEADERS = ["name", "email", "phone", "projectType"] as const;
-
 type ParsedLeadFile = {
   csv: string;
   previewHeaders: string[];
@@ -59,22 +57,10 @@ async function parseLeadFile(file: File): Promise<ParsedLeadFile> {
   }
 
   const [rawHeaders = [], ...rawDataRows] = rows;
-  const normalizedHeaders = rawHeaders.map((header) =>
-    normalizeHeader(String(header ?? "")),
-  );
+  const fileHeaders = rawHeaders.map((header) => String(header ?? "").trim());
 
-  const indexByRequiredHeader = REQUIRED_HEADERS.map((requiredHeader) =>
-    normalizedHeaders.findIndex(
-      (header) => header === normalizeHeader(requiredHeader),
-    ),
-  );
-
-  const missingHeaders = REQUIRED_HEADERS.filter(
-    (_, index) => indexByRequiredHeader[index] === -1,
-  );
-
-  if (missingHeaders.length > 0) {
-    throw new Error(`Missing required columns: ${missingHeaders.join(", ")}`);
+  if (fileHeaders.length === 0) {
+    throw new Error("The selected file does not contain a header row.");
   }
 
   const dataRows = rawDataRows.filter((row) =>
@@ -85,15 +71,13 @@ async function parseLeadFile(file: File): Promise<ParsedLeadFile> {
     throw new Error("The selected file does not contain any lead rows.");
   }
 
-  const normalizedRows = dataRows.map((row) =>
-    indexByRequiredHeader.map((headerIndex) =>
-      String(row[headerIndex] ?? "").trim(),
-    ),
+  const stringRows = dataRows.map((row) =>
+    fileHeaders.map((_, index) => String(row[index] ?? "").trim()),
   );
 
   const normalizedSheet = XLSX.utils.aoa_to_sheet([
-    [...REQUIRED_HEADERS],
-    ...normalizedRows,
+    fileHeaders,
+    ...stringRows,
   ]);
   const csv = XLSX.utils.sheet_to_csv(normalizedSheet, { blankrows: false });
 
@@ -103,8 +87,8 @@ async function parseLeadFile(file: File): Promise<ParsedLeadFile> {
 
   return {
     csv,
-    previewHeaders: [...REQUIRED_HEADERS],
-    previewRows: normalizedRows.slice(0, 5),
+    previewHeaders: fileHeaders,
+    previewRows: stringRows.slice(0, 5),
   };
 }
 
@@ -194,13 +178,13 @@ export default function ImportLeadsDialog() {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-lg p-0 gap-0">
+      <DialogContent className="sm:max-w-3xl p-0 gap-0">
         <DialogHeader className="border-b p-4">
           <DialogTitle className="text-lg">Import Leads</DialogTitle>
           <DialogDescription />
         </DialogHeader>
 
-        <div className="p-4">
+        <div className="p-4 overflow-hidden">
           <input
             ref={inputRef}
             type="file"
@@ -245,8 +229,6 @@ export default function ImportLeadsDialog() {
 
           <div className="text-sm text-gray-500 mt-4">
             Supported formats: CSV, Excel (.xlsx, .xls)
-            <br />
-            Required columns: name, email, phone, projectType
           </div>
 
           {selectedFile && (
@@ -262,13 +244,13 @@ export default function ImportLeadsDialog() {
           )}
 
           {previewHeaders.length > 0 && previewRows.length > 0 && (
-            <div className="mt-4 rounded-md border border-gray-200 overflow-hidden">
+            <div className="mt-4 rounded-md border border-gray-200 overflow-hidden max-w-full">
               <div className="px-3 py-2 text-xs font-medium text-gray-600 bg-gray-50">
                 Preview (first {previewRows.length} rows)
               </div>
 
               <div className="max-h-52 overflow-auto">
-                <table className="w-full text-left text-xs">
+                <table className="w-full text-left text-xs whitespace-nowrap">
                   <thead className="bg-white sticky top-0">
                     <tr>
                       {previewHeaders.map((header) => (

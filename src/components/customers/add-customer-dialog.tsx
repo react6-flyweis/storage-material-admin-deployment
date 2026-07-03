@@ -20,6 +20,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Controller, useForm } from "react-hook-form";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import { useSalesEmployeesQuery, useCreateCustomerMutation } from "@/modules/customers/customers.hooks";
 
 type Customer = {
   id: string;
@@ -35,53 +36,128 @@ type Customer = {
 export default function AddCustomerDialog({
   onAdd,
   trigger,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: {
-  onAdd: (c: Customer) => void;
+  onAdd?: (c: Customer) => void;
   trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = React.useState(false);
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+  const setOpen = isControlled ? controlledOnOpenChange! : setInternalOpen;
+  
   const [showSuccess, setShowSuccess] = React.useState(false);
 
+  // Fetch sales employees and create customer mutation
+  const { data: salesEmployeesResponse, isLoading: isSalesEmployeesLoading } = useSalesEmployeesQuery();
+  const salesEmployees = salesEmployeesResponse?.data?.employees ?? [];
+  const createCustomerMutation = useCreateCustomerMutation();
+
   type FormValues = {
-    customerName: string;
-    inquiryFor: string;
-    status: string;
+    firstName: string;
+    email: string;
+    phone: string;
+    buildingType: string;
+    location: string;
+    projectName: string;
+    countryCode: string;
+    assignedSales: string;
     notes?: string;
-    assignTo?: string;
-    phone?: string;
-    email?: string;
   };
 
   const form = useForm<FormValues>({
+    mode: "onSubmit",
     defaultValues: {
-      customerName: "",
-      inquiryFor: "Wearhouse",
-      status: "New",
-      notes: "",
-      assignTo: "",
-      phone: "",
+      firstName: "",
       email: "",
+      phone: "",
+      buildingType: "Warehouse",
+      location: "",
+      projectName: "",
+      countryCode: "+1",
+      assignedSales: "unassigned",
+      notes: "",
+    },
+    resolver: async (values) => {
+      const errors: any = {};
+      
+      if (!values.firstName?.trim()) {
+        errors.firstName = { type: "required", message: "Customer name is required" };
+      }
+      
+      if (!values.email?.trim()) {
+        errors.email = { type: "required", message: "Email is required" };
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+        errors.email = { type: "pattern", message: "Please enter a valid email" };
+      }
+      
+      if (!values.phone?.trim()) {
+        errors.phone = { type: "required", message: "Phone number is required" };
+      } else if (!/^\d{10}$/.test(values.phone.replace(/\D/g, ""))) {
+        errors.phone = { type: "pattern", message: "Phone must be 10 digits" };
+      }
+      
+      if (!values.buildingType?.trim()) {
+        errors.buildingType = { type: "required", message: "Building type is required" };
+      }
+      
+      if (!values.location?.trim()) {
+        errors.location = { type: "required", message: "Location is required" };
+      }
+      
+      if (!values.projectName?.trim()) {
+        errors.projectName = { type: "required", message: "Project name is required" };
+      }
+      
+      return {
+        values: Object.keys(errors).length === 0 ? values : {},
+        errors,
+      };
     },
   });
 
   function onSubmit(values: FormValues) {
-    const id = `ID-${new Date().getFullYear()}-${
-      Math.floor(Math.random() * 9000) + 1000
-    }`;
-    const newCustomer: Customer = {
-      id,
-      customerName: values.customerName || "Unnamed",
-      inquiryFor: values.inquiryFor,
-      status: values.status || "New",
-      createdAt: new Date(),
-      isReturning: false,
-      phone: values.phone,
+    // Prepare data for API
+    const apiData = {
+      firstName: values.firstName,
       email: values.email,
+      phone: values.phone,
+      buildingType: values.buildingType,
+      location: values.location,
+      projectName: values.projectName,
+      countryCode: values.countryCode,
+      assignedSales: values.assignedSales === "unassigned" ? "" : values.assignedSales,
     };
-    onAdd(newCustomer);
-    setOpen(false);
-    form.reset();
-    setShowSuccess(true);
+
+    createCustomerMutation.mutate(apiData, {
+      onSuccess: (response) => {
+        // Create customer object for callback (maintaining backward compatibility)
+        const newCustomer: Customer = {
+          id: response.data.customer._id,
+          customerName: response.data.customer.firstName || "Unnamed",
+          inquiryFor: values.buildingType,
+          status: "New",
+          createdAt: new Date(),
+          isReturning: false,
+          phone: values.phone,
+          email: values.email,
+        };
+
+        if (onAdd) {
+          onAdd(newCustomer);
+        }
+        setOpen(false);
+        form.reset();
+        setShowSuccess(true);
+      },
+      onError: (error) => {
+        console.error("Failed to create customer:", error);
+        // You can add error handling here (toast notification, etc.)
+      },
+    });
   }
 
   return (
@@ -97,13 +173,13 @@ export default function AddCustomerDialog({
         >
           <Controller
             control={form.control}
-            name="customerName"
+            name="firstName"
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="customerName">Customer Name</FieldLabel>
+                <FieldLabel htmlFor="firstName">Customer Name <span className="text-red-500">*</span></FieldLabel>
                 <Input
                   {...field}
-                  id="customerName"
+                  id="firstName"
                   placeholder="John Doe"
                   aria-invalid={fieldState.invalid}
                 />
@@ -117,20 +193,20 @@ export default function AddCustomerDialog({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Controller
               control={form.control}
-              name="inquiryFor"
+              name="buildingType"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="inquiryFor">Customer Request</FieldLabel>
+                  <FieldLabel htmlFor="buildingType">Building Type <span className="text-red-500">*</span></FieldLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger
-                      id="inquiryFor"
+                      id="buildingType"
                       className="w-full"
                       aria-invalid={fieldState.invalid}
                     >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Wearhouse">Wearhouse</SelectItem>
+                      <SelectItem value="Warehouse">Warehouse</SelectItem>
                       <SelectItem value="Garage">Garage</SelectItem>
                       <SelectItem value="Custom">Custom</SelectItem>
                     </SelectContent>
@@ -144,24 +220,16 @@ export default function AddCustomerDialog({
 
             <Controller
               control={form.control}
-              name="status"
+              name="location"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="status">Customer Status</FieldLabel>
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger
-                      id="status"
-                      className="w-full"
-                      aria-invalid={fieldState.invalid}
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="New">New</SelectItem>
-                      <SelectItem value="Active">Active</SelectItem>
-                      <SelectItem value="Inactive">Inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <FieldLabel htmlFor="location">Location <span className="text-red-500">*</span></FieldLabel>
+                  <Input
+                    {...field}
+                    id="location"
+                    placeholder="Chennai"
+                    aria-invalid={fieldState.invalid}
+                  />
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
                   )}
@@ -169,6 +237,25 @@ export default function AddCustomerDialog({
               )}
             />
           </div>
+
+          <Controller
+            control={form.control}
+            name="projectName"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="projectName">Project Name <span className="text-red-500">*</span></FieldLabel>
+                <Input
+                  {...field}
+                  id="projectName"
+                  placeholder="Ravi Warehouse"
+                  aria-invalid={fieldState.invalid}
+                />
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
 
           <Controller
             control={form.control}
@@ -191,44 +278,85 @@ export default function AddCustomerDialog({
 
           <Controller
             control={form.control}
-            name="assignTo"
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="assignTo">Assign Lead to</FieldLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <SelectTrigger
-                    id="assignTo"
-                    className="w-full"
-                    aria-invalid={fieldState.invalid}
-                  >
-                    <SelectValue placeholder="Unassigned" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="james">James Lee</SelectItem>
-                    <SelectItem value="linda">Linda Park</SelectItem>
-                    <SelectItem value="mike">Mike Ross</SelectItem>
-                  </SelectContent>
-                </Select>
-                {fieldState.invalid && (
-                  <FieldError errors={[fieldState.error]} />
-                )}
-              </Field>
-            )}
+            name="assignedSales"
+            render={({ field, fieldState }) => {
+              // Get the selected employee name for display
+              const selectedEmployee = salesEmployees.find(emp => emp._id === field.value);
+              const displayText = field.value === "unassigned" || !field.value
+                ? "Unassigned"
+                : selectedEmployee?.name || "Assigned";
+
+              return (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="assignedSales">Assign Lead to</FieldLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger
+                      id="assignedSales"
+                      className="w-full"
+                      aria-invalid={fieldState.invalid}
+                    >
+                      <SelectValue placeholder={isSalesEmployeesLoading ? "Loading..." : displayText} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unassigned">Unassigned</SelectItem>
+                      {isSalesEmployeesLoading ? (
+                        <SelectItem value="loading" disabled>Loading sales employees...</SelectItem>
+                      ) : salesEmployees.length > 0 ? (
+                        salesEmployees
+                          .filter(employee => employee.isActive) // Only show active employees
+                          .map((employee) => (
+                            <SelectItem key={employee._id} value={employee._id}>
+                              <div className="flex items-center space-x-2">
+                                <div className="size-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs font-medium">
+                                  {employee.name?.charAt(0)?.toUpperCase() || "?"}
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{employee.name || "Unknown"}</span>
+                                  <span className="text-xs text-gray-500">{employee.email}</span>
+                                </div>
+                                {employee.assignedLeadCount !== undefined && (
+                                  <span className="text-xs text-gray-400 ml-auto">
+                                    {employee.assignedLeadCount} leads
+                                  </span>
+                                )}
+                              </div>
+                            </SelectItem>
+                          ))
+                      ) : (
+                        <SelectItem value="no-employees" disabled>No sales employees available</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              );
+            }}
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Controller
               control={form.control}
-              name="phone"
+              name="countryCode"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="phone">Phone Number</FieldLabel>
-                  <Input
-                    {...field}
-                    id="phone"
-                    placeholder="0987654321"
-                    aria-invalid={fieldState.invalid}
-                  />
+                  <FieldLabel htmlFor="countryCode">Country Code <span className="text-red-500">*</span></FieldLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger
+                      id="countryCode"
+                      className="w-full"
+                      aria-invalid={fieldState.invalid}
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="+91">+91 (India)</SelectItem>
+                      <SelectItem value="+1">+1 (USA)</SelectItem>
+                      <SelectItem value="+44">+44 (UK)</SelectItem>
+                      <SelectItem value="+86">+86 (China)</SelectItem>
+                    </SelectContent>
+                  </Select>
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
                   )}
@@ -238,15 +366,14 @@ export default function AddCustomerDialog({
 
             <Controller
               control={form.control}
-              name="email"
+              name="phone"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="email">Email</FieldLabel>
+                  <FieldLabel htmlFor="phone">Phone Number <span className="text-red-500">*</span></FieldLabel>
                   <Input
                     {...field}
-                    id="email"
-                    type="email"
-                    placeholder="client@gmail.com"
+                    id="phone"
+                    placeholder="9876543210"
                     aria-invalid={fieldState.invalid}
                   />
                   {fieldState.invalid && (
@@ -256,6 +383,26 @@ export default function AddCustomerDialog({
               )}
             />
           </div>
+
+          <Controller
+            control={form.control}
+            name="email"
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="email">Email <span className="text-red-500">*</span></FieldLabel>
+                <Input
+                  {...field}
+                  id="email"
+                  type="email"
+                  placeholder="ravi@ex.com"
+                  aria-invalid={fieldState.invalid}
+                />
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
 
           <DialogFooter>
             <div className="w-full flex justify-end gap-3">

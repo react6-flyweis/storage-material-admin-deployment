@@ -40,7 +40,7 @@ export default function Settings() {
       {/* Header */}
       <div className="flex flex-wrap md:items-center items-start justify-between">
         <div className="flex items-start gap-4 flex-wrap">
-          <Button onClick={() => navigate(-1)}>
+          <Button onClick={() => navigate('/')}>
             <MoveLeft className="w-4 h-4" />
             <p className="font-normal md:text-sm text-xs">Back</p>
           </Button>

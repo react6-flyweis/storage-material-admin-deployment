@@ -213,7 +213,7 @@ export default function NewInvoice() {
           <Button
             variant="outline"
             className="bg-white hover:bg-gray-50 text-black border-gray-200"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/accounts/invoices')}
           >
             Cancel
           </Button>
@@ -334,7 +334,7 @@ export default function NewInvoice() {
           <div className="col-span-1 text-right">Total</div>
         </div>
 
-        <div className="mb-6">
+        {/* <div className="mb-6">
           <div className="flex items-center gap-3 mb-4">
             <button
               className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${"bg-gray-200"}`}
@@ -347,7 +347,7 @@ export default function NewInvoice() {
               Group items into Sections
             </span>
           </div>
-        </div>
+        </div> */}
 
         {/* Invoice Items List */}
         <div className="space-y-4">

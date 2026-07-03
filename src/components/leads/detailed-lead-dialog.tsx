@@ -288,6 +288,7 @@ export default function DetailedLeadDialog({
             Close
           </Button>
           <AssignSalesDialog
+            leadId={lead.id}
             trigger={
               <Button className="bg-blue-600 hover:bg-blue-700">
                 Assign Lead

@@ -130,7 +130,7 @@ export default function MaterialDeliveryPage() {
         <div className="flex items-center gap-3">
           <Button
             variant="default"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/customers')}
             className="px-4 bg-[#3B82F6] hover:bg-[#2563EB] text-white"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />

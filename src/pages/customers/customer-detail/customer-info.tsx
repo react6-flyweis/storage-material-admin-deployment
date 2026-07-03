@@ -12,7 +12,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import StatCard from "@/components/ui/stat-card";
 import ProfileCard from "@/components/profile-card";
-import { useCustomerDetailQuery } from "@/modules/customers/customers.hooks";
+import { useCustomerDetailQuery, useCustomerProjectsQuery, useCustomerInvoicesQuery } from "@/modules/customers/customers.hooks";
+import { StatCardSkeleton, TableSkeleton, CardSkeleton } from "@/components/ui/skeleton";
 import photo1 from "@/assets/images/customers/photos-1.webp";
 import photo2 from "@/assets/images/customers/photos-2.webp";
 import photo3 from "@/assets/images/customers/photos-3.webp";
@@ -40,6 +41,13 @@ function formatJoinedDate(value?: string) {
   });
 }
 
+// Strips trailing timestamp suffix appended by backend
+// e.g. "Ayesha Saloon garage 2026-05-18T22-25-15-035Z" → "Ayesha Saloon garage"
+function cleanProjectName(name?: string) {
+  if (!name) return "-";
+  return name.replace(/\s*\d{4}-\d{2}-\d{2}T[\d-]+Z$/, "").trim() || name;
+}
+
 export default function CustomerDetailLayout() {
   const navigate = useNavigate();
   const params = useParams();
@@ -50,6 +58,12 @@ export default function CustomerDetailLayout() {
     isLoading,
     isError,
   } = useCustomerDetailQuery(id);
+
+  const { data: projectsResponse } = useCustomerProjectsQuery(id);
+  const apiProjects = projectsResponse?.data?.projects ?? [];
+
+  const { data: invoicesResponse } = useCustomerInvoicesQuery(id);
+  const apiInvoices = invoicesResponse?.data?.invoices ?? [];
 
   const customerData = customerDetailResponse?.data.customer;
 
@@ -104,8 +118,8 @@ export default function CustomerDetailLayout() {
     });
   }
 
-  const photos = [photo1, photo2, photo3, photo4, photo5];
-
+  // const photos = [photo1, photo2, photo3, photo4, photo5];
+  console.log("apiProjects", apiProjects)
   return (
     <div className="p-4 sm:p-6 space-y-6 min-h-screen">
       {/* Header */}
@@ -113,7 +127,7 @@ export default function CustomerDetailLayout() {
         <div className="flex items-center gap-3">
           <Button
             variant="default"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/customers')}
             className="px-4"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
@@ -152,30 +166,41 @@ export default function CustomerDetailLayout() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Total Paid"
-          value={formatCurrency(customerDetailResponse?.data.totalPaid ?? 0)}
-          color="bg-[#1D51A4]"
-          icon={<DollarSign className="h-5 w-5 text-[#1D51A4]" />}
-        />
-        <StatCard
-          title="Pending Payment"
-          value={formatCurrency(customerDetailResponse?.data.totalPending ?? 0)}
-          color="bg-[#FD8D5B]"
-          icon={<Clock3 className="h-5 w-5 text-[#FD8D5B]" />}
-        />
-        <StatCard
-          title="Total Invoices"
-          value={String(customerDetailResponse?.data.totalInvoices ?? 0)}
-          color="bg-[#EAB308]"
-          icon={<FileText className="h-5 w-5 text-[#EAB308]" />}
-        />
-        <StatCard
-          title="Revenue Generated"
-          value={formatCurrency(customerDetailResponse?.data.totalPaid ?? 0)}
-          color="bg-[#A855F7]"
-          icon={<DollarSign className="h-5 w-5 text-[#A855F7]" />}
-        />
+        {isLoading ? (
+          <>
+            <StatCardSkeleton color="bg-[#1D51A4]" />
+            <StatCardSkeleton color="bg-[#FD8D5B]" />
+            <StatCardSkeleton color="bg-[#EAB308]" />
+            <StatCardSkeleton color="bg-[#A855F7]" />
+          </>
+        ) : (
+          <>
+            <StatCard
+              title="Total Paid"
+              value={formatCurrency(customerDetailResponse?.data.totalPaid ?? 0)}
+              color="bg-[#1D51A4]"
+              icon={<DollarSign className="h-5 w-5 text-[#1D51A4]" />}
+            />
+            <StatCard
+              title="Pending Payment"
+              value={formatCurrency(customerDetailResponse?.data.totalPending ?? 0)}
+              color="bg-[#FD8D5B]"
+              icon={<Clock3 className="h-5 w-5 text-[#FD8D5B]" />}
+            />
+            <StatCard
+              title="Total Invoices"
+              value={String(customerDetailResponse?.data.totalInvoices ?? 0)}
+              color="bg-[#EAB308]"
+              icon={<FileText className="h-5 w-5 text-[#EAB308]" />}
+            />
+            <StatCard
+              title="Revenue Generated"
+              value={formatCurrency(customerDetailResponse?.data.totalPaid ?? 0)}
+              color="bg-[#A855F7]"
+              icon={<DollarSign className="h-5 w-5 text-[#A855F7]" />}
+            />
+          </>
+        )}
       </div>
 
       <Card>
@@ -197,7 +222,7 @@ export default function CustomerDetailLayout() {
                     Project Name
                   </th>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-4">
-                    Amount
+                    Budget
                   </th>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-4">
                     Status
@@ -205,52 +230,60 @@ export default function CustomerDetailLayout() {
                   <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-4">
                     Start Date
                   </th>
-                  <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-4">
+                  {/* <th className="text-left text-xs font-medium text-gray-500 uppercase px-6 py-4">
                     End Date
-                  </th>
+                  </th> */}
                 </tr>
               </thead>
               <tbody>
-                {(customerDetailResponse?.data.projects ?? []).map(
-                  (p, index) => (
-                    <tr
-                      key={p._id ?? index}
-                      className="border-b last:border-0 hover:bg-transparent"
-                    >
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {p.buildingType || "N/A"}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
-                        {p._id}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
-                        {p.location || "N/A"}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
-                        {formatCurrency(p.quoteValue ?? 0)}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`text-sm ${
-                            (p.lifecycleStatus || "")
-                              .toLowerCase()
-                              .includes("completed")
+                {apiProjects.map((p, index) => (
+                  <tr
+                    key={p._id ?? index}
+                    className="border-b last:border-0 hover:bg-transparent"
+                  >
+                    {/* Project N */}
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900 whitespace-nowrap">
+                      Project {index + 1}
+                    </td>
+                    {/* Job ID */}
+                    <td className="px-6 py-4 text-sm text-gray-700 font-mono text-xs">
+                      {p._id.slice(-6).toUpperCase()}
+                    </td>
+                    {/* Project Name */}
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      {cleanProjectName(p.projectName)}
+                    </td>
+                    {/* Budget — use budget field, fallback to quoteValue */}
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      {p.budget != null
+                        ? formatCurrency(p.budget)
+                        : p.quoteValue
+                          ? formatCurrency(p.quoteValue)
+                          : "-"}
+                    </td>
+                    {/* Status */}
+                    <td className="px-6 py-4">
+                      <span
+                        className={`text-sm font-medium ${p.isTerminated
+                            ? "text-red-600"
+                            : (p.lifecycleStatus || "").toLowerCase().includes("closed_won")
                               ? "text-green-600"
-                              : "text-orange-600"
+                              : "text-orange-500"
                           }`}
-                        >
-                          {humanizeStatus(p.lifecycleStatus)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
-                        {formatDate(p.createdAt)}
-                      </td>
-                      <td className="px-6 py-4 text-sm text-gray-700">
-                        {formatDate(p.updatedAt)}
-                      </td>
-                    </tr>
-                  ),
-                )}
+                      >
+                        {p.isTerminated ? "Terminated" : humanizeStatus(p.lifecycleStatus)}
+                      </span>
+                    </td>
+                    {/* Start Date */}
+                    <td className="px-6 py-4 text-sm text-gray-700">
+                      {formatDate(p.createdAt)}
+                    </td>
+                    {/* End Date */}
+                    {/* <td className="px-6 py-4 text-sm text-gray-700">
+                      {formatDate(p.updatedAt)}
+                    </td> */}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -325,14 +358,14 @@ export default function CustomerDetailLayout() {
                 </tr>
               </thead>
               <tbody>
-                {(customerDetailResponse?.data.invoices ?? []).map((inv) => {
+                {apiInvoices.map((inv) => {
                   const invoiceDate = inv.date ? new Date(inv.date) : null;
                   const dueDate =
                     invoiceDate && typeof inv.daysToPay === "number"
                       ? new Date(
-                          invoiceDate.getTime() +
-                            inv.daysToPay * 24 * 60 * 60 * 1000,
-                        )
+                        invoiceDate.getTime() +
+                        inv.daysToPay * 24 * 60 * 60 * 1000,
+                      )
                       : invoiceDate;
 
                   const amount = inv.totalAmount ?? 0;
@@ -355,10 +388,10 @@ export default function CustomerDetailLayout() {
                       <td className="px-6 py-4 text-sm text-gray-700">
                         {dueDate
                           ? dueDate.toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "2-digit",
-                              year: "numeric",
-                            })
+                            month: "short",
+                            day: "2-digit",
+                            year: "numeric",
+                          })
                           : "-"}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-700">
@@ -372,11 +405,10 @@ export default function CustomerDetailLayout() {
                       </td>
                       <td className="px-6 py-4">
                         <span
-                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold text-white ${
-                            (inv.status || "").toLowerCase() === "paid"
+                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold text-white ${(inv.status || "").toLowerCase() === "paid"
                               ? "bg-emerald-500"
                               : "bg-red-600"
-                          }`}
+                            }`}
                         >
                           <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-white" />
                           {inv.status ?? "-"}
@@ -405,20 +437,9 @@ export default function CustomerDetailLayout() {
         <CardHeader>
           <CardTitle>Photos</CardTitle>
         </CardHeader>
-        <CardContent className="px-0 pt-0 pb-6">
-          <div className="grid grid-cols-2 gap-4 px-6 sm:grid-cols-2 md:grid-cols-3">
-            {photos.map((photo, index) => (
-              <div
-                key={index}
-                className="h-28 overflow-hidden rounded-lg bg-gray-100 sm:h-32"
-              >
-                <img
-                  src={photo}
-                  alt={`Project photo ${index + 1}`}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-200 cursor-pointer"
-                />
-              </div>
-            ))}
+        <CardContent className="px-6 pt-0 pb-6">
+          <div className="flex flex-col items-center justify-center py-10 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+            <p>Not found</p>
           </div>
         </CardContent>
       </Card>

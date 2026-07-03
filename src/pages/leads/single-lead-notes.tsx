@@ -74,7 +74,7 @@ export default function SingleLeadNotes() {
     <div className="w-full">
       {/* Header */}
       <div className="bg-[#4ECDC4] text-white px-6 py-3 flex items-center gap-3">
-        <Button onClick={() => navigate(-1)}>
+        <Button onClick={() => navigate('/leads')}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>

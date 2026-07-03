@@ -1,5 +1,7 @@
 import { BarChart3, TrendingUp, Users } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/modules/auth/auth.api";
 import { Button } from "@/components/ui/button";
 import CustomReportDialog from "@/components/custom-report-dialog";
 import {
@@ -61,6 +63,17 @@ export default function Analytics() {
     "Reports & Analytics"
   );
   const [period, setPeriod] = useState<string>("monthly");
+
+  const { data: analyticsResponse, isLoading } = useQuery({
+    queryKey: ["analytics", period],
+    queryFn: async () => {
+      const res = await apiClient.get(`/api/admin/reports/analytics?timeframe=${period}`);
+      return res.data; // Assuming data is directly in res.data, adjust if it's res.data.data
+    },
+  });
+
+  const analyticsData = analyticsResponse?.data || analyticsResponse; // fallback if wrapped in data
+
 
   const salesRef = useRef<HTMLDivElement | null>(null);
   const convRef = useRef<HTMLDivElement | null>(null);
@@ -177,29 +190,41 @@ export default function Analytics() {
       {/* Quick Overview */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold mb-4">Quick Overview</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">$67,000</div>
-            <div className="text-sm text-muted-foreground">
-              This month Revenue
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground">Loading...</div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">
+                ${analyticsData?.quickOverview?.revenue?.toLocaleString() || "67,000"}
+              </div>
+              <div className="text-sm text-muted-foreground">
+                This month Revenue
+              </div>
+            </div>
+
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">
+                {analyticsData?.quickOverview?.newLeads || "158"}
+              </div>
+              <div className="text-sm text-muted-foreground">New Leads</div>
+            </div>
+
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">
+                {analyticsData?.quickOverview?.conversions || "42"}
+              </div>
+              <div className="text-sm text-muted-foreground">Conversions</div>
+            </div>
+
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">
+                {analyticsData?.quickOverview?.conversionRate || "26.6"}%
+              </div>
+              <div className="text-sm text-muted-foreground">Conversion Rate</div>
             </div>
           </div>
-
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">158</div>
-            <div className="text-sm text-muted-foreground">New Leads</div>
-          </div>
-
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">42</div>
-            <div className="text-sm text-muted-foreground">Conversions</div>
-          </div>
-
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">26.6%</div>
-            <div className="text-sm text-muted-foreground">Conversion Rate</div>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Sales Analytics - Detailed View (extracted) */}
@@ -209,6 +234,9 @@ export default function Analytics() {
             <SalesAnalyticsDetailed
               ref={salesRef}
               setActiveReport={setActiveReport}
+              analyticsData={analyticsData}
+              period={period}
+              setPeriod={setPeriod}
             />
           </div>
         </div>

@@ -250,7 +250,7 @@ export default function EmployeeProfilePage() {
             >
               Assigned Leads
             </button>
-            <button
+            {/* <button
               className={`py-4 text-sm whitespace-nowrap ${
                 activeTab === "assignedProjects"
                   ? "border-b-2 border-blue-500 text-blue-600"
@@ -269,7 +269,7 @@ export default function EmployeeProfilePage() {
               onClick={() => setActiveTab("assignedPlantProjects")}
             >
               Assigned plant projects
-            </button>
+            </button> */}
             <button
               className={`py-4 text-sm whitespace-nowrap ${
                 activeTab === "performance"
@@ -309,7 +309,7 @@ export default function EmployeeProfilePage() {
             />
           )}
 
-          {activeTab === "assignedProjects" && (
+          {/* {activeTab === "assignedProjects" && (
             <EmployeeAssignedProjectsTab
               dateRange={dateRange}
               onDateRangeChange={(range) => {
@@ -327,7 +327,7 @@ export default function EmployeeProfilePage() {
                 setCurrentPage(1);
               }}
             />
-          )}
+          )} */}
 
           {activeTab === "performance" && (
             <EmployeePerformanceTab stats={employeeStats} />

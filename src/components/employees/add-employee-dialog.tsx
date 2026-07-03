@@ -4,6 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import SuccessDialog from "@/components/success-dialog";
+import { useCreateAdminEmployeeMutation } from "@/modules/employees/employees.hooks";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -66,10 +68,13 @@ const addEmployeeSchema = z.object({
   email: z.string().email("Invalid email address"),
   phone: z.string().optional(),
   role: z.string().min(1, "Role is required"),
-  team: z.string().min(1, "Team is required"),
   status: z.enum(["active", "inactive"]).optional(),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string().min(6, "Confirm password is required"),
   permissions: permissionsSchema.optional(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
 type AddEmployeeForm = z.infer<typeof addEmployeeSchema>;
@@ -86,9 +91,9 @@ const defaultFormValues: AddEmployeeForm = {
   email: "",
   phone: "",
   role: "Employee",
-  team: "Sales",
   status: "active",
   password: "",
+  confirmPassword: "",
   permissions: {},
 };
 
@@ -116,9 +121,9 @@ export function AddEmployeeDialog({
       email: "",
       phone: "",
       role: "Employee",
-      team: "Sales",
       status: "active",
       password: "",
+      confirmPassword: "",
       permissions: {},
     },
   });
@@ -134,15 +139,30 @@ export function AddEmployeeDialog({
     if (onOpenChange) onOpenChange(val);
   };
 
+  const createEmployeeMutation = useCreateAdminEmployeeMutation();
+
   const onSubmit = (data: AddEmployeeForm) => {
-    console.log({
-      ...data,
-      joinedDate: new Date().toLocaleDateString("en-US"),
-      leads: 0,
-    });
-    reset();
-    setOpen(false);
-    setShowSuccess(true);
+    createEmployeeMutation.mutate(
+      {
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        phone: data.phone,
+        role: data.role.toLowerCase(), // The API might expect lower case role
+        status: data.status,
+        permissions: data.permissions,
+      },
+      {
+        onSuccess: () => {
+          reset();
+          setOpen(false);
+          setShowSuccess(true);
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || "Failed to add employee");
+        },
+      }
+    );
   };
 
   return (
@@ -178,6 +198,7 @@ export function AddEmployeeDialog({
                 id="name"
                 placeholder="Enter full name"
                 {...register("name")}
+                className={errors.name ? "border-red-500 focus-visible:ring-red-500" : ""}
               />
               {errors.name && (
                 <p className="text-destructive text-sm">
@@ -187,12 +208,13 @@ export function AddEmployeeDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address *</Label>
+              <Label htmlFor="email" className={errors.email ? "text-red-500" : ""}>Email Address *</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="Enter email address"
                 {...register("email")}
+                className={errors.email ? "border-red-500 focus-visible:ring-red-500" : ""}
               />
               {errors.email && (
                 <p className="text-destructive text-sm">
@@ -207,49 +229,35 @@ export function AddEmployeeDialog({
                 id="phone"
                 placeholder="Enter phone number"
                 {...register("phone")}
+                className={errors.phone ? "border-red-500 focus-visible:ring-red-500" : ""}
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="team">Department</Label>
-              <Controller
-                control={control}
-                name="team"
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select team" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Sales">Sales</SelectItem>
-                      <SelectItem value="Support">Support</SelectItem>
-                      <SelectItem value="Marketing">Marketing</SelectItem>
-                      <SelectItem value="Construction">Construction</SelectItem>
-                      <SelectItem value="Plant">Plant</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
+              <Label htmlFor="role" className={errors.role ? "text-red-500" : ""}>Role</Label>
               <Controller
                 control={control}
                 name="role"
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className={errors.role ? "w-full border-red-500 focus:ring-red-500" : "w-full"}>
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Manager">Manager</SelectItem>
-                      <SelectItem value="Employee">Employee</SelectItem>
-                      <SelectItem value="Admin">Admin</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="sales">Sales</SelectItem>
+                      <SelectItem value="construction">Construction</SelectItem>
+                      <SelectItem value="plant">Plant</SelectItem>
+                      <SelectItem value="account">Account</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
               />
+              {errors.role && (
+                <p className="text-destructive text-sm">
+                  {errors.role.message}
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -259,7 +267,7 @@ export function AddEmployeeDialog({
                 name="status"
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className={errors.status ? "w-full border-red-500 focus:ring-red-500" : "w-full"}>
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -272,12 +280,13 @@ export function AddEmployeeDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Create Password</Label>
+              <Label htmlFor="password" className={errors.password ? "text-red-500" : ""}>Create Password</Label>
               <Input
                 id="password"
                 type="password"
                 placeholder="Enter password"
                 {...register("password")}
+                className={errors.password ? "border-red-500 focus-visible:ring-red-500" : ""}
               />
               {errors.password && (
                 <p className="text-destructive text-sm">
@@ -286,16 +295,17 @@ export function AddEmployeeDialog({
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Confirm Password</Label>
+              <Label htmlFor="confirmPassword" className={errors.confirmPassword ? "text-red-500" : ""}>Confirm Password</Label>
               <Input
-                id="password"
+                id="confirmPassword"
                 type="password"
-                placeholder="Enter password"
-                {...register("password")}
+                placeholder="Confirm password"
+                {...register("confirmPassword")}
+                className={errors.confirmPassword ? "border-red-500 focus-visible:ring-red-500" : ""}
               />
-              {errors.password && (
+              {errors.confirmPassword && (
                 <p className="text-destructive text-sm">
-                  {errors.password.message}
+                  {errors.confirmPassword.message}
                 </p>
               )}
             </div>
@@ -359,11 +369,11 @@ export function AddEmployeeDialog({
             <Button
               type="submit"
               className="bg-[#3b82f6] hover:bg-[#2563eb]"
-              disabled={isSubmitting}
+              disabled={isSubmitting || createEmployeeMutation.isPending}
             >
-              {initialValues && Object.keys(initialValues).length > 0
+              {createEmployeeMutation.isPending ? "Saving..." : (initialValues && Object.keys(initialValues).length > 0
                 ? "Save Changes"
-                : "Add Employee"}
+                : "Add Employee")}
             </Button>
           </div>
         </form>

@@ -51,6 +51,8 @@ import BudgetVsActualIcon from "@/assets/icons/sidebar/budget-actual.svg";
 import { Button } from "./ui/button";
 import activeBgImage from "@/assets/images/active-bg.png";
 import { cn } from "@/lib/utils";
+import { UserMenu } from "@/components/user-menu";
+import ProfileDialog from "@/components/profile-dialog";
 import { useEmployeeCountsStore } from "@/modules/employees/employees.store";
 import {
   ChevronDownIcon,
@@ -130,27 +132,6 @@ const navigationGroups: NavigationGroup[] = [
     items: [],
   },
   {
-    id: "users" as NavGroup,
-    icon: customer,
-    label: "Customer",
-    color: "#EAB308",
-    link: "/customers",
-    items: [
-      { path: "/customers/meetings", label: "Meetings", icon: meetingsIcon },
-      {
-        path: "/customers/terminated-projects",
-        label: "Terminated Projects",
-        icon: terminatedProjectsIcon,
-      },
-      // recent-signed contracts
-      {
-        path: "/customers/contracts",
-        label: "Recent Signed Contracts",
-        icon: recentContractsIcon,
-      },
-    ],
-  },
-  {
     id: "links" as NavGroup,
     icon: leadsIcon,
     label: "Leads",
@@ -217,79 +198,94 @@ const navigationGroups: NavigationGroup[] = [
         icon: purchaseOrdersIcon,
       },
       // new quotation list
-      {
-        path: "/leads/quotation-list",
-        label: "New Quotation List",
-        icon: invoiceListIcon,
-      },
+      // {
+      //   path: "/leads/quotation-list",
+      //   label: "New Quotation List",
+      //   icon: invoiceListIcon,
+      // },
     ],
   },
   {
-    id: "teams" as NavGroup,
-    icon: employee,
-    label: "Employee Management",
-    color: "#ea580c",
-    link: "/employees",
+    id: "users" as NavGroup,
+    icon: customer,
+    label: "Customer",
+    color: "#EAB308",
+    link: "/customers",
     items: [
+      { path: "/customers/meetings", label: "Meetings", icon: meetingsIcon },
       {
-        path: "/employees",
-        label: "Employees",
-        collapsible: true,
-        subItems: [
-          // All employees
-          {
-            path: "/employees",
-            label: "All Employees",
-            icon: employeesIcon,
-          },
-          {
-            path: "/employees?team=sales",
-            label: "Sales",
-            badge: 2,
-            icon: salesIcon,
-          },
-          {
-            path: "/employees?team=support",
-            label: "Support",
-            badge: 1,
-            icon: supportIcon,
-          },
-          {
-            path: "/employees?team=marketing",
-            label: "Marketing",
-            badge: 1,
-            icon: employeesIcon,
-          },
-          {
-            path: "/employees?team=construction",
-            label: "Construction",
-            badge: 1,
-            icon: constructionEmployeeIcon,
-          },
-          {
-            path: "/employees?team=plant",
-            label: "Plant",
-            badge: 1,
-            icon: plantEmployeeIcon,
-          },
-        ],
+        path: "/customers/terminated-projects",
+        label: "Terminated Projects",
+        icon: terminatedProjectsIcon,
       },
+      // recent-signed contracts
       {
-        path: "/employees/performance",
-        label: "Sales Employee performance",
-        icon: salesPerformanceIcon,
+        path: "/customers/contracts",
+        label: "Recent Signed Contracts",
+        icon: recentContractsIcon,
       },
-      { path: "/employees/audit-log", label: "Audit Log", icon: auditLogIcon },
     ],
   },
-  // product library
   {
-    id: "product-library" as NavGroup,
-    icon: productLibraryIcon,
-    label: "Product Library",
-    color: "#55A6F7",
-    link: "/product-library",
-    items: [],
+    id: "gallery" as NavGroup,
+    icon: plant,
+    label: "Plant Overview",
+    color: "#0ea5e9",
+    link: "/plant",
+    items: [
+      { path: "/plant/uploaded-bom-files", label: "Uploaded BOM Files" },
+      { path: "/plant/shipper-quotation", label: "Shipper Quotation" },
+      { path: "/plant/load-planning", label: "Load Planning" },
+      { path: "/plant/packing-list", label: "Packing List" },
+      { path: "/plant/qr-labels", label: "QR Labels" },
+      { path: "/plant/shippers", label: "Shippers" },
+      { path: "/plant/freight-carriers", label: "Freight Carriers" },
+      { path: "/plant/costing", label: "Costing" },
+      { path: "/plant/freight-loads", label: "Freight Loads" },
+      { path: "/plant/awarded-loads", label: "Awarded Loads" },
+      { path: "/plant/delivery-calendar", label: "Deliveries Calendar" },
+      { path: "/plant/all-deliveries", label: "All Deliveries" },
+      { path: "/plant/notification-history", label: "Notification History" },
+      /*
+      { path: "/plant/equipment_management", label: "Equipment" },
+      {
+        path: "/plant/material_inventory_management",
+        label: "Material Inventory",
+      },
+      {
+        path: "/plant/production_management",
+        label: "Production Management",
+      },
+      {
+        path: "/plant/maintenance_logs",
+        label: "Maintenance Logs",
+      },
+      {
+        path: "/plant/upcoming_schedule",
+        label: "Upcoming Schedule",
+      },
+      {
+        path: "/plant/breakdown_cases",
+        label: "Breakdown Cases",
+      },
+      {
+        path: "/plant/service_providers",
+        label: "Service Providers",
+      },
+      {
+        path: "/plant/equipment_allocation",
+        label: "Equipment Allocation",
+      },
+      {
+        path: "/plant/transfer_requests",
+        label: "Transfer Requests",
+      },
+      {
+        path: "/plant/usage_tracking",
+        label: "Usage Tracking & Logs",
+      },
+      */
+    ],
   },
   {
     id: "settings" as NavGroup,
@@ -337,14 +333,6 @@ const navigationGroups: NavigationGroup[] = [
     ],
   },
   {
-    id: "role-permissions" as NavGroup,
-    icon: reportsIcon,
-    label: "Role Permissions",
-    color: "#000000",
-    link: "/role-permissions",
-    items: [],
-  },
-  {
     id: "documents" as NavGroup,
     icon: invoices,
     label: "Invoices",
@@ -354,11 +342,11 @@ const navigationGroups: NavigationGroup[] = [
       // invite list
       { path: "/invoice/list", label: "Invoice List", icon: invoiceListIcon },
       // sales growth
-      {
-        path: "/invoice/sales-growth",
-        label: "Sales Growth",
-        icon: salesIcon,
-      },
+      // {
+      //   path: "/invoice/sales-growth",
+      //   label: "Sales Growth",
+      //   icon: salesIcon,
+      // },
       {
         label: "Vendor invoices",
         path: "/invoice/invoices-management",
@@ -372,59 +360,86 @@ const navigationGroups: NavigationGroup[] = [
     ],
   },
   {
-    id: "gallery" as NavGroup,
-    icon: plant,
-    label: "Plant",
-    color: "#0ea5e9",
-    link: "/plant",
+    id: "construction" as NavGroup,
+    icon: construction,
+    label: "Construction",
+    color: "#dc2626",
+    link: "/construction",
     items: [
-      { path: "/plant/equipment_management", label: "Equipment" },
-      {
-        path: "/plant/material_inventory_management",
-        label: "Material Inventory",
-      },
-      {
-        path: "/plant/production_management",
-        label: "Production Management",
-      },
-      {
-        path: "/plant/maintenance_logs",
-        label: "Maintenance Logs",
-      },
-      {
-        path: "/plant/upcoming_schedule",
-        label: "Upcoming Schedule",
-      },
-      {
-        path: "/plant/breakdown_cases",
-        label: "Breakdown Cases",
-      },
-      {
-        path: "/plant/service_providers",
-        label: "Service Providers",
-      },
-      {
-        path: "/plant/equipment_allocation",
-        label: "Equipment Allocation",
-      },
-      {
-        path: "/plant/transfer_requests",
-        label: "Transfer Requests",
-      },
-      {
-        path: "/plant/usage_tracking",
-        label: "Usage Tracking & Logs",
-      },
+      { path: "/construction/projects", label: "Project & Calendar" },
+      { path: "/construction/tasks", label: "Tasks & Progress" },
+      { path: "/construction/materials", label: "Material Request" },
+      { path: "/construction/reports", label: "Construction Reports" },
     ],
   },
-  // {
-  //   id: "reports" as NavGroup,
-  //   icon: finance,
-  //   label: "Finance",
-  //   color: "bg-[#ca8a04]",
-  //   link: "/finance",
-  //   items: [{ path: "/finance", label: "Finance" }],
-  // },
+  {
+    id: "teams" as NavGroup,
+    icon: employee,
+    label: "Employee Management",
+    color: "#ea580c",
+    link: "/employees",
+    items: [
+      {
+        path: "/employees",
+        label: "Employees",
+        collapsible: true,
+        subItems: [
+          // All employees
+          {
+            path: "/employees",
+            label: "All Employees",
+            icon: employeesIcon,
+          },
+          {
+            path: "/employees?team=sales",
+            label: "Sales",
+            badge: 2,
+            icon: salesIcon,
+          },
+          {
+            path: "/employees?team=plant",
+            label: "Plant",
+            badge: 1,
+            icon: plantEmployeeIcon,
+          },
+          {
+            path: "/employees?team=construction",
+            label: "Construction",
+            badge: 1,
+            icon: constructionEmployeeIcon,
+          },
+          {
+            path: "/employees?team=support",
+            label: "Support",
+            badge: 1,
+            icon: supportIcon,
+          },
+        ],
+      },
+      {
+        path: "/employees/performance",
+        label: "Sales Employee performance",
+        icon: salesPerformanceIcon,
+      },
+      { path: "/employees/audit-log", label: "Audit Log", icon: auditLogIcon },
+    ],
+  },
+  {
+    id: "role-permissions" as NavGroup,
+    icon: reportsIcon,
+    label: "Role Permissions",
+    color: "#000000",
+    link: "/role-permissions",
+    items: [],
+  },
+  {
+    id: "product-library" as NavGroup,
+    icon: productLibraryIcon,
+    label: "Product Library",
+    color: "#55A6F7",
+    link: "/product-library",
+    items: [],
+  },
   {
     id: "accounts" as NavGroup,
     icon: finance,
@@ -468,19 +483,6 @@ const navigationGroups: NavigationGroup[] = [
         path: "/finance/budget-actual",
         icon: BudgetVsActualIcon,
       },
-    ],
-  },
-  {
-    id: "construction" as NavGroup,
-    icon: construction,
-    label: "Construction",
-    color: "#dc2626",
-    link: "/construction",
-    items: [
-      { path: "/construction/projects", label: "Project & Calendar" },
-      { path: "/construction/tasks", label: "Tasks & Progress" },
-      { path: "/construction/materials", label: "Material Request" },
-      { path: "/construction/reports", label: "Construction Reports" },
     ],
   },
   {
@@ -532,6 +534,7 @@ export function Sidebar({
       );
     },
   );
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const currentPath = location.pathname;
 
@@ -818,12 +821,16 @@ export function Sidebar({
             </button>
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <div>
-                  <h2 className="text-lg font-bold text-gray-800">
-                    Admin Panel
-                  </h2>
-                  <p className="text-xs text-gray-500">admin@steelpro.com</p>
-                </div>
+                <UserMenu onOpenProfile={() => setProfileOpen(true)}>
+                  <button className="flex items-center gap-3 text-left focus:outline-none hover:opacity-80 transition-opacity">
+                    <div>
+                      <h2 className="text-lg font-bold text-gray-800">
+                        Admin Panel
+                      </h2>
+                      <p className="text-xs text-gray-500">admin@steelpro.com</p>
+                    </div>
+                  </button>
+                </UserMenu>
               </div>
               <Button
                 variant="outline"
@@ -1013,6 +1020,7 @@ export function Sidebar({
           </nav>
         </aside>
       </div>
+      <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
     </>
   );
 }

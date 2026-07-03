@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import SuccessDialog from "@/components/success-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Project = {
   id: string;
@@ -24,6 +25,7 @@ type Project = {
 type Props = {
   children?: React.ReactNode;
   projects?: Project[];
+  isLoading?: boolean;
   initialSelected?: string | null;
   onDone: (project: Project | null) => void;
 };
@@ -39,6 +41,7 @@ const defaultProjects: Project[] = [
 export default function AddProjectDialog({
   children,
   projects,
+  isLoading = false,
   initialSelected = null,
   onDone,
 }: Props) {
@@ -109,11 +112,7 @@ export default function AddProjectDialog({
             <div className="relative">
               <Input
                 value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setMenuOpen(true);
-                }}
-                onFocus={() => setMenuOpen(true)}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search Projects..."
                 className="h-11 rounded-xl border-gray-200 bg-[#FAFAFA] px-4 pr-12 text-sm shadow-[0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-gray-400"
               />
@@ -125,49 +124,29 @@ export default function AddProjectDialog({
                 Select Project
               </div>
 
-              <button
-                type="button"
-                onClick={() => setMenuOpen((value) => !value)}
-                className="flex h-11 w-full items-center justify-between rounded-xl border border-gray-300 bg-white px-4 text-left text-sm text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
-              >
-                <span className="truncate">
-                  {selectedProject?.name ?? "Select a project"}
-                </span>
-                <ChevronDown className="h-4 w-4 shrink-0 text-slate-900" />
-              </button>
-
-              {menuOpen && (
-                <div className="max-h-72 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg">
-                  {filteredItems.length > 0 ? (
+              <Select value={selectedId || undefined} onValueChange={(val) => setSelectedId(val)}>
+                <SelectTrigger className="w-full h-11 rounded-xl border-gray-300 bg-white px-4 text-left text-sm text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                  <SelectValue placeholder="Select a project" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {isLoading ? (
+                    <div className="p-3 text-sm text-gray-500 flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                      Loading...
+                    </div>
+                  ) : filteredItems.length > 0 ? (
                     filteredItems.map((project) => (
-                      <button
-                        key={project.id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedId(project.id);
-                          setMenuOpen(false);
-                        }}
-                        className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm transition-colors hover:bg-gray-50 ${
-                          project.id === selectedId
-                            ? "bg-blue-50 text-blue-700"
-                            : "text-slate-900"
-                        }`}
-                      >
-                        <span className="truncate">{project.name}</span>
-                        {project.code ? (
-                          <span className="ml-4 shrink-0 text-xs font-medium text-gray-400">
-                            {project.code}
-                          </span>
-                        ) : null}
-                      </button>
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name} {project.code && <span className="ml-2 text-xs text-gray-400">{project.code}</span>}
+                      </SelectItem>
                     ))
                   ) : (
-                    <div className="px-4 py-3 text-sm text-gray-500">
-                      No projects found.
+                    <div className="p-3 text-sm text-gray-500 text-center">
+                      Data not found
                     </div>
                   )}
-                </div>
-              )}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>

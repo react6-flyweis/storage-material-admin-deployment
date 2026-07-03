@@ -51,7 +51,7 @@ export default function SingleReminder() {
   ]);
 
   const handleBack = () => {
-    navigate(-1);
+    navigate('/leads');
   };
 
   const handleApply = () => {

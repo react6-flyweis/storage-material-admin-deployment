@@ -1,12 +1,14 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useParams, useNavigate } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import SuccessDialog from "@/components/success-dialog";
-import AssignPlantPersonDialog from "@/components/customers/assign-plant-person-dialog";
+import AssignPoPlantDialog from "@/components/leads/assign-po-plant-dialog";
+import { useUpdatePurchaseOrderStatusMutation, usePurchaseOrderDetailsQuery } from "@/modules/purchase-orders/purchase-orders.hooks";
+import { toast } from "sonner";
 
 type ActivityLogEntry = {
   id: string;
@@ -125,9 +127,58 @@ function Label({ children }: { children: ReactNode }) {
 }
 
 export default function PurchaseOrderDetailsPage() {
+  const formatActionString = (action: string) => {
+    if (!action) return "";
+    return action
+      .split(/[._-]/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
+  };
+
   const navigate = useNavigate();
-  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const { poId: poOrderId } = useParams();
   const [assignPlantDialogOpen, setAssignPlantDialogOpen] = useState(false);
+
+  const { data: apiResponse, isLoading, error } = usePurchaseOrderDetailsQuery(poOrderId);
+  const apiData = apiResponse?.data || apiResponse;
+  
+  const orderDetails = apiData?.order;
+  const leadDetails = apiData?.lead;
+  const auditLogs = apiData?.auditLog || [];
+  const customerInfo = leadDetails?.customerId || apiData?.customer || {};
+
+  const updateStatusMutation = useUpdatePurchaseOrderStatusMutation();
+
+  const handleApprove = () => {
+    if (!poOrderId) return;
+    updateStatusMutation.mutate(
+      { poOrderId, status: "approved" },
+      {
+        onSuccess: () => {
+          setAssignPlantDialogOpen(true);
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || "Failed to approve PO");
+        }
+      }
+    );
+  };
+
+  const handleReject = () => {
+    if (!poOrderId) return;
+    updateStatusMutation.mutate(
+      { poOrderId, status: "rejected" },
+      {
+        onSuccess: () => {
+          toast.success("Purchase order rejected");
+          navigate("/leads/purchase-orders");
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || "Failed to reject PO");
+        }
+      }
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#e9eef8] p-4 sm:p-6">
@@ -151,25 +202,46 @@ export default function PurchaseOrderDetailsPage() {
           >
             View Customer Profile
           </Button>
-          <Button
-            variant="outline"
-            className="border-blue-500 text-blue-700 hover:bg-blue-50 hover:text-blue-700"
-          >
-            Reject
-          </Button>
-          <Button
-            className="bg-blue-600 text-white hover:bg-blue-700"
-            onClick={() => setSuccessDialogOpen(true)}
-          >
-            Approve PO
-          </Button>
+          {orderDetails?.status !== "approved" && orderDetails?.status !== "rejected" && (
+            <>
+              <Button
+                variant="outline"
+                onClick={handleReject}
+                disabled={updateStatusMutation.isPending}
+                className="border-blue-500 text-blue-700 hover:bg-blue-50 hover:text-blue-700"
+              >
+                Reject
+              </Button>
+              <Button
+                className="bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={updateStatusMutation.isPending || leadDetails?.lifecycleStatus !== "payment_done"}
+                onClick={handleApprove}
+                title={leadDetails?.lifecycleStatus !== "payment_done" ? "Lead must be paid to approve" : ""}
+              >
+                Approve PO
+              </Button>
+            </>
+          )}
+          {orderDetails?.status === "approved" && !orderDetails?.assignedTo && leadDetails?.lifecycleStatus === "payment_done" && (
+            <Button
+              className="bg-green-600 text-white hover:bg-green-700"
+              onClick={() => setAssignPlantDialogOpen(true)}
+            >
+              Assign Plant
+            </Button>
+          )}
         </div>
       </div>
 
       <Card className="mx-auto max-w-305 border-slate-200 bg-white shadow-sm">
+        {isLoading ? (
+          <div className="p-8 text-center text-slate-500">Loading details...</div>
+        ) : error ? (
+          <div className="p-8 text-center text-red-500">Failed to load purchase order details.</div>
+        ) : (
         <CardContent className="p-4 sm:p-5 lg:p-6">
           <div className="mb-4 text-[11px] font-medium uppercase tracking-wide text-slate-500">
-            Lead ID: {details.leadId}
+            PO Number: {orderDetails?.poNumber || details.leadId}
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -181,25 +253,25 @@ export default function PurchaseOrderDetailsPage() {
                 <div>
                   <Label>Name</Label>
                   <p className="mt-1 text-sm text-slate-900">
-                    {details.contact.name}
+                    {customerInfo?.firstName || details.contact.name}
                   </p>
                 </div>
                 <div>
                   <Label>Email</Label>
                   <p className="mt-1 text-sm text-slate-900">
-                    {details.contact.email}
+                    {customerInfo?.email || details.contact.email}
                   </p>
                 </div>
                 <div>
                   <Label>Phone</Label>
                   <p className="mt-1 text-sm text-slate-900">
-                    {details.contact.phone}
+                    {customerInfo?.phone?.number || details.contact.phone}
                   </p>
                 </div>
                 <div>
-                  <Label>Location</Label>
+                  <Label>Location / Project</Label>
                   <p className="mt-1 text-sm text-slate-900">
-                    {details.contact.location}
+                    {leadDetails?.projectName || details.contact.location}
                   </p>
                 </div>
                 <div>
@@ -276,13 +348,13 @@ export default function PurchaseOrderDetailsPage() {
                 <div>
                   <Label>Status</Label>
                   <Badge className="mt-1 rounded-full border-0 bg-violet-100 px-2.5 py-0.5 text-[11px] font-medium text-violet-700 hover:bg-violet-100">
-                    {details.leadManagement.status}
+                    {orderDetails?.status || details.leadManagement.status}
                   </Badge>
                 </div>
                 <div>
-                  <Label>Handler Type</Label>
+                  <Label>Lifecycle Status</Label>
                   <Badge className="mt-1 rounded-full border-0 bg-violet-100 px-2.5 py-0.5 text-[11px] font-medium text-violet-700 hover:bg-violet-100">
-                    {details.leadManagement.handlerType}
+                    {leadDetails?.lifecycleStatus || details.leadManagement.handlerType}
                   </Badge>
                 </div>
                 <div>
@@ -294,7 +366,7 @@ export default function PurchaseOrderDetailsPage() {
                 <div>
                   <Label>Assigned To</Label>
                   <p className="mt-1 text-sm text-slate-900">
-                    {details.leadManagement.assignedTo}
+                    {orderDetails?.assignedTo?.name || details.leadManagement.assignedTo}
                   </p>
                 </div>
                 <div>
@@ -390,7 +462,24 @@ export default function PurchaseOrderDetailsPage() {
               Activity Log
             </h2>
             <div className="mt-4 space-y-5">
-              {details.activityLog.map((entry, index) => (
+              {auditLogs.length > 0 ? auditLogs.map((entry: any, index: number) => (
+                <div key={entry._id} className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-500" />
+                    {index !== auditLogs.length - 1 ? (
+                      <div className="h-10 w-px bg-slate-200" />
+                    ) : null}
+                  </div>
+                  <div className="pb-2">
+                    <p className="text-sm font-medium text-slate-900">
+                      {formatActionString(entry.action)}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      by {entry.performedBy?.name} on {new Date(entry.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              )) : details.activityLog.map((entry, index) => (
                 <div key={entry.id} className="flex gap-4">
                   <div className="flex flex-col items-center">
                     <div className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-500" />
@@ -411,23 +500,13 @@ export default function PurchaseOrderDetailsPage() {
             </div>
           </div>
         </CardContent>
+        )}
       </Card>
 
-      <SuccessDialog
-        open={successDialogOpen}
-        onClose={() => setSuccessDialogOpen(false)}
-        title="Approved successfully"
-        actionLabel="Assign to plant"
-        onAction={() => {
-          setSuccessDialogOpen(false);
-          setAssignPlantDialogOpen(true);
-        }}
-      />
-
-      <AssignPlantPersonDialog
+      <AssignPoPlantDialog
         open={assignPlantDialogOpen}
         onOpenChange={(open) => setAssignPlantDialogOpen(open)}
-        customerId={details.leadId}
+        poOrderId={poOrderId ?? null}
       />
     </div>
   );

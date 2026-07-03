@@ -13,60 +13,38 @@ import {
   FileText,
   Mail,
   Phone,
-  type LucideIcon,
   ArrowRight,
+  Loader2,
+  Calendar
 } from "lucide-react";
 import { Link } from "react-router";
-
-type TimelineItem = {
-  id: number;
-  name: string;
-  note: string;
-  time: string;
-  type: "note" | "email" | "call" | "doc";
-  bg: string;
-  icon: LucideIcon;
-};
+import { useGetActivityLogQuery } from "@/modules/leads/leads.hooks";
+import { formatDistanceToNow } from "date-fns";
 
 export default function LeadCommunicationTimeline() {
-  const items: TimelineItem[] = [
-    {
-      id: 1,
-      name: "Sarah Johnson",
-      note: "Discussed pricing options and implementation timeline",
-      time: "2 hours ago",
-      type: "note",
-      icon: MessageCircle,
-      bg: "bg-purple-50 text-purple-600",
-    },
-    {
-      id: 2,
-      name: "Michael Chen",
-      note: "Sent product demo video and case studies",
-      time: "4 hours ago",
-      type: "email",
-      icon: Mail,
-      bg: "bg-sky-50 text-sky-600",
-    },
-    {
-      id: 3,
-      name: "Emily Davis",
-      note: "30-min discovery call completed - high interest level",
-      time: "6 hours ago",
-      type: "call",
-      icon: Phone,
-      bg: "bg-emerald-50 text-emerald-600",
-    },
-    {
-      id: 4,
-      name: "Robert Wilson",
-      note: "Lead requested technical specifications document",
-      time: "1 day ago",
-      type: "doc",
-      icon: FileText,
-      bg: "bg-gray-50 text-gray-600",
-    },
-  ];
+  const { data: activityLogResponse, isLoading } = useGetActivityLogQuery({
+    page: 1,
+    limit: 10,
+  });
+
+  const activities = activityLogResponse?.data?.activities || [];
+
+  const getIcon = (type: string) => {
+    const lowerType = type?.toLowerCase() || "";
+    if (lowerType.includes("call")) return Phone;
+    if (lowerType.includes("email")) return Mail;
+    if (lowerType.includes("meeting")) return MessageCircle;
+    if (lowerType.includes("doc")) return FileText;
+    return Calendar;
+  };
+
+  const getBgColor = (type: string) => {
+    const lowerType = type?.toLowerCase() || "";
+    if (lowerType.includes("call")) return "bg-emerald-50 text-emerald-600";
+    if (lowerType.includes("email")) return "bg-sky-50 text-sky-600";
+    if (lowerType.includes("meeting")) return "bg-purple-50 text-purple-600";
+    return "bg-gray-50 text-gray-600";
+  };
 
   return (
     <Card>
@@ -76,7 +54,7 @@ export default function LeadCommunicationTimeline() {
           <CardDescription>Recent activities</CardDescription>
         </div>
 
-        <div className="flex items-center space-x-2" data-slot="card-action">
+        {/* <div className="flex items-center space-x-2" data-slot="card-action">
           <Link to="/leads/1/notes">
             <Button className="bg-emerald-600 hover:bg-emerald-700 text-white">
               + Add Note
@@ -88,47 +66,60 @@ export default function LeadCommunicationTimeline() {
               Log Call
             </Button>
           </Link>
-        </div>
+        </div> */}
       </CardHeader>
 
-      <CardContent className="space-y-3">
-        {items.map((it) => {
-          const Icon = it.icon;
-          return (
-            <div
-              key={it.id}
-              className="flex items-start justify-between bg-muted rounded-md p-4"
-            >
-              <div className="flex items-start space-x-3">
-                <Avatar className={`h-9 w-9 ${it.bg}`}>
-                  <AvatarFallback className="text-sm">
-                    <Icon className="h-4 w-4" />
-                  </AvatarFallback>
-                </Avatar>
+      <CardContent className="space-y-3 pt-6">
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+          </div>
+        ) : activities.length > 0 ? (
+          activities.map((it) => {
+            const Icon = getIcon(it.type);
+            const bgClass = getBgColor(it.type);
+            const timeAgo = it.followUpDate ? formatDistanceToNow(new Date(it.followUpDate), { addSuffix: true }) : "-";
+            
+            return (
+              <div
+                key={it._id}
+                className="flex items-start justify-between bg-muted rounded-md p-4"
+              >
+                <div className="flex items-start space-x-3">
+                  <Avatar className={`h-9 w-9 ${bgClass}`}>
+                    <AvatarFallback className="text-sm">
+                      <Icon className="h-4 w-4" />
+                    </AvatarFallback>
+                  </Avatar>
 
-                <div>
-                  <div className="font-medium text-foreground">{it.name}</div>
-                  <div className="text-sm text-muted-foreground">{it.note}</div>
+                  <div>
+                    <div className="font-medium text-foreground">{it.clientName || it.projectName || "Unknown"}</div>
+                    <div className="text-sm text-muted-foreground">{it.notes || `Follow up by ${it.followedBy?.name || "Unknown"}`}</div>
+                  </div>
+                </div>
+
+                <div className="text-sm text-muted-foreground flex flex-col items-end">
+                  <div className="text-right text-nowrap">{timeAgo}</div>
+                  <div className="text-xs mt-1">
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700 capitalize`}
+                    >
+                      {it.type || "Note"}
+                    </span>
+                  </div>
                 </div>
               </div>
-
-              <div className="text-sm text-muted-foreground">
-                <div className="text-right text-nowrap">{it.time}</div>
-                <div className="text-xs mt-1">
-                  <span
-                    className={`inline-block px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700`}
-                  >
-                    {it.type}
-                  </span>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+            );
+          })
+        ) : (
+          <div className="text-center py-8 text-sm text-muted-foreground">
+            No recent activities found.
+          </div>
+        )}
       </CardContent>
 
       <CardFooter className="justify-center">
-        <Link to="/leads/follow-up/communication-timeline">
+        <Link to="/leads/activity-log">
           <Button variant="link">
             View Full Timeline
             <ArrowRight />

@@ -86,7 +86,7 @@ export default function SingleLeadEmails() {
       {/* Header */}
       <div className="bg-[#4ECDC4] text-white px-6 py-3 flex items-center gap-3">
         <Button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/leads')}
           className="text-white hover:bg-[#3db3aa] hover:text-white"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />

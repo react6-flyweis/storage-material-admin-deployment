@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, Controller } from "react-hook-form";
@@ -13,6 +13,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { useUpdateAdminEmployeeMutation } from "@/modules/employees/employees.hooks";
 import {
   Select,
   SelectContent,
@@ -25,7 +27,7 @@ const editEmployeeSchema = z.object({
   name: z.string().min(1, "Full name is required"),
   email: z.string().email("Invalid email address"),
   phone: z.string().optional(),
-  team: z.string().min(1, "Department is required"),
+  role: z.string().min(1, "Role is required"),
   status: z.enum(["active", "inactive"]),
 });
 
@@ -40,7 +42,6 @@ export interface EditEmployeeDialogProps {
     email: string;
     phone: string;
     role: string;
-    team: string;
     status: "active" | "inactive";
   };
   onSave?: (employee: {
@@ -49,7 +50,6 @@ export interface EditEmployeeDialogProps {
     email: string;
     phone: string;
     role: string;
-    team: string;
     status: "active" | "inactive";
   }) => void;
 }
@@ -60,6 +60,12 @@ export function EditEmployeeDialog({
   employee,
   onSave,
 }: EditEmployeeDialogProps) {
+  const [resetPassOpen, setResetPassOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  
+  const updateMutation = useUpdateAdminEmployeeMutation();
+
   const {
     register,
     control,
@@ -72,7 +78,7 @@ export function EditEmployeeDialog({
       name: "",
       email: "",
       phone: "",
-      team: "Sales",
+      role: "sales",
       status: "active",
     },
   });
@@ -83,7 +89,7 @@ export function EditEmployeeDialog({
         name: employee.name,
         email: employee.email,
         phone: employee.phone ?? "",
-        team: employee.team ?? "Sales",
+        role: employee.role ?? "sales",
         status: employee.status ?? "active",
       });
     }
@@ -100,8 +106,7 @@ export function EditEmployeeDialog({
       name: data.name.trim(),
       email: data.email.trim(),
       phone: data.phone?.trim() ?? "",
-      role: employee.role,
-      team: data.team,
+      role: data.role,
       status: data.status,
     });
 
@@ -109,7 +114,37 @@ export function EditEmployeeDialog({
   };
 
   const handleResetPassword = () => {
-    console.log(`Reset password request for ${employee?.name ?? "employee"}`);
+    setResetPassOpen(true);
+  };
+
+  const submitResetPassword = () => {
+    if (!newPassword || newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    if (!employee) return;
+
+    updateMutation.mutate(
+      {
+        employeeId: employee.id,
+        data: { password: newPassword }
+      },
+      {
+        onSuccess: () => {
+          toast.success("Password reset successfully");
+          setResetPassOpen(false);
+          setNewPassword("");
+          setConfirmPassword("");
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || "Failed to reset password");
+        }
+      }
+    );
   };
 
   return (
@@ -153,28 +188,28 @@ export function EditEmployeeDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="employee-team">Department</Label>
+              <Label htmlFor="employee-role">Role</Label>
               <Controller
-                name="team"
+                name="role"
                 control={control}
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select team" />
+                      <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Sales">Sales</SelectItem>
-                      <SelectItem value="Support">Support</SelectItem>
-                      <SelectItem value="Marketing">Marketing</SelectItem>
-                      <SelectItem value="Construction">Construction</SelectItem>
-                      <SelectItem value="Plant">Plant</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="sales">Sales</SelectItem>
+                      <SelectItem value="construction">Construction</SelectItem>
+                      <SelectItem value="plant">Plant</SelectItem>
+                      <SelectItem value="account">Account</SelectItem>
                     </SelectContent>
                   </Select>
                 )}
               />
-              {errors.team && (
+              {errors.role && (
                 <p className="text-destructive text-sm">
-                  {errors.team.message}
+                  {errors.role.message}
                 </p>
               )}
             </div>
@@ -237,6 +272,46 @@ export function EditEmployeeDialog({
           </DialogFooter>
         </form>
       </DialogContent>
+
+      {/* Nested Reset Password Dialog */}
+      <Dialog open={resetPassOpen} onOpenChange={setResetPassOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Password for {employee?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>New Password</Label>
+              <Input
+                type="password"
+                placeholder="Enter new password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Confirm Password</Label>
+              <Input
+                type="password"
+                placeholder="Confirm new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetPassOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={submitResetPassword}
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? "Saving..." : "Save Password"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

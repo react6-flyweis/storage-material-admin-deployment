@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import SuccessDialog from "@/components/success-dialog";
 import { Button } from "@/components/ui/button";
@@ -13,36 +13,47 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { useCustomerDetailQuery, useUpdateCustomerMutation } from "@/modules/customers/customers.hooks";
+import { toast } from "sonner";
 
 type CustomerFormData = {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
-  companyName: string;
-  jobTitle: string;
-  leadStatus: string;
-  priority: string;
-  notes: string;
+  phoneNumber: string;
+  countryCode: string;
 };
 
 export default function EditCustomerDetailsPage() {
   const navigate = useNavigate();
   const params = useParams();
-  const customerId = params.id ?? "unknown";
+  const customerId = params.id ?? "";
   const [showSuccess, setShowSuccess] = useState(false);
+
+  const { data: customerData, isLoading, error } = useCustomerDetailQuery(customerId);
+  const updateCustomerMutation = useUpdateCustomerMutation();
 
   const [formData, setFormData] = useState<CustomerFormData>({
     firstName: "",
     lastName: "",
     email: "",
-    phone: "",
-    companyName: "",
-    jobTitle: "",
-    leadStatus: "New",
-    priority: "Medium",
-    notes: "",
+    phoneNumber: "",
+    countryCode: "+1",
   });
+
+  // Populate form with existing customer data
+  useEffect(() => {
+    if (customerData?.data?.customer) {
+      const customer = customerData.data.customer;
+      setFormData({
+        firstName: customer.firstName || "",
+        lastName: customer.lastName || "",
+        email: customer.email || "",
+        phoneNumber: customer.phone?.number || "",
+        countryCode: customer.phone?.countryCode || "+1",
+      });
+    }
+  }, [customerData]);
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -51,19 +62,75 @@ export default function EditCustomerDetailsPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleCountryCodeChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, countryCode: value }));
+  };
+
   const handleSelectChange = (name: keyof CustomerFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setShowSuccess(true);
+
+    try {
+      const fullName = [formData.firstName, formData.lastName]
+        .filter(Boolean)
+        .join(" ");
+
+      const updateData = {
+        firstName: fullName, // Merged into a single key as requested
+        email: formData.email,
+        phone: formData.phoneNumber,
+        countryCode: formData.countryCode,
+      };
+
+      await updateCustomerMutation.mutateAsync({
+        customerId,
+        customerData: updateData,
+      });
+
+      setShowSuccess(true);
+      toast.success("Customer updated successfully!");
+    } catch (error) {
+      toast.error("Failed to update customer. Please try again.");
+      console.error("Update customer error:", error);
+    }
   };
 
   const handleSuccessClose = () => {
     setShowSuccess(false);
     navigate(`/customers/${customerId}`);
   };
+
+  if (isLoading) {
+    return (
+      <div className="p-4 sm:p-6 space-y-6 min-h-screen">
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 sm:p-6 space-y-6 min-h-screen">
+        <div className="flex items-start gap-3">
+          <Button
+            onClick={() => navigate(`/customers/${customerId}`)}
+            className="px-4"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" />
+            Back
+          </Button>
+        </div>
+        <div className="text-center py-12">
+          <p className="text-red-600">Failed to load customer data. Please try again.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 sm:p-6 space-y-6 min-h-screen">
@@ -80,7 +147,7 @@ export default function EditCustomerDetailsPage() {
             Edit Customer Details
           </h1>
           <p className="text-sm text-slate-600">
-            Create a new lead record and assign it to your pipeline
+            Update customer information and details
           </p>
         </div>
       </div>
@@ -91,7 +158,7 @@ export default function EditCustomerDetailsPage() {
       >
         <section className="space-y-4">
           <h2 className="text-base font-semibold text-slate-900">
-            Personal Information
+            Customer Information
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -102,10 +169,11 @@ export default function EditCustomerDetailsPage() {
                 placeholder="Enter First Name"
                 value={formData.firstName}
                 onChange={handleInputChange}
+                required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name *</Label>
+              <Label htmlFor="lastName">Last Name</Label>
               <Input
                 id="lastName"
                 name="lastName"
@@ -123,101 +191,37 @@ export default function EditCustomerDetailsPage() {
                 placeholder="Enter Email Address"
                 value={formData.email}
                 onChange={handleInputChange}
+                required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number *</Label>
-              <Input
-                id="phone"
-                name="phone"
-                placeholder="Enter Phone Number"
-                value={formData.phone}
-                onChange={handleInputChange}
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-4">
-          <h2 className="text-base font-semibold text-slate-900">
-            Company Information
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="companyName">Company Name *</Label>
-              <Input
-                id="companyName"
-                name="companyName"
-                placeholder="Enter company name"
-                value={formData.companyName}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="jobTitle">Job title *</Label>
-              <Input
-                id="jobTitle"
-                name="jobTitle"
-                placeholder="Enter job title"
-                value={formData.jobTitle}
-                onChange={handleInputChange}
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-4">
-          <h2 className="text-base font-semibold text-slate-900">
-            Lead Details
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="leadStatus">Lead Status</Label>
-              <Select
-                value={formData.leadStatus}
-                onValueChange={(value) =>
-                  handleSelectChange("leadStatus", value)
-                }
-              >
-                <SelectTrigger id="leadStatus" className="w-full">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="New">New</SelectItem>
-                  <SelectItem value="Contacted">Contacted</SelectItem>
-                  <SelectItem value="Qualified">Qualified</SelectItem>
-                  <SelectItem value="Proposal Sent">Proposal Sent</SelectItem>
-                  <SelectItem value="Negotiation">Negotiation</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="priority">Priority</Label>
-              <Select
-                value={formData.priority}
-                onValueChange={(value) => handleSelectChange("priority", value)}
-              >
-                <SelectTrigger id="priority" className="w-full">
-                  <SelectValue placeholder="Select priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Low">Low</SelectItem>
-                  <SelectItem value="Medium">Medium</SelectItem>
-                  <SelectItem value="High">High</SelectItem>
-                  <SelectItem value="Urgent">Urgent</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                name="notes"
-                placeholder="Add any additional notes about this lead"
-                value={formData.notes}
-                onChange={handleInputChange}
-                rows={8}
-              />
+              <Label htmlFor="phoneNumber">Phone Number *</Label>
+              <div className="flex gap-2">
+                <Select
+                  value={formData.countryCode}
+                  onValueChange={handleCountryCodeChange}
+                >
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="+91">+91</SelectItem>
+                    <SelectItem value="+1">+1</SelectItem>
+                    <SelectItem value="+44">+44</SelectItem>
+                    <SelectItem value="+61">+61</SelectItem>
+                    <SelectItem value="+86">+86</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  id="phoneNumber"
+                  name="phoneNumber"
+                  placeholder="Enter Phone Number"
+                  value={formData.phoneNumber}
+                  onChange={handleInputChange}
+                  className="flex-1"
+                  required
+                />
+              </div>
             </div>
           </div>
         </section>
@@ -228,14 +232,23 @@ export default function EditCustomerDetailsPage() {
             variant="secondary"
             onClick={() => navigate(`/customers/${customerId}`)}
             className="min-w-28"
+            disabled={updateCustomerMutation.isPending}
           >
             Cancel
           </Button>
           <Button
             type="submit"
             className="min-w-28 bg-[#2864DC] hover:bg-[#1D4FB8]"
+            disabled={updateCustomerMutation.isPending}
           >
-            Save
+            {updateCustomerMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Saving...
+              </>
+            ) : (
+              "Save Changes"
+            )}
           </Button>
         </div>
       </form>

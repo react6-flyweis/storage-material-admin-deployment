@@ -6,19 +6,23 @@ import type {
   RefreshTokenRequest,
   RefreshTokenResponse,
   LogoutResponse,
+  ForgotPasswordRequest,
+  ForgotPasswordResponse,
+  VerifyOtpRequest,
+  VerifyOtpResponse,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
 } from "./auth.types";
-
-const FALLBACK_BASE_URL = "https://mr-storage-backend.vercel.app";
-
+const FALLBACK_BASE_URL = import.meta.env.VITE_API_BASE_URL || "https://flyweistechnology.com";
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? FALLBACK_BASE_URL,
+  baseURL: FALLBACK_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
 const refreshClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? FALLBACK_BASE_URL,
+  baseURL:FALLBACK_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
@@ -91,5 +95,29 @@ export async function loginProvider(payload: LoginRequest) {
 export async function logoutProvider() {
   const response = await apiClient.post<LogoutResponse>("/api/auth/logout");
 
+  return response.data;
+}
+
+export async function forgotPasswordProvider(payload: ForgotPasswordRequest) {
+  const response = await apiClient.post<ForgotPasswordResponse>(
+    "/api/auth/forgot-password",
+    payload,
+  );
+  return response.data;
+}
+
+export async function verifyOtpProvider(payload: VerifyOtpRequest) {
+  const response = await apiClient.post<VerifyOtpResponse>(
+    "/api/auth/verify-otp",
+    payload,
+  );
+  return response.data;
+}
+
+export async function resetPasswordProvider(payload: ResetPasswordRequest) {
+  const response = await apiClient.post<ResetPasswordResponse>(
+    "/api/auth/reset-password",
+    payload,
+  );
   return response.data;
 }

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUpcomingFollowUpsQuery } from "@/modules/followups/followups.hooks";
+import AddFollowUpDialog from "./add-follow-up-dialog";
 
 type ViewMode = "schedule" | "calendar" | "list";
 
@@ -47,6 +48,7 @@ function inferTypeFromNotes(notes?: string) {
 export default function UpcomingFollowUps() {
   const [viewMode, setViewMode] = useState<ViewMode>("calendar");
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const {
     data: upcomingResponse,
     isLoading,
@@ -66,26 +68,53 @@ export default function UpcomingFollowUps() {
           ? "normal"
           : "upcoming";
 
-      const customer = item.customerId?.firstName?.trim() || "Unknown Customer";
-      const company =
-        item.leadId?.location || item.leadId?.buildingType || "N/A";
+      const lead = item.leadId as any;
+      const pId = lead?.jobId || lead?.projectId;
+      const pName = lead?.projectName;
+      
+      let projectText = "";
+      if (pId && pName) {
+        projectText = `${pId} - ${pName}`;
+      } else if (pName) {
+        projectText = pName;
+      } else if (pId) {
+        projectText = pId;
+      } else {
+        projectText = lead?.location || lead?.buildingType || "N/A";
+      }
+
+      // Strip timestamps that might be appended to project names
+      projectText = projectText
+        .replace(/\s\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z/g, "")
+        .trim();
+
+      const customerName = item.customerId?.firstName?.trim() || "Unknown Customer";
 
       return {
         id: item._id,
         date: String(followUpDate.getDate()),
-        customer,
-        type: inferTypeFromNotes(item.notes),
+        customer: projectText,
+        type: item.modeOfContact
+          ? item.modeOfContact.charAt(0).toUpperCase() + item.modeOfContact.slice(1)
+          : inferTypeFromNotes(item.notes),
         time: followUpDate.toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",
         }),
-        company,
+        company: customerName,
         status,
       };
     },
   );
 
-  const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1);
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const daysInMonthCount = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+
+  const daysInMonth = Array.from({ length: daysInMonthCount }, (_, i) => i + 1);
+  const blankDays = Array.from({ length: firstDayOfMonth }, (_, i) => i);
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   const getFollowUpForDay = (day: number) => {
@@ -98,58 +127,65 @@ export default function UpcomingFollowUps() {
 
   return (
     <Card className="p-6">
-      <div className="flex flex-col   justify-between mb-4 gap-5">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-          <div className="flex gap-2">
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between mb-6 gap-4">
+        <div>
+          <div className="flex gap-2 items-center mb-1">
             <span className="text-xl">📅</span>
-            <h2 className="text-lg font-semibold">Upcoming Follow-Ups</h2>
+            <h2 className="text-lg font-bold text-gray-900">Upcoming Follow-Ups</h2>
           </div>
-          <Button size="sm" className="mr-2">
-            <PlusIcon />
+          <p className="text-sm text-gray-500">
+            Quick view of scheduled activities
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button 
+            size="sm" 
+            className="bg-blue-600 hover:bg-blue-700 text-white shadow-sm h-9 px-4 rounded-md"
+            onClick={() => setIsAddDialogOpen(true)}
+          >
+            <PlusIcon className="w-4 h-4 mr-1" />
             Schedule
           </Button>
-        </div>
-        <div className="flex gap-1 bg-gray-100 rounded-md p-1">
-          <Button
-            size="sm"
-            variant={viewMode === "calendar" ? "default" : "ghost"}
-            onClick={() => {
-              setViewMode("calendar");
-              setSelectedDay(null);
-            }}
-            className={cn(
-              "flex-1 px-3 h-8 text-xs",
-              viewMode === "calendar"
-                ? "bg-blue-600 text-white hover:bg-blue-700"
-                : "bg-transparent text-gray-600 hover:bg-gray-200",
-            )}
-          >
-            <Calendar className="w-3 h-3 mr-1" />
-            Calendar
-          </Button>
-          <Button
-            size="sm"
-            variant={viewMode === "list" ? "default" : "ghost"}
-            onClick={() => {
-              setViewMode("list");
-              setSelectedDay(null);
-            }}
-            className={cn(
-              "flex-1 px-3 h-8 text-xs",
-              viewMode === "list"
-                ? "bg-blue-600 text-white hover:bg-blue-700"
-                : "bg-transparent text-gray-600 hover:bg-gray-200",
-            )}
-          >
-            <List className="w-3 h-3 mr-1" />
-            List
-          </Button>
+          <div className="flex gap-1 bg-slate-100/80 p-1 rounded-lg">
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setViewMode("calendar");
+                setSelectedDay(null);
+              }}
+              className={cn(
+                "px-3 h-7 text-xs rounded-md",
+                viewMode === "calendar"
+                  ? "bg-white shadow-sm text-gray-900 hover:bg-white"
+                  : "bg-transparent text-gray-500 hover:text-gray-900",
+              )}
+            >
+              <Calendar className="w-3 h-3 mr-1" />
+              Calendar
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setViewMode("list");
+                setSelectedDay(null);
+              }}
+              className={cn(
+                "px-3 h-7 text-xs rounded-md",
+                viewMode === "calendar"
+                  ? "bg-transparent text-gray-500 hover:text-gray-900"
+                  : "bg-white shadow-sm text-gray-900 hover:bg-white",
+              )}
+            >
+              <List className="w-3 h-3 mr-1" />
+              List
+            </Button>
+          </div>
         </div>
       </div>
 
-      <p className="text-sm text-gray-500 ">
-        Quick view of scheduled activities
-      </p>
+      <hr className="border-gray-100 mb-6" />
 
       {isLoading && (
         <div className="py-8 text-center text-sm text-gray-500">
@@ -164,13 +200,13 @@ export default function UpcomingFollowUps() {
       )}
 
       {!isLoading && !isError && viewMode === "calendar" && (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {/* Day names */}
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-7 gap-x-2">
             {dayNames.map((day) => (
               <div
                 key={day}
-                className="text-center text-xs font-medium text-gray-500"
+                className="text-center text-[13px] font-medium text-slate-500"
               >
                 {day}
               </div>
@@ -178,11 +214,13 @@ export default function UpcomingFollowUps() {
           </div>
 
           {/* Calendar grid */}
-          <div className="grid grid-cols-7 gap-2">
+          <div className="grid grid-cols-7 gap-x-2 gap-y-3">
+            {blankDays.map((_, i) => (
+              <div key={`blank-${i}`} className="h-10"></div>
+            ))}
             {daysInMonth.map((day) => {
               const followUps = getFollowUpForDay(day);
               const hasFollowUp = followUps.length > 0;
-              const isOverdue = followUps.some((f) => f.status === "overdue");
               const isToday = day === new Date().getDate();
 
               return (
@@ -193,24 +231,19 @@ export default function UpcomingFollowUps() {
                     setViewMode("list");
                   }}
                   className={cn(
-                    "aspect-square border rounded-md flex flex-col items-center justify-center p-1 text-sm relative cursor-pointer",
-                    isToday && "bg-blue-600 text-white font-bold",
-                    selectedDay === day && "ring-2 ring-blue-400",
-                    hasFollowUp && !isToday && "border-red-400",
-                    !hasFollowUp && !isToday && "text-gray-700",
+                    "h-10 flex items-center justify-center rounded-lg text-[13px] cursor-pointer mx-1",
+                    isToday ? "bg-blue-600 text-white font-medium" :
+                    hasFollowUp ? "bg-red-50 text-red-500 font-medium hover:bg-red-100" :
+                    "text-slate-600 hover:bg-slate-50 font-medium",
+                    selectedDay === day && !isToday && "ring-2 ring-blue-400 ring-offset-1"
                   )}
                 >
-                  <span className="text-xs">{day}</span>
-                  {hasFollowUp && !isToday && (
-                    <span
-                      className={cn(
-                        "text-[10px] font-semibold",
-                        isOverdue ? "text-red-500" : "text-orange-500",
-                      )}
-                    >
-                      {day}+
-                    </span>
-                  )}
+                  <span className="flex items-center gap-1">
+                    {day}
+                    {hasFollowUp && !isToday && (
+                      <span className="text-[18px] leading-none">•</span>
+                    )}
+                  </span>
                 </div>
               );
             })}
@@ -295,6 +328,11 @@ export default function UpcomingFollowUps() {
           Schedule view coming soon
         </div>
       )}
+
+      <AddFollowUpDialog 
+        open={isAddDialogOpen} 
+        onOpenChange={setIsAddDialogOpen} 
+      />
     </Card>
   );
 }

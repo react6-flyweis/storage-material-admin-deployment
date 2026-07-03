@@ -89,10 +89,10 @@ export default function UploadImageDialog({ children, onUpload }: Props) {
                   accept="image/*"
                   multiple
                   onChange={handleInputChange}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-50"
                 />
 
-                <div className="flex flex-col items-center justify-center gap-3 relative z-10">
+                <div className="flex flex-col items-center justify-center gap-3 relative z-10 pointer-events-none">
                   <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
                     <Upload className="w-6 h-6 text-gray-500" />
                   </div>
@@ -104,7 +104,7 @@ export default function UploadImageDialog({ children, onUpload }: Props) {
                   </div>
 
                   <div className="pt-3">
-                    <Button className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 py-2">
+                    <Button type="button" className="bg-blue-600 hover:bg-blue-700 text-white rounded-full px-6 py-2 pointer-events-auto" onClick={() => inputRef.current?.click()}>
                       Choose file
                     </Button>
                   </div>

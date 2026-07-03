@@ -9,8 +9,10 @@ import {
   User,
   FileText,
   DollarSign,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
 import {
   Card,
   CardContent,
@@ -20,6 +22,7 @@ import {
 } from "@/components/ui/card";
 import SuccessDialog from "@/components/success-dialog";
 import UpdateStatusDialog from "./update-status-dialog";
+import TerminateProjectDialog from "./terminate-project-dialog";
 import { AddNotesDialog, type AddNotesFormValues } from "./add-notes-dialog";
 import { useNavigate, useParams } from "react-router";
 import { useState } from "react";
@@ -64,8 +67,13 @@ const lifecycleSteps = [
 
 export default function ProjectDetailsPage() {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const { id, projectId } = useParams<{ id: string, projectId: string }>();
+  // Use projectId if available, otherwise fallback to id
+  const leadId = projectId || id || "";
   const basePath = id ? `/customers/${id}` : "/customers";
+
+  const { data: leadData, isLoading: isLeadLoading } = useLeadDetailQuery(leadId);
+  const project = leadData?.data?.lead;
 
   const [notes, setNotes] = useState<AddNotesFormValues[]>([
     {
@@ -80,6 +88,7 @@ export default function ProjectDetailsPage() {
   const [successDialogTitle, setSuccessDialogTitle] = useState(
     "Status Updated Successfully",
   );
+  const [terminateDialogOpen, setTerminateDialogOpen] = useState(false);
 
   const handleSaveNote = (data: AddNotesFormValues) => {
     setNotes((current) => [data, ...current]);
@@ -89,6 +98,14 @@ export default function ProjectDetailsPage() {
     setStatusDialogOpen(true);
   };
 
+  if (isLeadLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-[#1D51A4]" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
@@ -96,13 +113,13 @@ export default function ProjectDetailsPage() {
         <div className="flex items-center gap-3">
           <Button
             variant="default"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/customers')}
             className="px-4 bg-[#1D51A4] hover:bg-[#1D51A4]/90 text-white"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back
           </Button>
-          <h1 className="text-xl font-semibold">Project Details- Project 1</h1>
+          <h1 className="text-xl font-semibold">Project Details - {project?.projectName || "Unnamed Project"}</h1>
         </div>
         <div className="flex items-center gap-3">
           <UploadFileDialog
@@ -156,7 +173,7 @@ export default function ProjectDetailsPage() {
               key={btn.label}
               variant="default"
               className="bg-[#1D51A4] hover:bg-[#1D51A4]/90 text-white rounded-[6px] shadow-sm"
-              onClick={() => navigate(`${basePath}/${btn.path}`)}
+              onClick={() => navigate(projectId ? `${basePath}/${btn.path}/${projectId}` : `${basePath}/${btn.path}`)}
             >
               {btn.label}
             </Button>
@@ -168,13 +185,10 @@ export default function ProjectDetailsPage() {
               key={btn.label}
               variant="default"
               className="bg-[#1D51A4] hover:bg-[#1D51A4]/90 text-white rounded-[6px] shadow-sm"
-              onClick={() =>
-                navigate(
-                  btn.path.startsWith("/")
-                    ? btn.path
-                    : `${basePath}/${btn.path}`,
-                )
-              }
+              onClick={() => {
+                if (btn.path.startsWith("/")) navigate(btn.path);
+                else navigate(projectId ? `${basePath}/${btn.path}/${projectId}` : `${basePath}/${btn.path}`);
+              }}
             >
               {btn.label}
             </Button>
@@ -192,11 +206,11 @@ export default function ProjectDetailsPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-[16px] font-semibold text-slate-800">
-                  Project 1- ABC Warehouse
+                  {project?.projectName || "Unnamed Project"}
                 </h2>
                 <span className="inline-flex items-center rounded-full bg-[#DCFCE7] px-2 py-0.5 text-[12px] font-medium text-[#16A34A]">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] mr-1.5"></span>
-                  In Progress
+                  {project?.lifecycleStatus || "In Progress"}
                 </span>
               </div>
               <p className="text-[13px] text-slate-500 mt-1">Q-2025-1047</p>
@@ -212,10 +226,7 @@ export default function ProjectDetailsPage() {
             <Button
               variant="secondary"
               className="bg-[#475569] text-white hover:bg-[#475569]/90 rounded-[6px]"
-              onClick={() => {
-                setSuccessDialogTitle("Project Terminated Successfully");
-                setSuccessDialogOpen(true);
-              }}
+              onClick={() => setTerminateDialogOpen(true)}
             >
               Project Terminate
             </Button>
@@ -231,7 +242,7 @@ export default function ProjectDetailsPage() {
               <div>
                 <p className="text-[12px] text-slate-500">Building Type</p>
                 <p className="text-[14px] font-medium text-slate-800">
-                  Workshop
+                  {project?.buildingType || "N/A"}
                 </p>
               </div>
             </div>
@@ -242,7 +253,7 @@ export default function ProjectDetailsPage() {
               <div>
                 <p className="text-[12px] text-slate-500">Quote Value</p>
                 <p className="text-[14px] font-medium text-slate-800">
-                  $12,500
+                  {project?.quoteValue ? `$${project.quoteValue.toLocaleString()}` : "N/A"}
                 </p>
               </div>
             </div>
@@ -253,7 +264,7 @@ export default function ProjectDetailsPage() {
               <div>
                 <p className="text-[12px] text-slate-500">Created On</p>
                 <p className="text-[14px] font-medium text-slate-800">
-                  2024-10-10
+                  {project?.createdAt ? new Date(project.createdAt).toLocaleDateString() : "N/A"}
                 </p>
               </div>
             </div>
@@ -264,7 +275,7 @@ export default function ProjectDetailsPage() {
               <div>
                 <p className="text-[12px] text-slate-500">Location</p>
                 <p className="text-[14px] font-medium text-slate-800">
-                  1878 Bayonne Ave, Manchester, NNJ, 088765
+                  {project?.location || "N/A"}
                 </p>
               </div>
             </div>
@@ -280,14 +291,14 @@ export default function ProjectDetailsPage() {
               <div className="bg-[#F8FAFC] rounded-[8px] p-4 flex gap-4">
                 <div className="flex-1 space-y-2">
                   <p className="text-[14px] font-medium text-slate-800 mb-1">
-                    John Doe
+                    {project?.customerId ? `${project.customerId.firstName || ""} ${project.customerId.lastName || ""}`.trim() || "Unknown" : "Unknown"}
                   </p>
                   <div className="flex items-start gap-2">
                     <Phone className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
                     <div className="flex text-[13px]">
                       <span className="text-slate-500 w-16">Phone</span>
                       <span className="font-medium text-slate-800">
-                        (163) 2459 315
+                        {project?.customerId?.phone ? `${project.customerId.phone.countryCode || ""} ${project.customerId.phone.number || ""}`.trim() : "N/A"}
                       </span>
                     </div>
                   </div>
@@ -296,10 +307,10 @@ export default function ProjectDetailsPage() {
                     <div className="flex text-[13px]">
                       <span className="text-slate-500 w-16">Email</span>
                       <a
-                        href="mailto:darlee@example.com"
+                        href={project?.customerId?.email ? `mailto:${project.customerId.email}` : "#"}
                         className="font-medium text-[#1D51A4] hover:underline"
                       >
-                        darlee@example.com
+                        {project?.customerId?.email || "N/A"}
                       </a>
                     </div>
                   </div>
@@ -308,7 +319,7 @@ export default function ProjectDetailsPage() {
                     <div className="flex flex-col text-[13px]">
                       <span className="text-slate-500 w-16">Address</span>
                       <span className="font-medium text-slate-800">
-                        1861 Bayonne Ave,
+                        {project?.customerId?.address?.street || "N/A"}
                       </span>
                     </div>
                   </div>
@@ -326,7 +337,7 @@ export default function ProjectDetailsPage() {
                 </div>
                 <div>
                   <p className="text-[14px] font-medium text-slate-800">
-                    Assigned to: Sarah Lee
+                    Assigned to: {project?.assignedSales?.name || "Unassigned"}
                   </p>
                   <p className="text-[13px] text-slate-500 mt-1">
                     1 person working on this lead
@@ -380,13 +391,12 @@ export default function ProjectDetailsPage() {
                   >
                     <div
                       className={`flex h-[24px] w-[24px] items-center justify-center rounded-full text-[12px] font-semibold mb-2 z-10 transition-colors
-                      ${
-                        isCompleted
+                      ${isCompleted
                           ? "bg-[#16A34A] text-white border-2 border-white"
                           : isCurrent
                             ? "bg-[#1D51A4] text-white border-2 border-white"
                             : "bg-white border-2 border-[#E2E8F0] text-slate-400"
-                      }`}
+                        }`}
                     >
                       {step.id}
                     </div>
@@ -671,6 +681,16 @@ export default function ProjectDetailsPage() {
           ))}
         </div>
       </Card>
+
+      <TerminateProjectDialog
+        open={terminateDialogOpen}
+        onOpenChange={setTerminateDialogOpen}
+        leadId={leadId}
+        onSuccess={() => {
+          // You could show a success dialog here if you prefer,
+          // but toast is already handled in the dialog component.
+        }}
+      />
     </div>
   );
 }

@@ -21,6 +21,7 @@ type Props = {
   children?: React.ReactNode;
   initialType?: "%" | "$";
   initialPayments?: Payment[];
+  maxPercent?: number;
   onDone: (payload: { type: "%" | "$"; payments: Payment[] }) => void;
 };
 
@@ -28,6 +29,7 @@ export default function PaymentScheduleDialog({
   children,
   initialType = "%",
   initialPayments = [],
+  maxPercent = 100,
   onDone,
 }: Props) {
   type FormValues = { type: "%" | "$"; payments: Payment[] };
@@ -67,20 +69,20 @@ export default function PaymentScheduleDialog({
   );
 
   const error =
-    watchedType === "%" && totalAmount > 100
-      ? "Sum of payments exceeds 100%"
+    watchedType === "%" && totalAmount > maxPercent
+      ? `Sum of payments exceeds ${maxPercent}%`
       : "";
 
   const remainingLabel = React.useMemo(() => {
     if (watchedType === "%") {
-      const rem = Math.max(0, 100 - totalAmount);
+      const rem = Math.max(0, maxPercent - totalAmount);
       return `${rem.toFixed(2)}% Remaining`;
     }
     return `${totalAmount.toFixed(2)} Total`;
-  }, [totalAmount, watchedType]);
+  }, [totalAmount, watchedType, maxPercent]);
 
   const onSubmit = (data: FormValues) => {
-    if (watchedType === "%" && totalAmount > 100) return; // prevent submit
+    if (watchedType === "%" && totalAmount > maxPercent) return; // prevent submit
 
     const cleaned = data.payments.map((p) => ({
       name: (p.name || "").trim(),
@@ -115,7 +117,14 @@ export default function PaymentScheduleDialog({
                       value="%"
                       {...register("type")}
                       checked={watchedType === "%"}
-                      onChange={() => setValue("type", "%")}
+                      onChange={() => {
+                        setValue("type", "%");
+                        const current = watchedPayments || [];
+                        setValue(
+                          "payments",
+                          current.map((p) => ({ ...p, amount: "" }))
+                        );
+                      }}
                       className="w-4 h-4"
                     />
                     <span className="text-sm">%</span>
@@ -127,7 +136,14 @@ export default function PaymentScheduleDialog({
                       value="$"
                       {...register("type")}
                       checked={watchedType === "$"}
-                      onChange={() => setValue("type", "$")}
+                      onChange={() => {
+                        setValue("type", "$");
+                        const current = watchedPayments || [];
+                        setValue(
+                          "payments",
+                          current.map((p) => ({ ...p, amount: "" }))
+                        );
+                      }}
                       className="w-4 h-4"
                     />
                     <span className="text-sm">$</span>
@@ -147,7 +163,11 @@ export default function PaymentScheduleDialog({
                       </div>
 
                       <div className="space-y-2 relative">
-                        <Label>Payment Amount</Label>
+                        <Label>
+                          {watchedType === "%"
+                            ? "Payment Percentage"
+                            : "Payment Amount"}
+                        </Label>
                         <Input
                           {...register(`payments.${i}.amount` as const)}
                           placeholder={watchedType === "%" ? "25%" : "0.00"}

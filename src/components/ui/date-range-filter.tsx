@@ -180,21 +180,35 @@ export default function DateRangeFilter({ value, onChange, className }: Props) {
               })}
             </div>
 
-            <div className="flex items-center justify-end gap-3 mt-4">
+            <div className="flex items-center justify-between mt-4 gap-2">
               <button
                 type="button"
-                onClick={handleCancel}
-                className="rounded-lg border border-slate-200 bg-white px-5 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                onClick={() => {
+                  setDraftRange(undefined);
+                  setActivePreset(undefined);
+                  onChange?.(undefined);
+                  setOpen(false);
+                }}
+                className="text-[13px] font-medium text-red-600 hover:text-red-700 transition"
               >
-                Cancel
+                Clear
               </button>
-              <button
-                type="button"
-                onClick={handleApply}
-                className="rounded-lg bg-[#34519f] px-5 py-2 text-sm font-medium text-white transition hover:bg-[#34519f]/90"
-              >
-                Apply Filter
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] font-medium text-slate-600 transition hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleApply}
+                  className="rounded-lg bg-[#34519f] px-3 py-2 text-[13px] font-medium text-white transition hover:bg-[#34519f]/90"
+                >
+                  Apply
+                </button>
+              </div>
             </div>
           </div>
         </div>

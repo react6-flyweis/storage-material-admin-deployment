@@ -11,6 +11,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import SuccessDialog from "@/components/success-dialog";
+import { useAdminEmployeesQuery } from "@/modules/employees/employees.hooks";
+import { useAssignLeadSalesMutation } from "@/modules/leads/leads.hooks";
+import { toast } from "sonner";
 import {
   Select,
   SelectTrigger,
@@ -23,25 +26,56 @@ import { Textarea } from "@/components/ui/textarea";
 
 type Props = {
   trigger?: React.ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  leadId: string;
+  currentSalesId?: string;
 };
 
-export default function AssignSalesDialog({ trigger }: Props) {
-  const [open, setOpen] = useState(false);
+export default function AssignSalesDialog({ trigger, open, onOpenChange, leadId, currentSalesId }: Props) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [salesPerson, setSalesPerson] = useState("James Lee");
-  const [priority, setPriority] = useState("Low");
-  const [panel, setPanel] = useState("Plant");
-  const [notes, setNotes] = useState("James Lee");
+  const [salesPerson, setSalesPerson] = useState(currentSalesId || "");
+  
+  const dialogOpen = open ?? internalOpen;
+  const setDialogOpen = onOpenChange ?? setInternalOpen;
+
+  React.useEffect(() => {
+    if (dialogOpen && currentSalesId) {
+      setSalesPerson(currentSalesId);
+    }
+  }, [dialogOpen, currentSalesId]);
+
+  const { data: employeesResponse, isLoading: isEmployeesLoading } = useAdminEmployeesQuery({
+    role: "sales"
+  });
+
+  const assignMutation = useAssignLeadSalesMutation();
 
   const onAssign = () => {
-    // TODO: wire API call to assign lead
-    console.log("Assigning", { salesPerson, priority, panel, notes });
-    setOpen(false);
-    setShowSuccess(true);
+    if (!salesPerson) {
+      toast.error("Please select a sales person");
+      return;
+    }
+    
+    assignMutation.mutate(
+      { leadId, employeeId: salesPerson },
+      {
+        onSuccess: () => {
+          setDialogOpen(false);
+          setShowSuccess(true);
+        },
+        onError: (error: any) => {
+          toast.error(error?.response?.data?.message || "Failed to assign sales person");
+        }
+      }
+    );
   };
 
+  const salesEmployees = employeesResponse?.data?.employees || [];
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>
         {trigger ?? (
           <Button className="bg-blue-600 hover:bg-blue-700">Assign</Button>
@@ -58,53 +92,21 @@ export default function AssignSalesDialog({ trigger }: Props) {
           <div>
             <Label>Assign Sales</Label>
             <Select value={salesPerson} onValueChange={setSalesPerson}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
+              <SelectTrigger className="w-full mt-1" disabled={isEmployeesLoading}>
+                <SelectValue placeholder={isEmployeesLoading ? "Loading..." : "Select a sales person"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="James Lee">James Lee</SelectItem>
-                <SelectItem value="Sarah Lee">Sarah Lee</SelectItem>
-                <SelectItem value="John Doe">John Doe</SelectItem>
+                {salesEmployees.length > 0 ? (
+                  salesEmployees.map((emp) => (
+                    <SelectItem key={emp._id} value={emp._id}>
+                      {emp.name} {emp.email ? `(${emp.email})` : ""}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="empty" disabled>No sales personnel found</SelectItem>
+                )}
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Priority</Label>
-              <Select value={priority} onValueChange={setPriority}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Low">Low</SelectItem>
-                  <SelectItem value="Medium">Medium</SelectItem>
-                  <SelectItem value="High">High</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Select Panel</Label>
-              <Select value={panel} onValueChange={setPanel}>
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Plant">Plant</SelectItem>
-                  <SelectItem value="Sales">Sales</SelectItem>
-                  <SelectItem value="Plant 2">Plant 2</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div>
-            <Label>Notes</Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
           </div>
         </div>
 
@@ -118,9 +120,10 @@ export default function AssignSalesDialog({ trigger }: Props) {
           <Button
             size="lg"
             onClick={onAssign}
+            disabled={assignMutation.isPending}
             className="w-40 bg-blue-600 hover:bg-blue-700"
           >
-            Assign Lead
+            {assignMutation.isPending ? "Assigning..." : "Assign Lead"}
           </Button>
         </DialogFooter>
       </DialogContent>

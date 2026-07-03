@@ -5,6 +5,7 @@ import { AdminLayout } from "@/components/admin-layout";
 import { ProtectedRoute, PublicOnlyRoute } from "@/modules/auth/auth.guards";
 
 const SignIn = lazy(() => import("@/pages/sign-in"));
+const ForgotPassword = lazy(() => import("../pages/forgot-password"));
 const Notifications = lazy(() => import("@/pages/notifications"));
 const Communication = lazy(() => import("@/pages/communication"));
 const AIChat = lazy(() => import("@/pages/communication-ai-chat"));
@@ -79,12 +80,21 @@ const Meetings = lazy(() => import("@/pages/customers/meetings"));
 const ScheduleMeeting = lazy(
   () => import("@/pages/customers/schedule-meeting"),
 );
+const RescheduleMeeting = lazy(
+  () => import("@/pages/customers/reschedule-meeting"),
+);
 const TerminatedProjects = lazy(
   () => import("@/pages/customers/terminated-projects"),
 );
 
 // leads section
 const Leads = lazy(() => import("@/pages/leads/leads"));
+const LeadDetails = lazy(() => import("@/pages/leads/lead-details"));
+const AssignPerson = lazy(() => import("@/pages/leads/actions/assign-person"));
+const CallHistory = lazy(() => import("@/pages/leads/actions/call-history"));
+const OrderLifecycle = lazy(() => import("@/pages/leads/actions/order-lifecycle"));
+const LeadDocuments = lazy(() => import("@/pages/leads/actions/documents"));
+const LeadChats = lazy(() => import("@/pages/leads/actions/chats"));
 const AddNewLead = lazy(() => import("@/pages/leads/add-new-lead"));
 const EditLead = lazy(() => import("@/pages/leads/edit-lead"));
 const FollowUp = lazy(() => import("@/pages/leads/follow-up"));
@@ -125,6 +135,7 @@ const PurchaseOrderDetails = lazy(
 );
 const QuotationList = lazy(() => import("@/pages/leads/quotation-list"));
 const QuotationDetails = lazy(() => import("@/pages/leads/quotation-details"));
+const RFQPage = lazy(() => import("@/pages/leads/rfq"));
 
 // employees section
 const Employees = lazy(() => import("@/pages/employees/employees"));
@@ -181,8 +192,9 @@ const BudgetActualPage = lazy(() => import("@/pages/finance/budget-actual"));
 
 // Invoice section
 const InvoiceForm = lazy(() => import("@/pages/invoices/invoice-form"));
+const EditInvoice = lazy(() => import("@/pages/invoices/edit-invoice"));
 const InvoiceList = lazy(() => import("@/pages/invoices/invoice-list"));
-const SalesGrowth = lazy(() => import("@/pages/invoices/sales-growth"));
+// const SalesGrowth = lazy(() => import("@/pages/invoices/sales-growth"));
 const InvoicePreviewPage = lazy(
   () => import("@/pages/invoices/invoice-preview"),
 );
@@ -226,7 +238,39 @@ const TransferRequestsView = lazy(
 const UsageTrackingView = lazy(
   () => import("@/plant/components/equipment_allocation/UsageTrackingView"),
 );
+const PlantOverview = lazy(() => import("@/plant/pages/PlantOverview"));
+const AllDeliveries = lazy(() => import("@/plant/pages/AllDeliveries"));
+const LoadPlanning = lazy(() => import("@/plant/pages/LoadPlanning"));
+const LoadPlanningProject = lazy(() => import("@/plant/pages/LoadPlanningProject"));
+const LoadPlanDetails = lazy(() => import("@/plant/pages/LoadPlanDetails"));
+const ShipperQuotation = lazy(() => import("@/plant/pages/ShipperQuotation"));
+const ShipperQuotationProject = lazy(() => import("@/plant/pages/ShipperQuotationProject"));
+const ShipperFileDetails = lazy(() => import("@/plant/pages/ShipperFileDetails"));
+const OrderVerification = lazy(() => import("@/plant/pages/OrderVerification"));
+const PackingList = lazy(() => import("@/plant/pages/PackingList"));
+const PackingListProject = lazy(() => import("@/plant/pages/PackingListProject"));
+const PackingListDetails = lazy(() => import("@/plant/pages/PackingListDetails"));
+const QrLabels = lazy(() => import("@/plant/pages/QrLabels"));
+const QrLabelsProject = lazy(() => import("@/plant/pages/QrLabelsProject"));
+const ShippersList = lazy(() => import("@/plant/pages/ShippersList"));
+const AddShipper = lazy(() => import("@/plant/pages/AddShipper"));
+const ShipperDetails = lazy(() => import("@/plant/pages/ShipperDetails"));
+const FreightCarriersList = lazy(() => import("@/plant/pages/FreightCarriersList"));
+const AddFreightCarrier = lazy(() => import("@/plant/pages/AddFreightCarrier"));
+const FreightCarrierDetails = lazy(() => import("@/plant/pages/FreightCarrierDetails"));
 const PlantDashboard = lazy(() => import("@/plant/pages/PlantPage"));
+const ItemCostList = lazy(() => import("@/plant/pages/ItemCostList"));
+const BOMFileDetails = lazy(() => import("@/plant/pages/BOMFileDetails"));
+const FreightLoads = lazy(() => import("@/plant/pages/FreightLoads"));
+const FreightRequestDetails = lazy(() => import("@/plant/pages/FreightRequestDetails"));
+const CreateFreightRequest = lazy(() => import("@/plant/pages/CreateFreightRequest"));
+const NotificationHistory = lazy(() => import("@/plant/pages/NotificationHistory"));
+const DeliveryCalendar = lazy(() => import("@/plant/pages/DeliveryCalendar"));
+const DeliveryDetails = lazy(() => import("@/plant/pages/DeliveryDetails"));
+const AwardedLoads = lazy(() => import("@/plant/pages/AwardedLoads"));
+const UploadedBomFiles = lazy(() => import("@/plant/pages/UploadedBomFiles"));
+const BomFileDetails = lazy(() => import("@/plant/pages/BOMFileDetails"));
+const GenerateShipperOrder = lazy(() => import("@/plant/pages/GenerateShipperOrder"));
 
 // Financial Accounts section
 
@@ -255,6 +299,10 @@ export const adminRoutes: RouteObject[] = [
       {
         path: "/sign-in",
         element: <SignIn />,
+      },
+      {
+        path: "/forgot-password",
+        element: <ForgotPassword />,
       },
     ],
   },
@@ -334,6 +382,12 @@ export const adminRoutes: RouteObject[] = [
               {
                 path: ":leadId",
                 children: [
+                  { index: true, element: <LeadDetails /> },
+                  { path: "assign", element: <AssignPerson /> },
+                  { path: "call-history", element: <CallHistory /> },
+                  { path: "order-lifecycle", element: <OrderLifecycle /> },
+                  { path: "documents", element: <LeadDocuments /> },
+                  { path: "chats-ui", element: <LeadChats /> },
                   { path: "edit", element: <EditLead /> },
                   { path: "timeline", element: <SingleLeadTimelinePage /> },
                   {
@@ -356,6 +410,10 @@ export const adminRoutes: RouteObject[] = [
                     path: "payments",
                     element: <LeadPaymentsPage />,
                   },
+                  {
+                    path: "rfq",
+                    element: <RFQPage />,
+                  },
                 ],
               },
             ],
@@ -373,8 +431,8 @@ export const adminRoutes: RouteObject[] = [
                   { index: true, element: <Meetings /> },
                   { path: "schedule", element: <ScheduleMeeting /> },
                   {
-                    path: "reschedule/:id",
-                    element: <ScheduleMeeting />,
+                    path: "reschedule/:meetingId",
+                    element: <RescheduleMeeting />,
                   },
                 ],
               },
@@ -397,17 +455,29 @@ export const adminRoutes: RouteObject[] = [
                   { path: "order", element: <CustomerOrder /> },
                   { path: "projects", element: <CustomerProjects /> },
                   { path: "project-details", element: <ProjectDetails /> },
+                  { path: "project-details/:projectId", element: <ProjectDetails /> },
                   { path: "project-invoices", element: <ProjectInvoices /> },
+                  { path: "project-invoices/:projectId", element: <ProjectInvoices /> },
                   { path: "material-delivery", element: <MaterialDelivery /> },
+                  { path: "material-delivery/:projectId", element: <MaterialDelivery /> },
                   {
                     path: "project-shipper-files",
                     element: <ProjectShipperFiles />,
                   },
+                  {
+                    path: "project-shipper-files/:projectId",
+                    element: <ProjectShipperFiles />,
+                  },
                   { path: "project-quotation", element: <ProjectQuotation /> },
+                  { path: "project-quotation/:projectId", element: <ProjectQuotation /> },
                   { path: "project-payments", element: <ProjectPayments /> },
+                  { path: "project-payments/:projectId", element: <ProjectPayments /> },
                   { path: "project-bom", element: <ProjectBomFiles /> },
+                  { path: "project-bom/:projectId", element: <ProjectBomFiles /> },
                   { path: "project-drawings", element: <ProjectDrawings /> },
+                  { path: "project-drawings/:projectId", element: <ProjectDrawings /> },
                   { path: "budget-planning", element: <BudgetPlanning /> },
+                  { path: "budget-planning/:projectId", element: <BudgetPlanning /> },
                 ],
               },
               { path: ":id/edit", element: <EditCustomerDetailsPage /> },
@@ -462,6 +532,34 @@ export const adminRoutes: RouteObject[] = [
             ],
           },
           {
+            path: "plant/costing",
+            element: <ItemCostList />,
+          },
+          {
+            path: "plant/freight-loads",
+            element: <FreightLoads />,
+          },
+          {
+            path: "plant/freight-request-details/:id",
+            element: <FreightRequestDetails />,
+          },
+          {
+            path: "plant/freight-request/new",
+            element: <CreateFreightRequest />,
+          },
+          {
+            path: "plant/freight-request/edit/:id",
+            element: <CreateFreightRequest />,
+          },
+          {
+            path: "plant/bom-details/:id",
+            element: <BOMFileDetails />,
+          },
+          {
+            path: "plant/dashboard",
+            element: <PlantDashboard />,
+          },
+          {
             path: "analytics",
             element: <Analytics />,
           },
@@ -494,8 +592,9 @@ export const adminRoutes: RouteObject[] = [
                 element: <CarrierInvoices />,
               },
               { path: "new", element: <InvoiceForm /> },
-              { path: ":id", element: <InvoiceForm /> },
-              { path: "sales-growth", element: <SalesGrowth /> },
+              { path: ":id", element: <EditInvoice /> },
+              { path: ":id/edit", element: <EditInvoice /> },
+              // { path: "sales-growth", element: <SalesGrowth /> },
             ],
           },
 
@@ -503,7 +602,34 @@ export const adminRoutes: RouteObject[] = [
           {
             path: "plant",
             children: [
-              { index: true, element: <PlantDashboard /> },
+              { index: true, element: <PlantOverview /> },
+              { path: "all-deliveries", element: <AllDeliveries /> },
+              { path: "load-planning", element: <LoadPlanning /> },
+              { path: "load-planning/:projectId", element: <LoadPlanningProject /> },
+              { path: "load-planning/:projectId/details/:loadId", element: <LoadPlanDetails /> },
+              { path: "shipper-quotation", element: <ShipperQuotation /> },
+              { path: "shipper-quotation/:projectId", element: <ShipperQuotationProject /> },
+              { path: "shipper-quotation/:projectId/file/:fileId", element: <ShipperFileDetails /> },
+              { path: "order-verification", element: <OrderVerification /> },
+              { path: "packing-list", element: <PackingList /> },
+              { path: "packing-list/:projectId", element: <PackingListProject /> },
+              { path: "packing-list/:projectId/details/:packingId", element: <PackingListDetails /> },
+              { path: "qr-labels", element: <QrLabels /> },
+              { path: "qr-labels/:projectId", element: <QrLabelsProject /> },
+              { path: "shippers", element: <ShippersList /> },
+              { path: "shippers/add", element: <AddShipper /> },
+              { path: "shippers/:id", element: <ShipperDetails /> },
+              { path: "freight-carriers", element: <FreightCarriersList /> },
+              { path: "freight-carriers/add", element: <AddFreightCarrier /> },
+              { path: "freight-carriers/:id", element: <FreightCarrierDetails /> },
+              { path: "notification-history", element: <NotificationHistory /> },
+              { path: "delivery-calendar", element: <DeliveryCalendar /> },
+              { path: "delivery-details/:id", element: <DeliveryDetails /> },
+              { path: "awarded-loads", element: <AwardedLoads /> },
+              { path: "uploaded-bom-files", element: <UploadedBomFiles /> },
+              { path: "uploaded-bom-files/:id", element: <BomFileDetails /> },
+              { path: "uploaded-bom-files/:id/generate-shipper-order", element: <GenerateShipperOrder /> },
+              { path: "old-dashboard", element: <PlantDashboard /> },
               { path: "equipment_management", element: <EquipmentView /> },
               {
                 path: "material_inventory_management",

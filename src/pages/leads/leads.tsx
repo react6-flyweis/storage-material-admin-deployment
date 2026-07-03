@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo, useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSocket } from "@/utils/socketContextProvider";
 import { Link } from "react-router";
 import type { DateRange } from "react-day-picker";
 import {
@@ -12,12 +13,19 @@ import {
   UserX,
   Mail,
   Pen,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
 } from "lucide-react";
+import { useExportLeadsMutation } from "@/modules/leads/leads.hooks";
+import { toast } from "sonner";
 import ImportLeadsDialog from "@/components/leads/import-leads-dialog";
 import AssignSalesDialog from "@/components/leads/assign-sales-dialog";
 import CreateQuotationDialog from "@/components/leads/create-quotation-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -28,7 +36,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import StatCard from "@/components/ui/stat-card";
-import LeadDetailDialog from "@/components/leads/lead-detail-dialog";
+
 import ChatDialog from "@/components/leads/chat-dialog";
 import SuccessDialog from "@/components/success-dialog";
 import {
@@ -93,6 +101,7 @@ type LeadTableRow = {
   id: string;
   backendId?: string;
   name: string;
+  customerName: string;
   workshop: string;
   category: string;
   assignedTo: string | null;
@@ -131,17 +140,22 @@ function StatCardSkeleton({ color }: StatCardSkeletonProps) {
   );
 }
 
-async function getLeadsStatsProvider() {
+async function getLeadsStatsProvider(startDate?: string, endDate?: string) {
+  const params: Record<string, string> = {};
+  if (startDate) params.startDate = startDate;
+  if (endDate) params.endDate = endDate;
+
   const response = await apiClient.get<LeadsStatsResponse>(
     "/api/admin/leads/stats",
+    { params }
   );
 
   return response.data;
 }
 
-async function getAdminLeadsProvider(page = 1, limit = 20) {
+async function getAdminLeadsProvider(filters: Record<string, any>) {
   const response = await apiClient.get<AdminLeadsResponse>("/api/admin/leads", {
-    params: { page, limit },
+    params: filters,
   });
 
   return response.data;
@@ -162,14 +176,22 @@ const formatCurrency = (amount: number) =>
 
 const getLifecycleUi = (lifecycleStatus?: string) => {
   switch (lifecycleStatus) {
+    case "initial_contact":
+      return { status: "Initial Contact", statusColor: "blue" };
+    case "requirements_gathered":
+      return { status: "Requirements Gathered", statusColor: "blue" };
     case "proposal_sent":
-      return { status: "Proposal sent", statusColor: "purple" };
-    case "quotation_sent":
-      return { status: "Quotation Sent", statusColor: "orange" };
-    case "closed_won":
-      return { status: "Closed", statusColor: "green" };
+      return { status: "Proposal Sent", statusColor: "purple" };
     case "negotiation":
       return { status: "Negotiation", statusColor: "orange" };
+    case "deal_closed":
+      return { status: "Deal Closed", statusColor: "green" };
+    case "payment_done":
+      return { status: "Payment Done", statusColor: "green" };
+    case "converted_to_po":
+      return { status: "Converted to PO", statusColor: "green" };
+    case "sent_to_admin":
+      return { status: "Sent to Admin", statusColor: "purple" };
     default:
       return {
         status: lifecycleStatus
@@ -185,35 +207,185 @@ export default function LeadsPage() {
   const [projectValue, setProjectValue] = useState("all");
   const [assignments, setAssignments] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [period, setPeriod] = useState<Period>("Month");
+  const [period, setPeriod] = useState<Period>("All Time");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [successOpen, setSuccessOpen] = useState(false);
-  const page = 1;
-  const limit = 20;
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  
+  const queryClient = useQueryClient();
+  const exportMutation = useExportLeadsMutation();
+
+  const { socket } = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUpsert = ({ lead }: { lead: any }) => {
+      // Safely update all cached pages/filters for the admin list
+      queryClient.setQueriesData({ queryKey: ["leads", "admin", "list"] }, (oldData: any) => {
+        if (!oldData || !oldData.data || !oldData.data.leads) return oldData;
+        const list = oldData.data.leads;
+        const idx = list.findIndex((x: any) => String(x._id) === String(lead._id));
+        
+        let nextList = [...list];
+        if (idx === -1) {
+          nextList = [lead, ...nextList];
+        } else {
+          nextList[idx] = lead;
+        }
+        
+        return {
+          ...oldData,
+          data: {
+            ...oldData.data,
+            leads: nextList
+          }
+        };
+      });
+    };
+
+    socket.on('lead_list_created', handleUpsert);
+    socket.on('lead_list_updated', handleUpsert);
+
+    return () => {
+      socket.off('lead_list_created', handleUpsert);
+      socket.off('lead_list_updated', handleUpsert);
+    };
+  }, [socket, queryClient]);
+
+  const handleExport = () => {
+    exportMutation.mutate(undefined, {
+      onSuccess: (res) => {
+        if (res?.data?.fileUrl) {
+          window.open(res.data.fileUrl, "_blank");
+          toast.success("Export successful!");
+        } else {
+          toast.error("Export failed: No file URL returned");
+        }
+      },
+      onError: (err: any) => {
+        toast.error(err?.response?.data?.message || "Failed to export leads");
+      },
+    });
+  };
+
+  const dateRangeObj = useMemo(() => {
+    const formatDate = (d: Date) => {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    };
+
+    if (dateRange?.from && dateRange?.to) {
+      return {
+        startDate: formatDate(dateRange.from),
+        endDate: formatDate(dateRange.to),
+      };
+    }
+
+    if (period === "All Time") {
+      return { startDate: undefined, endDate: undefined };
+    }
+
+    let start = new Date();
+    let end = new Date();
+    
+    if (period === "Today") {
+      // Keep start and end as today
+    } else if (period === "Week") {
+      const day = start.getDay() || 7; // Make Sunday 7
+      start.setDate(start.getDate() - day + 1);
+      end.setDate(end.getDate() - day + 7);
+    } else if (period === "Month") {
+      start = new Date(start.getFullYear(), start.getMonth(), 1);
+      end = new Date(end.getFullYear(), end.getMonth() + 1, 0);
+    }
+
+    return {
+      startDate: formatDate(start),
+      endDate: formatDate(end),
+    };
+  }, [period, dateRange]);
+
   const { data: leadsStatsResponse, isLoading: isLeadsStatsLoading } = useQuery(
     {
-      queryKey: ["leads", "admin", "stats"],
-      queryFn: getLeadsStatsProvider,
+      queryKey: ["leads", "admin", "stats", dateRangeObj.startDate, dateRangeObj.endDate],
+      queryFn: () => getLeadsStatsProvider(dateRangeObj.startDate, dateRangeObj.endDate),
       staleTime: 60 * 1000,
     },
   );
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  // Reset page on filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, buildingType, projectValue, assignments, statusFilter, dateRangeObj]);
+
+  const apiFilters = useMemo(() => {
+    const f: Record<string, any> = {
+      page,
+      limit,
+      startDate: dateRangeObj.startDate,
+      endDate: dateRangeObj.endDate,
+    };
+
+    if (debouncedSearch) f.search = debouncedSearch;
+
+    if (buildingType !== "all") {
+      f.buildingType = buildingType;
+    }
+
+    if (projectValue !== "all") {
+      if (projectValue === "small") {
+        f.quoteValueMax = 50000;
+      } else if (projectValue === "medium") {
+        f.quoteValueMin = 50000;
+        f.quoteValueMax = 200000;
+      } else if (projectValue === "large") {
+        f.quoteValueMin = 200000;
+      }
+    }
+
+    if (assignments !== "all") {
+      f.isHandedToSales = assignments === "assigned";
+    }
+
+    if (statusFilter !== "all") {
+      f.lifecycleStatus = statusFilter;
+    }
+
+    return f;
+  }, [page, limit, dateRangeObj, debouncedSearch, buildingType, projectValue, assignments, statusFilter]);
+
   const { data: leadsResponse, isLoading: isLeadsLoading } = useQuery({
-    queryKey: ["leads", "admin", "list", page, limit],
-    queryFn: () => getAdminLeadsProvider(page, limit),
+    queryKey: ["leads", "admin", "list", apiFilters],
+    queryFn: () => getAdminLeadsProvider(apiFilters),
     staleTime: 60 * 1000,
   });
 
   const leadsStats = leadsStatsResponse?.data;
-  const leads: LeadTableRow[] = (leadsResponse?.data.leads ?? []).map(
+
+  const leads: LeadTableRow[] = (leadsResponse?.data?.leads ?? []).map(
     (lead) => {
-      const lifecycleUi = getLifecycleUi(lead.lifecycleStatus);
       const assignedToName = lead.assignedSales?.name ?? "";
+      const lifecycleUi = getLifecycleUi(lead.lifecycleStatus);
 
       return {
-        id: lead.customerId?.customerId ?? "",
+        id: lead.jobId ?? lead._id,
         backendId: lead._id,
-        name: lead.customerId?.firstName ?? "Unknown Customer",
+        customerName: lead.customerId ? `${lead.customerId.firstName || ''} ${lead.customerId.lastName || ''}`.trim() || 'Unknown Customer' : 'Unknown Customer',
+        name: lead.projectName || "",
         workshop: lead.buildingType
           ? formatTitleCase(lead.buildingType)
           : "Not set",
@@ -232,7 +404,6 @@ export default function LeadsPage() {
       };
     },
   );
-  // const [searchQuery, setSearchQuery] = useState("");
 
   const handleSelectAll = (checked: boolean, listToSelect: LeadTableRow[]) => {
     if (checked) {
@@ -291,13 +462,16 @@ export default function LeadsPage() {
     if (period === "Today") {
       return leadDate.getTime() === today.getTime();
     } else if (period === "Week") {
-      const weekAgo = new Date(today);
-      weekAgo.setDate(today.getDate() - 7);
-      return leadDate >= weekAgo && leadDate <= today;
+      const day = today.getDay() || 7;
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - day + 1);
+      const endOfWeek = new Date(today);
+      endOfWeek.setDate(today.getDate() - day + 7);
+      return leadDate >= startOfWeek && leadDate <= endOfWeek;
     } else if (period === "Month") {
-      const monthAgo = new Date(today);
-      monthAgo.setDate(today.getDate() - 30);
-      return leadDate >= monthAgo && leadDate <= today;
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+      return leadDate >= startOfMonth && leadDate <= endOfMonth;
     }
     return true;
   };
@@ -330,61 +504,7 @@ export default function LeadsPage() {
     return true;
   };
 
-  // Compute filtered leads based on search + filters
-  const filteredLeads = leads.filter((lead) => {
-    // Period filter
-    if (!isInPeriod(lead.createdAt)) {
-      return false;
-    }
-
-    if (!isInDateRange(lead.createdAt)) {
-      return false;
-    }
-
-    // Search
-    // const q = searchQuery.trim().toLowerCase();
-    // if (q) {
-    //   const hay =
-    //     `${lead.name} ${lead.id} ${lead.workshop} ${lead.category} ${lead.assignedToName}`.toLowerCase();
-    //   if (!hay.includes(q)) return false;
-    // }
-
-    // Building type filter (normalize)
-    if (buildingType !== "all") {
-      const normalized = buildingType.replace(/-/g, " ").replace(/s$/, "");
-      if (
-        !lead.workshop.toLowerCase().includes(normalized.toLowerCase().trim())
-      ) {
-        return false;
-      }
-    }
-
-    // Project value filter
-    if (projectValue !== "all") {
-      const value = parseQuoteValue(lead.quoteValue);
-      if (projectValue === "small" && !(value < 50000)) return false;
-      if (projectValue === "medium" && !(value >= 50000 && value <= 200000))
-        return false;
-      if (projectValue === "large" && !(value > 200000)) return false;
-    }
-
-    // Assignments filter
-    if (assignments !== "all") {
-      if (assignments === "assigned" && !lead.assignedTo) return false;
-      if (assignments === "unassigned" && lead.assignedTo) return false;
-    }
-
-    // Status filter
-    if (statusFilter !== "all") {
-      const s = lead.status.toLowerCase();
-      if (statusFilter === "proposal" && !s.includes("proposal")) return false;
-      if (statusFilter === "quotation" && !s.includes("quotation"))
-        return false;
-      if (statusFilter === "closed" && !s.includes("closed")) return false;
-    }
-
-    return true;
-  });
+  const filteredLeads = leads;
 
   return (
     <>
@@ -460,25 +580,44 @@ export default function LeadsPage() {
             <Button
               variant="outline"
               className="bg-white"
-              onClick={() => setSuccessOpen(true)}
+              onClick={handleExport}
+              disabled={exportMutation.isPending}
             >
-              <Download className="h-4 w-4 mr-2" />
+              {exportMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
               Export Data
             </Button>
           </div>
 
           <div className="flex flex-wrap gap-3 w-full lg:w-auto">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search leads..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 w-full bg-white"
+              />
+            </div>
             <Select value={buildingType} onValueChange={setBuildingType}>
               <SelectTrigger className="w-full sm:w-40 bg-white">
                 <SelectValue placeholder="Building types" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All</SelectItem>
-                <SelectItem value="garages">Garages</SelectItem>
+                <SelectItem value="arch-buildings">Arch Buildings</SelectItem>
+                <SelectItem value="aviation">Aviation</SelectItem>
+                <SelectItem value="carports">Carports</SelectItem>
                 <SelectItem value="workshops">Workshops</SelectItem>
+                <SelectItem value="agricultural">Agricultural</SelectItem>
+                <SelectItem value="warehouses">Warehouses</SelectItem>
                 <SelectItem value="commercial">Commercial</SelectItem>
                 <SelectItem value="sales-storage">Sales Storage</SelectItem>
-                <SelectItem value="arch-buildings">Arch Buildings</SelectItem>
+                <SelectItem value="barndominiums">Barndominiums</SelectItem>
+                <SelectItem value="garages">Garages</SelectItem>
               </SelectContent>
             </Select>
 
@@ -515,9 +654,14 @@ export default function LeadsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="proposal">Proposal sent</SelectItem>
-                <SelectItem value="quotation">Quotation Sent</SelectItem>
-                <SelectItem value="closed">Closed</SelectItem>
+                <SelectItem value="initial_contact">Initial Contact</SelectItem>
+                <SelectItem value="requirements_gathered">Requirements Gathered</SelectItem>
+                <SelectItem value="proposal_sent">Proposal Sent</SelectItem>
+                <SelectItem value="negotiation">Negotiation</SelectItem>
+                <SelectItem value="deal_closed">Deal Closed</SelectItem>
+                <SelectItem value="payment_done">Payment Done</SelectItem>
+                <SelectItem value="converted_to_po">Converted to PO</SelectItem>
+                <SelectItem value="sent_to_admin">Sent to Admin</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -530,7 +674,7 @@ export default function LeadsPage() {
               <Table>
                 <TableHeader className="bg-gray-50 border-b">
                   <TableRow className="hover:bg-transparent border-b">
-                    <TableHead className="px-4 py-3 text-left">
+                    <TableHead className="px-4 py-3 w-12 text-center">
                       <input
                         type="checkbox"
                         checked={
@@ -543,25 +687,25 @@ export default function LeadsPage() {
                         className="rounded border-gray-300"
                       />
                     </TableHead>
-                    <TableHead className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <TableHead className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                       Lead Info
                     </TableHead>
-                    <TableHead className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <TableHead className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                       Assigned To
                     </TableHead>
-                    <TableHead className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <TableHead className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                       Score
                     </TableHead>
-                    <TableHead className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <TableHead className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                       Status
                     </TableHead>
-                    <TableHead className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <TableHead className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                       Quote Value
                     </TableHead>
-                    <TableHead className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <TableHead className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                       Chat
                     </TableHead>
-                    <TableHead className="px-3 py-2 sm:px-6 sm:py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <TableHead className="px-4 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider">
                       Actions
                     </TableHead>
                   </TableRow>
@@ -582,7 +726,7 @@ export default function LeadsPage() {
                       key={lead.id + index}
                       className="hover:bg-gray-50"
                     >
-                      <TableCell className="px-3 py-2 sm:px-4 sm:py-4">
+                      <TableCell className="px-4 py-3 text-center">
                         <input
                           type="checkbox"
                           checked={selectedLeads.includes(lead.id)}
@@ -592,25 +736,30 @@ export default function LeadsPage() {
                           className="rounded border-gray-300"
                         />
                       </TableCell>
-                      <TableCell className="">
+                      <TableCell className="px-4 py-3">
                         <div className="flex flex-col">
-                          <span className="font-medium text-gray-900 text-nowrap whitespace-nowrap">
-                            {lead.name}
+                          <span className="font-medium text-[13px] text-gray-900 text-nowrap whitespace-nowrap">
+                            {lead.customerName}
                           </span>
-                          <span className="text-sm text-gray-500 text-nowrap">
+                          {lead.name && (
+                            <span className="text-[12px] text-gray-500 text-nowrap mt-0.5">
+                              {lead.name}
+                            </span>
+                          )}
+                          <span className="text-[12px] text-gray-500 text-nowrap mt-0.5">
                             {lead.id}
                           </span>
-                          <span className="text-sm text-gray-500 text-nowrap">
+                          <span className="text-[12px] text-gray-500 text-nowrap mt-0.5">
                             {lead.workshop} · {lead.category}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="">
+                      <TableCell className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           {lead.assignedTo ? (
                             <>
-                              <Avatar className="h-6 w-6 bg-green-100">
-                                <AvatarFallback className="text-xs text-green-700">
+                              <Avatar className="h-7 w-7 bg-green-50 border border-green-100">
+                                <AvatarFallback className="text-[11px] font-semibold text-green-700">
                                   {lead.assignedToName
                                     .split(" ")
                                     .map((n) => n[0])
@@ -618,24 +767,25 @@ export default function LeadsPage() {
                                 </AvatarFallback>
                               </Avatar>
                               <div className="flex flex-col">
-                                <span className="text-sm font-medium text-gray-900 text-nowrap whitespace-nowrap">
+                                <span className="text-[13px] font-medium text-gray-900 text-nowrap whitespace-nowrap">
                                   {lead.assignedToName}
                                 </span>
-                                <span className="text-xs text-gray-500">
+                                <span className="text-[11px] text-gray-500">
                                   {lead.assignmentStatus}
                                 </span>
                               </div>
                             </>
                           ) : (
                             <>
-                              <Avatar className="h-6 w-6 bg-gray-100">
-                                <AvatarFallback className="text-xs text-gray-500">
-                                  <UserPlus className="h-3 w-3" />
+                              <Avatar className="h-7 w-7 bg-green-50 border border-green-100">
+                                <AvatarFallback className="text-[11px] text-green-600">
+                                  <UserPlus className="h-3.5 w-3.5" />
                                 </AvatarFallback>
                               </Avatar>
                               <AssignSalesDialog
+                                leadId={lead.backendId!}
                                 trigger={
-                                  <span className="text-sm text-green-600 font-medium cursor-pointer">
+                                  <span className="text-[13px] text-blue-600 font-medium cursor-pointer hover:underline">
                                     {lead.assignmentStatus}
                                   </span>
                                 }
@@ -644,11 +794,11 @@ export default function LeadsPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="">
-                        <div className="min-w-32">
-                          <div className="relative h-4 w-full rounded-full bg-gray-200 overflow-hidden">
+                      <TableCell className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="relative h-4 w-32 rounded-full bg-gray-200 overflow-hidden flex items-center">
                             <div
-                              className={`h-full rounded-full ${getScoreColorClass(
+                              className={`absolute left-0 top-0 h-full rounded-full ${getScoreColorClass(
                                 lead.score,
                               )}`}
                               style={{
@@ -656,7 +806,7 @@ export default function LeadsPage() {
                               }}
                             />
                             <span
-                              className={`absolute inset-0 flex items-center justify-end pr-2 text-xs font-semibold ${getScoreTextColorClass(
+                              className={`absolute right-3 text-[11px] font-bold ${getScoreTextColorClass(
                                 lead.score,
                               )}`}
                             >
@@ -665,61 +815,51 @@ export default function LeadsPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="">
+                      <TableCell className="px-4 py-3">
                         <Badge
-                          className={getStatusBadgeColor(lead.statusColor)}
-                          variant="secondary"
+                          className={`${getStatusBadgeColor(lead.statusColor)} border-none shadow-none px-3 py-1 font-medium`}
                         >
                           {lead.status}
                         </Badge>
                       </TableCell>
-                      <TableCell className="">
-                        <span className="font-medium text-gray-900">
-                          {lead.quoteValue}
-                        </span>
+                      <TableCell className="px-4 py-3 font-bold text-gray-900 text-[13px]">
+                        {lead.quoteValue}
                       </TableCell>
-                      <TableCell className="">
+                      <TableCell className="px-4 py-3">
                         <ChatDialog
                           lead={lead}
                           trigger={
-                            <Button
-                              size="sm"
-                              className="relative rounded-full border-blue-200  text-blue-700 hover:bg-blue-100 text-xs h-6 bg-blue-50"
-                            >
-                              <MessageSquare className="size-3 text-blue-500" />
-                              Chat
+                            <div className="relative inline-flex items-center">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                className="rounded-full border border-blue-100 text-blue-600 hover:bg-blue-100 h-8 text-[12px] px-3 font-medium bg-blue-50/50"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5 mr-1.5" />
+                                Chat
+                              </Button>
                               {lead.chatCount > 0 && (
-                                <span className="absolute -top-2 -right-2 flex h-6 min-w-6 items-center justify-center rounded-full border-2 border-white bg-red-500 px-1.5 text-[11px] font-semibold leading-none text-white shadow-sm">
+                                <div className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-white">
                                   {lead.chatCount}
-                                </span>
+                                </div>
                               )}
-                            </Button>
+                            </div>
                           }
                         />
                       </TableCell>
-                      <TableCell className="">
-                        <div className="flex items-center gap-1">
-                          <LeadDetailDialog
-                            lead={lead}
-                            trigger={
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="p-2 h-8 w-8"
-                              >
-                                <Eye className="h-4 w-4 text-blue-600" />
-                              </Button>
-                            }
-                          />
+                      <TableCell className="px-4 py-3 text-center">
+                        <div className="flex items-center justify-center gap-3 text-indigo-700">
+                          <Link to={`/leads/${lead.backendId}`}>
+                            <Eye className="w-4 h-4 cursor-pointer hover:text-indigo-900 transition-colors" />
+                          </Link>
                           <AssignSalesDialog
+                            leadId={lead.backendId!}
                             trigger={
-                              <Button variant="ghost" size="icon">
-                                <UserPlus className="text-green-600" />
-                              </Button>
+                              <UserPlus className="w-4 h-4 cursor-pointer hover:text-indigo-900 transition-colors" />
                             }
                           />
-                          <CreateQuotationDialog
-                            leadData={{ name: lead.name, id: lead.id }}
+                          {/* <CreateQuotationDialog
+                            leadData={{ name: lead.name, id: lead.backendId! }}
                             trigger={
                               <Button
                                 variant="ghost"
@@ -729,7 +869,7 @@ export default function LeadsPage() {
                                 <Pen className="h-4 w-4 text-emerald-600" />
                               </Button>
                             }
-                          />
+                          /> */}
                           {/* <CreateQuotationDialog
                             leadData={{ name: lead.name, id: lead.id }}
                             trigger={
@@ -759,6 +899,57 @@ export default function LeadsPage() {
                 </TableBody>
               </Table>
             </div>
+            {/* Pagination */}
+            {!isLeadsLoading && leadsResponse?.data?.total ? (
+              <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 sm:px-6">
+                <div className="flex flex-1 items-center justify-between">
+                  <div>
+                    <p className="text-sm text-gray-700">
+                      Showing{" "}
+                      <span className="font-medium">
+                        {(page - 1) * limit + 1}
+                      </span>{" "}
+                      to{" "}
+                      <span className="font-medium">
+                        {Math.min(page * limit, leadsResponse.data.total)}
+                      </span>{" "}
+                      of{" "}
+                      <span className="font-medium">
+                        {leadsResponse?.data?.total || 0}
+                      </span>{" "}
+                      results
+                    </p>
+                  </div>
+                  <div>
+                    <nav
+                      className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+                      aria-label="Pagination"
+                    >
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                        className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                      >
+                        <span className="sr-only">Previous</span>
+                        <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage((p) => p + 1)}
+                        disabled={page * limit >= (leadsResponse?.data?.total || 0)}
+                        className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                      >
+                        <span className="sr-only">Next</span>
+                        <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                      </Button>
+                    </nav>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
         <SuccessDialog

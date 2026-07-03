@@ -17,31 +17,36 @@ type Props = {
   children?: React.ReactNode;
   initialName?: string;
   initialRate?: string;
-  onAdd: (tax: { name: string; rate: string }) => void;
+  initialType?: "%" | "$";
+  onAdd: (tax: { name: string; rate: string; type: "%" | "$" }) => void;
 };
 
 export default function AddTaxDialog({
   children,
   initialName = "",
   initialRate = "",
+  initialType = "%",
   onAdd,
 }: Props) {
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState(initialName);
   const [rate, setRate] = React.useState(initialRate);
+  const [type, setType] = React.useState<"%" | "$">(initialType);
 
   React.useEffect(() => {
     setName(initialName);
     setRate(initialRate);
-  }, [initialName, initialRate]);
+    setType(initialType);
+  }, [initialName, initialRate, initialType, open]);
 
   const handleAdd = () => {
     const n = name.trim();
     const r = rate.trim();
     if (!n || !r) return;
-    onAdd({ name: n, rate: r });
+    onAdd({ name: n, rate: r, type });
     setName("");
     setRate("");
+    setType("%");
     setOpen(false);
   };
 
@@ -70,8 +75,32 @@ export default function AddTaxDialog({
                 />
               </div>
 
+              <div className="flex items-center gap-6">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="new-tax-type"
+                    checked={type === "%"}
+                    onChange={() => setType("%")}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">%</span>
+                </label>
+
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="new-tax-type"
+                    checked={type === "$"}
+                    onChange={() => setType("$")}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">$</span>
+                </label>
+              </div>
+
               <div className="space-y-2">
-                <Label>Tax Rate</Label>
+                <Label>Tax Rate / Amount</Label>
                 <div className="relative">
                   <Input
                     value={rate}
@@ -80,7 +109,7 @@ export default function AddTaxDialog({
                     className="pr-12 h-12 rounded-lg"
                   />
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">
-                    %
+                    {type}
                   </div>
                 </div>
               </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,17 +19,30 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import ClientSelector from "@/components/customers/client-selector";
+import LeadSelector from "@/components/leads/lead-selector";
+import { useAdminEmployeesQuery } from "@/modules/employees/employees.hooks";
+import { useCreateFollowUpMutation } from "@/modules/followups/followups.hooks";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
+import { TimePicker } from "@mui/x-date-pickers/TimePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultLeadId?: string;
+  defaultEmployeeId?: string;
+  disabledLeadId?: boolean;
 };
 
-export default function AddFollowUpDialog({ open, onOpenChange }: Props) {
+export default function AddFollowUpDialog({ open, onOpenChange, defaultLeadId, defaultEmployeeId, disabledLeadId }: Props) {
   const [showSuccess, setShowSuccess] = useState(false);
+  const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState({
-    customer: "",
+    leadId: defaultLeadId || "",
+    employee: defaultEmployeeId || "",
     type: "call",
     date: "",
     time: "",
@@ -37,79 +50,194 @@ export default function AddFollowUpDialog({ open, onOpenChange }: Props) {
     priority: "medium",
   });
 
+  // Reset form when dialog opens
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        leadId: defaultLeadId || "",
+        employee: defaultEmployeeId || "",
+        type: "call",
+        date: "",
+        time: "",
+        notes: "",
+        priority: "medium",
+      });
+      setErrors({});
+    }
+  }, [open, defaultLeadId, defaultEmployeeId]);
+
+  const { data: employeesResponse, isLoading: isLoadingEmployees } = useAdminEmployeesQuery({ role: "sales" });
+  const employees = employeesResponse?.data?.employees || [];
+
+  const { mutate: createFollowUp, isPending: isCreating } = useCreateFollowUpMutation();
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log("Adding follow-up:", formData);
-    // TODO: Wire API call
-    onOpenChange(false);
-    // Reset form
-    setFormData({
-      customer: "",
-      type: "call",
-      date: "",
-      time: "",
-      notes: "",
-      priority: "medium",
+
+    const newErrors: Record<string, boolean> = {};
+    if (!formData.leadId) newErrors.leadId = true;
+    if (!formData.employee) newErrors.employee = true;
+    if (!formData.date) newErrors.date = true;
+    if (!formData.time) newErrors.time = true;
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    setErrors({});
+
+    const followUpDate = new Date(`${formData.date}T${formData.time}:00.000Z`).toISOString();
+
+    createFollowUp({
+      leadId: formData.leadId,
+      assignedTo: formData.employee,
+      followUpDate,
+      notes: formData.notes,
+      priority: formData.priority,
+    }, {
+      onSuccess: () => {
+        onOpenChange(false);
+        setErrors({});
+        setFormData({
+          leadId: "",
+          employee: "",
+          type: "call",
+          date: "",
+          time: "",
+          notes: "",
+          priority: "medium",
+        });
+        setShowSuccess(true);
+        toast.success("Follow-up added successfully!");
+      },
+      onError: (error: any) => {
+        toast.error(error?.response?.data?.message || "Failed to add follow-up");
+      }
     });
-    setShowSuccess(true);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="p-0 gap-0 max-w-md">
+      <DialogContent
+        className="p-0 gap-0 max-w-md"
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement;
+          if (
+            target.closest('.MuiPopover-root') ||
+            target.closest('.MuiPickersPopper-root') ||
+            target.closest('.MuiModal-root') ||
+            target.closest('.MuiDialog-root') ||
+            target.closest('[data-slot="combobox-content"]') ||
+            target.closest('[data-slot="combobox-item"]')
+          ) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader className="border-b p-5">
           <DialogTitle className="text-lg">Add Follow-up</DialogTitle>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="p-4 space-y-4">
             <div className="space-y-1">
-              <Label>Client Name *</Label>
-              <ClientSelector
-                value={formData.customer}
-                onValueChange={(v) => setFormData({ ...formData, customer: v })}
+              <Label>Lead <span className="text-red-500">*</span></Label>
+              <LeadSelector
+                value={formData.leadId}
+                onValueChange={(v) => {
+                  setFormData({ ...formData, leadId: v });
+                  if (v) setErrors({ ...errors, leadId: false });
+                }}
+                error={errors.leadId}
+                disabled={disabledLeadId}
               />
             </div>
 
             <div className="space-y-1">
-              <Label>Assigned Employee *</Label>
+              <Label>Assigned Employee <span className="text-red-500">*</span></Label>
               <Select
-                value={formData.type /* reuse type temporarily for selection */}
-                onValueChange={(v) => setFormData({ ...formData, type: v })}
+                value={formData.employee}
+                onValueChange={(v) => {
+                  setFormData({ ...formData, employee: v });
+                  if (v) setErrors({ ...errors, employee: false });
+                }}
+                disabled={!!defaultEmployeeId}
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select an employee" />
+                <SelectTrigger className={cn("w-full", errors.employee ? "border-red-500 ring-1 ring-red-500 focus:ring-red-500" : "", defaultEmployeeId ? "bg-gray-100 opacity-100" : "")} aria-invalid={errors.employee}>
+                  <SelectValue placeholder={isLoadingEmployees ? "Loading employees..." : "Select an employee"} />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="James Lee">James Lee</SelectItem>
-                  <SelectItem value="Sarah Lee">Sarah Lee</SelectItem>
-                  <SelectItem value="John Doe">John Doe</SelectItem>
+                <SelectContent position="popper">
+                  {employees.map((emp) => (
+                    <SelectItem key={emp._id} value={emp._id}>
+                      {emp.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-1">
-              <Label>Follow-up Date *</Label>
+              <Label>Follow-up Date <span className="text-red-500">*</span></Label>
               <Input
                 type="date"
+                className={errors.date ? "border-red-500 ring-1 ring-red-500 focus-visible:ring-red-500" : ""}
                 value={formData.date}
-                onChange={(e) =>
-                  setFormData({ ...formData, date: e.target.value })
-                }
+                onChange={(e) => {
+                  setFormData({ ...formData, date: e.target.value });
+                  if (e.target.value) setErrors({ ...errors, date: false });
+                }}
                 required
+                aria-invalid={errors.date}
               />
             </div>
 
-            <div className="space-y-1">
-              <Label>Follow-up Time *</Label>
-              <Input
-                type="time"
-                value={formData.time}
-                onChange={(e) =>
-                  setFormData({ ...formData, time: e.target.value })
-                }
-                required
-              />
+            <div className="space-y-1 flex flex-col">
+              <Label>Follow-up Time <span className="text-red-500">*</span></Label>
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <TimePicker
+                  value={formData.time ? dayjs(`2024-01-01T${formData.time}`) : null}
+                  onChange={(newValue) => {
+                    const timeString = newValue ? newValue.format("HH:mm") : "";
+                    setFormData({ ...formData, time: timeString });
+                    if (timeString) setErrors({ ...errors, time: false });
+                  }}
+                  slotProps={{
+                    popper: {
+                      disablePortal: true,
+                    },
+                    textField: {
+                      error: errors.time,
+                      size: "small",
+                      sx: {
+                        "& .MuiOutlinedInput-root": {
+                          height: "36px",
+                          borderRadius: "0.375rem",
+                          fontSize: "0.875rem",
+                          fontFamily: "inherit",
+                          backgroundColor: "transparent",
+                          "& fieldset": {
+                            borderColor: errors.time ? "#ef4444" : "#e5e7eb",
+                          },
+                          "&:hover fieldset": {
+                            borderColor: errors.time ? "#ef4444" : "#d1d5db",
+                          },
+                          "&.Mui-focused fieldset": {
+                            borderColor: errors.time ? "#ef4444" : "#000",
+                            borderWidth: "1px",
+                          },
+                        },
+                        "& .MuiInputBase-input": {
+                          padding: "0 12px",
+                          height: "100%",
+                          boxSizing: "border-box",
+                        }
+                      }
+                    }
+                  }}
+                />
+              </LocalizationProvider>
             </div>
 
             <div className="space-y-1">
@@ -121,7 +249,7 @@ export default function AddFollowUpDialog({ open, onOpenChange }: Props) {
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent position="popper">
                   <SelectItem value="low">Low</SelectItem>
                   <SelectItem value="medium">Medium</SelectItem>
                   <SelectItem value="high">High</SelectItem>
@@ -146,22 +274,17 @@ export default function AddFollowUpDialog({ open, onOpenChange }: Props) {
             </div>
           </div>
 
-          <DialogFooter className="p-4 flex-row">
+          <DialogFooter className="border-t p-4 flex gap-2 justify-end">
             <Button
               type="button"
-              size="lg"
-              className="bg-gray-300 text-gray-700 mr-2 w-40"
+              variant="outline"
               onClick={() => onOpenChange(false)}
+              disabled={isCreating}
             >
               Cancel
             </Button>
-
-            <Button
-              type="submit"
-              size="lg"
-              className="w-40 bg-blue-600 hover:bg-blue-700"
-            >
-              Add Follow up
+            <Button type="submit" disabled={isCreating}>
+              {isCreating ? "Adding..." : "Add Follow up"}
             </Button>
           </DialogFooter>
         </form>

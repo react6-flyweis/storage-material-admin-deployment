@@ -193,7 +193,7 @@ export default function DetailedTaxReportPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button onClick={() => navigate(-1)} className="">
+          <Button onClick={() => navigate('/payments')} className="">
             <ArrowLeft className="h-5 w-5" />
             Back
           </Button>

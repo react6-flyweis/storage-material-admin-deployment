@@ -16,13 +16,15 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft } from "lucide-react";
 import ClientSelector from "@/components/customers/client-selector";
+import LeadSelector from "@/components/leads/lead-selector";
+import EmployeeSelector from "@/components/customers/employee-selector";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useAuthStore } from "@/modules/auth/auth.store";
 import { useCreateMeetingMutation } from "@/modules/meetings/meetings.hooks";
 import SuccessDialog from "@/components/success-dialog";
 
 const meetingSchema = z.object({
-  client: z.string().min(1, "Please select a client"),
+  lead: z.string().min(1, "Please select a project"),
   title: z.string().min(1, "Please select a meeting title"),
   date: z.string().min(1, "Meeting date is required"),
   time: z.string().min(1, "Meeting time is required"),
@@ -31,8 +33,16 @@ const meetingSchema = z.object({
     .min(1, "Duration is required")
     .regex(/^[0-9]+$/, "Duration must be a number of minutes"),
   mode: z.enum(["online", "in-person"]),
-  link: z.string().min(1, "Meeting link is required"),
+  link: z.string().optional(),
   notes: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.mode === "online" && (!data.link || data.link.trim() === "")) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Meeting link is required for online meetings",
+      path: ["link"],
+    });
+  }
 });
 
 type MeetingFormData = z.infer<typeof meetingSchema>;
@@ -46,7 +56,8 @@ type MeetingRouteState = {
 export default function ScheduleMeeting() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [selectedClient, setSelectedClient] = useState("");
+  const [implicitCustomerId, setImplicitCustomerId] = useState("");
+  const [selectedLead, setSelectedLead] = useState("");
   const [successOpen, setSuccessOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const createMeetingMutation = useCreateMeetingMutation();
@@ -58,7 +69,7 @@ export default function ScheduleMeeting() {
     handleSubmit,
     formState: { errors },
     setValue,
-    // watch,
+    watch,
   } = useForm<MeetingFormData>({
     resolver: zodResolver(meetingSchema),
     defaultValues: {
@@ -69,7 +80,7 @@ export default function ScheduleMeeting() {
       duration: "",
       link: "",
       notes: "",
-      client: "",
+      lead: "",
     },
   });
 
@@ -78,9 +89,8 @@ export default function ScheduleMeeting() {
   const onSubmit = async (data: MeetingFormData) => {
     setErrorMessage(null);
 
-    const customerId = routeState.customerId ?? selectedClient.trim();
-    const leadId = routeState.leadId?.trim() ?? "";
-    const assignedTo = routeState.assignedTo?.trim() ?? authUserId.trim();
+    const customerId = routeState.customerId ?? implicitCustomerId.trim();
+    const leadId = routeState.leadId ?? selectedLead.trim();
 
     if (!customerId) {
       setErrorMessage(
@@ -91,14 +101,7 @@ export default function ScheduleMeeting() {
 
     if (!leadId) {
       setErrorMessage(
-        "leadId is not available on this screen yet. Pass it from the customer or lead context before submitting.",
-      );
-      return;
-    }
-
-    if (!assignedTo) {
-      setErrorMessage(
-        "assignedTo is not available. Select or pass the sales user id before submitting.",
+        "Project ID is missing. Select a project before scheduling.",
       );
       return;
     }
@@ -117,7 +120,6 @@ export default function ScheduleMeeting() {
         mode: data.mode,
         meetingLink: data.link?.trim() ?? "",
         notes: data.notes?.trim() || undefined,
-        assignedTo,
       });
 
       if (!response.success) {
@@ -139,7 +141,7 @@ export default function ScheduleMeeting() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/customers/meetings')}
           className="bg-blue-600 text-white hover:bg-blue-700 hover:text-white h-9 px-4"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -150,7 +152,7 @@ export default function ScheduleMeeting() {
         </h1>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 w-full">
         {errorMessage ? (
           <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">
             {errorMessage}
@@ -162,43 +164,40 @@ export default function ScheduleMeeting() {
             Meeting Details
           </h3>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Select a customer */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full to-fuchsia-50">
+
+            {/* Select a project */}
             <div className="space-y-2">
-              <Label htmlFor="client">
-                Select a customer <span className="text-red-500">*</span>
+              <Label htmlFor="lead">
+                Select a project <span className="text-red-500">*</span>
               </Label>
-              <ClientSelector
-                value={selectedClient}
-                placeholder="Search Customer"
-                onValueChange={(value) => {
+              <LeadSelector
+                value={selectedLead}
+                placeholder="Select Project"
+                error={!!errors.lead}
+                onValueChange={(value, custId) => {
                   const val = value ?? "";
-                  setSelectedClient(val);
-                  setValue("client", val);
+                  setSelectedLead(val);
+                  setValue("lead", val);
+                  if (custId) {
+                    setImplicitCustomerId(custId);
+                  }
                 }}
               />
-              {errors.client && (
-                <p className="text-sm text-red-500">{errors.client.message}</p>
+              {errors.lead && (
+                <p className="text-sm text-red-500">{errors.lead.message}</p>
               )}
             </div>
 
             {/* Meeting title */}
             <div className="space-y-2">
-              <Label htmlFor="title">Meeting title</Label>
-              <Select
-                onValueChange={(value) => setValue("title", value)}
+              <Label htmlFor="title">Meeting title <span className="text-red-500">*</span></Label>
+              <Input
+                id="title"
+                placeholder="e.g. Project Review, Site survey discussion"
+                aria-invalid={!!errors.title}
                 {...register("title")}
-              >
-                <SelectTrigger className="w-full" id="title">
-                  <SelectValue placeholder="Meeting type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="project-review">Project Review</SelectItem>
-                  <SelectItem value="sales-meeting">Sales Meeting</SelectItem>
-                  <SelectItem value="follow-up">Follow-up</SelectItem>
-                  <SelectItem value="consultation">Consultation</SelectItem>
-                </SelectContent>
-              </Select>
+              />
               {errors.title && (
                 <p className="text-sm text-red-500">{errors.title.message}</p>
               )}
@@ -206,11 +205,12 @@ export default function ScheduleMeeting() {
 
             {/* Meeting Date */}
             <div className="space-y-2">
-              <Label htmlFor="date">Meeting Date</Label>
+              <Label htmlFor="date">Meeting Date <span className="text-red-500">*</span></Label>
               <Input
                 id="date"
                 type="date"
                 placeholder="dd-mm-yyyy"
+                aria-invalid={!!errors.date}
                 {...register("date")}
               />
               {errors.date && (
@@ -220,11 +220,12 @@ export default function ScheduleMeeting() {
 
             {/* Meeting Time */}
             <div className="space-y-2">
-              <Label htmlFor="time">Meeting Time</Label>
+              <Label htmlFor="time">Meeting Time <span className="text-red-500">*</span></Label>
               <Input
                 id="time"
                 type="time"
                 placeholder="dd-mm-yyyy"
+                aria-invalid={!!errors.time}
                 {...register("time")}
               />
               {errors.time && (
@@ -234,13 +235,14 @@ export default function ScheduleMeeting() {
 
             {/* Duration */}
             <div className="space-y-2">
-              <Label htmlFor="duration">Duration</Label>
+              <Label htmlFor="duration">Duration (mins) <span className="text-red-500">*</span></Label>
               <Input
                 id="duration"
                 type="number"
                 min={1}
                 step={1}
                 placeholder="60"
+                aria-invalid={!!errors.duration}
                 {...register("duration")}
               />
               {errors.duration && (
@@ -252,7 +254,7 @@ export default function ScheduleMeeting() {
 
             {/* Meeting mode */}
             <div className="space-y-2">
-              <Label>Meeting mode</Label>
+              <Label>Meeting mode <span className="text-red-500">*</span></Label>
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-2">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -280,15 +282,17 @@ export default function ScheduleMeeting() {
           </div>
 
           {/* Meeting Link */}
-          <div className="space-y-2">
-            <Label htmlFor="link">
-              Meeting Link <span className="text-red-500">*</span>
-            </Label>
-            <Input id="link" placeholder="Zoom Meeting" {...register("link")} />
-            {errors.link && (
-              <p className="text-sm text-red-500">{errors.link.message}</p>
-            )}
-          </div>
+          {watch("mode") === "online" && (
+            <div className="space-y-2">
+              <Label htmlFor="link">
+                Meeting Link <span className="text-red-500">*</span>
+              </Label>
+              <Input id="link" placeholder="Zoom Meeting" aria-invalid={!!errors.link} {...register("link")} />
+              {errors.link && (
+                <p className="text-sm text-red-500">{errors.link.message}</p>
+              )}
+            </div>
+          )}
 
           {/* Add Notes */}
           <div className="space-y-2">
@@ -297,6 +301,7 @@ export default function ScheduleMeeting() {
               id="notes"
               placeholder="Add any additional notes or agenda items"
               rows={4}
+              aria-invalid={!!errors.notes}
               {...register("notes")}
             />
             {errors.notes && (

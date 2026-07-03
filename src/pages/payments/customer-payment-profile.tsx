@@ -40,7 +40,7 @@ export default function CustomerPaymentProfile() {
     <div className="lg:pr-5 lg:pt-5 p-5 lg:p-0 space-y-5">
       {/* Header with Back Button */}
       <div className="flex items-center space-x-4">
-        <Button onClick={() => navigate(-1)}>
+        <Button onClick={() => navigate('/payments')}>
           <ArrowLeftIcon />
           <span>Back</span>
         </Button>

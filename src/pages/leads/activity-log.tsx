@@ -22,161 +22,15 @@ import Pagination from "@/components/Pagination";
 import { ActivityDetailsDialog } from "@/components/activity-details-dialog";
 import DateRangeFilter from "@/components/ui/date-range-filter";
 import type { DateRange } from "react-day-picker";
-
-interface ActivityLog {
-  id: string;
-  leadProjectName: string;
-  leadProjectType: string;
-  clientName: string;
-  clientPhone: string;
-  followUpDate: string;
-  followUpTime: string;
-  followUpType: "Phone Call" | "Email";
-  followedBy: string;
-  followedByDept: string;
-  status: "Completed" | "Pending";
-  outcome: "Positive" | "Neutral" | "Negative";
-  nextFollowUpDate: string;
-  nextFollowUpTime: string;
-}
-
-const initialData: ActivityLog[] = [
-  {
-    id: "1",
-    leadProjectName: "ABC Builders inc.",
-    leadProjectType: "Vendor",
-    clientName: "Mr. Alan Walker",
-    clientPhone: "(432)345 536",
-    followUpDate: "May 19,2025",
-    followUpTime: "10:30 AM",
-    followUpType: "Phone Call",
-    followedBy: "John Smith",
-    followedByDept: "Sales",
-    status: "Completed",
-    outcome: "Positive",
-    nextFollowUpDate: "May 19,2025",
-    nextFollowUpTime: "10:30 AM",
-  },
-  {
-    id: "2",
-    leadProjectName: "Fast freight Logistics",
-    leadProjectType: "Shipper",
-    clientName: "Mr. Alan Walker",
-    clientPhone: "(432)345 536",
-    followUpDate: "May 18,2025",
-    followUpTime: "10:30 AM",
-    followUpType: "Email",
-    followedBy: "John Smith",
-    followedByDept: "Sales",
-    status: "Completed",
-    outcome: "Neutral",
-    nextFollowUpDate: "May 19,2025",
-    nextFollowUpTime: "10:30 AM",
-  },
-  {
-    id: "3",
-    leadProjectName: "United Rentals",
-    leadProjectType: "Vendor",
-    clientName: "Mr. Alan Walker",
-    clientPhone: "(432)345 536",
-    followUpDate: "May 19,2025",
-    followUpTime: "10:30 AM",
-    followUpType: "Phone Call",
-    followedBy: "John Smith",
-    followedByDept: "Sales",
-    status: "Completed",
-    outcome: "Positive",
-    nextFollowUpDate: "May 19,2025",
-    nextFollowUpTime: "10:30 AM",
-  },
-  {
-    id: "4",
-    leadProjectName: "Safety Supplies Co.",
-    leadProjectType: "Vendor",
-    clientName: "Mr. Alan Walker",
-    clientPhone: "(432)345 536",
-    followUpDate: "May 19,2025",
-    followUpTime: "10:30 AM",
-    followUpType: "Email",
-    followedBy: "John Smith",
-    followedByDept: "Sales",
-    status: "Completed",
-    outcome: "Neutral",
-    nextFollowUpDate: "May 19,2025",
-    nextFollowUpTime: "10:30 AM",
-  },
-  {
-    id: "5",
-    leadProjectName: "Sunbelt Rentals",
-    leadProjectType: "Vendor",
-    clientName: "Mr. Alan Walker",
-    clientPhone: "(432)345 536",
-    followUpDate: "May 18,2025",
-    followUpTime: "10:30 AM",
-    followUpType: "Phone Call",
-    followedBy: "John Smith",
-    followedByDept: "Sales",
-    status: "Completed",
-    outcome: "Positive",
-    nextFollowUpDate: "May 18,2025",
-    nextFollowUpTime: "10:30 AM",
-  },
-  {
-    id: "6",
-    leadProjectName: "Elite Transport LLC",
-    leadProjectType: "Shipper",
-    clientName: "Mr. Alan Walker",
-    clientPhone: "(432)345 536",
-    followUpDate: "May 19,2025",
-    followUpTime: "10:30 AM",
-    followUpType: "Email",
-    followedBy: "John Smith",
-    followedByDept: "Sales",
-    status: "Completed",
-    outcome: "Neutral",
-    nextFollowUpDate: "May 19,2025",
-    nextFollowUpTime: "10:30 AM",
-  },
-  {
-    id: "7",
-    leadProjectName: "Elite Transport LLC",
-    leadProjectType: "Shipper",
-    clientName: "Mr. Alan Walker",
-    clientPhone: "(432)345 536",
-    followUpDate: "May 19,2025",
-    followUpTime: "10:30 AM",
-    followUpType: "Email",
-    followedBy: "John Smith",
-    followedByDept: "Sales",
-    status: "Completed",
-    outcome: "Neutral",
-    nextFollowUpDate: "May 19,2025",
-    nextFollowUpTime: "10:30 AM",
-  },
-  {
-    id: "8",
-    leadProjectName: "Elite Transport LLC",
-    leadProjectType: "Shipper",
-    clientName: "Mr. Alan Walker",
-    clientPhone: "(432)345 536",
-    followUpDate: "May 18,2025",
-    followUpTime: "10:30 AM",
-    followUpType: "Email",
-    followedBy: "John Smith",
-    followedByDept: "Sales",
-    status: "Completed",
-    outcome: "Neutral",
-    nextFollowUpDate: "May 18,2025",
-    nextFollowUpTime: "10:30 AM",
-  },
-];
+import { Loader2 } from "lucide-react";
+import { useGetActivityLogQuery } from "@/modules/leads/leads.hooks";
+import { useAdminEmployeesQuery } from "@/modules/employees/employees.hooks";
 
 export default function ActivityLogPage() {
-  const [data] = useState<ActivityLog[]>(initialData);
   const [search, setSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [selectedActivity, setSelectedActivity] = useState<any>(null);
   const [employee, setEmployee] = useState("all");
   const [department, setDepartment] = useState("all");
   const [followUpType, setFollowUpType] = useState("all");
@@ -184,94 +38,64 @@ export default function ActivityLogPage() {
   const [outcome, setOutcome] = useState("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
 
-  const parseDate = (value: string) => {
-    const normalized = value.replace(",", ", ");
-    return new Date(normalized);
+  const { data: employeesData } = useAdminEmployeesQuery({ page: 1, limit: 100, role: "sales" });
+  const employees = employeesData?.data?.employees || [];
+
+  const apiParams = useMemo(() => {
+    const params: any = {
+      page: currentPage,
+      limit: rowsPerPage,
+    };
+    if (employee !== "all") params.employeeId = employee;
+    if (followUpType !== "all") params.type = followUpType;
+    if (status !== "all") params.status = status;
+    if (dateRange?.from) params.startDate = dateRange.from.toISOString();
+    if (dateRange?.to) params.endDate = dateRange.to.toISOString();
+    return params;
+  }, [currentPage, rowsPerPage, employee, followUpType, status, dateRange]);
+
+  const { data: activityLogResponse, isLoading } = useGetActivityLogQuery(apiParams);
+
+  const activities = activityLogResponse?.data?.activities || [];
+  const totalItems = activityLogResponse?.data?.total || 0;
+
+  // Formatting helpers
+  const cleanName = (name: string | null | undefined) => {
+    if (!name) return "-";
+    // Removes timestamp suffix like " 2026-05-18T22-25-15-035Z"
+    return name.replace(/\s*\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\s*$/, "").trim();
   };
 
-  const filteredData = useMemo(() => {
-    const searchValue = search.trim().toLowerCase();
-
-    const inDateRange = (value: string) => {
-      if (!dateRange?.from && !dateRange?.to) return true;
-
-      const itemDate = parseDate(value);
-      if (Number.isNaN(itemDate.getTime())) return false;
-
-      if (dateRange.from && itemDate < dateRange.from) return false;
-      if (dateRange.to) {
-        const endDate = new Date(dateRange.to);
-        endDate.setHours(23, 59, 59, 999);
-        if (itemDate > endDate) return false;
-      }
-
-      return true;
+  const formatDateTime = (dateStr: string | null | undefined) => {
+    if (!dateStr) return { date: "-", time: "-" };
+    const date = new Date(dateStr);
+    return {
+      date: date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+      time: date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
     };
+  };
 
-    return data.filter((row) => {
-      const matchesSearch =
-        !searchValue ||
-        row.leadProjectName.toLowerCase().includes(searchValue) ||
-        row.clientName.toLowerCase().includes(searchValue) ||
-        row.leadProjectType.toLowerCase().includes(searchValue);
-
-      const matchesEmployee =
-        employee === "all" || row.followedBy.toLowerCase() === employee;
-      const matchesDepartment =
-        department === "all" || row.followedByDept.toLowerCase() === department;
-      const matchesFollowUpType =
-        followUpType === "all" ||
-        row.followUpType.toLowerCase() === followUpType;
-      const matchesStatus =
-        status === "all" || row.status.toLowerCase() === status;
-      const matchesOutcome =
-        outcome === "all" || row.outcome.toLowerCase() === outcome;
-      const matchesDateRange = inDateRange(row.followUpDate);
-
-      return (
-        matchesSearch &&
-        matchesEmployee &&
-        matchesDepartment &&
-        matchesFollowUpType &&
-        matchesStatus &&
-        matchesOutcome &&
-        matchesDateRange
-      );
-    });
-  }, [
-    search,
-    data,
-    employee,
-    department,
-    followUpType,
-    status,
-    outcome,
-    dateRange,
-  ]);
-
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * rowsPerPage;
-    return filteredData.slice(start, start + rowsPerPage);
-  }, [filteredData, currentPage, rowsPerPage]);
-
-  const getFollowUpTypeColor = (type: ActivityLog["followUpType"]) => {
-    switch (type) {
-      case "Phone Call":
+  const getFollowUpTypeColor = (type: string) => {
+    switch (type.toLowerCase()) {
+      case "phone call":
+      case "call":
         return "bg-green-600 hover:bg-green-700 text-white";
-      case "Email":
+      case "email":
         return "bg-[#2563eb] hover:bg-[#2563eb]/90 text-white";
+      case "meeting":
+        return "bg-purple-600 hover:bg-purple-700 text-white";
       default:
         return "bg-gray-500 text-white";
     }
   };
 
-  const getOutcomeColor = (outcome: ActivityLog["outcome"]) => {
-    switch (outcome) {
-      case "Positive":
+  const getOutcomeColor = (outcome: string) => {
+    switch (outcome?.toLowerCase()) {
+      case "positive":
         return "text-green-600 font-medium";
-      case "Neutral":
+      case "neutral":
         return "text-yellow-500 font-medium";
-      case "Negative":
+      case "negative":
         return "text-red-500 font-medium";
       default:
         return "text-gray-500";
@@ -296,7 +120,7 @@ export default function ActivityLogPage() {
       </div>
 
       <div className="bg-white rounded-xl border shadow-sm p-4 space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Employee</label>
             <Select
@@ -311,35 +135,15 @@ export default function ActivityLogPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Employee</SelectItem>
-                <SelectItem value="james cooper">James Cooper</SelectItem>
-                <SelectItem value="david kim">David Kim</SelectItem>
-                <SelectItem value="john mason">John Mason</SelectItem>
-                <SelectItem value="michael jordan">Michael Jordan</SelectItem>
-                <SelectItem value="james smith">James Smith</SelectItem>
+                {employees.map((emp: any) => (
+                  <SelectItem key={emp._id} value={emp._id}>
+                    {emp.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Department</label>
-            <Select
-              value={department}
-              onValueChange={(value) => {
-                setDepartment(value);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Departments" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Departments</SelectItem>
-                <SelectItem value="sales">Sales</SelectItem>
-                <SelectItem value="plant">Plant</SelectItem>
-                <SelectItem value="construction">Construction</SelectItem>
-                <SelectItem value="support">Support</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Follow-up Type</label>
             <Select
@@ -359,6 +163,19 @@ export default function ActivityLogPage() {
               </SelectContent>
             </Select>
           </div>
+
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Date Range</label>
+            <DateRangeFilter
+              value={dateRange}
+              onChange={(value) => {
+                setDateRange(value);
+                setCurrentPage(1);
+              }}
+              className="w-full"
+            />
+          </div>
+
           <div className="space-y-1.5">
             <label className="text-sm font-medium">Status</label>
             <Select
@@ -377,39 +194,6 @@ export default function ActivityLogPage() {
                 <SelectItem value="pending">Pending</SelectItem>
               </SelectContent>
             </Select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Outcome</label>
-            <Select
-              value={outcome}
-              onValueChange={(value) => {
-                setOutcome(value);
-                setCurrentPage(1);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="All Outcome" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Outcome</SelectItem>
-                <SelectItem value="positive">Positive</SelectItem>
-                <SelectItem value="negative">Negative</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Date Range</label>
-            <DateRangeFilter
-              value={dateRange}
-              onChange={(value) => {
-                setDateRange(value);
-                setCurrentPage(1);
-              }}
-              className="w-full"
-            />
           </div>
         </div>
       </div>
@@ -435,85 +219,102 @@ export default function ActivityLogPage() {
               <TableHead>Follow up Type</TableHead>
               <TableHead>Followed up by</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Outcome</TableHead>
+              {/* <TableHead>Outcome</TableHead> */}
               <TableHead>Next Follow up</TableHead>
-              <TableHead>Actions</TableHead>
+              {/* <TableHead>Actions</TableHead> */}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {paginatedData.map((row) => (
-              <TableRow key={row.id}>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={9} className="py-8 text-center text-sm text-gray-500">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading activities...
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : activities.map((row: any) => {
+              const followUpDt = formatDateTime(row.followUpDate);
+              const nextFollowUpDt = formatDateTime(row.nextFollowUpdate);
+              
+              return (
+              <TableRow 
+                key={row._id} 
+                className="cursor-pointer hover:bg-gray-50"
+                onClick={() => setSelectedActivity(row)}
+              >
                 <TableCell>
                   <div className="font-medium text-sm text-[#111827]">
-                    {row.leadProjectName}
+                    {cleanName(row.projectName)}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {row.leadProjectType}
+                    {row.jobId || "-"}
                   </div>
                 </TableCell>
                 <TableCell>
                   <div className="font-medium text-sm text-[#111827]">
-                    {row.clientName}
+                    {cleanName(row.clientName)}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {row.clientPhone}
+                    {row.clientPhone || "-"}
                   </div>
                 </TableCell>
                 <TableCell>
                   <div className="font-medium text-sm text-[#111827]">
-                    {row.followUpDate}
+                    {followUpDt.date}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {row.followUpTime}
+                    {followUpDt.time}
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge className={getFollowUpTypeColor(row.followUpType)}>
-                    {row.followUpType}
+                  <Badge className={getFollowUpTypeColor(row.type || "")}>
+                    {row.type || "Unknown"}
                   </Badge>
                 </TableCell>
                 <TableCell>
                   <div className="font-medium text-sm text-[#111827]">
-                    {row.followedBy}
+                    {row.followedBy?.name || "-"}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {row.followedByDept}
+                    <span className="capitalize">{row.followedBy?.role || "-"}</span>
                   </div>
                 </TableCell>
                 <TableCell>
                   <Badge
                     variant="outline"
-                    className="bg-green-50 text-green-700 border-green-200"
+                    className="bg-green-50 text-green-700 border-green-200 capitalize"
                   >
-                    {row.status}
+                    {row.status || "-"}
                   </Badge>
                 </TableCell>
-                <TableCell>
-                  <span className={getOutcomeColor(row.outcome)}>
-                    {row.outcome}
+                {/* <TableCell>
+                  <span className={getOutcomeColor(row.outcome || "")}>
+                    {row.outcome || "-"}
                   </span>
-                </TableCell>
+                </TableCell> */}
                 <TableCell>
                   <div className="font-medium text-sm text-[#111827]">
-                    {row.nextFollowUpDate}
+                    {nextFollowUpDt.date}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {row.nextFollowUpTime}
+                    {nextFollowUpDt.time}
                   </div>
                 </TableCell>
-                <TableCell>
+                {/* <TableCell>
                   <Button
                     variant="outline"
                     size="sm"
                     className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                    onClick={() => setIsDetailsOpen(true)}
+                    onClick={() => setSelectedActivity(row)}
                   >
                     View
                   </Button>
-                </TableCell>
+                </TableCell> */}
               </TableRow>
-            ))}
-            {paginatedData.length === 0 && (
+            )})}
+            {!isLoading && activities.length === 0 && (
               <TableRow>
                 <TableCell
                   colSpan={9}
@@ -550,7 +351,7 @@ export default function ActivityLogPage() {
 
           <Pagination
             currentPage={currentPage}
-            totalItems={filteredData.length}
+            totalItems={totalItems}
             rowsPerPage={rowsPerPage}
             onRowsPerPageChange={(rows) => {
               setRowsPerPage(rows);
@@ -562,8 +363,11 @@ export default function ActivityLogPage() {
       </div>
 
       <ActivityDetailsDialog
-        open={isDetailsOpen}
-        onOpenChange={setIsDetailsOpen}
+        open={!!selectedActivity}
+        onOpenChange={(open) => {
+          if (!open) setSelectedActivity(null);
+        }}
+        activity={selectedActivity}
       />
     </div>
   );

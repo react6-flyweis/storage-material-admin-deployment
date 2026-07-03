@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-// import { useNavigate } from "react-router";
 import {
   Dialog,
   DialogTrigger,
@@ -24,7 +23,7 @@ import ConversationHistoryDialog from "./conversation-history-dialog";
 import AssignPlantPersonDialog from "@/components/customers/assign-plant-person-dialog";
 import { apiClient } from "@/modules/auth/auth.api";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 
 type Lead = {
   id: string;
@@ -122,6 +121,7 @@ const scoreBreakdownConfig = [
 ] as const;
 
 const hashString = (value: string) => {
+  if (!value) return 0;
   let hash = 0;
   for (let i = 0; i < value.length; i++) {
     hash = (hash * 31 + value.charCodeAt(i)) >>> 0;
@@ -408,7 +408,7 @@ export default function LeadDetailDialog({
   const [isConversationHistoryOpen, setIsConversationHistoryOpen] =
     useState(false);
   const [isAssignPlantOpen, setIsAssignPlantOpen] = useState(false);
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
   const effectiveLeadId = lead.backendId ?? lead.id;
   const isDialogOpen = open ?? internalOpen;
 
@@ -444,56 +444,68 @@ export default function LeadDetailDialog({
     ? lifecycleUi.statusColor
     : lead.statusColor;
 
-  const progressFromLifecycle = leadDetail?.lifecycleStatus
-    ? Math.max(lifecycleSteps.indexOf(leadDetail.lifecycleStatus), 0)
-    : (lead.progress ?? 0);
+  const getProgressIndex = (status: string | undefined, defaultProgress: number) => {
+    if (!status) return defaultProgress;
+    const s = status.toLowerCase();
+    if (s.includes("delivered") || s.includes("admin")) return 8;
+    if (s.includes("plant") || s.includes("po") || s.includes("released")) return 7;
+    if (s.includes("payment")) return 6;
+    if (s.includes("closed") || s.includes("won") || s.includes("deal")) return 5;
+    if (s.includes("negotiation")) return 4;
+    if (s.includes("quotation") || s.includes("quote")) return 3;
+    if (s.includes("proposal")) return 2;
+    if (s.includes("requirement")) return 1;
+    return 0;
+  };
+
+  const progressFromLifecycle = getProgressIndex(leadDetail?.lifecycleStatus, lead.progress ?? 0);
 
   const apiScoreBreakdown = leadDetail?.leadScoring?.scoreBreakdown;
   const normalizedScore =
     leadDetail?.leadScoring?.score ?? createMockScoreData(lead.id).score;
   const scoreBreakdown: ScoreBreakdownItem[] = apiScoreBreakdown
     ? [
-        {
-          label: "Project Size",
-          value: apiScoreBreakdown.projectSize?.points ?? 0,
-          max: 25,
-          hint:
-            apiScoreBreakdown.projectSize?.reason ||
-            "Building scope and fit for your target segment",
-        },
-        {
-          label: "Budget Signals",
-          value: apiScoreBreakdown.budgetSignals?.points ?? 0,
-          max: 25,
-          hint:
-            apiScoreBreakdown.budgetSignals?.reason ||
-            "Budget confidence based on conversations",
-        },
-        {
-          label: "Timeline",
-          value: apiScoreBreakdown.timeline?.points ?? 0,
-          max: 20,
-          hint:
-            apiScoreBreakdown.timeline?.reason ||
-            "Urgency and readiness to move forward",
-        },
-        {
-          label: "Decision Maker",
-          value: apiScoreBreakdown.decisionMaker?.points ?? 0,
-          max: 15,
-          hint:
-            apiScoreBreakdown.decisionMaker?.reason ||
-            "Access to final buyer or key stakeholder",
-        },
-        {
-          label: "Project Clarity",
-          value: apiScoreBreakdown.projectClarity?.points ?? 0,
-          max: 15,
-          hint:
-            apiScoreBreakdown.projectClarity?.reason ||
-            "How specific the project details are",
-        },
-      ]
+      {
+        label: "Project Size",
+        value: apiScoreBreakdown.projectSize?.points ?? 0,
+        max: 25,
+        hint:
+          apiScoreBreakdown.projectSize?.reason ||
+          "Building scope and fit for your target segment",
+      },
+      {
+        label: "Budget Signals",
+        value: apiScoreBreakdown.budgetSignals?.points ?? 0,
+        max: 25,
+        hint:
+          apiScoreBreakdown.budgetSignals?.reason ||
+          "Budget confidence based on conversations",
+      },
+      {
+        label: "Timeline",
+        value: apiScoreBreakdown.timeline?.points ?? 0,
+        max: 20,
+        hint:
+          apiScoreBreakdown.timeline?.reason ||
+          "Urgency and readiness to move forward",
+      },
+      {
+        label: "Decision Maker",
+        value: apiScoreBreakdown.decisionMaker?.points ?? 0,
+        max: 15,
+        hint:
+          apiScoreBreakdown.decisionMaker?.reason ||
+          "Access to final buyer or key stakeholder",
+      },
+      {
+        label: "Project Clarity",
+        value: apiScoreBreakdown.projectClarity?.points ?? 0,
+        max: 15,
+        hint:
+          apiScoreBreakdown.projectClarity?.reason ||
+          "How specific the project details are",
+      },
+    ]
     : createMockScoreData(lead.id).breakdown;
 
   const getStatusBadgeColor = (color: string | undefined) => {
@@ -514,6 +526,7 @@ export default function LeadDetailDialog({
     "Negotiation",
     "Deal Closed",
     "Payment Done",
+    "Released to Plant",
     "Delivered",
   ];
 
@@ -615,7 +628,10 @@ export default function LeadDetailDialog({
                   variant="outline"
                   size="sm"
                   className={topActionButtonClass}
-                  onClick={() => setIsDetailedLeadOpen(true)}
+                  onClick={() => {
+                    handleDialogOpenChange(false);
+                    navigate(`/leads/${effectiveLeadId}`);
+                  }}
                 >
                   See Quotation
                 </Button>
@@ -886,13 +902,12 @@ export default function LeadDetailDialog({
                       >
                         <div className="flex items-center gap-3">
                           <div
-                            className={`h-8 w-8 rounded-full flex items-center justify-center ${
-                              completed
+                            className={`h-8 w-8 rounded-full flex items-center justify-center ${completed
                                 ? "bg-green-600 text-white"
                                 : isCurrent
                                   ? "bg-blue-100 text-blue-700"
                                   : "bg-gray-200 text-gray-600"
-                            }`}
+                              }`}
                           >
                             {completed ? (
                               <CheckCircle className="h-4 w-4" />
@@ -902,13 +917,12 @@ export default function LeadDetailDialog({
                           </div>
                           <div>
                             <div
-                              className={`text-sm ${
-                                completed
+                              className={`text-sm ${completed
                                   ? "text-green-800"
                                   : isCurrent
                                     ? "text-blue-700 font-semibold"
                                     : "text-gray-700"
-                              }`}
+                                }`}
                             >
                               {step}
                             </div>
@@ -988,12 +1002,13 @@ export default function LeadDetailDialog({
       <QuoteSummaryDialog
         open={isQuoteDialogOpen}
         onOpenChange={setIsQuoteDialogOpen}
+        leadId={effectiveLeadId}
       />
 
       <ChatDialog
         open={isChatOpen}
         onOpenChange={setIsChatOpen}
-        lead={{ id: lead.id, name: lead.name, chatCount: lead.chatCount }}
+        lead={{ id: lead.id, backendId: lead.backendId, _id: lead._id, name: lead.name, chatCount: lead.chatCount }}
       />
 
       <ConversationHistoryDialog
@@ -1010,7 +1025,7 @@ export default function LeadDetailDialog({
       <TrackOrderLifecycleDialog
         open={isTrackDialogOpen}
         onOpenChange={setIsTrackDialogOpen}
-        lead={{ id: lead.id, name: lead.name, progress: lead.progress }}
+        lead={{ id: lead.id, name: lead.name, progress: progressFromLifecycle + 1 }}
       />
 
       <DocumentsDialog

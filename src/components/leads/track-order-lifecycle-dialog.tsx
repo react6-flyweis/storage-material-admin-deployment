@@ -31,9 +31,11 @@ export default function TrackOrderLifecycleDialog({
     "Initial Contact",
     "Requirements Gathered",
     "Proposal Sent",
+    "Quotation Sent",
     "Negotiation",
     "Deal Closed",
     "Payment Done",
+    "Released to Plant",
     "Delivered",
   ];
 

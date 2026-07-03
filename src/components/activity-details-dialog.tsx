@@ -11,11 +11,13 @@ import { Button } from "@/components/ui/button";
 interface ActivityDetailsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  activity?: any;
 }
 
 export function ActivityDetailsDialog({
   open,
   onOpenChange,
+  activity,
 }: ActivityDetailsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -33,12 +35,12 @@ export function ActivityDetailsDialog({
               <div className="w-10 h-10 rounded-full bg-[#10b981] flex items-center justify-center text-white">
                 <Phone className="w-5 h-5 fill-current" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">
-                Phone Call
+              <h3 className="text-lg font-semibold text-gray-900 capitalize">
+                {activity?.type || "Phone Call"}
               </h3>
             </div>
-            <Badge className="bg-[#dcfce7] text-[#059669] hover:bg-[#dcfce7] pointer-events-none border-none px-2 py-0.5 rounded-[4px] font-normal text-xs">
-              Completed
+            <Badge className="bg-[#dcfce7] text-[#059669] hover:bg-[#dcfce7] pointer-events-none border-none px-2 py-0.5 rounded-[4px] font-normal text-xs capitalize">
+              {activity?.status || "Completed"}
             </Badge>
           </div>
 
@@ -46,37 +48,48 @@ export function ActivityDetailsDialog({
           <div className="grid grid-cols-[140px_1fr] gap-y-4 mb-8 text-[14px]">
             <div className="text-gray-700">Date & Time</div>
             <div className="text-gray-900 font-medium tracking-tight">
-              May 19,2025 03:45
+              {activity?.followUpDate
+                ? new Date(activity.followUpDate).toLocaleString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "-"}
             </div>
 
             <div className="text-gray-700">Follow up by</div>
             <div className="text-gray-900 font-medium tracking-tight">
-              John Smith (Sales Executive)
-            </div>
-
-            <div className="text-gray-700">Department</div>
-            <div className="text-gray-900 font-medium tracking-tight">
-              Sales
+              {activity?.followedBy?.name || "-"} {activity?.followedBy?.role ? `(${activity.followedBy.role})` : ""}
             </div>
 
             <div className="text-gray-700">Outcome</div>
-            <div className="text-gray-900 font-medium tracking-tight">
-              Positive
+            <div className="text-gray-900 font-medium tracking-tight capitalize">
+              {activity?.outcome || "-"}
             </div>
 
             <div className="text-gray-700">Next Follow up</div>
             <div className="text-gray-900 font-medium tracking-tight">
-              May 22, 2025 11:00 AM
+              {activity?.nextFollowUpdate
+                ? new Date(activity.nextFollowUpdate).toLocaleString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "-"}
             </div>
 
-            <div className="text-gray-700">Duration</div>
-            <div className="text-gray-900 font-medium tracking-tight">
-              25 mins
+            <div className="text-gray-700">Priority</div>
+            <div className="text-gray-900 font-medium tracking-tight capitalize">
+              {activity?.priority || "-"}
             </div>
 
-            <div className="text-gray-700">Related to</div>
+            <div className="text-gray-700">Project Name</div>
             <div className="text-gray-900 font-medium tracking-tight">
-              Lead Follow up
+              {activity?.projectName ? activity.projectName.replace(/\s*\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\s*$/, "").trim() : "-"}
             </div>
           </div>
 
@@ -84,31 +97,10 @@ export function ActivityDetailsDialog({
           <div className="space-y-6 mb-8">
             <div>
               <h4 className="text-[14px] font-medium text-gray-900 mb-1.5">
-                Description
+                Description / Notes
               </h4>
               <p className="text-[14px] text-gray-500 leading-relaxed max-w-[95%]">
-                Discussed requirement for structural steel supply for their
-                upcoming commercial building
-              </p>
-            </div>
-
-            <div>
-              <h4 className="text-[14px] font-medium text-gray-900 mb-1.5">
-                Client Response
-              </h4>
-              <p className="text-[14px] text-gray-500 leading-relaxed max-w-[95%]">
-                Discussed requirement for structural steel supply for their
-                upcoming commercial building
-              </p>
-            </div>
-
-            <div>
-              <h4 className="text-[14px] font-medium text-gray-900 mb-1.5">
-                Remarks/Notes (Internal)
-              </h4>
-              <p className="text-[14px] text-gray-500 leading-relaxed max-w-[95%]">
-                Discussed requirement for structural steel supply for their
-                upcoming commercial building
+                {activity?.notes || "No notes available for this activity."}
               </p>
             </div>
           </div>
@@ -154,7 +146,15 @@ export function ActivityDetailsDialog({
           <div className="grid grid-cols-[140px_1fr] text-[14px]">
             <div className="text-gray-700">Created On</div>
             <div className="text-gray-900 font-medium tracking-tight">
-              May 19,2026 03.05PM
+              {activity?.createdAt
+                ? new Date(activity.createdAt).toLocaleString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "-"}
             </div>
           </div>
         </div>

@@ -24,6 +24,8 @@ import { Trash2, Search, Eye, Users, PenLine } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { EditEmployeeDialog } from "@/components/employees/edit-employee-dialog";
 import SuccessDialog from "@/components/success-dialog";
+import { useUpdateAdminEmployeeMutation } from "@/modules/employees/employees.hooks";
+import { toast } from "sonner";
 
 export interface Employee {
   id: string;
@@ -41,6 +43,12 @@ export interface Employee {
 interface EmployeeTableProps {
   employees: Employee[];
   loading?: boolean;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  roleFilter: string;
+  setRoleFilter: (role: string) => void;
+  statusFilter: string;
+  setStatusFilter: (status: string) => void;
 }
 
 const loadingRows = Array.from({ length: 5 });
@@ -48,11 +56,14 @@ const loadingRows = Array.from({ length: 5 });
 export function EmployeeTable({
   employees,
   loading = false,
+  searchQuery,
+  setSearchQuery,
+  roleFilter,
+  setRoleFilter,
+  statusFilter,
+  setStatusFilter,
 }: EmployeeTableProps) {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
   const [deletedEmployeeName, setDeletedEmployeeName] = useState<string>("");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -67,26 +78,35 @@ export function EmployeeTable({
     }
   };
 
+  const updateEmployeeMutation = useUpdateAdminEmployeeMutation();
+
   const handleSaveEmployee = (
     updatedEmployee: Omit<Employee, "joinedDate" | "leads" | "avatar">,
   ) => {
-    console.log("Updated employee", updatedEmployee);
+    updateEmployeeMutation.mutate(
+      {
+        employeeId: updatedEmployee.id,
+        data: {
+          name: updatedEmployee.name,
+          email: updatedEmployee.email,
+          phone: updatedEmployee.phone,
+          role: updatedEmployee.role,
+          isActive: updatedEmployee.status === "active",
+        },
+      },
+      {
+        onSuccess: () => {
+          toast.success("Employee updated successfully");
+        },
+        onError: (err: any) => {
+          toast.error(err?.response?.data?.message || "Failed to update employee");
+        },
+      }
+    );
   };
 
-  const filteredEmployees = employees.filter((employee) => {
-    const q = searchQuery.trim().toLowerCase();
-    const matchesSearch =
-      !q ||
-      employee.name.toLowerCase().includes(q) ||
-      employee.email.toLowerCase().includes(q) ||
-      employee.phone.toLowerCase().includes(q) ||
-      employee.team.toLowerCase().includes(q);
-    const matchesRole = roleFilter === "all" || employee.role === roleFilter;
-    const matchesStatus =
-      statusFilter === "all" || employee.status === statusFilter;
-
-    return matchesSearch && matchesRole && matchesStatus;
-  });
+  // Backend handles filtering now
+  const filteredEmployees = employees;
 
   const getInitials = (name: string) => {
     return name
@@ -138,9 +158,11 @@ export function EmployeeTable({
               <SelectGroup>
                 <SelectLabel>All</SelectLabel>
                 <SelectItem value="all">All Roles</SelectItem>
-                <SelectItem value="Manager">Manager</SelectItem>
-                <SelectItem value="Employee">Employee</SelectItem>
-                <SelectItem value="Admin">Admin</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="sales">Sales</SelectItem>
+                <SelectItem value="construction">Construction</SelectItem>
+                <SelectItem value="plant">Plant</SelectItem>
+                <SelectItem value="account">Account</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>

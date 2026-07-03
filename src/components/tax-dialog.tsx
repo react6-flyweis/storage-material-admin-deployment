@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import AddTaxDialog from "@/components/add-tax-dialog";
 
-type Tax = { name: string; rate: string };
+type Tax = { name: string; rate: string; type?: "%" | "$" };
 
 type Props = {
   children?: React.ReactNode;
@@ -90,7 +90,7 @@ export default function TaxDialog({
                     className="w-4 h-4"
                   />
                   <span className="text-sm">
-                    {t.name} ({t.rate}%)
+                    {t.name} ({t.type === "$" ? "$" : ""}{t.rate}{t.type !== "$" ? "%" : ""})
                   </span>
                 </label>
               ))}

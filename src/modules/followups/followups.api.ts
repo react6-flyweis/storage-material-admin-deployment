@@ -19,12 +19,15 @@ export type UpcomingFollowUpApiItem = {
   notes?: string;
   priority?: string;
   status?: string;
+  modeOfContact?: string;
   customerId?: {
     firstName?: string;
   } | null;
   leadId?: {
     buildingType?: string;
     location?: string;
+    projectId?: string;
+    projectName?: string;
   } | null;
 };
 
@@ -83,6 +86,29 @@ export async function getUpcomingFollowUpsProvider() {
 export async function getFollowUpAiScriptsProvider() {
   const response = await apiClient.get<FollowUpAiScriptsResponse>(
     "/api/admin/followups/ai-script",
+  );
+
+  return response.data;
+}
+
+export type CreateFollowUpRequest = {
+  leadId: string;
+  assignedTo: string;
+  followUpDate: string;
+  notes: string;
+  priority: string;
+};
+
+export type CreateFollowUpResponse = {
+  success: boolean;
+  message: string;
+  data: UpcomingFollowUpApiItem;
+};
+
+export async function createFollowUpProvider(data: CreateFollowUpRequest) {
+  const response = await apiClient.post<CreateFollowUpResponse>(
+    "/api/admin/followups",
+    data
   );
 
   return response.data;

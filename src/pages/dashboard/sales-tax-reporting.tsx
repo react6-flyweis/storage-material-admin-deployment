@@ -151,7 +151,7 @@ export default function SalesTaxReporting() {
           <Button
             variant="default"
             size="default"
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/')}
             className="gap-3 px-4"
           >
             <ArrowLeft className="w-4 h-4" />

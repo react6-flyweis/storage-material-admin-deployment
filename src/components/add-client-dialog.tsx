@@ -10,12 +10,14 @@ import {
   DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type Client = { id: string; name: string; avatar?: string };
 
 type Props = {
   children?: React.ReactNode;
   clients?: Client[];
+  isLoading?: boolean;
   initialSelected?: string | null;
   onDone: (client: Client | null) => void;
 };
@@ -23,6 +25,7 @@ type Props = {
 export default function AddClientDialog({
   children,
   clients,
+  isLoading = false,
   initialSelected = null,
   onDone,
 }: Props) {
@@ -85,29 +88,43 @@ export default function AddClientDialog({
           </DialogHeader>
 
           <div className="p-6">
-            <div className="space-y-3 max-h-72 overflow-y-auto">
-              {items.map((c) => (
-                <label
-                  key={c.id}
-                  className="flex items-center gap-4 p-3 hover:bg-gray-50 rounded cursor-pointer"
-                >
-                  <input
-                    type="radio"
-                    name="client"
-                    checked={selectedId === c.id}
-                    onChange={() => setSelectedId(c.id)}
-                    className="w-4 h-4"
-                  />
+            <div className="space-y-4">
+              <div className="text-base font-medium text-slate-900">
+                Select Client
+              </div>
 
-                  <img
-                    src={c.avatar}
-                    alt={c.name}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-
-                  <div className="text-sm text-gray-700">{c.name}</div>
-                </label>
-              ))}
+              <Select value={selectedId || undefined} onValueChange={(val) => setSelectedId(val)}>
+                <SelectTrigger className="w-full h-11 rounded-xl border-gray-300 bg-white px-4 text-left text-sm text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
+                  <SelectValue placeholder="Select a client" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {isLoading ? (
+                    <div className="p-3 text-sm text-gray-500 flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+                      Loading...
+                    </div>
+                  ) : items.length > 0 ? (
+                    items.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        <div className="flex items-center gap-3">
+                          {c.avatar && (
+                            <img
+                              src={c.avatar}
+                              alt={c.name}
+                              className="w-6 h-6 rounded-full object-cover"
+                            />
+                          )}
+                          <span>{c.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <div className="p-3 text-sm text-gray-500 text-center">
+                      Data not found
+                    </div>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>

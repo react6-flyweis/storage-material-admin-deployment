@@ -12,7 +12,9 @@ import {
   Trash2,
   UserPen,
   Folder,
+  RefreshCw,
 } from "lucide-react";
+import { formatPhone } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,6 +26,8 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+import { useDeactivateCustomerMutation } from "@/modules/customers/customers.hooks";
+import { toast } from "sonner";
 import AssignPlantPersonDialog from "@/components/customers/assign-plant-person-dialog";
 import {
   Select,
@@ -43,6 +47,8 @@ export type CustomerListItem = {
   email: string;
   inquiryFor: string;
   status: string;
+  totalProjects: number;
+  isActive: boolean;
 };
 
 type CustomersTableProps = {
@@ -54,6 +60,10 @@ type CustomersTableProps = {
   rowsPerPage: number;
   onPageChange: (page: number) => void;
   onRowsPerPageChange: (rows: number) => void;
+  searchQuery?: string;
+  onSearchChange?: (query: string) => void;
+  statusFilter?: string;
+  onStatusFilterChange?: (status: string) => void;
 };
 
 export default function CustomersTable({
@@ -65,15 +75,18 @@ export default function CustomersTable({
   rowsPerPage,
   onPageChange,
   onRowsPerPageChange,
+  searchQuery = "",
+  onSearchChange,
+  statusFilter = "all",
+  onStatusFilterChange,
 }: CustomersTableProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [plantFilter, setPlantFilter] = useState("all");
-  const [projectStatusFilter, setProjectStatusFilter] = useState("all");
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [deactivatedCustomerId, setDeactivatedCustomerId] = useState<
     string | null
   >(null);
+
+  const deactivateCustomerMutation = useDeactivateCustomerMutation();
 
   const navigate = useNavigate();
 
@@ -87,46 +100,11 @@ export default function CustomersTable({
     return index % 2 === 0 ? "Houston Plant" : "Dallas Plant";
   };
 
-  const getProjectCount = (customer: CustomerListItem, index: number) => {
-    const parsed = Number.parseInt(customer.customerId?.replace(/\D/g, ""), 10);
-    if (!Number.isNaN(parsed) && parsed > 0) {
-      return (parsed % 5) + 1;
-    }
-
-    return (index % 5) + 1;
-  };
-
-  const getProjectStatus = (customer: CustomerListItem, index: number) => {
-    const customerStatus = customer.status.toLowerCase();
-    if (customerStatus === "active") {
-      return "In Execution";
-    }
-
-    if (customerStatus === "inactive") {
-      return index % 2 === 0 ? "Not Started" : "Completed";
-    }
-
-    return "Not Started";
-  };
-
-  // const getStatusBadgeClass = (projectStatus: string) => {
-  //   if (projectStatus === "In Execution") {
-  //     return "bg-blue-100 text-blue-700";
-  //   }
-
-  //   if (projectStatus === "Completed") {
-  //     return "bg-emerald-100 text-emerald-700";
-  //   }
-
-  //   return "bg-slate-100 text-slate-700";
-  // };
-
   const handleViewCustomer = (customerId: string) => {
     navigate(`/customers/${customerId}`);
   };
 
   const [isAssignPlantDialogOpen, setIsAssignPlantDialogOpen] = useState(false);
-  const [selectedCustomerId] = useState<string | null>(null);
 
   const handleViewProjects = (customerId: string) => {
     navigate(`/customers/${customerId}/projects`);
@@ -145,9 +123,28 @@ export default function CustomersTable({
     navigate(`/customers/${customerId}/edit`);
   };
 
-  const handleDeactivateAccount = (customerId: string) => {
-    setDeactivatedCustomerId(customerId);
-    setSuccessDialogOpen(true);
+  const handleDeactivateAccount = async (customerId: string) => {
+    try {
+      await deactivateCustomerMutation.mutateAsync(customerId);
+      setDeactivatedCustomerId(customerId);
+      setSuccessDialogOpen(true);
+      toast.success("Customer deactivated successfully");
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || "Failed to deactivate customer. Please try again.";
+      toast.error(errorMessage);
+      console.error("Deactivate customer error:", error);
+    }
+  };
+
+  const handleReactivateAccount = async (customerId: string) => {
+    try {
+      await deactivateCustomerMutation.mutateAsync(customerId);
+      toast.success("Customer reactivated successfully");
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message || "Failed to reactivate customer. Please try again.";
+      toast.error(errorMessage);
+      console.error("Reactivate customer error:", error);
+    }
   };
 
   const handleUndoDeactivate = () => {
@@ -161,7 +158,6 @@ export default function CustomersTable({
 
     return customers.filter((customer, index) => {
       const assignedPlant = getAssignedPlant(customer, index);
-      const projectStatus = getProjectStatus(customer, index);
 
       const matchesSearch =
         !q ||
@@ -177,15 +173,11 @@ export default function CustomersTable({
       const matchesPlant =
         plantFilter === "all" || assignedPlant.toLowerCase() === plantFilter;
 
-      const matchesProjectStatus =
-        projectStatusFilter === "all" ||
-        projectStatus.toLowerCase() === projectStatusFilter;
-
       return (
-        matchesSearch && matchesStatus && matchesPlant && matchesProjectStatus
+        matchesSearch && matchesStatus && matchesPlant
       );
     });
-  }, [customers, plantFilter, projectStatusFilter, searchQuery, statusFilter]);
+  }, [customers, plantFilter, searchQuery, statusFilter]);
 
   const getPages = () => {
     const pages: (number | "...")[] = [];
@@ -233,7 +225,7 @@ export default function CustomersTable({
             <div className="flex flex-wrap items-center gap-2">
               <DateRangeFilter className="" />
 
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={onStatusFilterChange}>
                 <SelectTrigger className="h-8 min-w-28.75 border-gray-200 bg-white text-sm text-gray-700">
                   <SelectValue placeholder="All Status" />
                 </SelectTrigger>
@@ -244,7 +236,7 @@ export default function CustomersTable({
                 </SelectContent>
               </Select>
 
-              <Select value={plantFilter} onValueChange={setPlantFilter}>
+              {/* <Select value={plantFilter} onValueChange={setPlantFilter}>
                 <SelectTrigger className="h-8 min-w-27.5 border-gray-200 bg-white text-sm text-gray-700">
                   <SelectValue placeholder="All Plants" />
                 </SelectTrigger>
@@ -253,9 +245,9 @@ export default function CustomersTable({
                   <SelectItem value="houston plant">Houston Plant</SelectItem>
                   <SelectItem value="dallas plant">Dallas Plant</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select> */}
 
-              <Select
+              {/* <Select
                 value={projectStatusFilter}
                 onValueChange={setProjectStatusFilter}
               >
@@ -268,7 +260,7 @@ export default function CustomersTable({
                   <SelectItem value="not started">Not Started</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select> */}
             </div>
           </div>
         </div>
@@ -294,7 +286,7 @@ export default function CustomersTable({
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => onSearchChange?.(e.target.value)}
               placeholder="Search"
               className="h-8 border-gray-200 bg-white pl-9 text-sm"
             />
@@ -302,7 +294,82 @@ export default function CustomersTable({
         </div>
 
         {isLoading ? (
-          <div className="p-6 text-sm text-gray-500">Loading customers...</div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-300">
+              <thead className="border-b border-gray-200 bg-[#ECEEF2]">
+                <tr>
+                  <th className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-gray-300 animate-pulse bg-gray-300"
+                      disabled
+                    />
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">
+                    Customer ID
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">
+                    Customer Name
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">
+                    Email
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">
+                    Phone No.
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">
+                    Assigned Plant
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">
+                    Projects
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">
+                    Status
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">
+                 Action
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {Array.from({ length: 5 }).map((_, rowIndex) => (
+                  <tr key={`skeleton-row-${rowIndex}`} className="h-12 animate-pulse">
+                    <td className="px-3 py-2.5">
+                      <div className="h-4 w-4 rounded bg-gray-200" />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="h-4 w-20 rounded bg-gray-200" />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="h-4 w-32 rounded bg-gray-100" />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="h-4 w-40 rounded bg-gray-100" />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="h-4 w-28 rounded bg-gray-100" />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="h-4 w-36 rounded bg-gray-100" />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="h-4 w-8 rounded bg-gray-100" />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="h-4 w-12 rounded bg-gray-100" />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="h-4 w-8 rounded bg-gray-100" />
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="h-7 w-7 rounded-full bg-gray-100" />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : isError ? (
           <div className="p-6 text-sm text-red-600">
             Failed to load customers. Please try again.
@@ -344,7 +411,7 @@ export default function CustomersTable({
                     Status
                   </th>
                   <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">
-                    Not Assign
+                  Actions
                   </th>
                   <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700"></th>
                 </tr>
@@ -352,8 +419,6 @@ export default function CustomersTable({
               <tbody className="divide-y divide-gray-200 bg-white">
                 {filteredCustomers.map((customer, index) => {
                   const assignedPlant = getAssignedPlant(customer, index);
-                  const projects = getProjectCount(customer, index);
-                  // const projectStatus = getProjectStatus(customer, index);
 
                   return (
                     <tr
@@ -376,26 +441,25 @@ export default function CustomersTable({
                         {customer.email}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-sm text-gray-600">
-                        {customer.phone}
+                        {formatPhone(customer.phone)}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-sm text-gray-600">
                         {assignedPlant}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-sm text-gray-600">
-                        {projects}
+                        {customer.totalProjects}
                       </td>
-                      {/* <td className="whitespace-nowrap px-3 py-2.5">
+                      <td className="whitespace-nowrap px-3 py-2.5">
                         <span
-                          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${getStatusBadgeClass(
-                            projectStatus,
-                          )}`}
+                          className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${
+                            customer.isActive
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-red-100 text-red-700"
+                          }`}
                         >
                           <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                          {projectStatus}
+                          {customer.isActive ? "Active" : "Inactive"}
                         </span>
-                      </td> */}
-                      <td className="whitespace-nowrap px-3 py-2.5 text-sm text-gray-600">
-                        {projects}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-sm">
                         <DropdownMenu>
@@ -442,16 +506,33 @@ export default function CustomersTable({
                               <UserPen className="h-4 w-4 text-gray-500" />
                               Edit Customer
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onSelect={() =>
-                                handleDeactivateAccount(customer.id)
-                              }
-                            >
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                              Deactivate Account
-                            </DropdownMenuItem>
+                            {customer.isActive ? (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  variant="destructive"
+                                  onSelect={() =>
+                                    handleDeactivateAccount(customer.id)
+                                  }
+                                >
+                                  <Trash2 className="h-4 w-4 text-red-500" />
+                                  Deactivate Account
+                                </DropdownMenuItem>
+                              </>
+                            ) : (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onSelect={() =>
+                                    handleReactivateAccount(customer.id)
+                                  }
+                                  className="text-emerald-600 focus:text-emerald-600"
+                                >
+                                  <RefreshCw className="h-4 w-4 text-emerald-500" />
+                                  Reactivate Account
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </td>
@@ -518,7 +599,7 @@ export default function CustomersTable({
       <AssignPlantPersonDialog
         open={isAssignPlantDialogOpen}
         onOpenChange={setIsAssignPlantDialogOpen}
-        customerId={selectedCustomerId}
+        customerId={null}
         trigger={null}
       />
 

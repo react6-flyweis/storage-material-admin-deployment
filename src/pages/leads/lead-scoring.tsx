@@ -17,6 +17,11 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import DateRangeFilter from "@/components/ui/date-range-filter";
+import { useLeadScoringQuery, useUpdateLeadTemperatureMutation } from "@/modules/leads/leads.hooks";
+import { Loader2 } from "lucide-react";
+import Pagination from "@/components/Pagination";
+import { format } from "date-fns";
+import { toast } from "sonner";
 
 interface LeadScore {
   id: string;
@@ -88,11 +93,26 @@ export default function LeadScoring() {
   const [status, setStatus] = useState("all");
   const [client, setClient] = useState("");
 
-  const [leads, setLeads] = useState<LeadScore[]>(initialLeads);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
 
-  const updateLeadScore = (id: string, newScore: LeadScore["score"]) => {
-    setLeads((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, score: newScore } : l)),
+  const { data: scoringData, isLoading } = useLeadScoringQuery(page, limit, {
+    startDate: dateFrom,
+    endDate: dateTo,
+    status,
+    client,
+  });
+  const leads = scoringData?.data?.leads || [];
+
+  const updateTemperatureMutation = useUpdateLeadTemperatureMutation();
+
+  const updateLeadScore = (id: string, newScore: string) => {
+    updateTemperatureMutation.mutate(
+      { leadId: id, temperature: newScore.toLowerCase() },
+      {
+        onSuccess: () => toast.success("Lead status updated successfully!"),
+        onError: (err: any) => toast.error(err?.response?.data?.message || "Failed to update lead status"),
+      }
     );
   };
 
@@ -147,7 +167,7 @@ export default function LeadScoring() {
         {/* Filters */}
         <div className="bg-white p-6 rounded-lg space-y-4 ">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-gray-700">
                 Date Range
               </label>
@@ -158,7 +178,7 @@ export default function LeadScoring() {
                 }}
               />
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-gray-700">
                 Status
               </label>
@@ -168,13 +188,14 @@ export default function LeadScoring() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All</SelectItem>
-                  <SelectItem value="Proposal sent">Proposal sent</SelectItem>
-                  <SelectItem value="Quotation Sent">Quotation Sent</SelectItem>
+                  <SelectItem value="hot">Hot</SelectItem>
+                  <SelectItem value="warm">Warm</SelectItem>
+                  <SelectItem value="cold">Cold</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-gray-700">
                 Client
               </label>
@@ -215,97 +236,111 @@ export default function LeadScoring() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {useMemo(() => {
-                const filteredLeads = leads.filter((l) => {
-                  // Status filter
-                  if (status !== "all" && l.status !== status) return false;
-
-                  // Client search: match name, leadId or location
-                  if (
-                    client &&
-                    !(
-                      l.name.toLowerCase().includes(client.toLowerCase()) ||
-                      l.leadId.toLowerCase().includes(client.toLowerCase()) ||
-                      l.location.toLowerCase().includes(client.toLowerCase())
-                    )
-                  )
-                    return false;
-
-                  // Date filters (use lastActivityDate if available)
-                  if (dateFrom && l.lastActivityDate) {
-                    const from = new Date(dateFrom);
-                    const act = new Date(l.lastActivityDate);
-                    if (act < from) return false;
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    <div className="flex items-center justify-center">
+                      <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                      <span className="ml-2 text-sm text-gray-500">Loading lead scoring...</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : leads.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="h-24 text-center text-gray-500">
+                    No leads found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                leads.map((lead) => {
+                  // Determine progress (mock based on status or some logic)
+                  const progress = lead.status === "hot" ? 4 : lead.status === "warm" ? 3 : 2;
+                  
+                  // Use temperature if available, otherwise map API score (number) to Hot/Warm/Cold for display/dropdown
+                  let displayScore = "Cold";
+                  if (lead.temperature) {
+                    displayScore = lead.temperature.charAt(0).toUpperCase() + lead.temperature.slice(1).toLowerCase();
+                  } else {
+                    displayScore = lead.score >= 80 ? "Hot" : lead.score >= 50 ? "Warm" : "Cold";
                   }
-                  if (dateTo && l.lastActivityDate) {
-                    const to = new Date(dateTo);
-                    const act = new Date(l.lastActivityDate);
-                    if (act > to) return false;
-                  }
 
-                  return true;
-                });
-
-                return filteredLeads.map((lead) => (
-                  <TableRow key={lead.id} className="hover:bg-gray-50">
-                    <TableCell>
-                      <div>
-                        <div className="font-medium text-gray-900">
-                          {lead.name}
+                  return (
+                    <TableRow key={lead.leadId} className="hover:bg-gray-50">
+                      <TableCell>
+                        <div>
+                          <div className="font-medium text-[13px] text-gray-900">
+                            {lead.customerName || "N/A"}
+                          </div>
+                          {lead.projectName && (
+                            <div className="text-[12px] text-gray-500 mt-0.5">
+                              {lead.projectName}
+                            </div>
+                          )}
+                          <div className="text-[12px] text-gray-500 mt-0.5">
+                            {lead.projectId || lead.leadId}
+                          </div>
+                          <div className="text-[12px] text-gray-400 mt-0.5">
+                            {lead.location || "N/A"}
+                          </div>
                         </div>
-                        <div className="text-sm text-gray-500">
-                          {lead.leadId}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-1">
+                          {renderProgressDots(progress)}
+                          <span className="text-sm text-gray-600">
+                            Step {progress}/7
+                          </span>
                         </div>
-                        <div className="text-sm text-gray-400">
-                          {lead.location}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex flex-col gap-1">
-                        {renderProgressDots(lead.progress)}
-                        <span className="text-sm text-gray-600">
-                          Step {lead.progress}/7
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={getStatusBadgeClass(lead.status)}>
-                        {lead.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      ${lead.quoteValue.toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      <Select
-                        value={lead.score}
-                        onValueChange={(val) =>
-                          updateLeadScore(lead.id, val as LeadScore["score"])
-                        }
-                      >
-                        <SelectTrigger
-                          className={`${getScoreBadgeClass(
-                            lead.score,
-                          )} rounded-full px-4`}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={getStatusBadgeClass(lead.lifecycleStatus || lead.status)}>
+                          {lead.lifecycleStatus || lead.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        ${lead.quoteValue?.toLocaleString() || "0"}
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={displayScore}
+                          onValueChange={(val) => updateLeadScore(lead.leadId, val as any)}
                         >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Hot">Hot</SelectItem>
-                          <SelectItem value="Warm">Warm</SelectItem>
-                          <SelectItem value="Cold">Cold</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell className="text-gray-600">
-                      {lead.lastActivity}
-                    </TableCell>
-                  </TableRow>
-                ));
-              }, [leads, status, client, dateFrom, dateTo])}
+                          <SelectTrigger
+                            className={`${getScoreBadgeClass(
+                              displayScore,
+                            )} rounded-full px-4`}
+                          >
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Hot">Hot</SelectItem>
+                            <SelectItem value="Warm">Warm</SelectItem>
+                            <SelectItem value="Cold">Cold</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell className="text-gray-600">
+                        {lead.updatedAt ? format(new Date(lead.updatedAt), "MM/dd/yyyy hh:mm a") : "-"}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
+
+          {scoringData?.data?.total ? (
+            <Pagination
+              totalItems={scoringData.data.total}
+              currentPage={page}
+              rowsPerPage={limit}
+              onPageChange={setPage}
+              onRowsPerPageChange={(newLimit) => {
+                setLimit(newLimit);
+                setPage(1);
+              }}
+            />
+          ) : null}
         </div>
       </div>
     </div>

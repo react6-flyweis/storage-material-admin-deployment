@@ -5,11 +5,8 @@ import {
   type Employee,
 } from "@/components/employees/employee-table";
 import { AddEmployeeDialog } from "@/components/employees/add-employee-dialog";
-import {
-  useAdminEmployeesQuery,
-  useEmployeeStatsQuery,
-} from "@/modules/employees/employees.hooks";
-import { useEffect } from "react";
+import { useAdminEmployeesQuery, useEmployeeStatsQuery } from "@/modules/employees/employees.hooks";
+import { useEffect, useState, useDeferredValue } from "react";
 import { useEmployeeCountsStore } from "@/modules/employees/employees.store";
 
 const formatJoinedDate = (date?: string) => {
@@ -26,8 +23,19 @@ const formatJoinedDate = (date?: string) => {
 };
 
 export default function EmployeesPage() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+
   const { data: employeesResponse, isLoading: isEmployeesLoading } =
-    useAdminEmployeesQuery();
+    useAdminEmployeesQuery({
+      search: deferredSearchQuery,
+      role: roleFilter,
+      isActive: statusFilter === "all" ? undefined : statusFilter === "active",
+      page: 1,
+      limit: 100,
+    });
   const { data: employeeStatsResponse, isLoading: isEmployeeStatsLoading } =
     useEmployeeStatsQuery();
   const setEmployeeCounts = useEmployeeCountsStore(
@@ -67,7 +75,7 @@ export default function EmployeesPage() {
       email: employee.email,
       phone: employee.phone ?? "N/A",
       joinedDate: formatJoinedDate(employee.createdAt),
-      role: "Employee",
+      role: employee.role?.toLowerCase() || "sales",
       team: employee.role || "N/A",
       status: employee.isActive ? "active" : "inactive",
       leads: employee.assignedLeadCount ?? 0,
@@ -76,7 +84,7 @@ export default function EmployeesPage() {
 
   const filteredEmployees = teamFilter
     ? employees.filter(
-        (emp) => emp.team?.toLowerCase() === teamFilter.toLowerCase(),
+        (emp) => emp.role?.toLowerCase() === teamFilter.toLowerCase() || emp.team?.toLowerCase() === teamFilter.toLowerCase(),
       )
     : employees;
 
@@ -117,6 +125,12 @@ export default function EmployeesPage() {
       <EmployeeTable
         employees={filteredEmployees}
         loading={isEmployeesLoading}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        roleFilter={roleFilter}
+        setRoleFilter={setRoleFilter}
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
       />
     </div>
   );

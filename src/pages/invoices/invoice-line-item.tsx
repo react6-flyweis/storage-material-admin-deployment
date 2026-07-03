@@ -9,6 +9,7 @@ import type {
 import { Upload, List } from "lucide-react";
 import UploadImageDialog from "@/components/upload-image-dialog";
 import ItemListDialog from "@/components/item-list-dialog";
+import { uploadFileToS3 } from "@/lib/upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,7 +34,7 @@ type Props = {
   getValues: UseFormGetValues<InvoiceFormValues>;
   setValue: UseFormSetValue<InvoiceFormValues>;
   remove: (index: number) => void;
-  taxes?: { name: string; rate: string }[];
+  taxes?: { name: string; rate: string; type?: "%" | "$" }[];
 };
 
 export default function InvoiceLineItem({
@@ -67,20 +68,14 @@ export default function InvoiceLineItem({
 
       <div className="border border-gray-200 rounded-lg overflow-hidden">
         {/* Main Item Row */}
-        <div className="grid grid-cols-2 xl:grid-cols-12   bg-white divide-x">
+        <div className="grid grid-cols-2 xl:grid-cols-12 bg-white divide-x">
           {/* Description & Item List - Full width on mobile */}
-          <div className="col-span-2 md:col-span-4 p-3 flex items-center gap-4 border-b md:border-b-0 border-gray-100">
-            {item?.description ? (
-              <span className="text-gray-400 text-sm pl-2">
-                {item.description}
-              </span>
-            ) : (
-              <Input
-                {...register(`lineItems.${index}.description` as const)}
-                placeholder="Description"
-                className="text-gray-400 text-sm border-0 focus:ring-0 px-2"
-              />
-            )}
+          <div className="col-span-2 xl:col-span-5 p-3 flex items-center gap-4 border-b xl:border-b-0 border-gray-100">
+            <Input
+              {...register(`lineItems.${index}.description` as const)}
+              placeholder="Description"
+              className="text-gray-400 text-sm border-0 focus:ring-0 px-2"
+            />
             <div className="ml-auto">
               <ItemListDialog
                 initialItems={item?.items || []}
@@ -100,91 +95,81 @@ export default function InvoiceLineItem({
           </div>
 
           {/* Rate */}
-          <div className="col-span-1 md:col-span-2 p-3 flex flex-col md:flex-row items-start md:items-center justify-center border-b md:border-b-0 border-r border-gray-100 ">
-            <span className="md:hidden text-gray-400 text-[10px] uppercase tracking-wide mb-1">
+          <div className="col-span-1 xl:col-span-2 p-3 flex flex-col xl:flex-row items-start xl:items-center justify-center border-b xl:border-b-0 border-r border-gray-100 ">
+            <span className="xl:hidden text-gray-400 text-[10px] uppercase tracking-wide mb-1">
               Rate
             </span>
-            {item?.rate ? (
-              <span className="text-gray-600 text-sm font-medium">
-                $
-                {(item.rate || 0).toLocaleString("en-US", {
-                  minimumFractionDigits: 2,
-                })}
-              </span>
-            ) : (
-              <Input
-                type="number"
-                {...register(`lineItems.${index}.rate` as const, {
-                  valueAsNumber: true,
-                })}
-                placeholder="0.00"
-                className="text-gray-600 text-sm border-0 focus:ring-0 w-full"
-              />
-            )}
-          </div>
-
-          {/* Markup */}
-          <div className="col-span-1 md:col-span-2 p-3 flex flex-col md:flex-row items-start md:items-center justify-center border-b md:border-b-0 border-gray-100">
-            <span className="md:hidden text-gray-400 text-[10px] uppercase tracking-wide mb-1">
-              Markup
-            </span>
-            <Controller
-              control={control}
-              name={`lineItems.${index}.markup` as const}
-              defaultValue={item?.markup}
-              render={({ field: selField }) => (
-                <Select
-                  value={selField.value}
-                  onValueChange={selField.onChange}
-                >
-                  <SelectTrigger className="text-sm border-0 text-gray-600">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Markup">Markup</SelectItem>
-                    <SelectItem value="Fixed">Fixed</SelectItem>
-                  </SelectContent>
-                </Select>
-              )}
+            <Input
+              type="number"
+              {...register(`lineItems.${index}.rate` as const, {
+                valueAsNumber: true,
+              })}
+              placeholder="0.00"
+              className="text-gray-600 text-sm font-medium border-0 focus:ring-0 w-full bg-transparent"
             />
           </div>
 
+          {/* Markup (Removed) */}
+
           {/* Quantity */}
-          <div className="col-span-1  p-3 flex flex-col md:flex-row items-start md:items-center justify-center border-b md:border-b-0 ">
-            <span className="md:hidden text-gray-400 text-[10px] uppercase tracking-wide mb-1">
+          <div className="col-span-1 xl:col-span-2 p-3 flex flex-col xl:flex-row items-start xl:items-center justify-center border-b xl:border-b-0 ">
+            <span className="xl:hidden text-gray-400 text-[10px] uppercase tracking-wide mb-1">
               Quantity
             </span>
-            <span className="text-gray-600 text-sm">{item?.quantity || 1}</span>
+            <Input
+              type="number"
+              min="0"
+              step="1"
+              {...register(`lineItems.${index}.quantity` as const, {
+                valueAsNumber: true,
+              })}
+              placeholder="1"
+              className="text-gray-600 text-sm font-medium border-0 focus:ring-0 w-full bg-transparent"
+            />
           </div>
 
           {/* Tax */}
-          <div className="col-span-1 md:col-span-1 p-3 flex flex-col md:flex-row items-start md:items-center justify-center border-b md:border-b-0 border-gray-100">
-            <span className="md:hidden text-gray-400 text-[10px] uppercase tracking-wide mb-1">
+          <div className="col-span-1 xl:col-span-1 p-3 flex flex-col xl:flex-row items-start xl:items-center justify-center border-b xl:border-b-0 border-gray-100">
+            <span className="xl:hidden text-gray-400 text-[10px] uppercase tracking-wide mb-1">
               Tax
             </span>
             <TaxDialog
               availableTaxes={taxes}
               initialSelected={item?.selectedTax ? [item.selectedTax] : []}
               onDone={(selected, updatedTaxes) => {
-                setValue(`lineItems.${index}.selectedTax`, selected?.[0] || "");
+                const taxName = selected?.[0] || "";
+                setValue(`lineItems.${index}.selectedTax`, taxName);
                 if (updatedTaxes) setValue("taxes", updatedTaxes);
+                
+                const selectedTaxObj = updatedTaxes.find((t) => t.name === taxName);
+                if (selectedTaxObj) {
+                  setValue(`lineItems.${index}.taxType`, selectedTaxObj.type || "%");
+                  setValue(`lineItems.${index}.taxValue`, selectedTaxObj.rate);
+                } else {
+                  setValue(`lineItems.${index}.taxType`, "%");
+                  setValue(`lineItems.${index}.taxValue`, "");
+                }
               }}
             >
               <button
                 type="button"
-                className="text-blue-500 text-xs font-bold cursor-pointer"
+                className={`font-semibold text-xs tracking-wide transition-colors px-3 py-1.5 rounded-md ${
+                  item?.selectedTax
+                    ? "text-blue-600 bg-blue-50 hover:bg-blue-100"
+                    : "text-blue-500 bg-blue-50/50 hover:bg-blue-50"
+                }`}
               >
-                {item?.selectedTax || "Tax"}
+                {item?.selectedTax ? item.selectedTax : "Tax"}
               </button>
             </TaxDialog>
           </div>
 
           {/* Total - Full width on mobile/special align */}
-          <div className="col-span-2  p-3 flex items-center justify-between md:justify-end pr-6 bg-gray-50 md:bg-white">
-            <span className="md:hidden text-gray-400 text-sm font-medium">
+          <div className="col-span-2 xl:col-span-2 p-3 flex items-center justify-between xl:justify-end pr-6 bg-gray-50 xl:bg-white">
+            <span className="xl:hidden text-gray-400 text-sm font-medium">
               Total:
             </span>
-            <span className="text-gray-900 md:text-gray-600 text-base md:text-sm font-bold md:font-medium">
+            <span className="text-gray-900 xl:text-gray-600 text-base xl:text-sm font-bold xl:font-medium">
               $
               {((item?.rate || 0) * (item?.quantity || 0)).toLocaleString(
                 "en-US",
@@ -207,12 +192,19 @@ export default function InvoiceLineItem({
         {/* Upload Row */}
         <div className="border-t border-gray-100 p-3 bg-gray-50/10 flex items-center gap-4 flex-wrap">
           <UploadImageDialog
-            onUpload={(files: File[]) => {
-              const names = files.map((f) => f.name);
-              const items = getValues("lineItems") || [];
-              const images = items[index]?.images || [];
-              const combined = [...images, ...names].slice(0, 4);
-              setValue(`lineItems.${index}.images`, combined);
+            onUpload={async (files: File[]) => {
+              try {
+                const uploadedUrls = await Promise.all(
+                  files.map((f) => uploadFileToS3(f, "invoices"))
+                );
+                const items = getValues("lineItems") || [];
+                const images = items[index]?.images || [];
+                const combined = [...images, ...uploadedUrls].slice(0, 4);
+                setValue(`lineItems.${index}.images`, combined);
+              } catch (error) {
+                console.error("Failed to upload images:", error);
+                alert("Failed to upload images. Please try again.");
+              }
             }}
           >
             <Button

@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { ProfileCardSkeleton } from "@/components/ui/skeleton";
 
 interface ProfileData {
   name: string;
@@ -49,6 +50,10 @@ export default function ProfileCard({
         /* ignore clipboard errors */
       });
   };
+
+  if (isLoading) {
+    return <ProfileCardSkeleton />;
+  }
 
   return (
     <Card className="p-4">

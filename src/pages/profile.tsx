@@ -58,7 +58,7 @@ export default function ProfileView() {
       {/* Header */}
       <div className="flex flex-wrap md:items-center items-start justify-between mt-2 xl:mt-0">
         <div className="flex items-start gap-4 flex-wrap">
-          <Button onClick={() => navigate(-1)}>
+          <Button onClick={() => navigate('/')}>
             <MoveLeft className="w-4 h-4" />
             <p className="font-normal">Back</p>
           </Button>

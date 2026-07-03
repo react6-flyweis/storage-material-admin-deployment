@@ -1,7 +1,10 @@
-import { useState } from "react";
-import { ArrowLeft, Minus, Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, Minus, Plus, Search, Check, ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router";
+import { toast } from "sonner";
 import SuccessDialog from "@/components/success-dialog";
+import AddBasicCustomerDialog from "@/components/customers/add-basic-customer-dialog";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,44 +15,76 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+
+import { useCustomersQuery, useSalesEmployeesQuery } from "@/modules/customers/customers.hooks";
+import { useCreateLeadMutation } from "@/modules/leads/leads.hooks";
 
 export default function AddNewLead() {
   const navigate = useNavigate();
   const [showSuccess, setShowSuccess] = useState(false);
+  const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [debouncedCustomerSearch, setDebouncedCustomerSearch] = useState("");
+  const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
+  const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
+  const [newlyAddedCustomer, setNewlyAddedCustomer] = useState<any>(null);
+
+  const [salesSearch, setSalesSearch] = useState("");
+  const [debouncedSalesSearch, setDebouncedSalesSearch] = useState("");
+  const [salesPopoverOpen, setSalesPopoverOpen] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedCustomerSearch(customerSearch), 300);
+    return () => clearTimeout(timer);
+  }, [customerSearch]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSalesSearch(salesSearch), 300);
+    return () => clearTimeout(timer);
+  }, [salesSearch]);
+
+  const { data: customersData, isLoading: isLoadingCustomers } = useCustomersQuery(1, 100, { search: debouncedCustomerSearch });
+  const { data: salesData, isLoading: isLoadingSales } = useSalesEmployeesQuery({ search: debouncedSalesSearch });
+  const createLead = useCreateLeadMutation();
 
   // Form state
   const [formData, setFormData] = useState({
-    firstName: "",
-    lastName: "",
-    email: "",
-    phone: "",
-    companyName: "",
-    jobTitle: "",
-    leadSource: "",
-    leadStatus: "New",
-    estimatedValue: "",
-    priority: "Medium",
-    notes: "",
+    customerId: "",
+    projectName: "",
+    buildingType: "",
+    location: "",
+    source: "manual",
+    quoteValue: 0,
+    roofStyle: "",
     width: 0,
     length: 0,
     height: 0,
-    roofStyle: "",
-    buildingType: "",
     doors: 0,
     windows: 0,
     insulation: 0,
+    assignedSales: "",
   });
+
+  const filteredCustomers = customersData?.data?.customers || [];
+  const filteredSales = salesData?.data?.employees || [];
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (value) {
+      setErrors((prev) => ({ ...prev, [name]: false }));
+    }
   };
 
   const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (value) {
+      setErrors((prev) => ({ ...prev, [name]: false }));
+    }
   };
 
   const handleNumberChange = (field: string, delta: number) => {
@@ -64,13 +99,33 @@ export default function AddNewLead() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement API call to save the lead
-    console.log("Form submitted:", formData);
-    // Show success dialog
-    setShowSuccess(true);
-    setTimeout(() => {
-      navigate("/leads");
-    }, 500);
+    
+    const newErrors: Record<string, boolean> = {};
+    if (!formData.customerId) newErrors.customerId = true;
+    if (!formData.projectName) newErrors.projectName = true;
+    if (!formData.assignedSales) newErrors.assignedSales = true;
+    if (!formData.buildingType) newErrors.buildingType = true;
+    if (!formData.roofStyle) newErrors.roofStyle = true;
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    setErrors({});
+    
+    createLead.mutate(formData, {
+      onSuccess: () => {
+        setShowSuccess(true);
+        setTimeout(() => {
+          navigate("/leads");
+        }, 1500);
+      },
+      onError: (err: any) => {
+        toast.error(err?.response?.data?.message || "Failed to create lead");
+      }
+    });
   };
 
   const handleCancel = () => {
@@ -93,97 +148,180 @@ export default function AddNewLead() {
 
       <form
         onSubmit={handleSubmit}
+        noValidate
         className="space-y-6 p-5 rounded-lg shadow bg-white"
       >
-        {/* Personal Information */}
+        {/* Customer & Project Details */}
         <div className="">
-          <h2 className="text-lg font-semibold mb-4">Personal Information</h2>
+          <h2 className="text-lg font-semibold mb-4">Customer & Project Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="firstName">
-                First Name <span className="text-red-500">*</span>
+              <Label htmlFor="customerId">
+                Select Customer <span className="text-red-500">*</span>
               </Label>
-              <Input
-                id="firstName"
-                name="firstName"
-                placeholder="Enter First Name"
-                value={formData.firstName}
-                onChange={handleInputChange}
-                required
-              />
+              <Popover open={customerPopoverOpen} onOpenChange={setCustomerPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={customerPopoverOpen}
+                    className={cn("w-full justify-between font-normal", errors.customerId ? "border-red-500 ring-1 ring-red-500" : "")}
+                  >
+                    {formData.customerId
+                      ? (() => {
+                          if (newlyAddedCustomer && newlyAddedCustomer.id === formData.customerId) {
+                            return `${newlyAddedCustomer.customerName} (${newlyAddedCustomer.email || 'No email'})`;
+                          }
+                          const c = customersData?.data?.customers?.find((x: any) => x._id === formData.customerId);
+                          return c ? `${c.customerName} (${c.email})` : "Select customer";
+                        })()
+                      : isLoadingCustomers
+                      ? "Loading customers..."
+                      : "Select a customer"}
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <div className="flex items-center border-b px-3">
+                    <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                    <input
+                      className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                      placeholder="Search customer..."
+                      value={customerSearch}
+                      onChange={(e) => setCustomerSearch(e.target.value)}
+                    />
+                  </div>
+                  <div className="p-1 border-b border-gray-100">
+                    <Button 
+                      type="button" 
+                      variant="ghost"
+                      className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-medium h-9 px-2"
+                      onClick={() => {
+                        setCustomerPopoverOpen(false);
+                        setIsAddCustomerOpen(true);
+                      }}
+                    >
+                      <Plus className="w-4 h-4 mr-2" /> Add New Customer
+                    </Button>
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto p-1">
+                    {filteredCustomers.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">No customer found.</div>
+                    ) : (
+                      filteredCustomers.map((c) => (
+                        <div
+                          key={c._id}
+                          className={cn(
+                            "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-slate-100 hover:text-slate-900",
+                            formData.customerId === c._id ? "bg-slate-100" : ""
+                          )}
+                          onClick={() => {
+                            handleSelectChange("customerId", c._id);
+                            setCustomerPopoverOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              formData.customerId === c._id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {c.customerName} <span className="ml-1 text-muted-foreground">({c.email})</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
+            
             <div className="space-y-2">
-              <Label htmlFor="lastName">
-                Last Name <span className="text-red-500">*</span>
+              <Label htmlFor="assignedSales">
+                Assigned Sales <span className="text-red-500">*</span>
               </Label>
-              <Input
-                id="lastName"
-                name="lastName"
-                placeholder="Enter Last Name"
-                value={formData.lastName}
-                onChange={handleInputChange}
-                required
-              />
+              <Popover open={salesPopoverOpen} onOpenChange={setSalesPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={salesPopoverOpen}
+                    className={cn("w-full justify-between font-normal", errors.assignedSales ? "border-red-500 ring-1 ring-red-500" : "")}
+                  >
+                    {formData.assignedSales
+                      ? (() => {
+                          const s = salesData?.data?.employees?.find((x) => x._id === formData.assignedSales);
+                          return s ? s.name : "Assign to sales";
+                        })()
+                      : isLoadingSales
+                      ? "Loading sales..."
+                      : "Assign to sales"}
+                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <div className="flex items-center border-b px-3">
+                    <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                    <input
+                      className="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                      placeholder="Search sales..."
+                      value={salesSearch}
+                      onChange={(e) => setSalesSearch(e.target.value)}
+                    />
+                  </div>
+                  <div className="max-h-[300px] overflow-y-auto p-1">
+                    {filteredSales.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">No sales found.</div>
+                    ) : (
+                      filteredSales.map((s) => (
+                        <div
+                          key={s._id}
+                          className={cn(
+                            "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-slate-100 hover:text-slate-900",
+                            formData.assignedSales === s._id ? "bg-slate-100" : ""
+                          )}
+                          onClick={() => {
+                            handleSelectChange("assignedSales", s._id);
+                            setSalesPopoverOpen(false);
+                          }}
+                        >
+                          <Check
+                            className={cn(
+                              "mr-2 h-4 w-4",
+                              formData.assignedSales === s._id ? "opacity-100" : "opacity-0"
+                            )}
+                          />
+                          {s.name}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">
-                Email Address <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="Enter Email Address"
-                value={formData.email}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">
-                Phone Number <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="phone"
-                name="phone"
-                type="tel"
-                placeholder="Enter Phone Number"
-                value={formData.phone}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-          </div>
-        </div>
 
-        {/* Company Information */}
-        <div className="">
-          <h2 className="text-lg font-semibold mb-4">Company Information</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="companyName">
-                Company Name <span className="text-red-500">*</span>
+              <Label htmlFor="projectName">
+                Project Name <span className="text-red-500">*</span>
               </Label>
               <Input
-                id="companyName"
-                name="companyName"
-                placeholder="Enter company name"
-                value={formData.companyName}
+                id="projectName"
+                name="projectName"
+                placeholder="Enter Project Name"
+                value={formData.projectName}
                 onChange={handleInputChange}
+                className={errors.projectName ? "border-red-500 ring-1 ring-red-500" : ""}
                 required
               />
             </div>
+            
             <div className="space-y-2">
-              <Label htmlFor="jobTitle">
-                Job title <span className="text-red-500">*</span>
-              </Label>
+              <Label htmlFor="location">Location</Label>
               <Input
-                id="jobTitle"
-                name="jobTitle"
-                placeholder="Enter job title"
-                value={formData.jobTitle}
+                id="location"
+                name="location"
+                placeholder="Enter Location"
+                value={formData.location}
                 onChange={handleInputChange}
-                required
               />
             </div>
           </div>
@@ -194,89 +332,36 @@ export default function AddNewLead() {
           <h2 className="text-lg font-semibold mb-4">Lead Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="leadSource">
-                Lead Source <span className="text-red-500">*</span>
+              <Label htmlFor="source">
+                Lead Source
               </Label>
               <Select
-                value={formData.leadSource}
-                onValueChange={(value) =>
-                  handleSelectChange("leadSource", value)
-                }
-                required
+                value={formData.source}
+                onValueChange={(value) => handleSelectChange("source", value)}
               >
-                <SelectTrigger id="leadSource">
+                <SelectTrigger id="source">
                   <SelectValue placeholder="Select lead source" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="website">Website</SelectItem>
-                  <SelectItem value="referral">Referral</SelectItem>
-                  <SelectItem value="social-media">Social Media</SelectItem>
-                  <SelectItem value="cold-call">Cold Call</SelectItem>
-                  <SelectItem value="email-campaign">Email Campaign</SelectItem>
-                  <SelectItem value="trade-show">Trade Show</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="chat">Chat</SelectItem>
+                  <SelectItem value="manual">Manual</SelectItem>
+                  <SelectItem value="import">Import</SelectItem>
+                  <SelectItem value="customer_portal">Customer Portal</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="leadStatus">Lead Status</Label>
-              <Select
-                value={formData.leadStatus}
-                onValueChange={(value) =>
-                  handleSelectChange("leadStatus", value)
-                }
-              >
-                <SelectTrigger id="leadStatus">
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="New">New</SelectItem>
-                  <SelectItem value="Contacted">Contacted</SelectItem>
-                  <SelectItem value="Qualified">Qualified</SelectItem>
-                  <SelectItem value="Proposal Sent">Proposal Sent</SelectItem>
-                  <SelectItem value="Negotiation">Negotiation</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="estimatedValue">Estimated Value</Label>
+              <Label htmlFor="quoteValue">Quote Value</Label>
               <Input
-                id="estimatedValue"
-                name="estimatedValue"
-                type="text"
-                placeholder="Enter Estimated Value"
-                value={formData.estimatedValue}
-                onChange={handleInputChange}
+                id="quoteValue"
+                name="quoteValue"
+                type="number"
+                placeholder="Enter Quote Value"
+                value={formData.quoteValue || ""}
+                onChange={(e) => setFormData(p => ({ ...p, quoteValue: Number(e.target.value) }))}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="priority">Priority</Label>
-              <Select
-                value={formData.priority}
-                onValueChange={(value) => handleSelectChange("priority", value)}
-              >
-                <SelectTrigger id="priority">
-                  <SelectValue placeholder="Select priority" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Low">Low</SelectItem>
-                  <SelectItem value="Medium">Medium</SelectItem>
-                  <SelectItem value="High">High</SelectItem>
-                  <SelectItem value="Urgent">Urgent</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea
-                id="notes"
-                name="notes"
-                placeholder="Add any additional notes about this lead"
-                value={formData.notes}
-                onChange={handleInputChange}
-                rows={3}
-              />
-            </div>
+
           </div>
         </div>
 
@@ -399,14 +484,16 @@ export default function AddNewLead() {
             {/* Roof Style and Building Type */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="roofStyle">Roof Style</Label>
+                <Label htmlFor="roofStyle">
+                  Roof Style <span className="text-red-500">*</span>
+                </Label>
                 <Select
                   value={formData.roofStyle}
                   onValueChange={(value) =>
                     handleSelectChange("roofStyle", value)
                   }
                 >
-                  <SelectTrigger id="roofStyle">
+                  <SelectTrigger id="roofStyle" className={errors.roofStyle ? "border-red-500 ring-1 ring-red-500" : ""}>
                     <SelectValue placeholder="Select Roof Style" />
                   </SelectTrigger>
                   <SelectContent>
@@ -420,22 +507,29 @@ export default function AddNewLead() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="buildingType">Building Type</Label>
+                <Label htmlFor="buildingType">
+                  Building Type <span className="text-red-500">*</span>
+                </Label>
                 <Select
                   value={formData.buildingType}
                   onValueChange={(value) =>
                     handleSelectChange("buildingType", value)
                   }
                 >
-                  <SelectTrigger id="buildingType">
+                  <SelectTrigger id="buildingType" className={errors.buildingType ? "border-red-500 ring-1 ring-red-500" : ""}>
                     <SelectValue placeholder="Select Building Type" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="residential">Residential</SelectItem>
-                    <SelectItem value="commercial">Commercial</SelectItem>
-                    <SelectItem value="industrial">Industrial</SelectItem>
+                    <SelectItem value="arch-buildings">Arch Buildings</SelectItem>
+                    <SelectItem value="aviation">Aviation</SelectItem>
+                    <SelectItem value="carports">Carports</SelectItem>
+                    <SelectItem value="workshops">Workshops</SelectItem>
                     <SelectItem value="agricultural">Agricultural</SelectItem>
-                    <SelectItem value="warehouse">Warehouse</SelectItem>
+                    <SelectItem value="warehouses">Warehouses</SelectItem>
+                    <SelectItem value="commercial">Commercial</SelectItem>
+                    <SelectItem value="sales-storage">Sales Storage</SelectItem>
+                    <SelectItem value="barndominiums">Barndominiums</SelectItem>
+                    <SelectItem value="garages">Garages</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -569,6 +663,15 @@ export default function AddNewLead() {
         open={showSuccess}
         onClose={() => setShowSuccess(false)}
         title="Lead Added Successfully!"
+      />
+      <AddBasicCustomerDialog 
+        open={isAddCustomerOpen}
+        onOpenChange={setIsAddCustomerOpen}
+        onAdd={(newCustomer) => {
+          setNewlyAddedCustomer(newCustomer);
+          handleSelectChange("customerId", newCustomer.id);
+          setIsAddCustomerOpen(false);
+        }}
       />
     </div>
   );

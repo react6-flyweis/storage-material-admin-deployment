@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
-import { Eye, UserPlus2 } from "lucide-react";
+import { Eye, UserPlus2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import AssignSalesDialog from "@/components/leads/assign-sales-dialog";
+import AssignEscalationDialog from "@/components/leads/assign-escalation-dialog";
+import ResolveEscalationDialog from "@/components/leads/resolve-escalation-dialog";
 import LeadDetailDialog from "@/components/leads/lead-detail-dialog";
 import { useEscalatedLeadsQuery } from "@/modules/leads/leads.hooks";
 import {
@@ -16,41 +18,42 @@ import {
 
 type EscalationStatus = "pending" | "assigned" | "resolved";
 
-type EscalationCustomer = {
-  _id: string;
-  customerId?: string;
-  firstName?: string;
-};
-
-type EscalationEmployee = {
-  _id?: string;
-  name?: string;
-};
-
-type EscalationLead = {
-  _id: string;
-  customerId?: EscalationCustomer | string | null;
-  buildingType?: string;
-  location?: string;
-  assignedSales?: string | EscalationEmployee | null;
-  lifecycleStatus?: string;
-};
-
 type EscalationItem = {
   _id: string;
-  leadId?: EscalationLead | null;
-  customerId?: EscalationCustomer | null;
-  raisedBy?: EscalationEmployee | null;
-  note?: string;
-  status?: EscalationStatus;
-  resolvedAssignedTo?: EscalationEmployee | null;
-  resolvedAt?: string | null;
-  createdAt: string;
+  projectName?: string;
+  lifecycleStatus?: string;
+  quoteValue?: number;
+  customerId?: {
+    _id: string;
+    firstName?: string;
+    lastName?: string;
+    customerName?: string;
+    email?: string;
+  } | null;
+  assignedTo?: {
+    _id: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  } | null;
+  customerName?: string;
+  buildingType?: string;
+  location?: string;
+  escalation?: {
+    _id: string;
+    note?: string;
+    status?: EscalationStatus;
+    createdAt?: string;
+    resolvedAt?: string;
+  } | null;
+  jobId?: string;
+  projectId?: string;
 };
 
 interface EscalatedLead {
   id: string;
   name: string;
+  projectName?: string;
   leadId: string;
   quoteId: string;
   type: string;
@@ -77,6 +80,10 @@ const lifecycleStatusClasses: Record<string, string> = {
   warm: "bg-violet-100 text-violet-700",
   hot: "bg-amber-100 text-amber-700",
   cold: "bg-sky-100 text-sky-700",
+  "proposal sent": "bg-yellow-100 text-yellow-700",
+  "released to plant": "bg-slate-100 text-slate-700",
+  "sent to admin": "bg-slate-100 text-slate-700",
+  "initial contact": "bg-slate-100 text-slate-700",
 };
 
 const normalizeLifecycleStatus = (value?: string | null) => {
@@ -85,21 +92,22 @@ const normalizeLifecycleStatus = (value?: string | null) => {
   if (v.includes("hot")) return "Hot";
   if (v.includes("warm")) return "Warm";
   if (v.includes("cold")) return "Cold";
-  // fallback: try keywords
-  if (v === "negotiation") return "Hot"; //negotiation
-  if (v === "w") return "Warm"; //
-  if (v === "proposal_sent") return "Cold"; // proposal_sent
-  return undefined;
+  
+  // convert to capitalized words with spaces
+  const formatted = value.split('_').map((word, i) => i === 0 ? word.charAt(0).toUpperCase() + word.slice(1).toLowerCase() : word.toLowerCase()).join(' ');
+  return formatted;
 };
 
-const formatDate = (value: string) =>
-  new Intl.DateTimeFormat("en-GB", {
+const formatDate = (value?: string) => {
+  if (!value) return "N/A";
+  return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "long",
     year: "numeric",
   }).format(new Date(value));
+};
 
-const formatLeadType = (lead?: EscalationLead | null) => {
+const formatLeadType = (lead?: EscalationItem | null) => {
   if (!lead) return "Not available";
 
   const parts = [lead.buildingType, lead.location]
@@ -113,63 +121,45 @@ const formatLeadType = (lead?: EscalationLead | null) => {
   return "Not available";
 };
 
-const getCustomerCode = (customer?: EscalationCustomer | string | null) => {
-  if (!customer) {
-    return null;
-  }
-
-  if (typeof customer === "string") {
-    return customer;
-  }
-
-  return customer.customerId ?? null;
-};
-
-const getCustomerName = (customer?: EscalationCustomer | string | null) => {
+const getCustomerName = (customer?: EscalationItem['customerId'] | string | null) => {
   if (!customer || typeof customer === "string") {
     return null;
   }
 
-  return customer.firstName?.trim() || null;
+  if (customer.customerName) return customer.customerName;
+
+  const first = customer.firstName?.trim() || "";
+  const last = customer.lastName?.trim() || "";
+  const full = `${first} ${last}`.trim();
+  return full || null;
 };
 
 const getAssignedName = (escalation: EscalationItem) => {
-  const resolvedAssignedTo = escalation.resolvedAssignedTo?.name?.trim();
-  if (resolvedAssignedTo) {
-    return resolvedAssignedTo;
+  if (escalation.assignedTo) {
+    const first = escalation.assignedTo.firstName?.trim() || "";
+    const last = escalation.assignedTo.lastName?.trim() || "";
+    const full = `${first} ${last}`.trim();
+    if (full) return full;
   }
-
-  const leadAssignedSales = escalation.leadId?.assignedSales;
-  if (typeof leadAssignedSales === "object" && leadAssignedSales?.name) {
-    return leadAssignedSales.name;
-  }
-
   return null;
 };
 
 const getLeadName = (escalation: EscalationItem) =>
-  getCustomerName(escalation.customerId) ||
-  getCustomerName(escalation.leadId?.customerId) ||
-  escalation.raisedBy?.name?.trim() ||
-  "Unknown";
+  escalation.customerName || getCustomerName(escalation.customerId) || "Unknown";
 
 const getEscalationRows = (escalations: EscalationItem[]): EscalatedLead[] =>
   escalations.map((escalation) => ({
-    id: escalation._id,
-    leadId: escalation.leadId?._id || "N/A",
+    id: escalation.escalation?._id || escalation._id,
+    leadId: escalation._id,
     name: getLeadName(escalation),
-    quoteId: getCustomerCode(escalation.customerId) || "N/A",
-    // getCustomerCode(escalation.leadId?.customerId) ||
-    // escalation.leadId?._id ||
-    // escalation._id,
-    type: formatLeadType(escalation.leadId),
+    projectName: escalation.projectName || "",
+    quoteId: escalation.jobId || escalation.projectId || escalation._id || "N/A",
+    type: formatLeadType(escalation),
     assignedTo: getAssignedName(escalation) ?? undefined,
-    lifecycleStatus: normalizeLifecycleStatus(
-      escalation.leadId?.lifecycleStatus as string | undefined,
-    ),
-    escalatedDate: formatDate(escalation.resolvedAt || escalation.createdAt),
-    escalationStatus: escalation.status || "pending",
-    note: escalation.note?.trim() || "No note provided.",
+    lifecycleStatus: normalizeLifecycleStatus(escalation.lifecycleStatus),
+    escalatedDate: formatDate(escalation.escalation?.resolvedAt || escalation.escalation?.createdAt),
+    escalationStatus: escalation.escalation?.status || "pending",
+    note: escalation.escalation?.note?.trim() || "No note provided.",
   }));
 
 export default function EscalatedLeadsPage() {
@@ -182,7 +172,7 @@ export default function EscalatedLeadsPage() {
   } = useEscalatedLeadsQuery();
 
   const escalatedLeads = useMemo(
-    () => getEscalationRows(escalationsResponse?.data.escalations ?? []),
+    () => getEscalationRows(escalationsResponse?.data?.leads ?? escalationsResponse?.data?.escalations ?? []),
     [escalationsResponse],
   );
 
@@ -314,10 +304,15 @@ export default function EscalatedLeadsPage() {
 
                       <TableCell className="px-3 py-3">
                         <div>
-                          <p className="text-sm text-slate-900">{lead.name}</p>
-                          <p className="text-xs text-slate-500 mt-0.5">
+                          <p className="text-sm font-medium text-slate-900">{lead.name}</p>
+                          {lead.projectName && (
+                            <p className="text-[12px] text-slate-500 mt-0.5">
+                              {lead.projectName}
+                            </p>
+                          )}
+                          {/* <p className="text-[12px] text-slate-500 mt-0.5">
                             {lead.quoteId}
-                          </p>
+                          </p> */}
                           <p className="text-[11px] text-slate-400 mt-0.5">
                             {lead.type}
                           </p>
@@ -335,7 +330,9 @@ export default function EscalatedLeadsPage() {
                             </p>
                           </div>
                         ) : (
-                          <AssignSalesDialog
+                          <AssignEscalationDialog
+                            escalationId={lead.id}
+                            note={lead.note}
                             trigger={
                               <button
                                 type="button"
@@ -379,6 +376,20 @@ export default function EscalatedLeadsPage() {
 
                       <TableCell className="px-3 py-3">
                         <div className="flex items-center justify-end gap-3 text-slate-500">
+                          {status !== "resolved" && (
+                            <ResolveEscalationDialog
+                              escalationId={lead.id}
+                              trigger={
+                                <button
+                                  type="button"
+                                  className="text-emerald-600 hover:text-emerald-700"
+                                  aria-label="Resolve escalation"
+                                >
+                                  <CheckCircle2 className="h-4 w-4" />
+                                </button>
+                              }
+                            />
+                          )}
                           <LeadDetailDialog
                             lead={{
                               id: lead.leadId,
@@ -395,17 +406,6 @@ export default function EscalatedLeadsPage() {
                                 aria-label="View lead"
                               >
                                 <Eye className="h-4 w-4" />
-                              </button>
-                            }
-                          />
-                          <AssignSalesDialog
-                            trigger={
-                              <button
-                                type="button"
-                                className="text-green-600"
-                                aria-label="Assign lead"
-                              >
-                                <UserPlus2 className="h-4 w-4" />
                               </button>
                             }
                           />

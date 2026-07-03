@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import StatCard from "@/components/ui/stat-card";
 import SalesFunnel from "@/components/dashboard/sales-funnel";
 import DealSizeDistribution from "@/components/dashboard/deal-size-distribution";
@@ -95,8 +95,33 @@ function StatCardSkeleton({ color }: StatCardSkeletonProps) {
 
 export default function Dashboard() {
   const [period, setPeriod] = useState<Period>("Month");
+
+  const dateRange = useMemo(() => {
+    const end = new Date();
+    const start = new Date();
+    if (period === "Today") {
+      // Keep today
+    } else if (period === "Week") {
+      start.setDate(end.getDate() - 7);
+    } else if (period === "Month") {
+      start.setDate(end.getDate() - 30);
+    }
+
+    const formatDate = (d: Date) => {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    };
+
+    return {
+      startDate: formatDate(start),
+      endDate: formatDate(end),
+    };
+  }, [period]);
+
   const { data: leadStatsResponse, isLoading: isLeadStatsLoading } =
-    useLeadStatsQuery();
+    useLeadStatsQuery(dateRange.startDate, dateRange.endDate);
 
   const leadStats = leadStatsResponse?.data;
 
@@ -145,8 +170,6 @@ export default function Dashboard() {
           ) : (
             <>
               <StatCard
-                // Time-period filter is temporarily disabled for stats; keeping monthly only.
-                // title={`${period} Total Leads`}
                 title="Monthly Total Leads"
                 value={stats.totalLeads}
                 icon={<img src={LeadsIcon} alt="leads" className="size-7" />}
@@ -155,7 +178,6 @@ export default function Dashboard() {
               />
 
               <StatCard
-                // title={`${period} Confirmed Leads`}
                 title="Monthly Confirmed Leads"
                 value={stats.confirmedLeads}
                 icon={
@@ -166,7 +188,6 @@ export default function Dashboard() {
               />
 
               <StatCard
-                // title={`${period} Pipeline Value`}
                 title="Monthly Pipeline Value"
                 value={stats.pipelineValue}
                 icon={<img src={ValueIcon} alt="value" className="size-7" />}
@@ -175,7 +196,6 @@ export default function Dashboard() {
               />
 
               <StatCard
-                // title={`${period} Revenue`}
                 title="Monthly Revenue"
                 value={stats.monthlyRevenue}
                 icon={
