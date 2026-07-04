@@ -1,208 +1,404 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router";
+import { ArrowLeft, ArrowUpDown, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, Send } from "lucide-react";
+import steelLogo from "@/assets/steel-building-depot-logo.png";
+import { useBomDetailsQuery } from "@/modules/plant/bom.hooks";
+import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
 
-export default function BomFileDetails() {
+const BOMFilesDetailsView: React.FC = () => {
   const navigate = useNavigate();
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
+  const [filter, setFilter] = useState<"all" | "unpriced" | "frames" | "matched" | "bom_priced">("all");
+  const [page, setPage] = useState(1);
+  const limit = 50;
 
-  // Mock table data
-  const tableData = [
-    { qty: 5, mark: "S-1", desc: "STUD", part: "C42516", color: "RO", angle: "-", thick: "16 GA", length: "8'-7 1/4\"", weight: "16.00" },
-    { qty: 8, mark: "S-2", desc: "STUD", part: "C42516", color: "RO", angle: "-", thick: "16 GA", length: "8'-7 1/4\"", weight: "16.00" },
-    { qty: 6, mark: "S-3", desc: "STUD", part: "C42516", color: "RO", angle: "-", thick: "16 GA", length: "8'-7 1/4\"", weight: "16.00" },
-    { qty: 5, mark: "S-4", desc: "STUD", part: "C42516", color: "RO", angle: "-", thick: "16 GA", length: "8'-7 1/4\"", weight: "16.00" },
-    { qty: 8, mark: "S-5", desc: "STUD", part: "C42516", color: "RO", angle: "-", thick: "16 GA", length: "8'-7 1/4\"", weight: "16.00" },
-    { qty: 6, mark: "S-6", desc: "STUD", part: "C42516", color: "RO", angle: "-", thick: "16 GA", length: "8'-7 1/4\"", weight: "16.00" },
-    { qty: 3, mark: "S-7", desc: "STUD", part: "C42516", color: "RO", angle: "-", thick: "16 GA", length: "8'-7 1/4\"", weight: "16.00" },
-    { qty: 4, mark: "S-8", desc: "STUD", part: "C42516", color: "RO", angle: "-", thick: "16 GA", length: "8'-7 1/4\"", weight: "16.00" },
-    { qty: 2, mark: "S-9", desc: "STUD", part: "C42516", color: "RO", angle: "-", thick: "16 GA", length: "8'-7 1/4\"", weight: "16.00" },
-    { qty: 4, mark: "S-10", desc: "STUD", part: "C42516", color: "RO", angle: "-", thick: "16 GA", length: "8'-7 1/4\"", weight: "16.00" },
-  ];
+  const { data: detailsResponse, isLoading, isFetching, error } = useBomDetailsQuery(
+    id || "",
+    filter,
+    page,
+    limit,
+    { enabled: Boolean(id) }
+  );
+
+  const data = detailsResponse?.data;
+
+  // Extract lead ID from items to fetch project/client information
+  const leadId = useMemo(() => {
+    if (data?.bomJob?.buildingId) return data.bomJob.buildingId;
+    if (!data?.itemsByCategory) return null;
+    for (const category in data.itemsByCategory) {
+      const items = data.itemsByCategory[category];
+      if (items && items.length > 0) {
+        return items[0].leadId || items[0].buildingId || null;
+      }
+    }
+    return null;
+  }, [data]);
+
+  const { data: projectDetail } = useLeadDetailQuery(leadId || "");
+
+
+  if (isLoading && !data) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1E51A4]"></div>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="xl:pr-2 md:px-4 px-2 pb-10 space-y-6 font-inter">
+        <div className="flex items-center gap-4 pt-1">
+          <Button
+            variant="outline"
+            className="h-9 px-4 gap-2"
+            onClick={() => navigate(-1)}
+          >
+            <ArrowLeft size={18} /> Back
+          </Button>
+          <h1 className="text-2xl font-bold text-slate-950">BOM Files Details</h1>
+        </div>
+        <div className="p-8 text-center bg-white rounded-[14px] border border-gray-100 space-y-4">
+          <h3 className="text-lg font-bold text-red-600">Error Loading BOM Details</h3>
+          <p className="text-sm text-gray-500">Could not retrieve details for BOM Job ID: {id}</p>
+          <Button variant="default" onClick={() => navigate(-1)}>
+            Go Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const projectName = projectDetail?.data?.lead?.projectName || "BOM Details";
+  const customerName = projectDetail?.data?.customer
+    ? `${projectDetail.data.customer.firstName || ""}`.trim()
+    : "N/A";
+  const dateStr = projectDetail?.data?.lead?.createdAt
+    ? new Date(projectDetail.data.lead.createdAt).toLocaleDateString()
+    : "N/A";
+  const projectJobId = projectDetail?.data?.lead?.jobId || "N/A";
+
+  const totalWeight = data.summary?.totalWeight ?? Object.values(data.itemsByCategory || {}).reduce(
+    (sum, items) => sum + (items || []).reduce((s, item) => s + (item.weight || 0), 0),
+    0
+  );
+
+  const totalPages = Math.ceil((data.total || 0) / (data.limit || limit));
+
+  const hasItems = data?.itemsByCategory
+    ? Object.values(data.itemsByCategory).some((items) => items && items.length > 0)
+    : false;
 
   return (
-    <div className="flex-1 space-y-6 p-6 bg-[#eef2fb] min-h-screen">
-      
+    <div className="flex-1 space-y-6 p-6 bg-[#eef2fb] min-h-screen font-inter">
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
         <div className="flex items-center gap-4">
-          <Button 
-            className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white rounded-lg h-10 px-4 font-medium shadow-sm gap-2"
-            onClick={() => navigate('/plant')}
+          <Button
+            variant="outline"
+            className="bg-white hover:bg-slate-50 text-slate-700 border-slate-200 rounded-lg h-10 px-4 font-medium shadow-sm gap-2"
+            onClick={() => navigate(-1)}
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back
+            <ArrowLeft size={18} /> Back
           </Button>
           <h1 className="text-[28px] font-normal text-slate-900 tracking-tight">BOM Files Details</h1>
         </div>
         <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
-            className="bg-white gap-2 font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 rounded-lg h-10 px-4"
-          >
-            <Download className="w-4 h-4" />
-            Download Excel
-          </Button>
-          <Button 
-            variant="outline" 
-            className="bg-white gap-2 font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 rounded-lg h-10 px-4"
-          >
-            <Download className="w-4 h-4" />
-            Download PDF
-          </Button>
-          <Button 
-            className="bg-[#7c3aed] hover:bg-[#6d28d9] text-white rounded-lg h-10 px-6 font-medium shadow-sm"
-            onClick={() => navigate(`/plant/uploaded-bom-files/${id}/generate-shipper-order`)}
-          >
-            Share with Shippers
-          </Button>
         </div>
       </div>
 
-      {/* Main Content Card */}
-      <div className="bg-white rounded-[32px] p-8 shadow-sm">
-        
+      <div className="bg-white rounded-[32px] overflow-hidden shadow-sm border border-gray-100 p-8 space-y-8">
         {/* Project Context Box */}
-        <div className="bg-[#f8f9fc] rounded-2xl p-6 mb-8">
-          <h2 className="text-[22px] font-bold text-slate-900">Project: ABC Construction | BOM ID: BOM-001</h2>
+        <div className="bg-[#f8f9fc] rounded-2xl p-6">
+          <h2 className="text-[22px] font-bold text-slate-900">
+            Project: <span className="font-bold">{projectName}</span> | Building -{" "}
+            <span className="font-bold">{data.bomJob?.buildingNumber || "N/A"}</span>
+          </h2>
         </div>
 
-        {/* BOM Summary */}
-        <div className="bg-[#f8f9fc] rounded-2xl p-6 w-[350px] mb-8">
-          <h3 className="text-[17px] font-bold text-slate-900 mb-6">BOM Summary</h3>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-              <span className="text-sm font-semibold text-slate-700">Total Items</span>
-              <span className="text-sm font-bold text-slate-900">125</span>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* BOM Summary */}
+          <div className="bg-[#f8f9fc] rounded-2xl p-6 border border-gray-100 space-y-5">
+            <h3 className="text-lg font-bold text-[#212B36]">BOM Summary</h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <span className="text-sm font-semibold text-slate-700">Total Items</span>
+                <span className="text-sm font-bold text-slate-900">{data.summary?.totalItems ?? 0}</span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <span className="text-sm font-semibold text-slate-700">Total Weight</span>
+                <span className="text-sm font-bold text-slate-900">
+                  {totalWeight.toLocaleString()} lbs
+                </span>
+              </div>
+              <div className="flex justify-between items-center pb-1">
+                <span className="text-sm font-semibold text-slate-700">Priced Items</span>
+                <span className="text-sm font-bold text-slate-900">{data.summary?.pricedItems ?? 0}</span>
+              </div>
             </div>
-            <div className="flex justify-between items-center border-b border-slate-200 pb-2">
-              <span className="text-sm font-semibold text-slate-700">Total Weight</span>
-              <span className="text-sm font-bold text-slate-900">32,000 lbs</span>
-            </div>
-            <div className="flex justify-between items-center pb-1">
-              <span className="text-sm font-semibold text-slate-700">Total Panels Area</span>
-              <span className="text-sm font-bold text-slate-900">3,300 sqm</span>
+          </div>
+
+          {/* Pricing Summary */}
+          <div className="bg-[#f8f9fc] rounded-2xl p-6 border border-gray-100 space-y-5">
+            <h3 className="text-lg font-bold text-[#212B36]">Pricing Summary</h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <span className="text-sm font-semibold text-slate-700">Total Cost</span>
+                <span className="text-sm font-bold text-slate-900">
+                  ${(data.summary?.totalCost ?? 0).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              </div>
+              <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                <span className="text-sm font-semibold text-slate-700">Unpriced Items QTY</span>
+                <span className="text-sm font-bold text-slate-900">
+                  {data.summary?.unpricedItems ?? 0}
+                </span>
+              </div>
+              {data.summary && data.summary.unpricedItems > 0 && (
+                <div className="pt-2">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white"
+                    onClick={() => navigate("missing-items")}
+                  >
+                    Add Item in Cost List
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Tabular Layout */}
-        <div className="border-[3px] border-black mt-12 mb-8">
-          {/* Custom Header Row */}
-          <div className="flex">
-            {/* Left Logo Side */}
-            <div className="flex-1 p-8 flex flex-col justify-center border-r-[3px] border-black bg-white">
-              <div className="flex items-center gap-2">
-                <span className="text-4xl font-black text-slate-800 tracking-tight">STORAGE</span>
-                <span className="text-3xl font-bold bg-[#1e88e5] text-white px-2 py-1">MATERIALS</span>
-              </div>
+        {/* Technical Header Block */}
+        <div className="border-[3px] border-black rounded-sm overflow-hidden bg-white">
+          <div className="grid grid-cols-1 md:grid-cols-12 divide-y md:divide-y-0 md:divide-x-[3px] divide-black">
+            {/* Logo Section */}
+            <div className="md:col-span-4 flex items-center justify-center p-4">
+              <img
+                src={steelLogo}
+                alt="Logo"
+                className="h-10 object-contain"
+              />
             </div>
-            
-            {/* Right Information Side */}
-            <div className="flex-1 flex flex-col">
-              {/* Row 1 */}
-              <div className="flex flex-1 border-b-[3px] border-black">
-                <div className="flex-[2] p-4 flex items-center justify-center border-r-[3px] border-black bg-white">
-                  <h3 className="text-xl font-bold text-black uppercase">Studs & Top Channels</h3>
-                </div>
-                <div className="flex-1 flex flex-col bg-white">
-                  <div className="flex-1 flex border-b-[3px] border-black">
-                    <div className="flex-1 p-2 border-r-[3px] border-black flex items-center"><span className="text-[11px] font-bold">Date</span></div>
-                    <div className="flex-[2] p-2 flex items-center justify-center"><span className="text-[13px] font-bold">01.09.26</span></div>
-                  </div>
-                  <div className="flex-1 flex">
-                    <div className="flex-1 p-2 border-r-[3px] border-black flex items-center"><span className="text-[11px] font-bold">Job Id</span></div>
-                    <div className="flex-[2] p-2 flex items-center justify-center"><span className="text-[13px] font-bold">BLDG-D</span></div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Row 2 */}
-              <div className="flex flex-1 border-b-[3px] border-black bg-white">
-                <div className="flex-1 p-4 border-r-[3px] border-black flex items-center justify-center">
-                  <span className="text-sm font-bold">Customer:</span>
-                </div>
-                <div className="flex-[2] p-4 flex items-center justify-center">
-                  <span className="text-[15px] font-bold">John Doe</span>
-                </div>
-              </div>
 
-              {/* Row 3 */}
-              <div className="flex flex-1 bg-white">
-                <div className="flex-1 p-4 border-r-[3px] border-black flex items-center justify-center">
-                  <span className="text-sm font-bold">Project Name:</span>
+            {/* Title & Info Section */}
+            <div className="md:col-span-8 flex flex-col">
+              <div className="grid grid-cols-1 lg:grid-cols-4 divide-y md:divide-y-0 md:divide-x-[3px] divide-black h-full">
+                <div className="md:col-span-3 flex flex-col divide-y-[3px] divide-black h-full">
+                  <div className="p-2 text-center">
+                    <h4 className="text-xl font-bold uppercase tracking-widest text-[#212B36]">
+                      BOM LINE ITEMS
+                    </h4>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 h-full divide-y md:divide-y-0 lg:divide-x-[3px] divide-black border-t-[3px] border-b-[3px] border-black">
+                    <div className="p-2 flex items-center justify-center bg-[#F9FAFB]">
+                      <span className="text-sm font-bold text-[#212B36]">Customer:</span>
+                    </div>
+                    <div className="md:col-span-2 p-2 flex items-center justify-center">
+                      <span className="text-sm font-bold text-[#212B36]">{customerName}</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 h-full divide-y md:divide-y-0 lg:divide-x-[3px] divide-black border-t-[3px] border-black">
+                    <div className="p-2 flex items-center justify-center bg-[#F9FAFB]">
+                      <span className="text-sm font-bold text-[#212B36]">Project Name:</span>
+                    </div>
+                    <div className="md:col-span-2 p-2 flex items-center justify-center">
+                      <span className="text-sm font-bold text-[#212B36]">{projectName}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="flex-[2] p-4 flex items-center justify-center">
-                  <span className="text-[15px] font-bold">ABC Construction</span>
+                <div className="flex flex-col divide-y-[3px] divide-black">
+                  <div className="grid grid-cols-2 divide-x-[3px] divide-black">
+                    <div className="p-1 px-2 text-sm font-bold text-[#212B36] bg-[#F9FAFB]">Date</div>
+                    <div className="p-1 px-2 text-sm font-bold text-[#212B36]">{dateStr}</div>
+                  </div>
+                  <div className="grid grid-cols-2 divide-x-[3px] divide-black h-full">
+                    <div className="p-1 px-2 text-sm font-bold text-[#212B36] bg-[#F9FAFB]">Job Id</div>
+                    <div className="p-1 px-2 text-sm font-bold text-[#212B36]">{projectJobId}</div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Data Table */}
-        <div className="border border-slate-200 rounded-lg overflow-hidden">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-[#f8f9fc] border-b border-slate-200">
-                <th className="py-3 px-4 text-[13px] font-bold text-slate-900">QTY ↑↓</th>
-                <th className="py-3 px-4 text-[13px] font-bold text-slate-900">Mark ↑↓</th>
-                <th className="py-3 px-4 text-[13px] font-bold text-slate-900">Description</th>
-                <th className="py-3 px-4 text-[13px] font-bold text-slate-900">Part</th>
-                <th className="py-3 px-4 text-[13px] font-bold text-slate-900">Color</th>
-                <th className="py-3 px-4 text-[13px] font-bold text-slate-900">Angle ↑↓</th>
-                <th className="py-3 px-4 text-[13px] font-bold text-slate-900">Thick</th>
-                <th className="py-3 px-4 text-[13px] font-bold text-slate-900">Length ↑↓</th>
-                <th className="py-3 px-4 text-[13px] font-bold text-slate-900">Weight ↑↓</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {tableData.map((row, index) => (
-                <tr key={index} className="hover:bg-slate-50 transition-colors">
-                  <td className="py-4 px-4 text-[14px] text-slate-600 font-medium">{row.qty}</td>
-                  <td className="py-4 px-4 text-[14px] text-slate-600 font-medium">{row.mark}</td>
-                  <td className="py-4 px-4 text-[14px] text-slate-400">{row.desc}</td>
-                  <td className="py-4 px-4 text-[14px] text-slate-600 font-medium">{row.part}</td>
-                  <td className="py-4 px-4 text-[14px] text-slate-400">{row.color}</td>
-                  <td className="py-4 px-4 text-[14px] text-slate-400">{row.angle}</td>
-                  <td className="py-4 px-4 text-[14px] text-slate-400">{row.thick}</td>
-                  <td className="py-4 px-4 text-[14px] text-slate-400">{row.length}</td>
-                  <td className="py-4 px-4 text-[14px] text-slate-400">{row.weight}</td>
-                </tr>
-              ))}
-            </tbody>
-            
-            {/* Footer Summary Row */}
-            <tfoot className="bg-[#f8f9fc] border-t border-slate-200">
-              <tr>
-                <td className="py-5 px-4 text-[14px] text-slate-600 font-medium" colSpan={2}>
-                  QTY Total
-                </td>
-                <td className="py-5 px-4 text-[13px] text-slate-400" colSpan={2}>
-                  Total Tons: <span className="text-slate-600 font-medium ml-2">1.71</span>
-                </td>
-                <td className="py-5 px-4 text-[13px] text-slate-400">RO</td>
-                <td className="py-5 px-4 text-[13px] text-slate-400">-</td>
-                <td className="py-5 px-4 text-[13px] text-slate-400" colSpan={2}>
-                  Total Weight (lbs)
-                </td>
-                <td className="py-5 px-4 text-[14px] text-slate-600 font-medium">3423</td>
-              </tr>
-              <tr>
-                <td className="py-5 px-4 text-[14px] text-slate-600 font-medium" colSpan={9}>
-                  199
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+        {/* Filter Tabs */}
+        <div className="flex overflow-x-auto whitespace-nowrap border-b border-gray-200 scrollbar-none">
+          {(["all", "unpriced", "bom_priced", "frames", "matched"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => {
+                setFilter(tab);
+                setPage(1);
+              }}
+              className={`py-3 px-6 text-sm font-semibold border-b-2 transition-colors capitalize shrink-0 ${filter === tab
+                ? "border-[#1E51A4] text-[#1E51A4]"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+            >
+              {tab === "all"
+                ? "All Items"
+                : tab === "frames"
+                  ? "Frame Items"
+                  : tab === "bom_priced"
+                    ? "BOM Priced"
+                    : `${tab} Items`}
+            </button>
+          ))}
         </div>
 
-        <div className="mt-8">
-          <p className="text-sm font-medium text-slate-500">Received By:</p>
-        </div>
+        {/* Main Data Content */}
+        {isFetching ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center border border-gray-100 rounded-xl bg-[#F9FAFB]/50">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#1E51A4] mb-3"></div>
+            <p className="text-sm text-gray-500 font-medium">Updating items...</p>
+          </div>
+        ) : !hasItems ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center border border-slate-200 rounded-xl bg-white">
+            <div className="size-14 rounded-full bg-gray-50 flex items-center justify-center mb-4 text-[#919EAB]">
+              <Inbox className="size-8" />
+            </div>
+            <h3 className="text-base font-bold text-[#212B36]">No BOM items found</h3>
+            <p className="text-sm text-[#637381] mt-1 max-w-sm px-4">
+              {filter === "all"
+                ? "There are no line items in this BOM file."
+                : `There are no line items matching the "${filter.replace("_", " ")}" filter.`}
+            </p>
+          </div>
+        ) : (
+          <div className="border border-slate-200 rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[1000px]">
+                <thead>
+                  <tr className="bg-[#f8f9fc] border-b border-slate-200">
+                    <th className="py-3 px-4 text-[13px] font-bold text-slate-900">
+                      <div className="flex items-center gap-1">
+                        QTY <ArrowUpDown size={14} className="text-gray-400" />
+                      </div>
+                    </th>
+                    <th className="py-3 px-4 text-[13px] font-bold text-slate-900">
+                      <div className="flex items-center gap-1">
+                        Mark <ArrowUpDown size={14} className="text-gray-400" />
+                      </div>
+                    </th>
+                    <th className="py-3 px-4 text-[13px] font-bold text-slate-900">Description</th>
+                    <th className="py-3 px-4 text-[13px] font-bold text-slate-900">Part</th>
+                    <th className="py-3 px-4 text-[13px] font-bold text-slate-900">Color</th>
+                    <th className="py-3 px-4 text-[13px] font-bold text-slate-900">Thick</th>
+                    <th className="py-3 px-4 text-[13px] font-bold text-slate-900">
+                      <div className="flex items-center gap-1 text-nowrap">
+                        Length <ArrowUpDown size={14} className="text-gray-400" />
+                      </div>
+                    </th>
+                    <th className="py-3 px-4 text-[13px] font-bold text-slate-900">
+                      <div className="flex items-center gap-1 text-nowrap">
+                        Weight <ArrowUpDown size={14} className="text-gray-400" />
+                      </div>
+                    </th>
+                    <th className="py-3 px-4 text-[13px] font-bold text-slate-900">
+                      <div className="flex items-center gap-1">
+                        Amount <ArrowUpDown size={14} className="text-gray-400" />
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {Object.entries(data.itemsByCategory || {}).map(([category, items]) => {
+                    if (!items || items.length === 0) return null;
+                    return (
+                      <React.Fragment key={category}>
+                        <tr className="bg-slate-50 border-y border-slate-100">
+                          <td
+                            colSpan={9}
+                            className="py-2.5 px-4 text-xs font-bold text-[#1E51A4] uppercase tracking-wider"
+                          >
+                            {category.replace(/_/g, " ")} ({items.length})
+                          </td>
+                        </tr>
+                        {items.map((item) => (
+                          <tr key={item._id} className="hover:bg-slate-50 transition-colors">
+                            <td className="py-4 px-4 text-sm font-medium text-slate-700">
+                              {item.quantity}
+                            </td>
+                            <td className="py-4 px-4 text-sm font-medium text-slate-700">
+                              {item.markId}
+                            </td>
+                            <td className="py-4 px-4 text-sm text-slate-400">
+                              {item.description}
+                            </td>
+                            <td className="py-4 px-4 text-sm font-medium text-slate-700">
+                              {item.partCode}
+                            </td>
+                            <td className="py-4 px-4 text-sm text-slate-400">
+                              {item.partColor}
+                            </td>
+                            <td className="py-4 px-4 text-sm text-slate-400">
+                              {item.gauge || item.type || "--"}
+                            </td>
+                            <td className="py-4 px-4 text-sm text-slate-700">
+                              {item.lengthRaw || (item.lengthFeet ? `${item.lengthFeet}'` : "--")}
+                            </td>
+                            <td className="py-4 px-4 text-sm text-slate-400">
+                              {item.weight}
+                            </td>
+                            <td
+                              className={`py-4 px-4 text-sm font-semibold ${!item.isPriced ? "text-[#919EAB]" : "text-slate-700"
+                                }`}
+                            >
+                              {item.isPriced
+                                ? `$${item.finalTotalCost.toLocaleString(undefined, {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })}`
+                                : "Unpriced"}
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+            <span className="text-sm text-gray-500">
+              Page {page} of {totalPages}
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === 1}
+                onClick={() => setPage((p) => Math.max(p - 1, 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page === totalPages}
+                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
-}
+};
+
+export default BOMFilesDetailsView;
