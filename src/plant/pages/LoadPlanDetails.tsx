@@ -1,8 +1,14 @@
-import React from "react";
 import { Link, useParams } from "react-router";
 import { ArrowLeft, Check, AlertTriangle } from "lucide-react";
 import { useBundlePlanDetailsQuery } from "@/modules/plant/load-planning.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const formatDecimal = (val: number | undefined | null) => {
+  return (val ?? 0).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
 
 export default function LoadPlanDetails() {
   const { projectId, loadId } = useParams();
@@ -14,8 +20,9 @@ export default function LoadPlanDetails() {
   const bundles = response?.data?.bundles || [];
   const summary = response?.data?.summary;
 
+  /*
   // Group bundles by loadSequence
-  const bundlesByLoad = React.useMemo(() => {
+  const bundlesByLoad = useMemo(() => {
     const groups: Record<number, typeof bundles> = {};
     bundles.forEach((b) => {
       const seq = b.loadSequence || 1;
@@ -28,7 +35,7 @@ export default function LoadPlanDetails() {
   }, [bundles]);
 
   // Generate truckload summary dynamically
-  const truckloadSummaryData = React.useMemo(() => {
+  const truckloadSummaryData = useMemo(() => {
     return Object.entries(bundlesByLoad)
       .map(([seqStr, list]) => {
         const seq = Number(seqStr);
@@ -44,6 +51,7 @@ export default function LoadPlanDetails() {
       })
       .sort((a, b) => a.loadSequence - b.loadSequence);
   }, [bundlesByLoad]);
+  */
 
   if (isLoading) {
     return (
@@ -126,30 +134,34 @@ export default function LoadPlanDetails() {
           </div>
         </div>
 
-        {/* Load Summary Card */}
+        {/* Plan Summary Card */}
         <div>
-          <h3 className="text-xl font-bold text-gray-900 mb-6">Load Summary Card</h3>
+          <h3 className="text-xl font-bold text-gray-900 mb-6">Plan Summary</h3>
           <div className="max-w-md space-y-4">
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="font-semibold text-gray-900">Total Bundles</span>
               <span className="font-medium text-gray-700">{summary?.totalBundles ?? bundlePlan.totalBundles}</span>
             </div>
+            {/* Commented out as all are bundles, not loads */}
+            {/* 
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="font-semibold text-gray-900">Total Loads</span>
               <span className="font-medium text-gray-700">{truckloadSummaryData.length}</span>
             </div>
+            */}
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="font-semibold text-gray-900">Total Weight</span>
-              <span className="font-medium text-gray-700">{(summary?.totalWeight ?? bundlePlan.totalWeight).toLocaleString()} LBS</span>
+              <span className="font-medium text-gray-700">{formatDecimal(summary?.totalWeight ?? bundlePlan.totalWeight)} LBS</span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="font-semibold text-gray-900">Max Length</span>
-              <span className="font-medium text-gray-700">{(summary?.maxLengthFeet ?? bundlePlan.maxLengthFeet)} FT</span>
+              <span className="font-medium text-gray-700">{formatDecimal(summary?.maxLengthFeet ?? bundlePlan.maxLengthFeet)} FT</span>
             </div>
           </div>
         </div>
 
-        {/* Truckload Summary */}
+        {/* Truckload Summary (Commented out since all are bundles, not loads) */}
+        {/*
         <div>
           <h3 className="text-xl font-bold text-gray-900 mb-6">Truckload Summary</h3>
           <div className="overflow-hidden rounded-lg border border-gray-200">
@@ -188,7 +200,7 @@ export default function LoadPlanDetails() {
           </div>
         </div>
 
-        {/* Dynamic Truck Loads Tables */}
+        // Dynamic Truck Loads Tables
         {Object.entries(bundlesByLoad)
           .sort(([seqA], [seqB]) => Number(seqA) - Number(seqB))
           .map(([seqStr, list]) => {
@@ -239,7 +251,59 @@ export default function LoadPlanDetails() {
               </div>
             );
           })}
+        */}
 
+        {/* Bundles */}
+        <div className="space-y-6">
+          <h3 className="text-xl font-bold text-gray-900">Bundles</h3>
+          <div className="overflow-x-auto rounded-lg border border-gray-200">
+            <table className="w-full min-w-[1000px] text-sm text-left">
+              <thead className="bg-[#2a2a2a] text-white font-semibold">
+                <tr>
+                  <th className="px-6 py-4 w-16">#</th>
+                  <th className="px-6 py-4">Bundle ID</th>
+                  <th className="px-6 py-4">Title</th>
+                  <th className="px-6 py-4">Type</th>
+                  <th className="px-6 py-4">Qty</th>
+                  <th className="px-6 py-4">Weight</th>
+                  <th className="px-6 py-4 text-center">Packing List Generated</th>
+                  <th className="px-6 py-4 text-center">QR Labels Generated</th>
+                  <th className="px-6 py-4 text-center">Bundles Assigned to Truck</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {bundles.map((row, idx) => (
+                  <tr key={row._id} className="hover:bg-gray-50">
+                    <td className="px-6 py-5 text-gray-500">{idx + 1}</td>
+                    <td className="px-6 py-5 font-medium text-gray-700">{row.bundleNo}</td>
+                    <td className="px-6 py-5 text-gray-900">{row.title}</td>
+                    <td className="px-6 py-5 text-gray-500 capitalize">{row.bundleType}</td>
+                    <td className="px-6 py-5 text-gray-500">{row.totalQty}</td>
+                    <td className="px-6 py-5 text-gray-500 max-w-[80px]">{formatDecimal(row.totalWeight)} LBS</td>
+                    <td className="px-6 py-5 text-center">
+                      {row.packingListId && <Check className="w-5 h-5 text-gray-800 mx-auto" />}
+                    </td>
+                    <td className="px-6 py-5 text-center">
+                      {row.packingListId && <Check className="w-5 h-5 text-gray-800 mx-auto" />}
+                    </td>
+                    <td className="px-6 py-5 text-center">
+                      {(row.status === "assigned_to_truck" || row.status === "delivered") && (
+                        <Check className="w-5 h-5 text-gray-800 mx-auto" />
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {bundles.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="px-6 py-8 text-center text-gray-400">
+                      No bundles configured for this plan.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
