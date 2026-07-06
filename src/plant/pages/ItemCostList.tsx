@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { 
   DollarSign, 
   TrendingUp, 
@@ -16,25 +16,75 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import AddEditPartCostModal from "./modals/AddEditPartCostModal";
 import UploadBOMModal from "./modals/UploadBOMModal";
+import Pagination from "../components/Pagination";
+import ItemCostFilterModal, { type ItemCostFilterValues } from "./ItemCostFilterModal";
+import { useSmdtStatsQuery, useSmdtItemsQuery } from "@/modules/plant/smdt.hooks";
+import type { SmdtItem } from "@/modules/plant/smdt.api";
 
-const MOCK_DATA = [
-  { id: "1", name: "'30_VRR48'", color: "'-_'", unit: "'FT'", mbsCost: "2.6", marketCost: "-", desc: "'VRR+ Insul R10'" },
-  { id: "2", name: "'30_VRR72'", color: "'-_'", unit: "'FT'", mbsCost: "3.9", marketCost: "-", desc: "'VRR+ Insul R10'" },
-  { id: "3", name: "'35_VRR48'", color: "'-_'", unit: "'FT'", mbsCost: "2.9", marketCost: "-", desc: "'VRR+ Insul R11'" },
-  { id: "4", name: "'35_VRR72'", color: "'-_'", unit: "'FT'", mbsCost: "4.4", marketCost: "-", desc: "'VRR+ Insul R11'" },
-  { id: "5", name: "'40_VRR48'", color: "'-_'", unit: "'FT'", mbsCost: "3.3", marketCost: "-", desc: "'VRR+ Insul R13'" },
-  { id: "6", name: "'40_VRR72'", color: "'-_'", unit: "'FT'", mbsCost: "4.9", marketCost: "-", desc: "'VRR+ Insul R13'" },
-  { id: "7", name: "'60_VRR48'", color: "'-_'", unit: "'FT'", mbsCost: "4.2", marketCost: "-", desc: "'VRR+ Insul R19'" },
-  { id: "8", name: "'60_VRR72'", color: "'-_'", unit: "'FT'", mbsCost: "6.3", marketCost: "-", desc: "'VRR+ Insul R19'" },
-];
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 export default function ItemCostList() {
   const [isAddEditOpen, setIsAddEditOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [isUploadBOMOpen, setIsUploadBOMOpen] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
-  const handleEdit = (item: any) => {
-    setEditingItem(item);
+  // Search & Filter State
+  const [searchInput, setSearchInput] = useState("");
+  const debouncedSearch = useDebounce(searchInput, 500);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage] = useState(50);
+  const [appliedFilters, setAppliedFilters] = useState<ItemCostFilterValues>({
+    category: "",
+    isFrameType: "all",
+    isActive: "true",
+  });
+
+  const queryParams = useMemo(() => {
+    return {
+      search: debouncedSearch.trim() || undefined,
+      category: appliedFilters.category || undefined,
+      isFrameType: appliedFilters.isFrameType === "all" ? undefined : appliedFilters.isFrameType === "true",
+      isActive: appliedFilters.isActive,
+      page: currentPage,
+      limit: rowsPerPage,
+    };
+  }, [debouncedSearch, appliedFilters, currentPage, rowsPerPage]);
+
+  const { data: statsResponse, isLoading: isStatsLoading } = useSmdtStatsQuery();
+  const { data: itemsResponse, isLoading: isItemsLoading, isFetching: isItemsFetching } = useSmdtItemsQuery(queryParams);
+
+  const stats = statsResponse?.data;
+  const items = itemsResponse?.data?.items ?? [];
+  const categories = itemsResponse?.data?.categories ?? [];
+  const totalItems = itemsResponse?.data?.total ?? 0;
+
+  const loading = isItemsLoading || isItemsFetching;
+
+  const handleEdit = (item: SmdtItem) => {
+    setEditingItem({
+      name: item.partName,
+      color: item.partColor,
+      unit: item.costUnit,
+      mbsCost: String(item.mbsCost),
+      marketCost: item.currentMarketCost !== null ? String(item.currentMarketCost) : "",
+      desc: item.description,
+      _id: item._id,
+    });
     setIsAddEditOpen(true);
   };
 
@@ -43,11 +93,32 @@ export default function ItemCostList() {
     setIsAddEditOpen(true);
   };
 
+  const handleApplyFilters = (filters: ItemCostFilterValues) => {
+    setAppliedFilters(filters);
+    setCurrentPage(1);
+    setIsFilterModalOpen(false);
+  };
+
+  const formatCurrency = (val?: number) => {
+    if (val === undefined || val === null) return "$0.00";
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(val);
+  };
+
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-[1600px] mx-auto">
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <h1 className="text-2xl font-bold text-slate-900">Item Cost List</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Item Cost List</h1>
+          {stats?.activeVersion && (
+            <p className="text-sm text-gray-500 mt-1">
+              Active: <span className="font-semibold text-slate-700">{stats.activeVersion.name}</span> (Effective: {new Date(stats.activeVersion.effectiveDate).toLocaleDateString()})
+            </p>
+          )}
+        </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button variant="outline" className="bg-white hover:bg-gray-50 border-gray-200">
             <Upload className="w-4 h-4 mr-2" />
@@ -75,7 +146,9 @@ export default function ItemCostList() {
         <div className="bg-[#3B82F6] rounded-2xl p-6 text-white flex justify-between items-center shadow-sm">
           <div>
             <p className="text-blue-100 font-medium text-sm mb-1">Total Item Cost</p>
-            <h2 className="text-4xl font-bold">$24,400</h2>
+            <h2 className="text-4xl font-bold">
+              {isStatsLoading ? "..." : formatCurrency(stats?.totalItemCost)}
+            </h2>
           </div>
           <DollarSign className="w-12 h-12 text-blue-200/50" strokeWidth={1.5} />
         </div>
@@ -83,7 +156,9 @@ export default function ItemCostList() {
         <div className="bg-[#10B981] rounded-2xl p-6 text-white flex justify-between items-center shadow-sm">
           <div>
             <p className="text-emerald-100 font-medium text-sm mb-1">Total Items</p>
-            <h2 className="text-4xl font-bold">120</h2>
+            <h2 className="text-4xl font-bold">
+              {isStatsLoading ? "..." : stats?.totalItems ?? 0}
+            </h2>
           </div>
           <TrendingUp className="w-12 h-12 text-emerald-200/50" strokeWidth={1.5} />
         </div>
@@ -91,7 +166,9 @@ export default function ItemCostList() {
         <div className="bg-[#F97316] rounded-2xl p-6 text-white flex justify-between items-center shadow-sm">
           <div>
             <p className="text-orange-100 font-medium text-sm mb-1">New Added</p>
-            <h2 className="text-4xl font-bold">2</h2>
+            <h2 className="text-4xl font-bold">
+              {isStatsLoading ? "..." : stats?.newlyAdded ?? 0}
+            </h2>
           </div>
           <FileText className="w-10 h-10 text-orange-200/50" strokeWidth={1.5} />
         </div>
@@ -103,11 +180,24 @@ export default function ItemCostList() {
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input 
-              placeholder="Search" 
+              placeholder="Search by part name..." 
+              value={searchInput}
+              onChange={(e) => {
+                setSearchInput(e.target.value);
+                setCurrentPage(1);
+              }}
               className="pl-9 bg-white border-gray-200 h-10 w-full"
             />
           </div>
-          <Button variant="outline" className="bg-white border-gray-200 h-10 px-4">
+          <Button 
+            variant="outline" 
+            className={`bg-white border-gray-200 h-10 px-4 ${
+              appliedFilters.category || appliedFilters.isFrameType !== "all" || appliedFilters.isActive !== "true"
+                ? "border-blue-500 text-blue-600 bg-blue-50/50 hover:bg-blue-50"
+                : ""
+            }`}
+            onClick={() => setIsFilterModalOpen(true)}
+          >
             <Filter className="w-4 h-4 mr-2" />
             Filter
           </Button>
@@ -163,32 +253,87 @@ export default function ItemCostList() {
               </tr>
             </thead>
             <tbody>
-              {MOCK_DATA.map((item, i) => (
-                <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <Checkbox className="border-gray-300" />
-                  </td>
-                  <td className="px-6 py-4 font-medium text-gray-900">{item.name}</td>
-                  <td className="px-6 py-4 text-gray-500">{item.color}</td>
-                  <td className="px-6 py-4 text-gray-500">{item.unit}</td>
-                  <td className="px-6 py-4 text-gray-500">{item.mbsCost}</td>
-                  <td className="px-6 py-4 text-gray-500">{item.marketCost}</td>
-                  <td className="px-6 py-4 text-gray-500">{item.desc}</td>
-                  <td className="px-6 py-4 text-right">
-                    <Button 
-                      size="sm" 
-                      className="bg-[#5C5CFF] hover:bg-blue-600 text-white rounded-[4px] h-7 px-4 text-xs font-medium"
-                      onClick={() => handleEdit(item)}
-                    >
-                      Edit
-                    </Button>
+              {loading ? (
+                Array.from({ length: 8 }).map((_, index) => (
+                  <tr key={`item-skeleton-${index}`} className="border-b border-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="h-4 w-4 rounded bg-gray-100 animate-pulse" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 w-32 rounded bg-gray-100 animate-pulse" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 w-12 rounded bg-gray-100 animate-pulse" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 w-8 rounded bg-gray-100 animate-pulse" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 w-16 rounded bg-gray-100 animate-pulse" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 w-16 rounded bg-gray-100 animate-pulse" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 w-48 rounded bg-gray-100 animate-pulse" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-7 w-16 rounded bg-gray-100 animate-pulse ml-auto" />
+                    </td>
+                  </tr>
+                ))
+              ) : items.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                    No parts or items found.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                items.map((item) => (
+                  <tr key={item._id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <Checkbox className="border-gray-300" />
+                    </td>
+                    <td className="px-6 py-4 font-medium text-gray-900">{item.partName}</td>
+                    <td className="px-6 py-4 text-gray-500">{item.partColor}</td>
+                    <td className="px-6 py-4 text-gray-500">{item.costUnit}</td>
+                    <td className="px-6 py-4 text-gray-500">{formatCurrency(item.mbsCost)}</td>
+                    <td className="px-6 py-4 text-gray-500">
+                      {item.currentMarketCost !== null ? formatCurrency(item.currentMarketCost) : "-"}
+                    </td>
+                    <td className="px-6 py-4 text-gray-500">{item.description || "-"}</td>
+                    <td className="px-6 py-4 text-right">
+                      <Button 
+                        size="sm" 
+                        className="bg-[#5C5CFF] hover:bg-blue-600 text-white rounded-[4px] h-7 px-4 text-xs font-medium"
+                        onClick={() => handleEdit(item)}
+                      >
+                        Edit
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
+        {!loading && totalItems > 0 && (
+          <Pagination
+            totalItems={totalItems}
+            itemsPerPage={rowsPerPage}
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+          />
+        )}
       </div>
+
+      <ItemCostFilterModal 
+        isOpen={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        categories={categories}
+        initialFilters={appliedFilters}
+        onApply={handleApplyFilters}
+      />
 
       <AddEditPartCostModal 
         isOpen={isAddEditOpen} 
