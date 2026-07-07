@@ -1,15 +1,16 @@
 import React, { useState, useMemo } from "react";
-import { 
-  DollarSign, 
-  TrendingUp, 
-  FileText, 
-  Upload, 
-  Settings, 
+import {
+  DollarSign,
+  TrendingUp,
+  FileText,
+  Upload,
+  // Settings, 
   Plus,
   Search,
   Filter,
   ChevronDown,
-  ArrowUpDown
+  ArrowUpDown,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +19,8 @@ import AddEditPartCostModal from "./modals/AddEditPartCostModal";
 import UploadBOMModal from "./modals/UploadBOMModal";
 import Pagination from "../components/Pagination";
 import ItemCostFilterModal, { type ItemCostFilterValues } from "./ItemCostFilterModal";
-import { useSmdtStatsQuery, useSmdtItemsQuery } from "@/modules/plant/smdt.hooks";
+import { useSmdtStatsQuery, useSmdtItemsQuery, useExportSmdtExcelMutation } from "@/modules/plant/smdt.hooks";
+import { toast } from "sonner";
 import type { SmdtItem } from "@/modules/plant/smdt.api";
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -65,6 +67,8 @@ export default function ItemCostList() {
     };
   }, [debouncedSearch, appliedFilters, currentPage, rowsPerPage]);
 
+  const exportMutation = useExportSmdtExcelMutation();
+
   const { data: statsResponse, isLoading: isStatsLoading } = useSmdtStatsQuery();
   const { data: itemsResponse, isLoading: isItemsLoading, isFetching: isItemsFetching } = useSmdtItemsQuery(queryParams);
 
@@ -75,16 +79,50 @@ export default function ItemCostList() {
 
   const loading = isItemsLoading || isItemsFetching;
 
+  const handleExport = async () => {
+    try {
+      const filters = {
+        search: debouncedSearch.trim() || undefined,
+        category: appliedFilters.category || undefined,
+        isFrameType: appliedFilters.isFrameType === "all" ? undefined : appliedFilters.isFrameType === "true",
+        isActive: appliedFilters.isActive,
+      };
+
+      toast.info("Generating Excel export...");
+      const blob = await exportMutation.mutateAsync(filters);
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "smdt-cost-list.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success("Excel exported successfully!");
+    } catch (error: any) {
+      console.error("Failed to export SMDT excel:", error);
+      let errorMsg = "Failed to export SMDT Excel file";
+      if (error?.response?.data instanceof Blob) {
+        try {
+          const text = await error.response.data.text();
+          const parsed = JSON.parse(text);
+          errorMsg = parsed.message || errorMsg;
+        } catch {
+          // ignore
+        }
+      } else if (error?.response?.data?.message) {
+        errorMsg = error.response.data.message;
+      } else if (error?.message) {
+        errorMsg = error.message;
+      }
+      toast.error(errorMsg);
+    }
+  };
+
   const handleEdit = (item: SmdtItem) => {
-    setEditingItem({
-      name: item.partName,
-      color: item.partColor,
-      unit: item.costUnit,
-      mbsCost: String(item.mbsCost),
-      marketCost: item.currentMarketCost !== null ? String(item.currentMarketCost) : "",
-      desc: item.description,
-      _id: item._id,
-    });
+    setEditingItem(item);
     setIsAddEditOpen(true);
   };
 
@@ -120,18 +158,27 @@ export default function ItemCostList() {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant="outline" className="bg-white hover:bg-gray-50 border-gray-200">
-            <Upload className="w-4 h-4 mr-2" />
-            Export
-          </Button>
           <Button 
+            variant="outline" 
+            className="bg-white hover:bg-gray-50 border-gray-200"
+            onClick={handleExport}
+            disabled={exportMutation.isPending}
+          >
+            {exportMutation.isPending ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Upload className="w-4 h-4 mr-2" />
+            )}
+            {exportMutation.isPending ? "Exporting..." : "Export"}
+          </Button>
+          {/* <Button 
             className="bg-[#6B7280] hover:bg-gray-600 text-white border-none"
             onClick={() => setIsUploadBOMOpen(true)}
           >
             <Settings className="w-4 h-4 mr-2" />
             Check BOM Costing
-          </Button>
-          <Button 
+          </Button> */}
+          <Button
             className="bg-[#8B5CF6] hover:bg-purple-600 text-white border-none"
             onClick={handleAdd}
           >
@@ -152,7 +199,7 @@ export default function ItemCostList() {
           </div>
           <DollarSign className="w-12 h-12 text-blue-200/50" strokeWidth={1.5} />
         </div>
-        
+
         <div className="bg-[#10B981] rounded-2xl p-6 text-white flex justify-between items-center shadow-sm">
           <div>
             <p className="text-emerald-100 font-medium text-sm mb-1">Total Items</p>
@@ -179,8 +226,8 @@ export default function ItemCostList() {
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input 
-              placeholder="Search by part name..." 
+            <Input
+              placeholder="Search by part name..."
               value={searchInput}
               onChange={(e) => {
                 setSearchInput(e.target.value);
@@ -189,13 +236,12 @@ export default function ItemCostList() {
               className="pl-9 bg-white border-gray-200 h-10 w-full"
             />
           </div>
-          <Button 
-            variant="outline" 
-            className={`bg-white border-gray-200 h-10 px-4 ${
-              appliedFilters.category || appliedFilters.isFrameType !== "all" || appliedFilters.isActive !== "true"
+          <Button
+            variant="outline"
+            className={`bg-white border-gray-200 h-10 px-4 ${appliedFilters.category || appliedFilters.isFrameType !== "all" || appliedFilters.isActive !== "true"
                 ? "border-blue-500 text-blue-600 bg-blue-50/50 hover:bg-blue-50"
                 : ""
-            }`}
+              }`}
             onClick={() => setIsFilterModalOpen(true)}
           >
             <Filter className="w-4 h-4 mr-2" />
@@ -303,8 +349,8 @@ export default function ItemCostList() {
                     </td>
                     <td className="px-6 py-4 text-gray-500">{item.description || "-"}</td>
                     <td className="px-6 py-4 text-right">
-                      <Button 
-                        size="sm" 
+                      <Button
+                        size="sm"
                         className="bg-[#5C5CFF] hover:bg-blue-600 text-white rounded-[4px] h-7 px-4 text-xs font-medium"
                         onClick={() => handleEdit(item)}
                       >
@@ -327,7 +373,7 @@ export default function ItemCostList() {
         )}
       </div>
 
-      <ItemCostFilterModal 
+      <ItemCostFilterModal
         isOpen={isFilterModalOpen}
         onClose={() => setIsFilterModalOpen(false)}
         categories={categories}
@@ -335,15 +381,15 @@ export default function ItemCostList() {
         onApply={handleApplyFilters}
       />
 
-      <AddEditPartCostModal 
-        isOpen={isAddEditOpen} 
-        onClose={() => setIsAddEditOpen(false)} 
-        initialData={editingItem} 
+      <AddEditPartCostModal
+        isOpen={isAddEditOpen}
+        onClose={() => setIsAddEditOpen(false)}
+        initialData={editingItem}
       />
-      
-      <UploadBOMModal 
-        isOpen={isUploadBOMOpen} 
-        onClose={() => setIsUploadBOMOpen(false)} 
+
+      <UploadBOMModal
+        isOpen={isUploadBOMOpen}
+        onClose={() => setIsUploadBOMOpen(false)}
       />
     </div>
   );
