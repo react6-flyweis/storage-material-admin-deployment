@@ -82,3 +82,84 @@ export async function getSmdtItemsProvider(
   );
   return response.data;
 }
+
+export interface CreateSmdtItemRequest {
+  category: string;
+  partName: string;
+  partColor?: string;
+  costUnit: string;
+  mbsCost: number;
+  currentMarketCost: number;
+  laborCost?: number;
+  additionalCost?: number;
+  materialCost?: number;
+  description: string;
+}
+
+export interface CreateSmdtItemResponse {
+  success: boolean;
+  message: string;
+  data: {
+    item: SmdtItem;
+  };
+}
+
+export interface UpdateSmdtItemRequest {
+  category?: string;
+  partName?: string;
+  partColor?: string;
+  costUnit?: string;
+  mbsCost?: number;
+  currentMarketCost?: number | null;
+  laborCost?: number;
+  additionalCost?: number;
+  materialCost?: number;
+  extraMinCost?: number | null;
+  extraMaxCost?: number | null;
+  description?: string;
+  isActive?: boolean;
+}
+
+export interface UpdateSmdtItemResponse {
+  success: boolean;
+  message: string;
+  data: {
+    item: SmdtItem;
+  };
+}
+
+export async function createSmdtItemProvider(
+  payload: CreateSmdtItemRequest
+): Promise<CreateSmdtItemResponse> {
+  const response = await apiClient.post<CreateSmdtItemResponse>(
+    "/api/admin/plant/smdt",
+    payload
+  );
+  return response.data;
+}
+
+export async function updateSmdtItemProvider(
+  itemId: string,
+  payload: UpdateSmdtItemRequest
+): Promise<UpdateSmdtItemResponse> {
+  const response = await apiClient.put<UpdateSmdtItemResponse>(
+    `/api/admin/plant/smdt/${encodeURIComponent(itemId)}`,
+    payload
+  );
+  return response.data;
+}
+
+export async function exportSmdtExcelProvider(
+  params?: Omit<GetSmdtParams, "page" | "limit">
+): Promise<Blob> {
+  const response = await apiClient.get(
+    "/api/admin/plant/smdt/export/excel",
+    {
+      params,
+      responseType: "blob",
+    }
+  );
+  return response.data;
+}
+
+
