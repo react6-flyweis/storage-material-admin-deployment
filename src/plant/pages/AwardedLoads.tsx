@@ -1,84 +1,41 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Filter, Download, Search, Ribbon, Truck, CheckCircle2, DollarSign, Phone } from "lucide-react";
+import { Filter, Download, Search, Ribbon, Truck, CheckCircle2, DollarSign, Phone, ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import AwardedLoadsFiltersDialog from "@/plant/components/AwardedLoadsFiltersDialog";
-
-const mockAwardedLoads = [
-  {
-    id: "LOAD-002",
-    requestedDate: "2024-03-16",
-    statusBadge: "Scheduled",
-    project: "Storage Facility B",
-    description: "Roll-up door panels",
-    pickupLocation: "Dallas, TX",
-    deliveryLocation: "San Antonio, TX",
-    pickupDate: "2024-03-27",
-    deliveryDate: "2024-03-28",
-    carrier: "Quick Haul Transport",
-    phone: "(555) 222-3333",
-    budget: "$1,850",
-    awarded: "$1,850",
-    bids: 3,
-    status: "Awarded",
-  },
-  {
-    id: "LOAD-005",
-    requestedDate: "2024-03-16",
-    statusBadge: "In Transit",
-    project: "Industrial Complex A",
-    description: "Secondary steel beams",
-    pickupLocation: "Houston, TX",
-    deliveryLocation: "Austin, TX",
-    pickupDate: "2024-03-28",
-    deliveryDate: "2024-03-29",
-    carrier: "Fast Freight LLC",
-    phone: "(555) 222-3333",
-    budget: "$1,850",
-    awarded: "$1,850",
-    bids: 3,
-    status: "Awarded",
-  },
-  {
-    id: "LOAD-007",
-    requestedDate: "2024-03-16",
-    statusBadge: "In Transit",
-    project: "Warehouse Complex",
-    description: "Electrical fixtures - bulk",
-    pickupLocation: "San Antonio, TX",
-    deliveryLocation: "Fort Worth, TX",
-    pickupDate: "2024-03-30",
-    deliveryDate: "2024-03-31",
-    carrier: "Regional Logistics",
-    phone: "(555) 222-3333",
-    budget: "$1,850",
-    awarded: "$1,850",
-    bids: 3,
-    status: "Awarded",
-  },
-  {
-    id: "LOAD-006",
-    requestedDate: "2024-03-16",
-    statusBadge: "Scheduled",
-    project: "Storage Facility B",
-    description: "Roofing panels",
-    pickupLocation: "Dallas, TX",
-    deliveryLocation: "Houston, TX",
-    pickupDate: "2024-03-29",
-    deliveryDate: "2024-03-30",
-    carrier: "Quick Haul Transport",
-    phone: "(555) 222-3333",
-    budget: "$1,850",
-    awarded: "$1,850",
-    bids: 3,
-    status: "Awarded",
-  },
-];
+import { useAwardedStatsQuery, useAwardedLoadsQuery } from "@/modules/plant/freight.hooks";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AwardedLoads() {
+  const navigate = useNavigate();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(20);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+
+  // Debounce search input
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchInput]);
+
+  const { data: statsResponse } = useAwardedStatsQuery();
+  const { data: loadsResponse, isLoading: isLoadsLoading } = useAwardedLoadsQuery({
+    page,
+    limit,
+    search: search || undefined,
+  });
+
+  const stats = statsResponse?.data;
+  const requests = loadsResponse?.data?.requests || [];
+  const total = loadsResponse?.data?.total || 0;
 
   return (
     <div className="flex-1 space-y-6 p-6 bg-[#f9fafb] min-h-screen">
@@ -115,7 +72,7 @@ export default function AwardedLoads() {
           <CardContent className="p-5 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500">Total Awarded</p>
-              <h2 className="text-4xl font-bold text-slate-900 mt-1">4</h2>
+              <h2 className="text-4xl font-bold text-slate-900 mt-1">{stats?.totalAwarded ?? 0}</h2>
             </div>
             <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center">
               <Ribbon className="w-6 h-6 text-green-500" />
@@ -128,7 +85,7 @@ export default function AwardedLoads() {
           <CardContent className="p-5 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500">In Transit</p>
-              <h2 className="text-4xl font-bold text-slate-900 mt-1">1</h2>
+              <h2 className="text-4xl font-bold text-slate-900 mt-1">{stats?.inTransit ?? 0}</h2>
             </div>
             <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center">
               <Truck className="w-6 h-6 text-orange-500" />
@@ -141,7 +98,7 @@ export default function AwardedLoads() {
           <CardContent className="p-5 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500">Delivered</p>
-              <h2 className="text-4xl font-bold text-slate-900 mt-1">1</h2>
+              <h2 className="text-4xl font-bold text-slate-900 mt-1">{stats?.delivered ?? 0}</h2>
             </div>
             <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center">
               <CheckCircle2 className="w-6 h-6 text-green-500" />
@@ -154,7 +111,9 @@ export default function AwardedLoads() {
           <CardContent className="p-5 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500">Total Spent</p>
-              <h2 className="text-4xl font-bold text-slate-900 mt-1">$7,650</h2>
+              <h2 className="text-4xl font-bold text-slate-900 mt-1">
+                {stats?.totalSpent ? `$${stats.totalSpent.toLocaleString()}` : "$0"}
+              </h2>
             </div>
             <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center">
               <DollarSign className="w-6 h-6 text-blue-500" />
@@ -171,7 +130,9 @@ export default function AwardedLoads() {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input 
-              placeholder="Search notifications..." 
+              placeholder="Search awarded loads..." 
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="pl-10 h-12 bg-slate-50 border-0 rounded-xl"
             />
           </div>
@@ -195,65 +156,154 @@ export default function AwardedLoads() {
                 <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Delivery Location</th>
                 <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Dates</th>
                 <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Carrier</th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Budget & Bids</th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Awarded Amount</th>
                 <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {mockAwardedLoads.map((load, index) => (
-                <tr key={index} className="group hover:bg-slate-50/50 transition-colors">
-                  <td className="py-5 align-top">
-                    <p className="font-bold text-slate-900 mb-1">{load.id}</p>
-                    <p className="text-[11px] text-slate-500 mb-2">Requested: {load.requestedDate}</p>
-                    <Badge 
-                      variant="outline" 
-                      className={`text-[10px] rounded-full px-2 py-0.5 font-medium border
-                        ${load.statusBadge === "Scheduled" ? "text-blue-600 bg-blue-50 border-blue-200" : ""}
-                        ${load.statusBadge === "In Transit" ? "text-blue-600 bg-blue-50 border-blue-200" : ""}
-                      `}
-                    >
-                      {load.statusBadge}
-                    </Badge>
-                  </td>
-                  <td className="py-5 align-top">
-                    <p className="text-sm font-medium text-slate-700">{load.project}</p>
-                  </td>
-                  <td className="py-5 align-top">
-                    <p className="text-sm text-slate-600 max-w-[150px]">{load.description}</p>
-                  </td>
-                  <td className="py-5 align-top">
-                    <p className="text-sm text-slate-600 w-20">{load.pickupLocation}</p>
-                  </td>
-                  <td className="py-5 align-top">
-                    <p className="text-sm text-slate-600 w-20">{load.deliveryLocation}</p>
-                  </td>
-                  <td className="py-5 align-top">
-                    <p className="text-[12px] text-slate-500 w-24">Pickup:<br />{load.pickupDate}</p>
-                    <p className="text-[12px] text-slate-500 w-24 mt-1">Delivery:<br />{load.deliveryDate}</p>
-                  </td>
-                  <td className="py-5 align-top">
-                    <p className="text-sm font-semibold text-slate-900 mb-1 w-28">{load.carrier}</p>
-                    <a href={`tel:${load.phone}`} className="text-[11px] text-blue-600 flex items-center gap-1 hover:underline">
-                      <Phone className="w-3 h-3" />
-                      {load.phone}
-                    </a>
-                  </td>
-                  <td className="py-5 align-top">
-                    <p className="text-sm font-bold text-slate-900 mb-1">{load.budget}</p>
-                    <p className="text-[12px] font-semibold text-slate-900">Awarded: {load.awarded}</p>
-                    <p className="text-[12px] font-semibold text-slate-900">{load.bids} bids</p>
-                  </td>
-                  <td className="py-5 align-top">
-                    <Badge className="bg-green-100 hover:bg-green-100 text-green-700 border border-green-200 rounded-full px-3 font-medium">
-                      {load.status}
-                    </Badge>
+              {isLoadsLoading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={index}>
+                    <td className="py-5"><Skeleton className="h-6 w-24" /></td>
+                    <td className="py-5"><Skeleton className="h-6 w-32" /></td>
+                    <td className="py-5"><Skeleton className="h-6 w-40" /></td>
+                    <td className="py-5"><Skeleton className="h-6 w-28" /></td>
+                    <td className="py-5"><Skeleton className="h-6 w-28" /></td>
+                    <td className="py-5"><Skeleton className="h-10 w-24" /></td>
+                    <td className="py-5"><Skeleton className="h-8 w-32" /></td>
+                    <td className="py-5"><Skeleton className="h-6 w-20" /></td>
+                    <td className="py-5"><Skeleton className="h-6 w-16" /></td>
+                  </tr>
+                ))
+              ) : requests.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-8 text-center text-slate-500">
+                    No awarded loads found
                   </td>
                 </tr>
-              ))}
+              ) : (
+                requests.map((load, index) => (
+                  <tr 
+                    key={load._id || index} 
+                    className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
+                    onClick={() => navigate(`/plant/freight-request-details/${load._id || load.requestId}`)}
+                  >
+                    <td className="py-5 align-top">
+                      <p className="font-bold text-slate-900 mb-1">{load.deliveryNumber}</p>
+                      <p className="text-[11px] text-slate-500 mb-2">
+                        Requested: {load.createdAt ? new Date(load.createdAt).toLocaleDateString() : "-"}
+                      </p>
+                      <Badge 
+                        variant="outline" 
+                        className={`text-[10px] rounded-full px-2 py-0.5 font-medium border
+                          ${load.status === "delivered" ? "text-emerald-600 bg-emerald-50 border-emerald-200" : "text-blue-600 bg-blue-50 border-blue-200"}
+                        `}
+                      >
+                        {load.status.replace("_", " ")}
+                      </Badge>
+                    </td>
+                    <td className="py-5 align-top">
+                      <p className="text-sm font-medium text-slate-700">
+                        {load.project?.projectName || load.project?.jobId || "-"}
+                      </p>
+                    </td>
+                    <td className="py-5 align-top">
+                      <p className="text-sm text-slate-600 max-w-[150px]">{load.description}</p>
+                    </td>
+                    <td className="py-5 align-top">
+                      <p className="text-sm text-slate-600 w-20">{load.pickupLocation || "-"}</p>
+                    </td>
+                    <td className="py-5 align-top">
+                      <p className="text-sm text-slate-600 w-20">{load.deliveryLocation || "-"}</p>
+                    </td>
+                    <td className="py-5 align-top">
+                      <p className="text-[12px] text-slate-500 w-24">
+                        Pickup:<br />{load.pickupDate ? new Date(load.pickupDate).toLocaleDateString() : "-"}
+                      </p>
+                      <p className="text-[12px] text-slate-500 w-24 mt-1">
+                        Delivery:<br />{load.deliveryDate ? new Date(load.deliveryDate).toLocaleDateString() : "-"}
+                      </p>
+                    </td>
+                    <td className="py-5 align-top">
+                      <p className="text-sm font-semibold text-slate-900 mb-1 w-28">
+                        {load.carrier?.carrierName || "-"}
+                      </p>
+                      {load.poc?.pickupContactPhone && (
+                        <a 
+                          href={`tel:${load.poc.pickupContactPhone}`} 
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-[11px] text-blue-600 flex items-center gap-1 hover:underline"
+                        >
+                          <Phone className="w-3 h-3" />
+                          {load.poc.pickupContactPhone}
+                        </a>
+                      )}
+                    </td>
+                    <td className="py-5 align-top">
+                      <p className="text-sm font-bold text-slate-900 mb-1">
+                        {load.awardedBidAmount !== undefined && load.awardedBidAmount !== null
+                          ? `$${load.awardedBidAmount.toLocaleString()}`
+                          : "-"}
+                      </p>
+                    </td>
+                    <td className="py-5 align-top">
+                      <Badge className="bg-green-100 hover:bg-green-100 text-green-700 border border-green-200 rounded-full px-3 font-medium uppercase text-[10px]">
+                        {load.status === "delivered" ? "Delivered" : "Awarded"}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
+        {/* Pagination */}
+        {!isLoadsLoading && total > 0 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-white">
+            <div className="flex flex-1 items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Showing{" "}
+                  <span className="font-medium">
+                    {(page - 1) * limit + 1}
+                  </span>{" "}
+                  to{" "}
+                  <span className="font-medium">
+                    {Math.min(page * limit, total)}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-medium">
+                    {total}
+                  </span>{" "}
+                  results
+                </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="h-9 px-3 border-gray-200"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span className="sr-only">Previous</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={page * limit >= total}
+                  className="h-9 px-3 border-gray-200"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                  <span className="sr-only">Next</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Filter Modal */}
@@ -265,3 +315,4 @@ export default function AwardedLoads() {
     </div>
   );
 }
+
