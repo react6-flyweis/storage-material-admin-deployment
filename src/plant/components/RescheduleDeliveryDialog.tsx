@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -22,17 +22,48 @@ import { Package } from "lucide-react";
 interface RescheduleDeliveryDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  deliveryId?: string;
+  initialDate?: string;
+  initialTimeWindowStart?: string;
+  initialTimeWindowEnd?: string;
+  onSubmit?: (data: { date: string; timeWindowStart: string; timeWindowEnd: string }) => void;
 }
 
 export default function RescheduleDeliveryDialog({
   open,
   onOpenChange,
+  deliveryId: _deliveryId,
+  initialDate = "",
+  initialTimeWindowStart = "",
+  initialTimeWindowEnd = "",
+  onSubmit,
 }: RescheduleDeliveryDialogProps) {
+  const [date, setDate] = useState(initialDate);
+  const [timeWindowStart, setTimeWindowStart] = useState(initialTimeWindowStart);
+  const [timeWindowEnd, setTimeWindowEnd] = useState(initialTimeWindowEnd);
+
+  useEffect(() => {
+    if (open) {
+      setDate(initialDate || "2026-03-27");
+      setTimeWindowStart(initialTimeWindowStart || "");
+      setTimeWindowEnd(initialTimeWindowEnd || "");
+    }
+  }, [open, initialDate, initialTimeWindowStart, initialTimeWindowEnd]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (onSubmit) {
+      onSubmit({ date, timeWindowStart, timeWindowEnd });
+    } else {
+      onOpenChange(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] p-0 rounded-2xl overflow-hidden border-0">
-        <div className="p-6 md:p-8">
-          <DialogHeader className="mb-6 flex flex-row items-center gap-4">
+        <form onSubmit={handleSubmit} className="p-6 md:p-8">
+          <DialogHeader className="mb-6 flex flex-row items-center gap-4 text-left">
             <div className="bg-orange-50 p-3 rounded-full text-orange-500 shrink-0">
               <Package className="w-6 h-6" />
             </div>
@@ -46,24 +77,42 @@ export default function RescheduleDeliveryDialog({
             </div>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 py-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 py-2 text-left animate-none">
             <div className="md:col-span-2 space-y-2">
               <Label className="text-sm font-semibold text-slate-700">New Delivery Date</Label>
-              <Input type="date" defaultValue="2026-03-27" className="rounded-lg h-11 border-slate-200" />
+              <Input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+                className="rounded-lg h-11 border-slate-200"
+              />
             </div>
 
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-slate-700">
                 Time Window Start <span className="text-red-500">*</span>
               </Label>
-              <Input type="time" className="rounded-lg h-11 border-slate-200" />
+              <Input
+                type="time"
+                value={timeWindowStart}
+                onChange={(e) => setTimeWindowStart(e.target.value)}
+                required
+                className="rounded-lg h-11 border-slate-200"
+              />
             </div>
 
             <div className="space-y-2">
               <Label className="text-sm font-semibold text-slate-700">
                 Time Window End <span className="text-red-500">*</span>
               </Label>
-              <Input type="time" className="rounded-lg h-11 border-slate-200" />
+              <Input
+                type="time"
+                value={timeWindowEnd}
+                onChange={(e) => setTimeWindowEnd(e.target.value)}
+                required
+                className="rounded-lg h-11 border-slate-200"
+              />
             </div>
 
             <div className="space-y-2">
@@ -132,8 +181,8 @@ export default function RescheduleDeliveryDialog({
               <Label className="text-sm font-semibold text-slate-700">
                 Additional Notes <span className="text-red-500">*</span>
               </Label>
-              <Textarea 
-                placeholder="Steel shipment delayed at Shipper warehouse." 
+              <Textarea
+                placeholder="Steel shipment delayed at Shipper warehouse."
                 className="rounded-lg min-h-[80px] resize-none border-slate-200"
               />
             </div>
@@ -148,14 +197,14 @@ export default function RescheduleDeliveryDialog({
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="flex-1 h-12 rounded-xl text-base font-bold bg-blue-600 hover:bg-blue-700 text-white"
             >
               Reschedule Now
             </Button>
           </DialogFooter>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
