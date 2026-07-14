@@ -463,7 +463,7 @@ export default function AllDeliveries() {
                   <tr
                     key={row._id}
                     className="hover:bg-gray-50/50 cursor-pointer"
-                    onClick={() => navigate(`/plant/freight-request-details/${row._id || row.requestId}`)}
+                    onClick={() => navigate(`/plant/delivery-details/${row._id || row.requestId}`)}
                   >
                     <td className="px-4 py-4 align-top">
                       <div className="font-bold text-blue-600">{row.deliveryNumber}</div>
