@@ -9,6 +9,7 @@ interface DailyDeliveriesModalProps {
   date: Date | null;
   deliveries: Delivery[];
   onReschedule?: (id: string) => void;
+  onMarkInTransit?: (id: string) => void;
   onMarkDelivered?: (id: string) => void;
   onViewDetails?: (id: string) => void;
   onSendReminder?: (id: string) => void;
@@ -20,6 +21,7 @@ const DailyDeliveriesModal: React.FC<DailyDeliveriesModalProps> = ({
   date,
   deliveries,
   onReschedule,
+  onMarkInTransit,
   onMarkDelivered,
   onViewDetails,
   onSendReminder,
@@ -40,6 +42,7 @@ const DailyDeliveriesModal: React.FC<DailyDeliveriesModalProps> = ({
                 key={delivery.id}
                 delivery={delivery}
                 onReschedule={onReschedule}
+                onMarkInTransit={onMarkInTransit}
                 onMarkDelivered={onMarkDelivered}
                 onViewDetails={onViewDetails}
                 onSendReminder={onSendReminder}
