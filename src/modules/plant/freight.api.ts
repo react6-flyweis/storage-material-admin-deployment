@@ -190,61 +190,74 @@ export interface DeliveryDetails {
   formDetails?: {
     description: string;
     loadDescription: string;
-    loadWeight: number | null;
+    loadWeight: number;
     dimensions?: {
-      lengthFeet: number | null;
-      widthFeet: number | null;
-      heightFeet: number | null;
+      lengthFeet: number;
+      widthFeet: number;
+      heightFeet: number;
     };
-    materialType?: string;
-    packageCount?: number | null;
-    loadingEquipment?: string[];
-    bidDeadline?: string | null;
-    documentUrl?: string;
-    pickupLocation?: string;
-    pickupLocationData?: {
+    materialType: string;
+    packageCount: number;
+    loadingEquipment: string[];
+    bidDeadline: string;
+    documentUrl: string;
+    pickupLocation: string;
+    pickupLocationData: {
       address: string;
       coordinates: {
-        lat: number | null;
-        lng: number | null;
+        lat: number;
+        lng: number;
       };
     };
-    deliveryLocation?: string;
-    deliveryLocationData?: {
+    deliveryLocation: string;
+    deliveryLocationData: {
       address: string;
       coordinates: {
-        lat: number | null;
-        lng: number | null;
+        lat: number;
+        lng: number;
       };
     };
-    pickupDate?: string | null;
-    pickupTime?: string;
-    deliveryDate?: string | null;
-    deliveryTime?: string;
+    pickupDate: string;
+    pickupTime: string;
+    deliveryDate: string;
+    deliveryTime: string;
+    timings: string;
     timeWindowStart?: string;
     timeWindowEnd?: string;
-    timings?: string;
-    receivingPoc?: string;
-    pickupContactPhone?: string;
-    specialRequirements?: string;
-    additionalNotes?: string;
-    rescheduleHistory?: unknown[];
+    receivingPoc: string;
+    pickupContactPhone: string;
+    specialRequirements: string;
+    additionalNotes: string;
   };
   deliverySchedule?: {
-    deliveryDate?: string | null;
-    timeWindow?: string;
-    timeWindowStart?: string;
-    timeWindowEnd?: string;
-    pickupAddress?: string;
-    dropoffAddress?: string;
+    deliveryDate: string;
+    timeWindow: string;
+    pickupAddress: string;
+    dropoffAddress: string;
   };
   deliveryInformation?: {
-    description?: string;
-    materialCategory?: string;
-    pickupDate?: string | null;
+    description: string;
+    materialCategory: string;
+    pickupDate: string;
   };
-  shipperDetails?: unknown;
-  vendorDetails?: unknown;
+  shipperDetails?: {
+    vendorId: string;
+    vendorName: string;
+    personName: string;
+    number: string;
+    email: string;
+  } | null;
+  vendorDetails?: {
+    vendorId: string;
+    vendorName: string;
+    personName: string;
+    number: string;
+    email: string;
+  } | null;
+  shipperVendor?: {
+    vendorName?: string;
+    vendorCode?: string;
+  } | null;
   deliveryCompanyDetails?: {
     carrierId: string;
     carrierName: string;
@@ -259,23 +272,22 @@ export interface DeliveryDetails {
     quotedAmount: number;
     currency: string;
     carrierNotes: string;
-    submittedAt: string | null;
-    selectedAt: string | null;
+    submittedAt: string;
+    selectedAt: string;
     status: string;
-    resubmitCount: number;
-    resubmitRequestedAt: string | null;
-    requestedBidAmount: number | null;
-    resubmitNote: string;
-    plantNote: string;
-    canRequestResubmit: boolean;
   } | null;
-  internalOwner?: unknown;
+  internalOwner?: {
+    userId: string;
+    name: string;
+    email: string;
+    phone: string;
+  } | null;
   siteCoordinationNotes?: string;
   equipmentRequirement?: string[];
   deliveryTypeAndSize?: {
-    bundleCount?: number | null;
-    packageCount?: number | null;
-    totalWeight?: number;
+    bundleCount: number;
+    packageCount: number;
+    totalWeight: number;
   };
   bundlePlan?: unknown;
   packingListPlan?: unknown;
@@ -460,6 +472,93 @@ export async function getAwardedLoads(
   );
   return response.data;
 }
+
+export interface RescheduleDeliveryBody {
+  date: string;
+  timeWindowStart: string;
+  timeWindowEnd: string;
+  rescheduleReason: string;
+  additionalNotes?: string;
+}
+
+export interface RescheduleDeliveryResponse {
+  success: boolean;
+  message: string;
+  data: unknown;
+}
+
+export async function rescheduleDelivery(
+  deliveryId: string,
+  body: RescheduleDeliveryBody
+): Promise<RescheduleDeliveryResponse> {
+  const response = await apiClient.post<RescheduleDeliveryResponse>(
+    `/api/admin/plant/deliveries/${encodeURIComponent(deliveryId)}/reschedule`,
+    body
+  );
+  return response.data;
+}
+
+export interface UpdateDeliveryDetailsBody {
+  leadId?: string;
+  description?: string;
+  loadDescription?: string;
+  weight?: number;
+  dimensions?: {
+    lengthFeet: number;
+    widthFeet: number;
+    heightFeet: number;
+  };
+  metalType?: string;
+  packageCount?: number;
+  loadingEquipment?: string[];
+  bidDeadline?: string;
+  documentUrl?: string;
+  pickupLocation?: string;
+  pickupLocationData?: {
+    address: string;
+    coordinates: {
+      lat: number;
+      lng: number;
+    };
+  };
+  deliveryLocation?: string;
+  deliveryLocationData?: {
+    address: string;
+    coordinates: {
+      lat: number;
+      lng: number;
+    };
+  };
+  timings?: string;
+  pickupDate?: string;
+  pickupTime?: string;
+  deliveryDate?: string;
+  deliveryTime?: string;
+  receivingPoc?: string;
+  pickupContactPhone?: string;
+  specialRequirements?: string;
+  additionalNotes?: string;
+  status?: string;
+  selectedCarrierBidId?: string | null;
+}
+
+export interface UpdateDeliveryDetailsResponse {
+  success: boolean;
+  message: string;
+  data: unknown;
+}
+
+export async function updateDeliveryDetails(
+  deliveryId: string,
+  body: UpdateDeliveryDetailsBody
+): Promise<UpdateDeliveryDetailsResponse> {
+  const response = await apiClient.put<UpdateDeliveryDetailsResponse>(
+    `/api/admin/plant/deliveries/${encodeURIComponent(deliveryId)}`,
+    body
+  );
+  return response.data;
+}
+
 
 
 
