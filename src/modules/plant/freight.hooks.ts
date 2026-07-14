@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getFreightStats,
   getFreightLoads,
@@ -8,9 +8,13 @@ import {
   requestFreightBidRevision,
   getAwardedStats,
   getAwardedLoads,
+  rescheduleDelivery,
+  updateDeliveryDetails,
   type GetFreightLoadsParams,
   type RevisionBody,
   type GetAwardedLoadsParams,
+  type RescheduleDeliveryBody,
+  type UpdateDeliveryDetailsBody,
 } from "./freight.api";
 
 export function useFreightStatsQuery() {
@@ -88,6 +92,35 @@ export function useAwardedLoadsQuery(
     queryFn: () => getAwardedLoads(params),
     staleTime: 60 * 1000,
     ...options,
+  });
+}
+
+export function useRescheduleDeliveryMutation() {
+  return useMutation({
+    mutationFn: ({
+      deliveryId,
+      body,
+    }: {
+      deliveryId: string;
+      body: RescheduleDeliveryBody;
+    }) => rescheduleDelivery(deliveryId, body),
+  });
+}
+
+export function useUpdateDeliveryDetailsMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      deliveryId,
+      body,
+    }: {
+      deliveryId: string;
+      body: UpdateDeliveryDetailsBody;
+    }) => updateDeliveryDetails(deliveryId, body),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["plant", "deliveries", variables.deliveryId] });
+      queryClient.invalidateQueries({ queryKey: ["plant", "deliveries"] });
+    },
   });
 }
 
