@@ -37,14 +37,13 @@ export function AdminLayout() {
         setIsMainCollapsed={setIsMainCollapsed}
       />
       <div
-        ref={scrollRef}
         className={cn(
-          "flex-1 flex flex-col ml-0 overflow-auto transition-all duration-300",
+          "flex-1 flex flex-col ml-0 overflow-hidden transition-all duration-300",
           isMainCollapsed ? "lg:ml-18" : "lg:ml-74",
         )}
       >
         <Header onMenuClick={toggleSidebar} />
-        <main className="flex-1 bg-[#E8EFF9] pb-5">
+        <main ref={scrollRef} className="flex-1 bg-[#E8EFF9] pb-5 overflow-auto">
           <Outlet />
         </main>
       </div>
