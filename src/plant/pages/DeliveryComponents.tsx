@@ -67,6 +67,7 @@ export const DetailItem = ({ label, value, icon: Icon, subValue }: any) => (
 interface DeliveryCardProps {
   delivery: Delivery;
   onReschedule?: (id: string) => void;
+  onMarkInTransit?: (id: string) => void;
   onMarkDelivered?: (id: string) => void;
   onViewDetails?: (id: string) => void;
   onSendReminder?: (id: string) => void;
@@ -75,6 +76,7 @@ interface DeliveryCardProps {
 export const DeliveryCard = ({
   delivery,
   onReschedule,
+  onMarkInTransit,
   onMarkDelivered,
   onViewDetails,
   onSendReminder,
@@ -84,11 +86,13 @@ export const DeliveryCard = ({
 
   const currentStatus = (delivery.status || "").toLowerCase();
   const isDelivered = currentStatus === "delivered";
+  const isInTransit = currentStatus === "in_transit" || currentStatus === "in transit";
 
   const actions = [
-    { label: "View Details", icon: Van, onClick: () => onViewDetails ? onViewDetails(delivery.id) : navigate(`/delivery/delivery-details/${delivery.id}`), disabled: false },
-    { label: "Reschedule Delivery", icon: CalendarSync, onClick: () => onReschedule ? onReschedule(delivery.id) : navigate(`/delivery/reschedule-delivery/${delivery.id}`), disabled: isDelivered },
-    { label: "Mark Delivered", icon: ClipboardCheck, onClick: () => onMarkDelivered ? onMarkDelivered(delivery.id) : navigate(`/delivery/mark-delivered/${delivery.id}`), disabled: isDelivered },
+    { label: "View Details", icon: Van, onClick: () => onViewDetails ? onViewDetails(delivery.id) : navigate(`/plant/delivery-details/${delivery.id}`), disabled: false },
+    { label: "Reschedule Delivery", icon: CalendarSync, onClick: () => onReschedule ? onReschedule(delivery.id) : navigate(`/plant/reschedule-delivery/${delivery.id}`), disabled: isDelivered },
+    { label: "Mark In Transit", icon: Truck, onClick: () => onMarkInTransit?.(delivery.id), disabled: isInTransit || isDelivered },
+    { label: "Mark Delivered", icon: ClipboardCheck, onClick: () => onMarkDelivered ? onMarkDelivered(delivery.id) : navigate(`/plant/mark-delivered/${delivery.id}`), disabled: isDelivered },
     { label: "Send Reminder Now", icon: Bell, onClick: () => onSendReminder?.(delivery.id), disabled: false },
   ];
 
