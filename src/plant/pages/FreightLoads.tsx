@@ -33,7 +33,7 @@ import {
 
 export default function FreightLoads() {
   const navigate = useNavigate();
-  
+
   // Query state parameters
   const [page, setPage] = React.useState(1);
   const [limit] = React.useState(20);
@@ -95,7 +95,7 @@ export default function FreightLoads() {
     setPage(1);
   };
 
-  const hasActiveFilters = 
+  const hasActiveFilters =
     status !== "all" ||
     projectId !== "all" ||
     customerId !== "all" ||
@@ -134,22 +134,7 @@ export default function FreightLoads() {
           <h1 className="text-3xl font-bold text-slate-900">Freight Loads</h1>
           <p className="text-gray-500 mt-1">Track and manage freight loads and logistics status</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
-            className={`bg-white border-gray-200 shadow-sm h-10 px-4 transition-colors ${isFilterOpen || hasActiveFilters ? "border-[#4F46E5] text-[#4F46E5] bg-indigo-50/30" : ""}`}
-            onClick={() => setIsFilterOpen(!isFilterOpen)}
-          >
-            <Filter className="w-4 h-4 mr-2" />
-            Filter {hasActiveFilters && "•"}
-          </Button>
-          {hasActiveFilters && (
-            <Button variant="ghost" onClick={handleClearFilters} className="text-gray-500 hover:text-gray-700 h-10 px-3">
-              <X className="w-4 h-4 mr-1" />
-              Clear
-            </Button>
-          )}
-        </div>
+
       </div>
 
       {/* Metric Cards */}
@@ -254,13 +239,25 @@ export default function FreightLoads() {
                 onChange={(e) => setSearchInput(e.target.value)}
               />
             </div>
-            <Button 
-              className="bg-[#4F46E5] hover:bg-indigo-700 text-white h-11 px-8 rounded-lg w-full sm:w-auto"
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-            >
-              <Filter className="w-4 h-4 mr-2" />
-              Filters
-            </Button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {hasActiveFilters && (
+                <Button
+                  variant="outline"
+                  className="border-gray-200 text-gray-500 hover:text-gray-900 hover:bg-gray-50 h-11 px-6 rounded-lg w-full sm:w-auto"
+                  onClick={handleClearFilters}
+                >
+                  <X className="w-4 h-4 mr-2 text-gray-400" />
+                  Clear
+                </Button>
+              )}
+              <Button
+                className="bg-[#4F46E5] hover:bg-indigo-700 text-white h-11 px-8 rounded-lg w-full sm:w-auto"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                Filters
+              </Button>
+            </div>
           </div>
 
           {/* Filter Panel */}
