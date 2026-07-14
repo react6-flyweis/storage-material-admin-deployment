@@ -29,6 +29,7 @@ import FreightStatCard from "./FreightStatCard";
 interface RevisionData {
   targetAmount: string;
   message: string;
+  allowCounterOffer?: boolean;
 }
 
 interface FilterDropdownProps {
