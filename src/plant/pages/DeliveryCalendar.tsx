@@ -416,6 +416,11 @@ const DeliveryCalendarView: React.FC = () => {
     setIsRescheduleSuccessOpen(true);
   };
 
+  const handleMarkInTransit = (id: string) => {
+    setActiveDeliveryId(id);
+    updateDeliveryStatus(id, "in_transit");
+  };
+
   const handleMarkDelivered = (id: string) => {
     setActiveDeliveryId(id);
     updateDeliveryStatus(id, "delivered", () => {
@@ -435,6 +440,7 @@ const DeliveryCalendarView: React.FC = () => {
         <DeliveryCard
           delivery={delivery}
           onReschedule={handleReschedule}
+          onMarkInTransit={handleMarkInTransit}
           onMarkDelivered={handleMarkDelivered}
           onSendReminder={handleSendReminder}
         />
@@ -564,6 +570,7 @@ const DeliveryCalendarView: React.FC = () => {
         date={selectedDay}
         deliveries={filteredDeliveries}
         onReschedule={handleReschedule}
+        onMarkInTransit={handleMarkInTransit}
         onMarkDelivered={handleMarkDelivered}
         onSendReminder={handleSendReminder}
       />
@@ -592,6 +599,10 @@ const DeliveryCalendarView: React.FC = () => {
               onReschedule={(id) => {
                 setSelectedDeliveryForModal(null);
                 handleReschedule(id);
+              }}
+              onMarkInTransit={(id) => {
+                setSelectedDeliveryForModal(null);
+                handleMarkInTransit(id);
               }}
               onMarkDelivered={(id) => {
                 setSelectedDeliveryForModal(null);
