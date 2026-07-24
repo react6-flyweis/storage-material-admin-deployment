@@ -1,12 +1,12 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { 
-  Search, Filter, Hammer, ShieldCheck, 
-  CircleDollarSign, TrendingUp, Check, Lock, AlertCircle 
+import {
+  Search, Filter, Hammer, ShieldCheck,
+  CircleDollarSign, TrendingUp, Check, AlertCircle,
+  ChevronLeft, ChevronRight
 } from "lucide-react";
 import {
   Select,
@@ -17,135 +17,168 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import UploadBomFileDialog from "@/plant/components/UploadBomFileDialog";
-
-const mockBomFiles = [
-  {
-    id: "bom-1",
-    project: "ABC Warehouse",
-    uploadDate: "22 Feb 2025",
-    items: 125,
-    status: "Pending",
-    statusType: "warning",
-    checked: false
-  },
-  {
-    id: "bom-2",
-    project: "Riya Buildings",
-    uploadDate: "07 Feb 2025",
-    items: 98,
-    status: "Shared to Shippers",
-    statusType: "success",
-    checked: true
-  },
-  {
-    id: "bom-3",
-    project: "ABC Warehouse",
-    uploadDate: "30 Jan 2025",
-    items: 210,
-    status: "Locked",
-    statusType: "neutral",
-    checked: true
-  },
-  {
-    id: "bom-4",
-    project: "Riya Buildings",
-    uploadDate: "17 Jan 2025",
-    items: 125,
-    status: "Locked",
-    statusType: "neutral",
-    checked: false
-  },
-  {
-    id: "bom-5",
-    project: "ABC Warehouse",
-    uploadDate: "04 Jan 2025",
-    items: 98,
-    status: "Locked",
-    statusType: "neutral",
-    checked: false
-  },
-  {
-    id: "bom-6",
-    project: "Riya Buildings",
-    uploadDate: "09 Dec 2024",
-    items: 210,
-    status: "Locked",
-    statusType: "neutral",
-    checked: false
-  }
-];
+import { useBomStatsQuery, useBomProjectsQuery } from "@/modules/plant/bom.hooks";
+import type { FileStatus } from "@/modules/plant/bom.api";
+import { Skeleton } from "@/components/ui/skeleton";
+import SummaryCard from "@/plant/components/SummaryCard";
 
 export default function UploadedBomFiles() {
   const navigate = useNavigate();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
 
+  // Pagination & Filtering State
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [search, setSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  // Fetch Stats & Projects
+  const { data: statsResponse, isLoading: isStatsLoading } = useBomStatsQuery();
+  const { data: projectsResponse, isLoading: isProjectsLoading } = useBomProjectsQuery(page, limit);
+
+  const stats = statsResponse?.data || {
+    totalBomFilesUploaded: 0,
+    pendingUploads: 0,
+    readyForShipper: 0,
+    issuesDetected: 0
+  };
+
+  const projectsData = projectsResponse?.data;
+  const projectsList = projectsData?.projects || [];
+  const totalEntries = projectsData?.total || 0;
+
+  const getProjectDisplayName = (project: typeof projectsList[0]) => {
+    if (project.projectName) return project.projectName;
+    const parts = [];
+    if (project.customerName) parts.push(project.customerName);
+    if (project.buildingType) parts.push(project.buildingType);
+    if (project.location) parts.push(project.location);
+    return parts.join(" • ") || "-";
+  };
+
+  // Filter projects client-side based on search input
+  const filteredProjects = projectsList.filter(project => {
+    const query = search.toLowerCase();
+    const name = getProjectDisplayName(project);
+    return (
+      name.toLowerCase().includes(query) ||
+      project.customerName.toLowerCase().includes(query) ||
+      project.projectId.toLowerCase().includes(query) ||
+      project.location.toLowerCase().includes(query)
+    );
+  });
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(filteredProjects.map(p => p.bomJobId));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (bomJobId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedIds(prev => [...prev, bomJobId]);
+    } else {
+      setSelectedIds(prev => prev.filter(id => id !== bomJobId));
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    });
+  };
+
+  // Maps backend fileStatus to UI Badge structure
+  const renderStatusBadge = (status: FileStatus) => {
+    switch (status) {
+      case "extracting":
+        return (
+          <Badge className="bg-[#fff8e1] hover:bg-[#fff8e1] text-[#f59e0b] border border-[#fde68a] rounded-full px-3 py-1 font-medium text-[12px] gap-1.5">
+            Extracting <AlertCircle className="w-3 h-3 animate-spin" />
+          </Badge>
+        );
+      case "extracted":
+        return (
+          <Badge className="bg-[#ecfdf5] hover:bg-[#ecfdf5] text-[#10b981] border border-[#a7f3d0] rounded-full px-3 py-1 font-medium text-[12px] gap-1.5">
+            <Check className="w-3 h-3" /> Extracted
+          </Badge>
+        );
+      case "failed":
+        return (
+          <Badge className="bg-[#fef2f2] hover:bg-[#fef2f2] text-[#ef4444] border border-[#fecaca] rounded-full px-3 py-1 font-medium text-[12px] gap-1.5">
+            <AlertCircle className="w-3 h-3" /> Failed
+          </Badge>
+        );
+      case "uploaded":
+      default:
+        return (
+          <Badge className="bg-[#f1f5f9] hover:bg-[#f1f5f9] text-slate-600 border border-slate-200 rounded-full px-3 py-1 font-medium text-[12px] gap-1.5">
+            Uploaded
+          </Badge>
+        );
+    }
+  };
+
+  const totalPages = Math.ceil(totalEntries / limit) || 1;
+
   return (
     <div className="flex-1 space-y-6 p-6 bg-[#eef2fb] min-h-screen">
-      
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <h1 className="text-[32px] font-bold text-slate-900 tracking-tight">Uploaded BOM Files</h1>
-        <Button 
+        {/* <Button
           className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white rounded-lg h-10 px-6 font-medium shadow-sm"
           onClick={() => setIsUploadOpen(true)}
         >
           Upload MBS File
-        </Button>
+        </Button> */}
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Total BOM Files */}
-        <Card className="rounded-xl border-0 shadow-sm bg-[#1e5baf] overflow-hidden text-white">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-[13px] font-medium text-blue-100 opacity-90">Total BOM Files</p>
-              <h2 className="text-[32px] font-bold mt-1 leading-tight">58 Files</h2>
-            </div>
-            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
-              <Hammer className="w-6 h-6 text-[#1e5baf]" />
-            </div>
-          </CardContent>
-        </Card>
+        <SummaryCard
+          title="Total BOM Files"
+          value={`${stats.totalBomFilesUploaded} Files`}
+          isLoading={isStatsLoading}
+          bgClass="bg-[#1e5baf]"
+          titleTextClass="text-blue-100"
+          icon={<Hammer className="w-6 h-6 text-[#1e5baf]" />}
+        />
 
-        {/* Pending Upload */}
-        <Card className="rounded-xl border-0 shadow-sm bg-[#34a853] overflow-hidden text-white">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-[13px] font-medium text-green-100 opacity-90">Pending Upload</p>
-              <h2 className="text-[32px] font-bold mt-1 leading-tight">12 Files</h2>
-            </div>
-            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
-              <ShieldCheck className="w-6 h-6 text-[#34a853]" />
-            </div>
-          </CardContent>
-        </Card>
+        <SummaryCard
+          title="Pending Upload"
+          value={`${stats.pendingUploads} Files`}
+          isLoading={isStatsLoading}
+          bgClass="bg-[#34a853]"
+          titleTextClass="text-green-100"
+          icon={<ShieldCheck className="w-6 h-6 text-[#34a853]" />}
+        />
 
-        {/* Ready for Shipper */}
-        <Card className="rounded-xl border-0 shadow-sm bg-[#fbbc04] overflow-hidden text-white">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-[13px] font-medium text-yellow-100 opacity-90">Ready for Shipper</p>
-              <h2 className="text-[32px] font-bold mt-1 leading-tight">26 Files</h2>
-            </div>
-            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
-              <CircleDollarSign className="w-6 h-6 text-[#fbbc04]" />
-            </div>
-          </CardContent>
-        </Card>
+        <SummaryCard
+          title="Ready for Shipper"
+          value={`${stats.readyForShipper} Files`}
+          isLoading={isStatsLoading}
+          bgClass="bg-[#fbbc04]"
+          titleTextClass="text-yellow-100"
+          icon={<CircleDollarSign className="w-6 h-6 text-[#fbbc04]" />}
+        />
 
-        {/* Issues Detected */}
-        <Card className="rounded-xl border-0 shadow-sm bg-[#ff7a50] overflow-hidden text-white">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-[13px] font-medium text-orange-100 opacity-90">Issues Detected</p>
-              <h2 className="text-[32px] font-bold mt-1 leading-tight">8 Files</h2>
-            </div>
-            <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-[#ff7a50]" />
-            </div>
-          </CardContent>
-        </Card>
+        <SummaryCard
+          title="Issues Detected"
+          value={`${stats.issuesDetected} Files`}
+          isLoading={isStatsLoading}
+          bgClass="bg-[#ff7a50]"
+          titleTextClass="text-orange-100"
+          icon={<TrendingUp className="w-6 h-6 text-[#ff7a50]" />}
+        />
       </div>
 
       {/* Controls */}
@@ -153,8 +186,10 @@ export default function UploadedBomFiles() {
         <div className="flex gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input 
-              placeholder="Search" 
+            <Input
+              placeholder="Search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               className="pl-9 w-[240px] h-10 bg-white border-0 shadow-sm rounded-lg"
             />
           </div>
@@ -183,54 +218,81 @@ export default function UploadedBomFiles() {
             <thead>
               <tr className="bg-[#f8f9fc] border-b border-slate-100">
                 <th className="py-4 pl-6 pr-4 w-12">
-                  <Checkbox className="rounded border-slate-300" />
+                  <Checkbox
+                    className="rounded border-slate-300"
+                    checked={filteredProjects.length > 0 && selectedIds.length === filteredProjects.length}
+                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                  />
                 </th>
                 <th className="py-4 px-4 text-[13px] font-bold text-slate-900">Project</th>
-                <th className="py-4 px-4 text-[13px] font-bold text-slate-900">Upload Date ↑↓</th>
-                <th className="py-4 px-4 text-[13px] font-bold text-slate-900">Items ↑↓</th>
+                <th className="py-4 px-4 text-[13px] font-bold text-slate-900">Upload Date</th>
+                <th className="py-4 px-4 text-[13px] font-bold text-slate-900">Items</th>
                 <th className="py-4 px-4 text-[13px] font-bold text-slate-900">File Status</th>
                 <th className="py-4 px-6 text-right w-32"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {mockBomFiles.map((file, index) => (
-                <tr key={index} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="py-5 pl-6 pr-4">
-                    <Checkbox 
-                      checked={file.checked} 
-                      className={`rounded border-slate-300 ${file.checked ? 'bg-[#7c3aed] border-[#7c3aed]' : ''}`} 
-                    />
-                  </td>
-                  <td className="py-5 px-4 text-[14px] text-slate-600 font-medium">{file.project}</td>
-                  <td className="py-5 px-4 text-[14px] text-slate-600">{file.uploadDate}</td>
-                  <td className="py-5 px-4 text-[14px] text-slate-900 font-medium">{file.items}</td>
-                  <td className="py-5 px-4">
-                    {file.statusType === 'warning' && (
-                      <Badge className="bg-[#fff8e1] hover:bg-[#fff8e1] text-[#f59e0b] border border-[#fde68a] rounded-full px-3 py-1 font-medium text-[12px] gap-1.5">
-                        {file.status} <AlertCircle className="w-3 h-3" />
-                      </Badge>
-                    )}
-                    {file.statusType === 'success' && (
-                      <Badge className="bg-[#ecfdf5] hover:bg-[#ecfdf5] text-[#10b981] border border-[#a7f3d0] rounded-full px-3 py-1 font-medium text-[12px] gap-1.5">
-                        <Check className="w-3 h-3" /> {file.status} <Check className="w-3 h-3" />
-                      </Badge>
-                    )}
-                    {file.statusType === 'neutral' && (
-                      <Badge className="bg-[#f1f5f9] hover:bg-[#f1f5f9] text-[#10b981] border border-[#e2e8f0] rounded-full px-3 py-1 font-medium text-[12px] gap-1.5">
-                        <Lock className="w-3 h-3 text-slate-400" /> {file.status} <Check className="w-3 h-3" />
-                      </Badge>
-                    )}
-                  </td>
-                  <td className="py-5 px-6 text-right">
-                    <Button 
-                      className="bg-[#3b59df] hover:bg-[#2b41b3] text-white rounded-full h-8 px-5 font-semibold text-xs"
-                      onClick={() => navigate(`/plant/uploaded-bom-files/${file.id}`)}
-                    >
-                      View
-                    </Button>
+              {isProjectsLoading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={`loading-row-${index}`}>
+                    <td className="py-5 pl-6 pr-4">
+                      <Skeleton className="h-4 w-4 bg-slate-200" />
+                    </td>
+                    <td className="py-5 px-4">
+                      <Skeleton className="h-4 w-32 bg-slate-200" />
+                    </td>
+                    <td className="py-5 px-4">
+                      <Skeleton className="h-4 w-24 bg-slate-200" />
+                    </td>
+                    <td className="py-5 px-4">
+                      <Skeleton className="h-4 w-12 bg-slate-200" />
+                    </td>
+                    <td className="py-5 px-4">
+                      <Skeleton className="h-7 w-24 rounded-full bg-slate-200" />
+                    </td>
+                    <td className="py-5 px-6 text-right">
+                      <Skeleton className="h-8 w-16 rounded-full bg-slate-200 ml-auto" />
+                    </td>
+                  </tr>
+                ))
+              ) : filteredProjects.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-sm text-slate-500 font-medium">
+                    No BOM files found
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredProjects.map((project) => {
+                  const isChecked = selectedIds.includes(project.bomJobId);
+                  return (
+                    <tr key={project.bomJobId} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-5 pl-6 pr-4">
+                        <Checkbox
+                          checked={isChecked}
+                          onCheckedChange={(checked) => handleSelectOne(project.bomJobId, !!checked)}
+                          className={`rounded border-slate-300 ${isChecked ? 'bg-[#7c3aed] border-[#7c3aed]' : ''}`}
+                        />
+                      </td>
+                      <td className="py-5 px-4 text-[14px] text-slate-600 font-medium">
+                        {getProjectDisplayName(project)}
+                      </td>
+                      <td className="py-5 px-4 text-[14px] text-slate-600">{formatDate(project.uploadDate)}</td>
+                      <td className="py-5 px-4 text-[14px] text-slate-900 font-medium">{project.itemCount}</td>
+                      <td className="py-5 px-4">
+                        {renderStatusBadge(project.fileStatus)}
+                      </td>
+                      <td className="py-5 px-6 text-right">
+                        <Button
+                          className="bg-[#3b59df] hover:bg-[#2b41b3] text-white rounded-full h-8 px-5 font-semibold text-xs"
+                          onClick={() => navigate(`/plant/uploaded-bom-files/${project.bomJobId}`)}
+                        >
+                          View
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -240,9 +302,15 @@ export default function UploadedBomFiles() {
       <div className="flex items-center justify-between mt-6 bg-white rounded-xl p-4 shadow-sm">
         <div className="flex items-center gap-3 text-sm text-slate-500">
           <span>Row Per Page</span>
-          <Select defaultValue="10">
+          <Select
+            value={limit.toString()}
+            onValueChange={(val) => {
+              setLimit(Number(val));
+              setPage(1);
+            }}
+          >
             <SelectTrigger className="w-[70px] h-9 bg-white border border-slate-200">
-              <SelectValue placeholder="10" />
+              <SelectValue placeholder="20" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="10">10</SelectItem>
@@ -253,18 +321,45 @@ export default function UploadedBomFiles() {
           <span>Entries</span>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" className="w-8 h-8 p-0 text-slate-400 hover:text-slate-900">&lt;</Button>
-          <Button variant="ghost" className="w-8 h-8 p-0 text-slate-600 rounded-full hover:bg-slate-100">1</Button>
-          <Button variant="ghost" className="w-8 h-8 p-0 text-slate-600 rounded-full hover:bg-slate-100">2</Button>
-          <Button variant="ghost" className="w-8 h-8 p-0 text-slate-600 rounded-full hover:bg-slate-100">3</Button>
-          <Button variant="default" className="w-8 h-8 p-0 bg-[#f59e0b] hover:bg-[#d97706] text-white rounded-full">4</Button>
-          <span className="text-slate-400 px-2">...</span>
-          <Button variant="ghost" className="w-8 h-8 p-0 text-slate-600 rounded-full hover:bg-slate-100">15</Button>
-          <Button variant="ghost" className="w-8 h-8 p-0 text-slate-400 hover:text-slate-900">&gt;</Button>
+          <Button
+            variant="ghost"
+            className="w-8 h-8 p-0 text-slate-400 hover:text-slate-900 disabled:opacity-50 flex items-center justify-center"
+            disabled={page === 1}
+            onClick={() => setPage(prev => Math.max(prev - 1, 1))}
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+
+          {Array.from({ length: totalPages }).map((_, idx) => {
+            const pageNum = idx + 1;
+            // Simple page buttons, limit how many show if there are many pages
+            return (
+              <Button
+                key={pageNum}
+                variant={page === pageNum ? "default" : "ghost"}
+                className={`w-8 h-8 p-0 rounded-full ${page === pageNum
+                  ? "bg-[#f59e0b] hover:bg-[#d97706] text-white"
+                  : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                onClick={() => setPage(pageNum)}
+              >
+                {pageNum}
+              </Button>
+            );
+          })}
+
+          <Button
+            variant="ghost"
+            className="w-8 h-8 p-0 text-slate-400 hover:text-slate-900 disabled:opacity-50 flex items-center justify-center"
+            disabled={page === totalPages}
+            onClick={() => setPage(prev => Math.min(prev + 1, totalPages))}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 
-      <UploadBomFileDialog 
+      <UploadBomFileDialog
         open={isUploadOpen}
         onOpenChange={setIsUploadOpen}
       />

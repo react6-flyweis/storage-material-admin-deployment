@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router";
-import { ArrowLeft, CheckCircle, Eye, Filter, Search } from "lucide-react";
+import { useNavigate, useParams } from "react-router";
+import { ArrowLeft, CheckCircle, Eye, Filter, Search, Loader2 } from "lucide-react";
+import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,120 +18,95 @@ import Pagination from "@/components/Pagination";
 import { Card } from "@/components/ui/card";
 import StatCard from "@/components/ui/stat-card";
 import { cn } from "@/lib/utils";
-
-const shipperStats = [
-  {
-    title: "Total Shipper Files",
-    value: "58 Files",
-    bg: "bg-[#1D51A4]",
-    icon: <Search className="h-5 w-5 text-[#1D51A4]" />,
-  },
-  {
-    title: "Pending Upload",
-    value: "12 Files",
-    bg: "bg-[#22C55E]",
-    icon: <Search className="h-5 w-5 text-[#22C55E]" />,
-  },
-  {
-    title: "Ready for Validation",
-    value: "26 Files",
-    bg: "bg-[#FACC15]",
-    icon: <Search className="h-5 w-5 text-[#EAB308]" />,
-  },
-  {
-    title: "Issues Detected",
-    value: "8 Files",
-    bg: "bg-[#FB923C]",
-    icon: <Search className="h-5 w-5 text-[#F97316]" />,
-  },
-];
-
-const shipperRows = [
-  {
-    shipper: "ABC Steel",
-    fileName: "SHP-1044",
-    uploadDate: "22 Feb 2025",
-    items: 120,
-    weight: "18,500 IBS",
-    status: "Pending",
-  },
-  {
-    shipper: "Steel Works LTD",
-    fileName: "SHP-1045",
-    uploadDate: "07 Feb 2025",
-    items: 95,
-    weight: "37,700 IBS",
-    status: "Approved",
-  },
-  {
-    shipper: "Metro Steel",
-    fileName: "SHP-1046",
-    uploadDate: "30 Jan 2025",
-    items: 50,
-    weight: "21,400 IBS",
-    status: "Compared",
-  },
-  {
-    shipper: "ABC Steel",
-    fileName: "SHP-1047",
-    uploadDate: "17 Jan 2025",
-    items: 80,
-    weight: "18,500 IBS",
-    status: "Compared",
-  },
-  {
-    shipper: "Steel Works LTD",
-    fileName: "SHP-1048",
-    uploadDate: "04 Jan 2025",
-    items: 110,
-    weight: "37,700 IBS",
-    status: "Compared",
-  },
-  {
-    shipper: "Metro Steel",
-    fileName: "SHP-1049",
-    uploadDate: "09 Dec 2024",
-    items: 120,
-    weight: "21,400 IBS",
-    status: "Compared",
-  },
-];
+import {
+  useProjectShipperStatsQuery,
+  useProjectShipperRequestsQuery,
+} from "@/modules/plant/shipper.hooks";
 
 const statusClasses: Record<string, string> = {
-  Pending: "bg-[#FEF9C3] text-[#CA8A04]  border-[#FDE68A]",
-  Approved: "bg-[#DCFCE7] text-[#16A34A]  border-[#BBF7D0]",
-  Compared: "bg-[#DCFCE7] text-[#16A34A]  border-[#BBF7D0]",
+  Pending: "bg-[#FEF9C3] text-[#CA8A04] border-[#FDE68A]",
+  Approved: "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]",
+  Compared: "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]",
+  "File Received": "bg-[#FEF9C3] text-[#CA8A04] border-[#FDE68A]",
+  "Order Sent": "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]",
+  "Revision Sent": "bg-[#FEF9C3] text-[#CA8A04] border-[#FDE68A]",
+};
+
+const displayStatus = (fileStatus: string, comparisonStatus: string) => {
+  const s = fileStatus?.toLowerCase();
+  const c = comparisonStatus?.toLowerCase();
+  if (s === "submitted") return "File Received";
+  if (c === "completed") return "Compared";
+  if (s === "approved") return "Approved";
+  if (s === "rejected") return "Rejected";
+  if (s === "order sent" || s === "ordersent") return "Order Sent";
+  if (s === "revision sent" || s === "revisionsent") return "Revision Sent";
+  return fileStatus || "Pending";
 };
 
 export default function ProjectShipperFilesPage() {
   const navigate = useNavigate();
+  const { id, projectId } = useParams<{ id: string; projectId: string }>();
+  const leadId = projectId || id || "";
+
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const filteredRows = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-    if (!query) return shipperRows;
+  const { data: statsResponse, isLoading: isStatsLoading } = useProjectShipperStatsQuery(leadId, {
+    enabled: !!leadId,
+  });
 
-    return shipperRows.filter((row) =>
-      [
-        row.shipper,
-        row.fileName,
-        row.uploadDate,
-        row.items.toString(),
-        row.weight,
-        row.status,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [searchTerm]);
-
-  const currentRows = filteredRows.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage,
+  const { data: requestsResponse, isLoading: isRequestsLoading } = useProjectShipperRequestsQuery(
+    leadId,
+    currentPage,
+    rowsPerPage,
+    searchTerm.trim() || undefined,
+    {
+      enabled: !!leadId,
+    }
   );
+
+  const statsData = statsResponse?.data;
+  const requests = requestsResponse?.data?.shipperRequests || [];
+  const total = requestsResponse?.data?.total || 0;
+
+  const shipperStats = useMemo(() => {
+    return [
+      {
+        title: "Total Shipper Files",
+        value: statsData ? `${statsData.totalFiles} Files` : "0 Files",
+        bg: "bg-[#1D51A4]",
+        icon: <Search className="h-5 w-5 text-[#1D51A4]" />,
+      },
+      {
+        title: "Pending Upload",
+        value: statsData ? `${statsData.totalFiles - statsData.filesReceived} Files` : "0 Files",
+        bg: "bg-[#22C55E]",
+        icon: <Search className="h-5 w-5 text-[#22C55E]" />,
+      },
+      {
+        title: "Ready for Validation",
+        value: statsData ? `${statsData.filesReceived} Files` : "0 Files",
+        bg: "bg-[#FACC15]",
+        icon: <Search className="h-5 w-5 text-[#EAB308]" />,
+      },
+      {
+        title: "Issues Detected",
+        value: statsData ? `${statsData.revisionsSent} Files` : "0 Files",
+        bg: "bg-[#FB923C]",
+        icon: <Search className="h-5 w-5 text-[#F97316]" />,
+      },
+    ];
+  }, [statsData]);
+
+  if (isStatsLoading || isRequestsLoading) {
+    return (
+      <div className="flex-1 min-h-screen flex items-center justify-center bg-slate-50/50">
+        <Loader2 className="w-8 h-8 animate-spin text-[#1D51A4]" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6">
@@ -138,14 +114,14 @@ export default function ProjectShipperFilesPage() {
         <div className="flex items-center gap-4">
           <Button
             variant="default"
-            onClick={() => navigate('/customers')}
+            onClick={() => navigate(-1)}
             className="px-4 bg-[#3B82F6] hover:bg-[#2563EB] text-white"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
           <h1 className="text-3xl font-bold text-[#0F172A]">
-            Project 1 - Shipper Files
+            {statsData?.projectName || "Project"} - Shipper Files
           </h1>
         </div>
       </div>
@@ -215,64 +191,84 @@ export default function ProjectShipperFilesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentRows.map((row, index) => (
-                <TableRow key={index} className="hover:bg-slate-50/80">
-                  <TableCell className="text-center py-4">
-                    <Checkbox className="border-slate-300" />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="h-9 w-9 rounded-full bg-[#1D51A4] text-white flex items-center justify-center text-sm font-semibold">
-                        {row.shipper
-                          .split(" ")
-                          .map((part) => part[0])
-                          .join("")
-                          .slice(0, 2)}
-                      </div>
-                      <div>
-                        <p className="font-medium text-slate-800">
-                          {row.shipper}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-slate-600">
-                    {row.fileName}
-                  </TableCell>
-                  <TableCell className="text-slate-600">
-                    {row.uploadDate}
-                  </TableCell>
-                  <TableCell className="text-slate-600">{row.items}</TableCell>
-                  <TableCell className="text-slate-600">{row.weight}</TableCell>
-                  <TableCell>
-                    <span
-                      className={cn(
-                        "inline-flex items-center rounded-md py-0.5 text-xs font-medium px-2 border ",
-                        statusClasses[row.status] ?? "text-slate-600",
-                      )}
-                    >
-                      {row.status}
-                      <CheckCircle className="ml-1 size-3" />
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      className="text-slate-500 hover:text-slate-900 p-2 rounded-full"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
+              {requests.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-slate-500">
+                    No shipper requests found.
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : (
+                requests.map((row) => {
+                  const statusVal = displayStatus(row.fileStatus, row.comparisonStatus);
+                  return (
+                    <TableRow key={row.requestId} className="hover:bg-slate-50/80">
+                      <TableCell className="text-center py-4">
+                        <Checkbox className="border-slate-300" />
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-full bg-[#1D51A4] text-white flex items-center justify-center text-sm font-semibold">
+                            {row.vendorName
+                              ? row.vendorName
+                                  .split(" ")
+                                  .map((part) => part[0])
+                                  .join("")
+                                  .slice(0, 2)
+                                  .toUpperCase()
+                              : "V"}
+                          </div>
+                          <div>
+                            <p className="font-medium text-slate-800">
+                              {row.vendorName}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-slate-600">
+                        {row.fileName}
+                      </TableCell>
+                      <TableCell className="text-slate-600">
+                        {row.uploadedDate ? format(new Date(row.uploadedDate), "dd MMM yyyy") : "—"}
+                      </TableCell>
+                      <TableCell className="text-slate-600">
+                        {row.resubmitCount || 120}
+                      </TableCell>
+                      <TableCell className="text-slate-600">
+                        18,500 IBS
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={cn(
+                            "inline-flex items-center rounded-md py-0.5 text-xs font-medium px-2 border ",
+                            statusClasses[statusVal] ?? "text-slate-600",
+                          )}
+                        >
+                          {statusVal}
+                          <CheckCircle className="ml-1 size-3" />
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          onClick={() => navigate(`/plant/shipper-quotation/${leadId}/file/${row.requestId}`)}
+                          className="text-slate-500 hover:text-slate-900 p-2 rounded-full"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </div>
       </Card>
 
+
       <div className="flex items-center justify-between bg-white">
         <Pagination
-          totalItems={filteredRows.length}
+          totalItems={total}
           currentPage={currentPage}
           rowsPerPage={rowsPerPage}
           onPageChange={(page) => setCurrentPage(page)}
@@ -286,3 +282,4 @@ export default function ProjectShipperFilesPage() {
     </div>
   );
 }
+

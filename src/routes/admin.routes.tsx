@@ -255,8 +255,10 @@ const QrLabelsProject = lazy(() => import("@/plant/pages/QrLabelsProject"));
 const ShippersList = lazy(() => import("@/plant/pages/ShippersList"));
 const AddShipper = lazy(() => import("@/plant/pages/AddShipper"));
 const ShipperDetails = lazy(() => import("@/plant/pages/ShipperDetails"));
+const EditShipper = lazy(() => import("@/plant/pages/EditShipper"));
 const FreightCarriersList = lazy(() => import("@/plant/pages/FreightCarriersList"));
 const AddFreightCarrier = lazy(() => import("@/plant/pages/AddFreightCarrier"));
+const EditFreightCarrier = lazy(() => import("@/plant/pages/EditFreightCarrier"));
 const FreightCarrierDetails = lazy(() => import("@/plant/pages/FreightCarrierDetails"));
 const PlantDashboard = lazy(() => import("@/plant/pages/PlantPage"));
 const ItemCostList = lazy(() => import("@/plant/pages/ItemCostList"));
@@ -619,9 +621,11 @@ export const adminRoutes: RouteObject[] = [
               { path: "shippers", element: <ShippersList /> },
               { path: "shippers/add", element: <AddShipper /> },
               { path: "shippers/:id", element: <ShipperDetails /> },
+              { path: "shippers/:id/edit", element: <EditShipper /> },
               { path: "freight-carriers", element: <FreightCarriersList /> },
               { path: "freight-carriers/add", element: <AddFreightCarrier /> },
               { path: "freight-carriers/:id", element: <FreightCarrierDetails /> },
+              { path: "freight-carriers/:id/edit", element: <EditFreightCarrier /> },
               { path: "notification-history", element: <NotificationHistory /> },
               { path: "delivery-calendar", element: <DeliveryCalendar /> },
               { path: "delivery-details/:id", element: <DeliveryDetails /> },
