@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import dayjs from "dayjs";
 import StatsOverview from "../components/cards/StatCard";
 import type { StatItem } from "../components/cards/StatCard";
@@ -9,8 +9,8 @@ import MoneyIcon from "../assets/completionicon.svg";
 import BoxIcon from "../assets/pendingmaterialicon.svg";
 import ShieldIcon from "../assets/safetyscoreicon.svg";
 import ProjectCalendarComponent from "../components/projects/ProjectCalendarComponent";
-import { getProjectsCalendar } from "../construction.api";
-import type { ProjectCalendarItem, ProjectCalendarDelivery } from "../construction.api";
+import { useProjectsCalendarQuery } from "../construction.hooks";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Projects() {
   const [activeTab, setActiveTab] = useState<"calendar" | "project">("calendar");
@@ -18,44 +18,19 @@ export default function Projects() {
   const [currentMonth, setCurrentMonth] = useState(dayjs());
   const [selectedDate, setSelectedDate] = useState(dayjs());
 
-  const [apiProjects, setApiProjects] = useState<ProjectCalendarItem[]>([]);
-  const [apiDeliveries, setApiDeliveries] = useState<ProjectCalendarDelivery[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [statsData, setStatsData] = useState({
-    total: 121,
-    active: 43,
-    upcoming: 77,
-    completed: 1,
-  });
+  const monthNum = currentMonth.month() + 1;
+  const yearNum = currentMonth.year();
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchCalendarData = async () => {
-      setLoading(true);
-      try {
-        const monthNum = currentMonth.month() + 1; // dayjs month is 0-indexed
-        const yearNum = currentMonth.year();
-        const res = await getProjectsCalendar(monthNum, yearNum);
-        if (isMounted && res.success && res.data) {
-          setApiProjects(res.data.projects || []);
-          setApiDeliveries(res.data.deliveries || []);
-          if (res.data.stats) {
-            setStatsData(res.data.stats);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch projects calendar data:", error);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
+  const { data, isLoading } = useProjectsCalendarQuery(monthNum, yearNum);
 
-    fetchCalendarData();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [currentMonth]);
+  const apiProjects = data?.data?.projects || [];
+  const apiDeliveries = data?.data?.deliveries || [];
+  const statsData = data?.data?.stats || {
+    total: 0,
+    active: 0,
+    upcoming: 0,
+    completed: 0,
+  };
 
   const stats: StatItem[] = [
     {
@@ -138,7 +113,15 @@ export default function Projects() {
       </div>
 
       {/* Top Stats Overview */}
-      <StatsOverview stats={stats} />
+      {isLoading ? (
+        <div className="grid md:grid-cols-4 grid-cols-2 md:gap-6 gap-3 md:mb-6 mb-3">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-[106px] w-full rounded-[8px]" />
+          ))}
+        </div>
+      ) : (
+        <StatsOverview stats={stats} />
+      )}
 
       {/* Calendar Tab Content */}
       {activeTab === "calendar" && (
@@ -149,12 +132,23 @@ export default function Projects() {
           setSelectedDate={setSelectedDate}
           projects={apiProjects}
           deliveries={apiDeliveries}
-          loading={loading}
+          loading={isLoading}
         />
       )}
 
       {/* Project Tab Content */}
-      {activeTab === "project" && <ProjectsTable projects={tableProjectsData} />}
+      {activeTab === "project" && (
+        isLoading ? (
+          <div className="space-y-4 bg-white p-6 rounded-[8px] border border-[#F3F4F6]">
+            <Skeleton className="h-8 w-48 mb-4" />
+            {[...Array(5)].map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full rounded-md" />
+            ))}
+          </div>
+        ) : (
+          <ProjectsTable projects={tableProjectsData} />
+        )
+      )}
     </div>
   );
 }
