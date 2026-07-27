@@ -365,6 +365,8 @@ const navigationGroups: NavigationGroup[] = [
     link: "/construction",
     items: [
       { path: "/construction/projects", label: "Project & Calendar" },
+      { path: "/construction/drawing-attachment", label: "Drawing & Attachment" },
+      { path: "/construction/all-deliveries", label: "All Deliveries" },
       { path: "/construction/tasks", label: "Tasks & Progress" },
       { path: "/construction/materials", label: "Material Request" },
       { path: "/construction/reports", label: "Construction Reports" },
@@ -662,7 +664,7 @@ export function Sidebar({
   // Determine final padding: use calculated padding if content fits, otherwise use 5
   const menuPaddingTop =
     activeGroupItemsHeight + calculatedPadding + topSectionHeight + 20 <
-    window.innerHeight
+      window.innerHeight
       ? calculatedPadding
       : 10;
 
@@ -719,9 +721,8 @@ export function Sidebar({
       )}
 
       <div
-        className={`flex fixed inset-y-0 left-0 lg:left-0 lg:top-0 z-50 transition-transform duration-300 lg:translate-x-0 h-screen ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`flex fixed inset-y-0 left-0 lg:left-0 lg:top-0 z-50 transition-transform duration-300 lg:translate-x-0 h-screen ${isOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         {/* Icon Sidebar */}
         <aside className="sidebar relative z-40 w-18 h-screen bg-sidebar overflow-visible">
