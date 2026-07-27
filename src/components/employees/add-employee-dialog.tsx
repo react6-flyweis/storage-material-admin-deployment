@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FieldGroup, FieldLegend, FieldSeparator } from "@/components/ui/field";
+// import { FieldGroup, FieldLegend, FieldSeparator } from "@/components/ui/field";
 import { Plus } from "lucide-react";
 
 const permissionItem = z.object({
@@ -47,21 +47,21 @@ const permissionsSchema = z.object({
   generate_report: permissionItem.optional(),
 });
 
-type PermissionKey = keyof z.infer<typeof permissionsSchema>;
+// type PermissionKey = keyof z.infer<typeof permissionsSchema>;
 
-const PERMISSIONS: { key: PermissionKey; label: string }[] = [
-  { key: "lead_access", label: "Lead access" },
-  { key: "follow_ups_access", label: "Follow-ups Access" },
-  { key: "reports_access", label: "Reports Access" },
-  { key: "ai_support_access", label: "AI Support Access" },
-  { key: "settings_access", label: "Settings Access" },
-  { key: "employees", label: "Employees" },
-  { key: "tax_report", label: "Tax & Report" },
-  { key: "insights", label: "Insights" },
-  { key: "add_new_lead", label: "Add new lead" },
-  { key: "schedule_meeting", label: "Schedule meeting" },
-  { key: "generate_report", label: "Generate Report" },
-];
+// const PERMISSIONS: { key: PermissionKey; label: string }[] = [
+//   { key: "lead_access", label: "Lead access" },
+//   { key: "follow_ups_access", label: "Follow-ups Access" },
+//   { key: "reports_access", label: "Reports Access" },
+//   { key: "ai_support_access", label: "AI Support Access" },
+//   { key: "settings_access", label: "Settings Access" },
+//   { key: "employees", label: "Employees" },
+//   { key: "tax_report", label: "Tax & Report" },
+//   { key: "insights", label: "Insights" },
+//   { key: "add_new_lead", label: "Add new lead" },
+//   { key: "schedule_meeting", label: "Schedule meeting" },
+//   { key: "generate_report", label: "Generate Report" },
+// ];
 
 const addEmployeeSchema = z.object({
   name: z.string().min(1, "Full name is required"),
@@ -311,49 +311,7 @@ export function AddEmployeeDialog({
             </div>
           </div>
 
-          <div>
-            <FieldGroup>
-              <FieldLegend>Permissions</FieldLegend>
-              <FieldSeparator />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {PERMISSIONS.map((p) => (
-                  <div key={p.key as string} className="border-b pb-3">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        {...register(`permissions.${p.key}.main`)}
-                      />
-                      <Label>{p.label}</Label>
-                    </div>
-                    <div className="flex items-center gap-4 ml-6 mt-2 text-sm">
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          {...register(`permissions.${p.key}.view`)}
-                        />
-                        <span className="text-muted-foreground">View</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          {...register(`permissions.${p.key}.edit`)}
-                        />
-                        <span className="text-muted-foreground">Edit</span>
-                      </label>
-                      <label className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          {...register(`permissions.${p.key}.delete`)}
-                        />
-                        <span className="text-muted-foreground">Delete</span>
-                      </label>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </FieldGroup>
-          </div>
 
           <div className="flex justify-end gap-3 pt-2">
             <Button
