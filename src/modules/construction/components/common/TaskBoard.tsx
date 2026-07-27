@@ -4,10 +4,12 @@ import NewTaskModel from "../newTaskModel";
 import RightCheckIcon from "../../assets/RightTickIcon";
 import SuccessModal from "./SuccessModal";
 import { useSearchParams } from "react-router";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { ApiTaskItem } from "../../construction.api";
 
 type TaskPriority = "High" | "Medium" | "Low";
 
-type Task = {
+export type Task = {
   id: string;
   title: string;
   project: string;
@@ -16,66 +18,7 @@ type Task = {
   due?: string;
   assignee: string;
   progress?: number;
-  status?: "todo" | "inProgress" | "done"; // ✅ add status field
-};
-
-const initialTasks: {
-  todo: Task[];
-  inProgress: Task[];
-  done: Task[];
-} = {
-  todo: [
-    {
-      id: "1",
-      title: "Steel Frame Installation",
-      project: "Downtown Office Complex",
-      description: "Install steel frame structure for floors 1-5",
-      priority: "High",
-      due: "2024-02-15",
-      assignee: "Sarah Wilson",
-      status: "todo",
-    },
-  ],
-
-  inProgress: [
-    {
-      id: "2",
-      title: "Steel Frame Installation",
-      project: "Downtown Office Complex",
-      description:
-        "Complete excavation for building foundation according to architectural plans",
-      priority: "High",
-      due: "2024-02-15",
-      assignee: "Sarah Wilson",
-      progress: 75,
-      status: "inProgress",
-    },
-    {
-      id: "3",
-      title: "Plumbing Installation",
-      project: "Residential Tower A",
-      description: "Install plumbing systems for residential units",
-      priority: "Medium",
-      due: "2024-02-15",
-      assignee: "Sarah Wilson",
-      progress: 75,
-      status: "inProgress",
-    },
-  ],
-
-  done: [
-    {
-      id: "4",
-      title: "Electrical Wiring - Floor 1",
-      project: "Residential Tower A",
-      description:
-        "Complete electrical wiring installation for first floor units",
-      priority: "Low",
-      due: "NA",
-      assignee: "Robert Chen",
-      status: "done",
-    },
-  ],
+  status?: "todo" | "inProgress" | "done";
 };
 
 const priorityStyles: Record<TaskPriority, string> = {
@@ -84,10 +27,27 @@ const priorityStyles: Record<TaskPriority, string> = {
   Low: "bg-green-100 text-green-600",
 };
 
-export default function TaskBoard() {
+export interface TaskBoardProps {
+  boardData?: {
+    todo: ApiTaskItem[];
+    in_progress: ApiTaskItem[];
+    done: ApiTaskItem[];
+  };
+  loading?: boolean;
+}
+
+export default function TaskBoard({ boardData, loading = false }: TaskBoardProps) {
   const [openDailyLogModel, setDailyLogModel] = useState(false);
   const [openNewTaskModel, setNewTaskModel] = useState(false);
-  const [tasks, setTasks] = useState(initialTasks);
+  const [extraTasks, setExtraTasks] = useState<{
+    todo: Task[];
+    inProgress: Task[];
+    done: Task[];
+  }>({
+    todo: [],
+    inProgress: [],
+    done: [],
+  });
   const [successOpen, setSuccessOpen] = useState(false);
   const [successTitle, setSuccessTitle] = useState("");
   const [afterSuccessAction, setAfterSuccessAction] = useState<
@@ -96,6 +56,55 @@ export default function TaskBoard() {
 
   const [searchParams] = useSearchParams();
   const search = searchParams.get("search") || "";
+
+  // Map ApiTaskItem to UI Task
+  const mapApiTask = (item: ApiTaskItem): Task => {
+    const rawPriority = (item.priority || "medium").toLowerCase();
+    let priority: TaskPriority = "Medium";
+    if (rawPriority === "high") priority = "High";
+    else if (rawPriority === "low") priority = "Low";
+
+    let due = "NA";
+    if (item.dueDate) {
+      due = item.dueDate.split("T")[0];
+    }
+
+    let status: "todo" | "inProgress" | "done" = "todo";
+    if (item.status === "in_progress" || item.status === "inProgress") {
+      status = "inProgress";
+    } else if (item.status === "done") {
+      status = "done";
+    }
+
+    const project = item.leadId
+      ? `${item.leadId.projectName || ""}${item.leadId.jobId ? ` (${item.leadId.jobId})` : ""}`
+      : "-";
+
+    return {
+      id: item._id,
+      title: item.title || "Untitled Task",
+      project: project.trim() || "-",
+      description: item.description || "",
+      priority,
+      due,
+      assignee: item.assignedTo?.name || "Unassigned",
+      status,
+    };
+  };
+
+  const todoList: Task[] = [
+    ...(boardData?.todo?.map(mapApiTask) || []),
+    ...extraTasks.todo,
+  ];
+  const inProgressList: Task[] = [
+    ...(boardData?.in_progress?.map(mapApiTask) || []),
+    ...extraTasks.inProgress,
+  ];
+  const doneList: Task[] = [
+    ...(boardData?.done?.map(mapApiTask) || []),
+    ...extraTasks.done,
+  ];
+
   const filterTasksBySearch = (list: Task[]) => {
     if (!search.trim()) return list;
 
@@ -124,7 +133,7 @@ export default function TaskBoard() {
       status: data.status,
     };
 
-    setTasks((prev) => {
+    setExtraTasks((prev) => {
       const updated = { ...prev };
       if (newTask.status === "todo") updated.todo = [newTask, ...prev.todo];
       else if (newTask.status === "inProgress")
@@ -134,19 +143,21 @@ export default function TaskBoard() {
       return updated;
     });
   };
+
   const handleDailyLogSubmit = (data: any) => {
     const newTask: Task = {
       id: Date.now().toString(),
-      title: data.task,
-      project: data.project,
+      title: data.description || "Daily Work Log",
+      project: "Project",
       description: data.description,
       progress: Number(data.progress),
       priority: "Medium",
-      due: "NA",
+      due: data.date || "NA",
       assignee: "You",
+      status: "inProgress",
     };
 
-    setTasks((prev) => ({
+    setExtraTasks((prev) => ({
       ...prev,
       inProgress: [newTask, ...prev.inProgress],
     }));
@@ -162,13 +173,13 @@ export default function TaskBoard() {
         <div className="flex gap-4">
           <button
             onClick={() => setDailyLogModel(true)}
-            className="bg-[#3AB449] text-white px-6 py-2 rounded-[8px] text-[16px] font-normal"
+            className="bg-[#3AB449] text-white px-6 py-2 rounded-[8px] text-[16px] font-normal cursor-pointer"
           >
             Daily Work Log
           </button>
           <button
             onClick={() => setNewTaskModel(true)}
-            className="bg-[#2563EB] text-white px-6 py-2 rounded-[8px] text-[16px] font-normal"
+            className="bg-[#2563EB] text-white px-6 py-2 rounded-[8px] text-[16px] font-normal cursor-pointer"
           >
             Add Task
           </button>
@@ -216,26 +227,36 @@ export default function TaskBoard() {
       <div className="overflow-auto scroll-hide w-[calc(100vw-50px)] lg:w-[calc(100vw-388px)]">
         <div className="grid grid-cols-3 lg:gap-6 gap-3 min-w-[800px]">
           <Column
-            title={`To Do (${filterTasksBySearch(tasks.todo).length})`}
+            title={`To Do ${loading ? "" : `(${filterTasksBySearch(todoList).length})`}`}
             bg="bg-[#F9FAFB]"
           >
-            {filterTasksBySearch(tasks.todo).map(renderTask)}
+            {loading
+              ? Array.from({ length: 3 }).map((_, idx) => (
+                  <TaskCardSkeleton key={idx} />
+                ))
+              : filterTasksBySearch(todoList).map(renderTask)}
           </Column>
 
           <Column
-            title={`In Progress (${
-              filterTasksBySearch(tasks.inProgress).length
-            })`}
+            title={`In Progress ${loading ? "" : `(${filterTasksBySearch(inProgressList).length})`}`}
             bg="bg-[#EFF6FF]"
           >
-            {filterTasksBySearch(tasks.inProgress).map(renderTask)}
+            {loading
+              ? Array.from({ length: 3 }).map((_, idx) => (
+                  <TaskCardSkeleton key={idx} />
+                ))
+              : filterTasksBySearch(inProgressList).map(renderTask)}
           </Column>
 
           <Column
-            title={`Done (${filterTasksBySearch(tasks.done).length})`}
+            title={`Done ${loading ? "" : `(${filterTasksBySearch(doneList).length})`}`}
             bg="bg-[#F0FDF4]"
           >
-            {filterTasksBySearch(tasks.done).map(renderTask)}
+            {loading
+              ? Array.from({ length: 3 }).map((_, idx) => (
+                  <TaskCardSkeleton key={idx} />
+                ))
+              : filterTasksBySearch(doneList).map(renderTask)}
           </Column>
         </div>
       </div>
@@ -247,16 +268,33 @@ function capitalizeFirstLetter(str: string) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+function TaskCardSkeleton() {
+  return (
+    <div className="bg-white rounded-xl p-4 shadow-sm mb-4 space-y-3">
+      <div className="flex justify-between items-center">
+        <Skeleton className="h-4 w-3/5" />
+        <Skeleton className="h-5 w-14 rounded-full" />
+      </div>
+      <Skeleton className="h-3 w-2/5" />
+      <Skeleton className="h-3 w-4/5" />
+      <div className="flex justify-between items-center pt-2">
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-3 w-24" />
+      </div>
+    </div>
+  );
+}
+
 function renderTask(task: Task) {
   return (
     <div key={task.id} className="bg-white rounded-xl p-4 shadow-sm mb-4">
-      <div className="flex justify-between items-start mb-2">
+      <div className="flex justify-between items-start mb-2 gap-2">
         <h3 className="font-bold text-[14px] text-[#111827]">{task.title}</h3>
         {task.status === "done" ? (
           <RightCheckIcon />
         ) : (
           <span
-            className={`px-3 py-1 rounded-full text-sm ${
+            className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 ${
               priorityStyles[task.priority]
             }`}
           >
@@ -265,8 +303,10 @@ function renderTask(task: Task) {
         )}
       </div>
 
-      <p className="text-[#6B7280] text-xs mb-2">{task.project}</p>
-      <p className="text-[#6B7280] text-xs mb-4">{task.description}</p>
+      <p className="text-[#6B7280] text-xs mb-2 font-medium">{task.project}</p>
+      {task.description && (
+        <p className="text-[#6B7280] text-xs mb-4">{task.description}</p>
+      )}
 
       {typeof task.progress === "number" && (
         <>
@@ -283,12 +323,12 @@ function renderTask(task: Task) {
         </>
       )}
 
-      <div className="flex justify-between text-xs ">
+      <div className="flex justify-between text-xs pt-1 border-t border-gray-50 mt-2">
         <span className="text-[#6B7280]">
           {task.due && task.due !== "NA" ? `Due ${task.due}` : "Completed"}
         </span>
 
-        <span className="text-[#000000]">{task.assignee}</span>
+        <span className="text-[#000000] font-medium">{task.assignee}</span>
       </div>
     </div>
   );
@@ -312,3 +352,4 @@ function Column({
     </div>
   );
 }
+
