@@ -51,8 +51,6 @@ import BudgetVsActualIcon from "@/assets/icons/sidebar/budget-actual.svg";
 import { Button } from "./ui/button";
 import activeBgImage from "@/assets/images/active-bg.png";
 import { cn } from "@/lib/utils";
-import { UserMenu } from "@/components/user-menu";
-import ProfileDialog from "@/components/profile-dialog";
 import { useEmployeeCountsStore } from "@/modules/employees/employees.store";
 import {
   ChevronDownIcon,
@@ -534,8 +532,6 @@ export function Sidebar({
       );
     },
   );
-  const [profileOpen, setProfileOpen] = useState(false);
-
   const currentPath = location.pathname;
 
   const getEmployeeBadge = (path: string, fallbackBadge?: number) => {
@@ -821,16 +817,12 @@ export function Sidebar({
             </button>
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
-                <UserMenu onOpenProfile={() => setProfileOpen(true)}>
-                  <button className="flex items-center gap-3 text-left focus:outline-none hover:opacity-80 transition-opacity">
-                    <div>
-                      <h2 className="text-lg font-bold text-gray-800">
-                        Admin Panel
-                      </h2>
-                      <p className="text-xs text-gray-500">admin@steelpro.com</p>
-                    </div>
-                  </button>
-                </UserMenu>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-800">
+                    Admin Panel
+                  </h2>
+                  <p className="text-xs text-gray-500">admin@steelpro.com</p>
+                </div>
               </div>
               <Button
                 variant="outline"
@@ -1020,7 +1012,6 @@ export function Sidebar({
           </nav>
         </aside>
       </div>
-      <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
     </>
   );
 }
