@@ -1,6 +1,10 @@
+import { useState } from "react";
 import CloseIcon from "../assets/closeicon.svg";
 import DownloadIcon from "../assets/downloadicon.svg";
 import LinkIcon from "../assets/linkicon.svg";
+import { useAddDrawingCommentMutation } from "../construction.hooks";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 type DrawingPreviewModalProps = {
   open: boolean;
@@ -25,7 +29,37 @@ export default function DrawingPreviewModal({
   fileId,
   file,
 }: DrawingPreviewModalProps) {
+  const [commentText, setCommentText] = useState("");
+  const addCommentMutation = useAddDrawingCommentMutation();
+
   if (!open) return null;
+
+  const docId = file?.id;
+
+  const handleSendComment = async () => {
+    if (!commentText.trim()) {
+      toast.error("Please enter a comment");
+      return;
+    }
+
+    if (!docId) {
+      toast.error("Document ID not found");
+      return;
+    }
+
+    try {
+      await addCommentMutation.mutateAsync({
+        docId,
+        payload: { text: commentText.trim() },
+      });
+      toast.success("Comment added successfully");
+      setCommentText("");
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.message || err?.message || "Failed to add comment"
+      );
+    }
+  };
 
   return (
     <div
@@ -154,20 +188,37 @@ export default function DrawingPreviewModal({
           </div>
         </div>
         {fileId == "Pending" && (
-          <div className="lg:px-6 px-3 py-3 border-t flex sm:gap-4 gap-2 items-center">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendComment();
+            }}
+            className="lg:px-6 px-3 py-3 border-t flex sm:gap-4 gap-2 items-center"
+          >
             <div className="h-[40px] border rounded-lg flex items-center gap-1 flex-1 sm:px-4 px-2">
               <input
                 placeholder="Type your Comment..."
-                className="flex-1 outline-none"
+                className="flex-1 outline-none text-sm"
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                disabled={addCommentMutation.isPending}
               />
               <img src={LinkIcon} alt="" />
             </div>
-            <button className="bg-[#2563EB] text-white sm:px-6 px-3 py-2 h-10 rounded-lg">
+            <button
+              type="submit"
+              disabled={addCommentMutation.isPending}
+              className="bg-[#2563EB] hover:bg-blue-700 disabled:opacity-50 text-white sm:px-6 px-3 py-2 h-10 rounded-lg flex items-center gap-2 text-sm font-medium"
+            >
+              {addCommentMutation.isPending && (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              )}
               Send <span className="hidden sm:inline-block">Comment</span>
             </button>
-          </div>
+          </form>
         )}
       </div>
     </div>
   );
 }
+
