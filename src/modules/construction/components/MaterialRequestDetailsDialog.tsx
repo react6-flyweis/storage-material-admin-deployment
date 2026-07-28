@@ -1,6 +1,16 @@
-import { useMaterialRequestDetailsQuery } from "../construction.hooks";
+import { useState } from "react";
+import {
+  useMaterialRequestDetailsQuery,
+  useReviewMaterialRequestMutation,
+  useDownloadMaterialRequestAttachmentMutation,
+} from "../construction.hooks";
 import type { MaterialRequestItem } from "../construction.api";
 import { Skeleton } from "@/components/ui/skeleton";
+
+// pdf icon 
+// excel icon
+
+
 
 interface MaterialRequestDetailsDialogProps {
   open: boolean;
@@ -100,10 +110,41 @@ export default function MaterialRequestDetailsDialog({
 }: MaterialRequestDetailsDialogProps) {
   const targetId = requestId || initialRequest?.requestId || initialRequest?._id || null;
   const { data, isLoading } = useMaterialRequestDetailsQuery(open ? targetId : null);
+  const reviewMutation = useReviewMaterialRequestMutation();
+  const downloadAttachmentMutation = useDownloadMaterialRequestAttachmentMutation();
+
+  const [submittingAction, setSubmittingAction] = useState<"approved" | "rejected" | null>(null);
+  const [downloadingIndex, setDownloadingIndex] = useState<number | null>(null);
 
   if (!open) return null;
 
   const request = data?.data?.request || initialRequest;
+
+  const handleDownloadAttachment = async (index: number, fileName?: string) => {
+    const idToUse = request?._id || request?.requestId || targetId;
+    if (!idToUse) return;
+
+    setDownloadingIndex(index);
+    try {
+      const blob = await downloadAttachmentMutation.mutateAsync({
+        requestId: idToUse,
+        index,
+      });
+
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", fileName || `attachment-${index + 1}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to download attachment:", error);
+    } finally {
+      setDownloadingIndex(null);
+    }
+  };
 
   const currentStatus = capitalize(request?.status || "Pending");
   const currentPriority = capitalize(request?.priority || "High");
@@ -112,6 +153,32 @@ export default function MaterialRequestDetailsDialog({
   const items = request?.requestedItems && request.requestedItems.length > 0
     ? request.requestedItems
     : [];
+
+  const handleReview = async (action: "approved" | "rejected") => {
+    const idToUse = request?._id || request?.requestId || targetId;
+    if (!idToUse) return;
+
+    setSubmittingAction(action);
+    try {
+      await reviewMutation.mutateAsync({
+        requestId: idToUse,
+        payload: {
+          action,
+          reviewNotes: action === "approved" ? "Approved" : "Rejected",
+        },
+      });
+      if (action === "approved") {
+        onApprove?.(request!);
+      } else {
+        onReject?.(request!);
+      }
+      onClose();
+    } catch (error) {
+      console.error(`Failed to ${action} request:`, error);
+    } finally {
+      setSubmittingAction(null);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
@@ -214,9 +281,8 @@ export default function MaterialRequestDetailsDialog({
             {/* Top Status Badge Pill */}
             <div>
               <span
-                className={`px-3 py-1 rounded-md text-[12px] font-semibold inline-block ${
-                  statusBadgeStyle[currentStatus] || "bg-[#FEF9C3] text-[#CA8A04]"
-                }`}
+                className={`px-3 py-1 rounded-md text-[12px] font-semibold inline-block ${statusBadgeStyle[currentStatus] || "bg-[#FEF9C3] text-[#CA8A04]"
+                  }`}
               >
                 {currentStatus}
               </span>
@@ -234,9 +300,8 @@ export default function MaterialRequestDetailsDialog({
                 <p className="text-[12px] text-[#9CA3AF] font-medium">Priority</p>
                 <div className="mt-1">
                   <span
-                    className={`px-3 py-1 rounded-md text-[12px] font-semibold inline-block ${
-                      priorityBadgeStyle[currentPriority] || "bg-[#FEE2E2] text-[#EF4444]"
-                    }`}
+                    className={`px-3 py-1 rounded-md text-[12px] font-semibold inline-block ${priorityBadgeStyle[currentPriority] || "bg-[#FEE2E2] text-[#EF4444]"
+                      }`}
                   >
                     {currentPriority}
                   </span>
@@ -259,9 +324,8 @@ export default function MaterialRequestDetailsDialog({
                 <p className="text-[12px] text-[#9CA3AF] font-medium">Status</p>
                 <div className="mt-1">
                   <span
-                    className={`px-3 py-1 rounded-md text-[12px] font-semibold inline-block ${
-                      statusBadgeStyle[currentStatus] || "bg-[#FEF9C3] text-[#CA8A04]"
-                    }`}
+                    className={`px-3 py-1 rounded-md text-[12px] font-semibold inline-block ${statusBadgeStyle[currentStatus] || "bg-[#FEF9C3] text-[#CA8A04]"
+                      }`}
                   >
                     {currentStatus}
                   </span>
@@ -350,26 +414,147 @@ export default function MaterialRequestDetailsDialog({
               </p>
             </div>
 
+            {/* Attachment Section */}
+            {request.attachments && request.attachments.length > 0 && (
+              <div className="pt-2">
+                <h3 className="text-[14px] font-bold text-[#111827] mb-3">
+                  Attachment ({request.attachments.length})
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {request.attachments.map((file, idx) => {
+                    const fileName = file.name || `Attachment ${idx + 1}`;
+                    const fileUrl = file.fileUrl || file.url;
+                    const typeStr = (file.type || file.fileType || "").toLowerCase();
+
+                    const isImage =
+                      typeStr.startsWith("image/") ||
+                      typeStr === "image" ||
+                      /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(fileName) ||
+                      (fileUrl && /\.(jpg|jpeg|png|gif|webp|svg)/i.test(fileUrl));
+
+                    const isPdf =
+                      typeStr === "pdf" ||
+                      typeStr.includes("pdf") ||
+                      fileName.toLowerCase().endsWith(".pdf");
+
+                    return (
+                      <div
+                        key={file._id || idx}
+                        className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-white overflow-hidden"
+                      >
+                        <div className="flex items-center gap-3 min-w-0 pr-2">
+                          {isImage && fileUrl ? (
+                            <img
+                              src={fileUrl}
+                              alt={fileName}
+                              className="w-8 h-8 shrink-0 object-cover rounded border border-gray-200"
+                            />
+                          ) : isPdf ? (
+                            /* PDF Icon */
+                            <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded bg-red-50 text-[#EF4444]">
+                              <svg
+                                className="w-6 h-6"
+                                viewBox="0 0 24 24"
+                                fill="currentColor"
+                              >
+                                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9.5 8.5c0 .8-.7 1.5-1.5 1.5H7v2H5.5V9H8c.8 0 1.5.7 1.5 1.5v1zm5 2c0 .8-.7 1.5-1.5 1.5h-2.5V9H13c.8 0 1.5.7 1.5 1.5v3zm3.5-3.5H16v1.5h1.5V13H16v2h-1.5V9H18v1.5zM7 10.5h1v1H7v-1zm4.5 0h1v3h-1v-3z" />
+                              </svg>
+                            </div>
+                          ) : (
+                            /* Generic / Document Icon */
+                            <div className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded bg-emerald-50 text-[#16A34A]">
+                              <svg
+                                className="w-6 h-6"
+                                viewBox="0 0 24 24"
+                                fill="currentColor"
+                              >
+                                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-6.4 12l-1.6-2.7-1.6 2.7H7.8l2.5-4-2.4-3.9h1.7l1.5 2.6 1.5-2.6h1.7L11.9 11l2.5 4h-1.8z" />
+                              </svg>
+                            </div>
+                          )}
+
+                          <div className="min-w-0">
+                            <p
+                              className="text-[13px] font-medium text-gray-700 truncate"
+                              title={fileName}
+                            >
+                              {fileName}
+                            </p>
+                            {(file.size || file.fileSize) && (
+                              <p className="text-[11px] text-gray-400">
+                                {file.size || file.fileSize}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => void handleDownloadAttachment(idx, fileName)}
+                          disabled={downloadingIndex === idx}
+                          className="p-1.5 border border-gray-200 rounded text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors shrink-0 disabled:opacity-50"
+                          title="Download Attachment"
+                        >
+                          {downloadingIndex === idx ? (
+                            <svg
+                              className="w-4 h-4 animate-spin text-gray-500"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                              />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Action Buttons: Reject / Approve */}
             {isPending && (
               <div className="flex items-center gap-4 pt-4 border-t border-gray-100">
                 <button
-                  onClick={() => {
-                    onReject?.(request);
-                    onClose();
-                  }}
-                  className="flex-1 py-2.5 px-4 bg-white border border-[#EF4444] text-[#EF4444] rounded-lg font-semibold hover:bg-[#FEF2F2] transition-colors"
+                  onClick={() => void handleReview("rejected")}
+                  disabled={submittingAction !== null}
+                  className="flex-1 py-2.5 px-4 bg-white border border-[#EF4444] text-[#EF4444] rounded-lg font-semibold hover:bg-[#FEF2F2] transition-colors disabled:opacity-50"
                 >
-                  Reject
+                  {submittingAction === "rejected" ? "Rejecting..." : "Reject"}
                 </button>
                 <button
-                  onClick={() => {
-                    onApprove?.(request);
-                    onClose();
-                  }}
-                  className="flex-1 py-2.5 px-4 bg-[#22C55E] text-white rounded-lg font-semibold hover:bg-[#16A34A] transition-colors shadow-sm"
+                  onClick={() => void handleReview("approved")}
+                  disabled={submittingAction !== null}
+                  className="flex-1 py-2.5 px-4 bg-[#22C55E] text-white rounded-lg font-semibold hover:bg-[#16A34A] transition-colors shadow-sm disabled:opacity-50"
                 >
-                  Approve Request
+                  {submittingAction === "approved" ? "Approving..." : "Approve Request"}
                 </button>
               </div>
             )}
