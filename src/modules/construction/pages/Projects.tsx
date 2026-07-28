@@ -9,11 +9,13 @@ import MoneyIcon from "../assets/completionicon.svg";
 import BoxIcon from "../assets/pendingmaterialicon.svg";
 import ShieldIcon from "../assets/safetyscoreicon.svg";
 import ProjectCalendarComponent from "../components/projects/ProjectCalendarComponent";
+import AddDeliverySheet from "../components/projects/AddDeliverySheet";
 import { useProjectsCalendarQuery } from "../construction.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Projects() {
-  const [activeTab, setActiveTab] = useState<"calendar" | "project">("calendar");
+  const [activeTab] = useState<"calendar" | "project">("calendar");
+  const [isAddDeliveryOpen, setIsAddDeliveryOpen] = useState(false);
 
   const [currentMonth, setCurrentMonth] = useState(dayjs());
   const [selectedDate, setSelectedDate] = useState(dayjs());
@@ -86,7 +88,7 @@ export default function Projects() {
         </div>
 
         {/* View Toggle */}
-        <div className="flex items-center">
+        {/* <div className="flex items-center">
           <div className="bg-[#F3F4F6] p-1 rounded-xl flex border border-gray-100">
             <button
               onClick={() => setActiveTab("calendar")}
@@ -109,7 +111,7 @@ export default function Projects() {
               Project
             </button>
           </div>
-        </div>
+        </div> */}
       </div>
 
       {/* Top Stats Overview */}
@@ -149,6 +151,13 @@ export default function Projects() {
           <ProjectsTable projects={tableProjectsData} />
         )
       )}
+
+      <AddDeliverySheet
+        isOpen={isAddDeliveryOpen}
+        onOpenChange={setIsAddDeliveryOpen}
+        projects={apiProjects}
+        defaultDate={selectedDate.format("YYYY-MM-DD")}
+      />
     </div>
   );
 }
