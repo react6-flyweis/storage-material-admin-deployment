@@ -1,11 +1,17 @@
 import { useState, useMemo } from "react";
 import SearchIcon from "../assets/searchIcon.svg";
 import CustomSelect from "../components/common/CustomSelect";
+import ProjectSelector from "../components/common/ProjectSelector";
 import { Upload, CheckCircle2 } from "lucide-react";
-import { useDeliveriesQuery } from "../construction.hooks";
+import {
+  useDeliveriesQuery,
+  useExportDeliveriesMutation,
+  useDeliveryFiltersQuery,
+} from "../construction.hooks";
 import type { ApiDeliveryItem } from "../construction.api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DeliveryDetailsDialog } from "../components/DeliveryDetailsDialog";
+import SuccessModal from "../components/common/SuccessModal";
 
 const statusStyles: Record<string, string> = {
   draft: "bg-gray-100 text-gray-700 border border-gray-200",
@@ -31,25 +37,10 @@ const statusLabels: Record<string, string> = {
   confirmed: "Confirmed",
   delayed: "Delayed",
   cancelled: "Cancelled",
+  staged: "Staged",
+  partial_received: "Partial Received",
+  received: "Received",
 };
-
-const statusOptions = [
-  { label: "All Status", value: "all" },
-  { label: "Draft", value: "draft" },
-  { label: "Carrier Selected", value: "carrier_selected" },
-  { label: "Scheduled", value: "scheduled" },
-  { label: "Rescheduled", value: "rescheduled" },
-  { label: "In Transit", value: "in_transit" },
-  { label: "Bidding Sent", value: "bidding_sent" },
-  { label: "Delivered", value: "delivered" },
-  { label: "Confirmed", value: "confirmed" },
-  { label: "Delayed", value: "delayed" },
-  { label: "Cancelled", value: "cancelled" },
-];
-
-const destinationOptions = [
-  { label: "All Sites", value: "all" },
-];
 
 const qrStatusOptions = [
   { label: "All", value: "all" },
@@ -93,47 +84,92 @@ export default function AllDeliveries() {
 
   const [selectedDelivery, setSelectedDelivery] = useState<ApiDeliveryItem | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isSuccessOpen, setIsSuccessOpen] = useState(false);
+  const [successTitle, setSuccessTitle] = useState("");
+
+  const { data: filtersData } = useDeliveryFiltersQuery();
 
   const { data, isLoading } = useDeliveriesQuery({
     page: currentPage,
     limit: Number(pageSize),
+    projectId: projectFilter === "all" ? undefined : projectFilter,
+    deliveryStatus: statusFilter === "all" ? undefined : statusFilter,
+    siteDestination: destinationFilter === "all" ? undefined : destinationFilter,
+    transporter: transporterFilter === "all" ? undefined : transporterFilter,
+    driver: driverFilter === "all" ? undefined : driverFilter,
+    search: searchQuery.trim() || undefined,
   });
+
+  const exportMutation = useExportDeliveriesMutation();
+
+  const handleExport = async () => {
+    try {
+      const blob = await exportMutation.mutateAsync({
+        projectId: projectFilter === "all" ? undefined : projectFilter,
+        deliveryStatus: statusFilter === "all" ? undefined : statusFilter,
+        siteDestination: destinationFilter === "all" ? undefined : destinationFilter,
+        transporter: transporterFilter === "all" ? undefined : transporterFilter,
+        driver: driverFilter === "all" ? undefined : driverFilter,
+        search: searchQuery.trim() || undefined,
+      });
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `deliveries-${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      setSuccessTitle("Data Exported Successfully");
+      setIsSuccessOpen(true);
+    } catch (error) {
+      console.error("Failed to export deliveries:", error);
+    }
+  };
 
   const apiDeliveries: ApiDeliveryItem[] = data?.data?.deliveries || [];
   const totalCount = data?.data?.total || 0;
 
-  const projectOptions = useMemo(() => {
-    const optionsMap = new Map<string, string>();
-    optionsMap.set("all", "All Projects");
-    apiDeliveries.forEach((item) => {
-      if (item.project?.projectName) {
-        optionsMap.set(item.project.projectName, item.project.projectName);
-      }
-    });
-    return Array.from(optionsMap.entries()).map(([value, label]) => ({ label, value }));
-  }, [apiDeliveries]);
+  const statusOptions = useMemo(() => {
+    const defaultOptions = [{ label: "All Status", value: "all" }];
+    const apiStatuses = filtersData?.data?.deliveryStatuses || [];
+    const dynamicOptions = apiStatuses.map((st) => ({
+      label: formatStatus(st),
+      value: st,
+    }));
+    return dynamicOptions.length > 0 ? [{ label: "All Status", value: "all" }, ...dynamicOptions] : defaultOptions;
+  }, [filtersData]);
+
+  const destinationOptions = useMemo(() => {
+    const defaultOptions = [{ label: "All Sites", value: "all" }];
+    const apiDestinations = filtersData?.data?.siteDestinations || [];
+    const dynamicOptions = apiDestinations.map((dest) => ({
+      label: dest,
+      value: dest,
+    }));
+    return dynamicOptions.length > 0 ? [{ label: "All Sites", value: "all" }, ...dynamicOptions] : defaultOptions;
+  }, [filtersData]);
 
   const transporterOptions = useMemo(() => {
-    const optionsMap = new Map<string, string>();
-    optionsMap.set("all", "All Transporters");
-    apiDeliveries.forEach((item) => {
-      if (item.transporter) {
-        optionsMap.set(item.transporter, item.transporter);
-      }
-    });
-    return Array.from(optionsMap.entries()).map(([value, label]) => ({ label, value }));
-  }, [apiDeliveries]);
+    const defaultOptions = [{ label: "All Transporters", value: "all" }];
+    const apiTransporters = filtersData?.data?.transporters || [];
+    const dynamicOptions = apiTransporters.map((tr) => ({
+      label: tr,
+      value: tr,
+    }));
+    return dynamicOptions.length > 0 ? [{ label: "All Transporters", value: "all" }, ...dynamicOptions] : defaultOptions;
+  }, [filtersData]);
 
   const driverOptions = useMemo(() => {
-    const optionsMap = new Map<string, string>();
-    optionsMap.set("all", "All Drivers");
-    apiDeliveries.forEach((item) => {
-      if (item.driver) {
-        optionsMap.set(item.driver, item.driver);
-      }
-    });
-    return Array.from(optionsMap.entries()).map(([value, label]) => ({ label, value }));
-  }, [apiDeliveries]);
+    const defaultOptions = [{ label: "All Drivers", value: "all" }];
+    const apiDrivers = filtersData?.data?.drivers || [];
+    const dynamicOptions = apiDrivers.map((dr) => ({
+      label: dr,
+      value: dr,
+    }));
+    return dynamicOptions.length > 0 ? [{ label: "All Drivers", value: "all" }, ...dynamicOptions] : defaultOptions;
+  }, [filtersData]);
 
   const handleReset = () => {
     setProjectFilter("all");
@@ -148,22 +184,6 @@ export default function AllDeliveries() {
 
   const filteredDeliveries = useMemo(() => {
     return apiDeliveries.filter((item) => {
-      if (projectFilter !== "all" && item.project?.projectName !== projectFilter) {
-        return false;
-      }
-
-      if (statusFilter !== "all" && item.status !== statusFilter) {
-        return false;
-      }
-
-      if (transporterFilter !== "all" && item.transporter !== transporterFilter) {
-        return false;
-      }
-
-      if (driverFilter !== "all" && item.driver !== driverFilter) {
-        return false;
-      }
-
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const match =
@@ -180,7 +200,7 @@ export default function AllDeliveries() {
 
       return true;
     });
-  }, [apiDeliveries, projectFilter, statusFilter, transporterFilter, driverFilter, searchQuery]);
+  }, [apiDeliveries, searchQuery]);
 
   const totalPages = Math.max(1, Math.ceil((totalCount || filteredDeliveries.length) / Number(pageSize)));
 
@@ -196,23 +216,26 @@ export default function AllDeliveries() {
             View & Monitor all deliveries across projects and sites
           </p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-white border border-[#D1D5DB] rounded-lg text-sm font-medium text-[#374151] hover:bg-gray-50 shadow-sm transition-colors">
+        <button
+          onClick={handleExport}
+          disabled={exportMutation.isPending}
+          className="flex items-center gap-2 px-4 py-2 bg-white border border-[#D1D5DB] rounded-lg text-sm font-medium text-[#374151] hover:bg-gray-50 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
           <Upload className="w-4 h-4 text-gray-500" />
-          Export
+          {exportMutation.isPending ? "Exporting..." : "Export"}
         </button>
       </div>
 
       {/* Filters Section */}
-      <div className="space-y-4">
+      <div className="space-y-4 bg-white p-5 rounded-xl">
         <div className="flex flex-wrap gap-4 items-end">
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5 min-w-[200px]">
             <label className="text-xs font-medium text-[#4B5563]">Projects</label>
-            <CustomSelect
-              title="Projects"
-              options={projectOptions}
+            <ProjectSelector
               value={projectFilter}
-              onChange={setProjectFilter}
-              width="200px"
+              onValueChange={setProjectFilter}
+              placeholder="All Projects"
+              includeAllOption
             />
           </div>
 
@@ -384,10 +407,10 @@ export default function AllDeliveries() {
                 filteredDeliveries.map((item) => (
                   <tr key={item.deliveryId} className="hover:bg-gray-50/50 transition-colors">
                     <td className="py-4 px-4 align-top">
-                      <p className="font-bold text-[#111827] text-sm">{item.deliveryNumber}</p>
+                      <p className="font-bold text-[#111827] text-sm text-nowrap">{item.deliveryNumber}</p>
                     </td>
                     <td className="py-4 px-4 align-top">
-                      <p className="font-semibold text-[#111827] text-sm">
+                      <p className="font-semibold text-[#111827] text-sm text-nowrap">
                         {item.project?.projectName || "—"}
                       </p>
                       <p className="text-[#6B7280] text-xs mt-0.5">
@@ -398,7 +421,7 @@ export default function AllDeliveries() {
                       <p className="font-medium text-[#111827] text-sm">{item.material || "—"}</p>
                     </td>
                     <td className="py-4 px-4 align-top">
-                      <p className="font-semibold text-[#111827] text-sm">
+                      <p className="font-semibold text-[#111827] text-sm text-nowrap">
                         {formatDate(item.deliveryDate)}
                       </p>
                       {item.timings && (
@@ -406,7 +429,7 @@ export default function AllDeliveries() {
                       )}
                     </td>
                     <td className="py-4 px-4 align-top">
-                      <p className="font-medium text-[#111827] text-sm">
+                      <p className="font-medium text-[#111827] text-sm text-nowrap">
                         {item.transporter || "—"}
                       </p>
                       {item.driver && (
@@ -422,9 +445,8 @@ export default function AllDeliveries() {
                     </td>
                     <td className="py-4 px-4 align-top text-center">
                       <span
-                        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${
-                          statusStyles[item.status] || "bg-gray-100 text-gray-700 border border-gray-200"
-                        }`}
+                        className={`inline-block px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap ${statusStyles[item.status] || "bg-gray-100 text-gray-700 border border-gray-200"
+                          }`}
                       >
                         {formatStatus(item.status)}
                       </span>
@@ -514,11 +536,10 @@ export default function AllDeliveries() {
               <button
                 key={pageNum}
                 onClick={() => setCurrentPage(pageNum)}
-                className={`w-8 h-8 rounded-lg font-medium flex items-center justify-center shadow-xs transition-colors ${
-                  currentPage === pageNum
-                    ? "bg-purple-600 text-white"
-                    : "border border-gray-200 text-gray-600 hover:bg-gray-50"
-                }`}
+                className={`w-8 h-8 rounded-lg font-medium flex items-center justify-center shadow-xs transition-colors ${currentPage === pageNum
+                  ? "bg-purple-600 text-white"
+                  : "border border-gray-200 text-gray-600 hover:bg-gray-50"
+                  }`}
               >
                 {pageNum}
               </button>
@@ -546,6 +567,13 @@ export default function AllDeliveries() {
         }}
         deliveryId={selectedDelivery?.deliveryId}
         delivery={selectedDelivery}
+      />
+
+      {/* Success Modal */}
+      <SuccessModal
+        isOpen={isSuccessOpen}
+        onClose={() => setIsSuccessOpen(false)}
+        title={successTitle}
       />
     </div>
   );
