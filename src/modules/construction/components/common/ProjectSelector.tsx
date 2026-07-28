@@ -8,32 +8,40 @@ type ProjectSelectorProps = {
   onValueChange: (value: string) => void;
   placeholder?: string;
   error?: boolean;
+  includeAllOption?: boolean;
 };
 
 export default function ProjectSelector({
   value,
   onValueChange,
   placeholder = "Select Project",
+  includeAllOption = false,
 }: ProjectSelectorProps) {
   const { data: leadsData, isLoading } = useLeadsQuery(1, 100);
 
   const options = useMemo(() => {
-    if (!leadsData?.data?.leads) return [];
-    return leadsData.data.leads.map((lead) => {
-      let label = "";
-      if (lead.projectName) {
-        label = lead.projectName;
-      } else if (lead.buildingType) {
-        label = lead.buildingType;
-      } else {
-        label = `Lead ${lead._id.substring(0, 6)}`;
-      }
-      return {
-        label,
-        value: lead._id,
-      };
-    });
-  }, [leadsData]);
+    const list = leadsData?.data?.leads
+      ? leadsData.data.leads.map((lead) => {
+          let label = "";
+          if (lead.projectName) {
+            label = lead.projectName;
+          } else if (lead.buildingType) {
+            label = lead.buildingType;
+          } else {
+            label = `Lead ${lead._id.substring(0, 6)}`;
+          }
+          return {
+            label,
+            value: lead._id,
+          };
+        })
+      : [];
+
+    if (includeAllOption) {
+      return [{ label: "All Projects", value: "all" }, ...list];
+    }
+    return list;
+  }, [leadsData, includeAllOption]);
 
   if (isLoading && options.length === 0) {
     return (
