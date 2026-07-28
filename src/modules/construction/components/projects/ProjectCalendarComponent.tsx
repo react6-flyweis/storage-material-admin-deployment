@@ -1,7 +1,9 @@
 import { useState } from "react";
 import dayjs from "dayjs";
-import { ChevronDown, Plus } from "lucide-react";
-import type { ProjectCalendarItem, ProjectCalendarDelivery } from "../construction.api";
+import { Plus } from "lucide-react";
+import type { ProjectCalendarItem, ProjectCalendarDelivery } from "../../construction.api";
+import AddDeliverySheet from "./AddDeliverySheet";
+import ProjectSelector from "../common/ProjectSelector";
 
 const statusColors: Record<string, string> = {
   bidding_sent: "#3B82F6",
@@ -46,6 +48,7 @@ export default function ProjectCalendarComponent({
   loading = false,
 }: ProjectCalendarComponentProps) {
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [isAddDeliveryOpen, setIsAddDeliveryOpen] = useState(false);
 
   const daysInMonth = currentMonth.daysInMonth();
   const firstDayOfMonth = currentMonth.startOf("month").day();
@@ -69,7 +72,10 @@ export default function ProjectCalendarComponent({
   const deliveriesForSelectedDate = deliveries.filter((d) => {
     if (!d.deliveryDate) return false;
     const matchesDate = dayjs(d.deliveryDate).format("YYYY-MM-DD") === selectedDateStr;
-    const matchesProject = !selectedProjectId || d.project?.jobId === selectedProjectId;
+    const matchesProject =
+      !selectedProjectId ||
+      d.project?.jobId === selectedProjectId ||
+      (d.project as { _id?: string })?._id === selectedProjectId;
     return matchesDate && matchesProject;
   });
 
@@ -79,23 +85,18 @@ export default function ProjectCalendarComponent({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <span className="text-sm font-bold text-gray-900">Project</span>
-          <div className="relative w-64">
-            <select
+          <div className="w-64">
+            <ProjectSelector
               value={selectedProjectId}
-              onChange={(e) => setSelectedProjectId(e.target.value)}
-              className="w-full appearance-none bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:border-blue-500 font-medium cursor-pointer"
-            >
-              <option value="">All Projects ({projects.length})</option>
-              {projects.map((project) => (
-                <option key={project._id} value={project.jobId || project._id}>
-                  {project.projectName || project.jobId || "Unnamed Project"}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              onValueChange={setSelectedProjectId}
+              placeholder="All Projects"
+            />
           </div>
         </div>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors text-sm flex items-center gap-2 self-start sm:self-auto">
+        <button
+          onClick={() => setIsAddDeliveryOpen(true)}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg shadow-sm transition-colors text-sm flex items-center gap-2 self-start sm:self-auto"
+        >
           <Plus className="w-4 h-4" /> Add Delivery
         </button>
       </div>
@@ -171,7 +172,10 @@ export default function ProjectCalendarComponent({
                   ? deliveries.filter((d) => {
                       if (!d.deliveryDate) return false;
                       const matchesDate = dayjs(d.deliveryDate).format("YYYY-MM-DD") === dateStr;
-                      const matchesProject = !selectedProjectId || d.project?.jobId === selectedProjectId;
+                      const matchesProject =
+                        !selectedProjectId ||
+                        d.project?.jobId === selectedProjectId ||
+                        (d.project as { _id?: string })?._id === selectedProjectId;
                       return matchesDate && matchesProject;
                     })
                   : [];
@@ -238,7 +242,10 @@ export default function ProjectCalendarComponent({
 
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-4">
               <p className="text-sm font-medium text-gray-500">Deliveries on this date</p>
-              <button className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 hover:bg-blue-100 transition-colors">
+              <button
+                onClick={() => setIsAddDeliveryOpen(true)}
+                className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg flex items-center justify-center gap-1 hover:bg-blue-100 transition-colors"
+              >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
                 </svg>
@@ -307,6 +314,13 @@ export default function ProjectCalendarComponent({
           </div>
         </div>
       </div>
+
+      <AddDeliverySheet
+        isOpen={isAddDeliveryOpen}
+        onOpenChange={setIsAddDeliveryOpen}
+        projects={projects}
+        defaultDate={selectedDate.format("YYYY-MM-DD")}
+      />
     </div>
   );
 }
