@@ -246,13 +246,42 @@ export interface GetDeliveriesParams {
   page?: number;
   limit?: number;
   search?: string;
-  status?: string;
+  projectId?: string;
+  deliveryStatus?: string;
+  siteDestination?: string;
+  transporter?: string;
+  driver?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export async function getDeliveries(params?: GetDeliveriesParams) {
   const response = await apiClient.get<DeliveriesResponse>(
     `/api/admin/construction/deliveries`,
     { params }
+  );
+  return response.data;
+}
+
+export interface CreateDeliveryPayload {
+  title: string;
+  leadId: string;
+  sectionLocation: string;
+  deliveryDate: string;
+  description?: string;
+  notes?: string;
+}
+
+export interface CreateDeliveryResponse {
+  success: boolean;
+  message: string;
+  data: ApiDeliveryItem;
+}
+
+export async function createDelivery(payload: CreateDeliveryPayload) {
+  const response = await apiClient.post<CreateDeliveryResponse>(
+    `/api/admin/construction/projects-calendar/deliveries`,
+    payload
   );
   return response.data;
 }
@@ -328,6 +357,17 @@ export interface MaterialRequestRequestedBy {
   role?: string;
 }
 
+export interface MaterialRequestAttachment {
+  _id?: string;
+  name?: string;
+  fileUrl?: string;
+  url?: string;
+  size?: string | number;
+  fileSize?: string | number;
+  type?: string;
+  fileType?: string;
+}
+
 export interface MaterialRequestLead {
   _id: string;
   location?: string;
@@ -355,7 +395,7 @@ export interface MaterialRequestItem {
   reviewedBy?: string | null;
   reviewedAt?: string | null;
   reviewNotes?: string;
-  attachments?: unknown[];
+  attachments?: MaterialRequestAttachment[];
   requestDate?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -388,12 +428,39 @@ export interface MaterialRequestsResponse {
 export interface GetMaterialRequestsParams {
   status?: string;
   search?: string;
+  leadId?: string;
+  department?: string;
+  requestedBy?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface MaterialRequestFiltersResponse {
+  success: boolean;
+  message: string;
+  data: {
+    statuses: string[];
+    priorities: string[];
+    departments: string[];
+    requestedBy: Array<{
+      _id: string;
+      name: string;
+      role: string;
+    }>;
+  };
 }
 
 export async function getMaterialRequests(params?: GetMaterialRequestsParams) {
   const response = await apiClient.get<MaterialRequestsResponse>(
     `/api/admin/construction/material-requests`,
     { params }
+  );
+  return response.data;
+}
+
+export async function getMaterialRequestFilters() {
+  const response = await apiClient.get<MaterialRequestFiltersResponse>(
+    `/api/admin/construction/material-requests/filters`
   );
   return response.data;
 }
@@ -447,8 +514,338 @@ export async function getMaterialRequestById(requestId: string) {
   return response.data;
 }
 
+export interface ReviewMaterialRequestPayload {
+  action: "approved" | "rejected" | string;
+  reviewNotes?: string;
+}
+
+export interface ReviewMaterialRequestResponse {
+  success: boolean;
+  message: string;
+  data: MaterialRequestItem;
+}
+
+export async function reviewMaterialRequest(
+  requestId: string,
+  payload: ReviewMaterialRequestPayload
+) {
+  const response = await apiClient.put<ReviewMaterialRequestResponse>(
+    `/api/admin/construction/material-requests/${requestId}/review`,
+    payload
+  );
+  return response.data;
+}
+
+export interface AttachMaterialRequestAttachmentPayload {
+  name: string;
+  url: string;
+}
+
+export interface AttachMaterialRequestAttachmentResponse {
+  success: boolean;
+  message: string;
+  data: unknown;
+}
+
+export async function attachMaterialRequestAttachment(
+  requestId: string,
+  payload: AttachMaterialRequestAttachmentPayload
+) {
+  const response = await apiClient.post<AttachMaterialRequestAttachmentResponse>(
+    `/api/admin/construction/material-requests/${requestId}/attachments`,
+    payload
+  );
+  return response.data;
+}
+
+export interface AddDrawingCommentPayload {
+  text: string;
+}
+
+export interface AddDrawingCommentResponse {
+  success: boolean;
+  message: string;
+  data?: unknown;
+}
+
+export async function addDrawingComment(
+  docId: string,
+  payload: AddDrawingCommentPayload
+) {
+  const response = await apiClient.post<AddDrawingCommentResponse>(
+    `/api/admin/construction/drawings/${docId}/comments`,
+    payload
+  );
+  return response.data;
+}
 
 
+
+export interface ConstructionReportsKpis {
+  projectCompletionRate: number | null;
+  avgDelayTimeDays: number | null;
+  resourceUtilization: number | null;
+  safetyCompliance: number | null;
+}
+
+export interface ProjectProgressVsPlanItem {
+  project: string;
+  actualProgress: number;
+  status: string;
+}
+
+export interface MaterialUsageEfficiencyItem {
+  material: string;
+  requestedQty: number;
+  fulfilledQty: number;
+  usedPct: number;
+}
+
+export interface ConstructionReportsData {
+  kpis: ConstructionReportsKpis;
+  projectProgressVsPlan: ProjectProgressVsPlanItem[];
+  materialUsageEfficiency: MaterialUsageEfficiencyItem[];
+  safetyCompliance: unknown[];
+  note?: string;
+}
+
+export interface ConstructionReportsResponse {
+  success: boolean;
+  message: string;
+  data: ConstructionReportsData;
+}
+
+export async function getConstructionReports() {
+  const response = await apiClient.get<ConstructionReportsResponse>(
+    `/api/admin/construction/reports`
+  );
+  return response.data;
+}
+
+export interface ExportConstructionReportParams {
+  period?: string;
+  projectId?: string;
+}
+
+export async function exportConstructionReport(params?: ExportConstructionReportParams) {
+  const queryParams: Record<string, string> = {};
+  if (params?.period && params.period !== "all") {
+    queryParams.period = params.period;
+  }
+  if (params?.projectId && params.projectId !== "all") {
+    queryParams.projectId = params.projectId;
+  }
+
+  const response = await apiClient.get(
+    `/api/admin/construction/reports/export`,
+    {
+      params: queryParams,
+      responseType: "blob",
+    }
+  );
+  return response.data;
+}
+
+export async function exportMaterialRequests(params?: GetMaterialRequestsParams) {
+  const response = await apiClient.get(
+    `/api/admin/construction/material-requests/export`,
+    {
+      params,
+      responseType: "blob",
+    }
+  );
+  return response.data;
+}
+
+export async function exportDeliveries(params?: GetDeliveriesParams) {
+  const response = await apiClient.get(
+    `/api/admin/construction/deliveries/export`,
+    {
+      params,
+      responseType: "blob",
+    }
+  );
+  return response.data;
+}
+
+export async function downloadMaterialRequestAttachment(
+  requestId: string,
+  index: number
+) {
+  const response = await apiClient.get(
+    `/api/admin/construction/material-requests/${requestId}/attachments/${index}/download`,
+    {
+      responseType: "blob",
+    }
+  );
+  return response.data;
+}
+
+export interface DeliveryFiltersResponse {
+  success: boolean;
+  message: string;
+  data: {
+    deliveryStatuses: string[];
+    siteDestinations: string[];
+    transporters: string[];
+    drivers: string[];
+  };
+}
+
+export async function getDeliveryFilters() {
+  const response = await apiClient.get<DeliveryFiltersResponse>(
+    `/api/admin/construction/deliveries/filters`
+  );
+  return response.data;
+}
+
+export interface OverviewStats {
+  totalProjects: number;
+  onTrack: number;
+  delayed: number;
+  completed: number;
+  completionRate: number;
+  upcomingDeadlinesCount: number;
+}
+
+export interface DeliveryOverview {
+  todaysDeliveries: number;
+  delivered: number;
+  inTransit: number;
+  delayed: number;
+}
+
+export interface MaterialRequestOverviewItem {
+  _id: string;
+  requestId: string;
+  leadId?: {
+    _id?: string;
+    projectName?: string;
+    jobId?: string;
+  };
+  siteLocation?: string;
+  buildingLabel?: string;
+  department?: string;
+  source?: string;
+  priority?: string;
+  status?: string;
+  totalAmount?: number;
+  requestedItems?: Array<{
+    _id?: string;
+    name?: string;
+    quantity?: number;
+    unit?: string;
+    notes?: string;
+    lengthFeet?: number;
+    color?: string;
+    deliveryStatus?: string;
+    deliveryReference?: string;
+    deliveredAt?: string | null;
+  }>;
+  requiredBy?: string;
+  requestDate?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface MaterialRequestOverview {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  pendingAmount: number;
+  recent: MaterialRequestOverviewItem[];
+}
+
+export interface TaskStats {
+  todo: number;
+  in_progress: number;
+  done: number;
+  total: number;
+}
+
+export interface UpcomingDeadlineItem {
+  _id?: string;
+  title?: string;
+  projectName?: string;
+  jobId?: string;
+  date?: string;
+  requiredBy?: string;
+  dueDate?: string;
+  subtitle?: string;
+  buildingLabel?: string;
+  daysLeft?: string | number;
+}
+
+export interface LiveSiteConstructionItem {
+  leadId?: string;
+  projectName?: string;
+  jobId?: string;
+  location?: string;
+  progressPct?: number;
+  tasks?: number;
+  workersOnSite?: number | null;
+  equipmentInUse?: number | null;
+  currentPhase?: string;
+}
+
+export interface LiveSiteActivity {
+  activeSites: number;
+  workersOnSite: number | null;
+  equipmentInUse: number | null;
+  ongoingTasks: number;
+  note?: string;
+}
+
+export interface BottomStats {
+  totalSites: number;
+  totalWorkers: number | null;
+  materialInTransit: number;
+  equipments: number | null;
+  totalMaterialDelivered: number;
+}
+
+export interface ConstructionOverviewData {
+  stats: OverviewStats;
+  deliveryOverview: DeliveryOverview;
+  materialRequestOverview: MaterialRequestOverview;
+  taskStats: TaskStats;
+  upcomingDeadlines: UpcomingDeadlineItem[];
+  liveSiteConstruction: LiveSiteConstructionItem[];
+  liveSiteActivity: LiveSiteActivity;
+  bottomStats: BottomStats;
+}
+
+export interface ConstructionOverviewResponse {
+  success: boolean;
+  message: string;
+  data: ConstructionOverviewData;
+}
+
+export interface GetConstructionOverviewParams {
+  projectId?: string;
+  building?: string;
+  status?: string;
+}
+
+export async function getConstructionOverview(params?: GetConstructionOverviewParams) {
+  const queryParams: Record<string, string> = {};
+  if (params?.projectId && params.projectId !== "All Projects" && params.projectId !== "all") {
+    queryParams.projectId = params.projectId;
+  }
+  if (params?.building && params.building !== "All Buildings" && params.building !== "all") {
+    queryParams.building = params.building;
+  }
+  if (params?.status && params.status !== "All Status" && params.status !== "all") {
+    queryParams.status = params.status;
+  }
+
+  const response = await apiClient.get<ConstructionOverviewResponse>(
+    `/api/admin/construction/overview`,
+    { params: queryParams }
+  );
+  return response.data;
+}
 
 
 
