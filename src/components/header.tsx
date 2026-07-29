@@ -17,7 +17,7 @@ export function Header({ onMenuClick }: HeaderProps) {
 
   return (
     <>
-      <header className="bg-white border-b px-4 md:px-8 py-4">
+      <header className="sticky top-0 z-20 bg-white border-b px-4 md:px-8 py-4">
         <div className="flex items-center justify-between">
           {/* Mobile Menu Button */}
           <Button
