@@ -551,21 +551,50 @@ export function Sidebar({
   // Determine active group based on current path
   const activeGroup =
     navigationGroups.find((group) => {
-      if (group.link === currentPath) {
-        return true;
+      // If group has sub-items, check if current path matches group link or any sub-item path
+      if (group.items.length > 0) {
+        if (group.link !== "/" && currentPath.startsWith(group.link)) {
+          return true;
+        }
+        return group.items.some((item) => {
+          if (item.path === "/") {
+            return currentPath === "/";
+          }
+          if (item.collapsible && item.subItems) {
+            return item.subItems.some((subItem) =>
+              currentPath.startsWith(subItem.path.split("?")[0]),
+            );
+          }
+          return currentPath.startsWith(item.path.split("?")[0]);
+        });
       }
-      return group.items.some((item) => {
-        if (item.path === "/") {
-          return currentPath === "/";
-        }
-        if (item.collapsible && item.subItems) {
-          return item.subItems.some((subItem) =>
-            currentPath.startsWith(subItem.path),
-          );
-        }
-        return currentPath.startsWith(item.path);
-      });
+      // For groups without sub-items (like Dashboard)
+      return group.link === "/" ? currentPath === "/" : currentPath.startsWith(group.link);
     }) || navigationGroups[0];
+
+  useEffect(() => {
+    const scrollContainer = iconSidebarScrollRef.current;
+    const activeButton = scrollContainer?.querySelector<HTMLButtonElement>(
+      `[data-group-id="${activeGroup.id}"]`,
+    );
+    if (activeButton && scrollContainer) {
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const buttonRect = activeButton.getBoundingClientRect();
+      const padding = 20; // 20px offset buffer from top and bottom
+
+      if (buttonRect.top - padding < containerRect.top) {
+        scrollContainer.scrollTo({
+          top: scrollContainer.scrollTop + (buttonRect.top - containerRect.top) - padding,
+          behavior: "smooth",
+        });
+      } else if (buttonRect.bottom + padding > containerRect.bottom) {
+        scrollContainer.scrollTo({
+          top: scrollContainer.scrollTop + (buttonRect.bottom - containerRect.bottom) + padding,
+          behavior: "smooth",
+        });
+      }
+    }
+  }, [activeGroup.id, isOpen]);
 
   useLayoutEffect(() => {
     const updateActivePillPosition = () => {
@@ -583,7 +612,7 @@ export function Sidebar({
 
       setActivePillPosition({
         top: rect.top + rect.height / 2,
-        left: rect.right - 12,
+        left: rect.right - 45,
       });
     };
 
@@ -599,7 +628,7 @@ export function Sidebar({
       scrollContainer?.removeEventListener("scroll", updateActivePillPosition);
       window.removeEventListener("resize", updateActivePillPosition);
     };
-  }, [activeGroup.id, isOpen]);
+  }, [activeGroup.id, isOpen, location.pathname]);
 
   // Auto-expand collapsible section if any of its child routes is active
   useEffect(() => {
@@ -771,7 +800,7 @@ export function Sidebar({
             </div>
           </div>
 
-          {isOpen && activePillPosition && (
+          {activePillPosition && (
             <img
               src={activeBgImage}
               alt=""
