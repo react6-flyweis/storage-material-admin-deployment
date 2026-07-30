@@ -3,6 +3,7 @@ import { lazy } from "react";
 import { NotFound } from "@/pages/not-found";
 import { AdminLayout } from "@/components/admin-layout";
 import { ProtectedRoute, PublicOnlyRoute } from "@/modules/auth/auth.guards";
+import { RouterErrorFallback } from "@/pages/error-page";
 
 const SignIn = lazy(() => import("@/pages/sign-in"));
 const ForgotPassword = lazy(() => import("../pages/forgot-password"));
@@ -296,6 +297,7 @@ const DrawingAttachment = lazy(
 export const adminRoutes: RouteObject[] = [
   {
     element: <PublicOnlyRoute />,
+    errorElement: <RouterErrorFallback />,
     children: [
       {
         path: "/sign-in",
@@ -313,6 +315,7 @@ export const adminRoutes: RouteObject[] = [
   },
   {
     element: <ProtectedRoute />,
+    errorElement: <RouterErrorFallback />,
     children: [
       {
         path: "/",

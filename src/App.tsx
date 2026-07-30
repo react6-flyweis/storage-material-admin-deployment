@@ -4,17 +4,20 @@ import { Toaster } from "sonner";
 import { adminRoutes } from "./routes/admin.routes";
 import { Loading } from "./components/loading";
 import { SocketProvider } from "./utils/socketContextProvider";
+import ErrorBoundary from "./pages/error-page";
 
 const router = createBrowserRouter(adminRoutes);
 
 export function App() {
   return (
-    <Suspense fallback={<Loading />}>
-      <SocketProvider>
-        <RouterProvider router={router} />
-        <Toaster />
-      </SocketProvider>
-    </Suspense>
+    <ErrorBoundary>
+      <Suspense fallback={<Loading />}>
+        <SocketProvider>
+          <RouterProvider router={router} />
+          <Toaster />
+        </SocketProvider>
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 
