@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import * as Sentry from "@sentry/react";
-import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -70,46 +69,8 @@ export default function SignIn() {
       const nextPath = state?.from?.pathname || "/dashboard";
 
       navigate(nextPath, { replace: true });
-    } catch (error) {
+    } catch {
       setErrorMessage("Unable to sign in. Please verify your credentials.");
-      
-      let statusCode: number | undefined;
-      let errorCode: string | undefined;
-      let requestId: string | undefined;
-
-      if (axios.isAxiosError(error)) {
-        statusCode = error.response?.status;
-        errorCode = error.response?.data?.code || error.response?.data?.errorCode;
-        requestId = error.response?.headers?.["x-request-id"] ||
-                    error.response?.headers?.["x-correlation-id"] ||
-                    error.response?.headers?.["x-correlationid"];
-      }
-
-      const isExpectedAuthFailure = statusCode === 401 || statusCode === 403;
-
-      if (isExpectedAuthFailure) {
-        Sentry.captureMessage("Failed sign-in attempt", {
-          level: "warning",
-          extra: {
-            statusCode,
-            errorCode,
-            authProvider: "local",
-            requestId,
-            email: data.email,
-          },
-        });
-      } else {
-        Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
-          level: "error",
-          extra: {
-            statusCode,
-            errorCode,
-            authProvider: "local",
-            requestId,
-            email: data.email,
-          },
-        });
-      }
     }
   };
 
