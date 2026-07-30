@@ -6,6 +6,7 @@ import { ProtectedRoute, PublicOnlyRoute } from "@/modules/auth/auth.guards";
 
 const SignIn = lazy(() => import("@/pages/sign-in"));
 const ForgotPassword = lazy(() => import("../pages/forgot-password"));
+const ResetPassword = lazy(() => import("@/pages/reset-password"));
 const Notifications = lazy(() => import("@/pages/notifications"));
 const Communication = lazy(() => import("@/pages/communication"));
 const AIChat = lazy(() => import("@/pages/communication-ai-chat"));
@@ -303,6 +304,10 @@ export const adminRoutes: RouteObject[] = [
       {
         path: "/forgot-password",
         element: <ForgotPassword />,
+      },
+      {
+        path: "/reset-password",
+        element: <ResetPassword />,
       },
     ],
   },
