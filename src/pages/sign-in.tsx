@@ -1,11 +1,22 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
+import * as Sentry from "@sentry/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLoginMutation } from "@/modules/auth/auth.hooks";
 import authBg from "@/assets/images/auth-bg.jpg";
 import { Eye, EyeOff } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+
+const signInSchema = z.object({
+  email: z.string().trim().min(1, "Email is required"),
+  password: z.string().trim().min(1, "Password is required"),
+});
+
+type SignInFormData = z.infer<typeof signInSchema>;
 
 interface RedirectState {
   from?: {
@@ -18,21 +29,39 @@ export default function SignIn() {
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
   const loginMutation = useLoginMutation();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignInFormData>({
+    resolver: zodResolver(signInSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  const onSubmit = async (data: SignInFormData) => {
     setErrorMessage(null);
 
     try {
-      const response = await loginMutation.mutateAsync(formData);
+      const response = await loginMutation.mutateAsync(data);
 
       if (!response.success) {
-        setErrorMessage(response.message || "Login failed. Please try again.");
+        const errorMsg = response.message || "Login failed. Please try again.";
+        setErrorMessage(errorMsg);
+        
+        Sentry.captureMessage("Failed sign-in attempt", {
+          level: "warning",
+          extra: {
+            statusCode: 200,
+            authProvider: "local",
+            email: data.email,
+            responseMessage: response.message,
+          },
+        });
         return;
       }
 
@@ -64,7 +93,7 @@ export default function SignIn() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div>
             <Label
               htmlFor="email"
@@ -76,13 +105,12 @@ export default function SignIn() {
               id="email"
               type="text"
               placeholder="Enter your email"
-              value={formData.email}
-              onChange={(e) =>
-                setFormData({ ...formData, email: e.target.value })
-              }
+              {...register("email")}
               className="mt-1.5 h-12 rounded border-gray-200 placeholder:text-gray-400"
-              required
             />
+            {errors.email && (
+              <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
+            )}
           </div>
 
           <div>
@@ -97,12 +125,8 @@ export default function SignIn() {
                 id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="Enter your password"
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
+                {...register("password")}
                 className="h-12 rounded border-gray-200 pr-10 placeholder:text-gray-400"
-                required
               />
               <button
                 type="button"
@@ -116,6 +140,11 @@ export default function SignIn() {
                 )}
               </button>
             </div>
+            {errors.password && (
+              <p className="mt-1 text-xs text-red-500">
+                {errors.password.message}
+              </p>
+            )}
           </div>
 
           {errorMessage ? (

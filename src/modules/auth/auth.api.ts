@@ -1,4 +1,5 @@
 import axios from "axios";
+import * as Sentry from "@sentry/react";
 import { getAccessToken, getRefreshToken, useAuthStore } from "./auth.store";
 import type {
   LoginRequest,
@@ -30,6 +31,56 @@ const refreshClient = axios.create({
   },
 });
 
+function captureApiError(error: unknown) {
+  if (!axios.isAxiosError(error)) {
+    Sentry.captureException(
+      error instanceof Error ? error : new Error(String(error)),
+    );
+    return;
+  }
+
+  const statusCode = error.response?.status;
+  const errorCode =
+    error.response?.data?.code || error.response?.data?.errorCode;
+  const requestId =
+    error.response?.headers?.["x-request-id"] ||
+    error.response?.headers?.["x-correlation-id"] ||
+    error.response?.headers?.["x-correlationid"];
+  const url = error.config?.url;
+  const method = error.config?.method;
+
+  const isExpectedAuthFailure = statusCode === 401 || statusCode === 403;
+
+  if (isExpectedAuthFailure) {
+    Sentry.captureMessage(
+      `API Auth Warning (${statusCode}): ${method?.toUpperCase() || "REQUEST"} ${url || ""}`,
+      {
+        level: "warning",
+        extra: {
+          statusCode,
+          errorCode,
+          requestId,
+          url,
+          method,
+          responseData: error.response?.data,
+        },
+      },
+    );
+  } else {
+    Sentry.captureException(error, {
+      level: "error",
+      extra: {
+        statusCode,
+        errorCode,
+        requestId,
+        url,
+        method,
+        responseData: error.response?.data,
+      },
+    });
+  }
+}
+
 apiClient.interceptors.request.use((config) => {
   const accessToken = getAccessToken();
 
@@ -50,12 +101,14 @@ apiClient.interceptors.response.use(
       error.response?.status !== 401 ||
       originalRequest._retry
     ) {
+      captureApiError(error);
       return Promise.reject(error);
     }
 
     const refreshToken = getRefreshToken();
 
     if (!refreshToken) {
+      captureApiError(error);
       useAuthStore.getState().logout();
       return Promise.reject(error);
     }
@@ -79,6 +132,7 @@ apiClient.interceptors.response.use(
 
       return apiClient(originalRequest);
     } catch (refreshError) {
+      captureApiError(refreshError);
       useAuthStore.getState().logout();
       return Promise.reject(refreshError);
     }
