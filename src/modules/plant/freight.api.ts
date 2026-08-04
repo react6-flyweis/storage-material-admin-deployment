@@ -559,6 +559,74 @@ export async function updateDeliveryDetails(
   return response.data;
 }
 
+export interface CreatePlantDeliveryRequest {
+  leadId?: string;
+  description?: string;
+  loadDescription?: string;
+  weight?: number;
+  dimensions?: {
+    lengthFeet: number;
+    widthFeet: number;
+    heightFeet: number;
+  };
+  metalType?: string;
+  packageCount?: number;
+  loadingEquipment?: string[];
+  bidDeadline?: string;
+  documentUrl?: string;
+  pickupLocation?: string;
+  deliveryLocation?: string;
+  pickupDate?: string;
+  pickupTime?: string;
+  deliveryDate?: string;
+  deliveryTime?: string;
+  receivingPoc?: string;
+  pickupContactPhone?: string;
+  specialRequirements?: string;
+  additionalNotes?: string;
+}
+
+export interface CreatePlantDeliveryResponse {
+  success: boolean;
+  message: string;
+  data: {
+    _id: string;
+    deliveryNumber: string;
+  };
+}
+
+export async function createPlantDeliveryProvider(
+  payload: CreatePlantDeliveryRequest
+): Promise<CreatePlantDeliveryResponse> {
+  const response = await apiClient.post<CreatePlantDeliveryResponse>(
+    "/api/admin/plant/deliveries",
+    payload
+  );
+  return response.data;
+}
+
+export interface SendFreightBidsRequest {
+  deliveryId: string;
+  carrierIds?: string[];
+}
+
+export interface SendFreightBidsResponse {
+  success: boolean;
+  message: string;
+  data: unknown;
+}
+
+export async function sendFreightBidsProvider(
+  payload: SendFreightBidsRequest
+): Promise<SendFreightBidsResponse> {
+  const response = await apiClient.post<SendFreightBidsResponse>(
+    `/api/admin/plant/deliveries/${encodeURIComponent(payload.deliveryId)}/send-bids`,
+    payload
+  );
+  return response.data;
+}
+
+
 
 
 
