@@ -264,6 +264,7 @@ const EditFreightCarrier = lazy(() => import("@/plant/pages/EditFreightCarrier")
 const FreightCarrierDetails = lazy(() => import("@/plant/pages/FreightCarrierDetails"));
 const PlantDashboard = lazy(() => import("@/plant/pages/PlantPage"));
 const ItemCostList = lazy(() => import("@/plant/pages/ItemCostList"));
+const Savings = lazy(() => import("@/plant/pages/Savings"));
 const BOMFileDetails = lazy(() => import("@/plant/pages/BOMFileDetails"));
 const FreightLoads = lazy(() => import("@/plant/pages/FreightLoads"));
 const FreightRequestDetails = lazy(() => import("@/plant/pages/FreightRequestDetails"));
@@ -275,6 +276,18 @@ const AwardedLoads = lazy(() => import("@/plant/pages/AwardedLoads"));
 const UploadedBomFiles = lazy(() => import("@/plant/pages/UploadedBomFiles"));
 const BomFileDetails = lazy(() => import("@/plant/pages/BOMFileDetails"));
 const GenerateShipperOrder = lazy(() => import("@/plant/pages/GenerateShipperOrder"));
+const ComparisonResultView = lazy(() => import("@/plant/pages/ComparisonResultView"));
+
+// Multi-step Load Planning views
+const ProjectLoadPlanningView = lazy(() => import("@/plant/pages/ProjectLoadPlanningView"));
+const ItemAnalysisView = lazy(() => import("@/plant/pages/load_planning_pages/ItemAnalysisView"));
+const BundlePlannerView = lazy(() => import("@/plant/pages/load_planning_pages/BundlePlannerView"));
+const EditBundleView = lazy(() => import("@/plant/pages/load_planning_pages/EditBundleView"));
+const TruckOptimizerView = lazy(() => import("@/plant/pages/load_planning_pages/TruckOptimizerView"));
+const PackingListViewPage = lazy(() => import("@/plant/pages/load_planning_pages/PackingListViewPage"));
+const QRLabelView = lazy(() => import("@/plant/pages/load_planning_pages/QRLabelView"));
+const LoadPlanReviewView = lazy(() => import("@/plant/pages/load_planning_pages/LoadPlanReviewView"));
+const FreightSelectionView = lazy(() => import("@/plant/pages/load_planning_pages/FreightSelectionView"));
 
 // Financial Accounts section
 
@@ -546,6 +559,10 @@ export const adminRoutes: RouteObject[] = [
             element: <ItemCostList />,
           },
           {
+            path: "plant/savings",
+            element: <Savings />,
+          },
+          {
             path: "plant/freight-loads",
             element: <FreightLoads />,
           },
@@ -615,8 +632,23 @@ export const adminRoutes: RouteObject[] = [
               { index: true, element: <PlantOverview /> },
               { path: "all-deliveries", element: <AllDeliveries /> },
               { path: "load-planning", element: <LoadPlanning /> },
-              { path: "load-planning/:projectId", element: <LoadPlanningProject /> },
+              {
+                path: "load-planning/:projectId",
+                element: <ProjectLoadPlanningView />,
+                children: [
+                  { path: "item-analysis", element: <ItemAnalysisView /> },
+                  { path: "bundle-planner", element: <BundlePlannerView /> },
+                  { path: "bundle-planner/:bundleId", element: <EditBundleView /> },
+                  { path: "truck-optimizer", element: <TruckOptimizerView /> },
+                  { path: "packing-list", element: <PackingListViewPage /> },
+                  { path: "qr-label", element: <QRLabelView /> },
+                  { path: "load-plan-review", element: <LoadPlanReviewView /> },
+                  { path: "freight-selection", element: <FreightSelectionView /> },
+                ],
+              },
               { path: "load-planning/:projectId/details/:loadId", element: <LoadPlanDetails /> },
+              { path: "load-planning/:requestId/comparison-result", element: <ComparisonResultView /> },
+              { path: "load_planning/:requestId/comparison-result", element: <ComparisonResultView /> },
               { path: "shipper-quotation", element: <ShipperQuotation /> },
               { path: "shipper-quotation/:projectId", element: <ShipperQuotationProject /> },
               { path: "shipper-quotation/:projectId/file/:fileId", element: <ShipperFileDetails /> },
