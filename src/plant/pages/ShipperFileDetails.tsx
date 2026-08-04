@@ -1,6 +1,6 @@
-import React from "react";
+
 import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, Scale, FileDown } from "lucide-react";
+import { ArrowLeft, Scale, FileDown, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import {
   usePollCompareJobsStatusMutation,
 } from "@/modules/plant/shipper.hooks";
 import { truncateMiddle } from "@/lib/utils";
+import { useEffect } from "react";
 
 const statusStyles: Record<string, string> = {
   "Approved": "border-emerald-200 bg-emerald-100 text-emerald-600",
@@ -53,7 +54,7 @@ const ShipperFileDetailsView: React.FC = () => {
 
   const shipperDoc = shipperDocResponse?.data;
 
-  React.useEffect(() => {
+  useEffect(() => {
     const compareJobId = shipperDoc?.compareJobId;
     if (!compareJobId || shipperDoc.fileStatus !== "comparison_processing") {
       return;
@@ -96,10 +97,10 @@ const ShipperFileDetailsView: React.FC = () => {
     }
   };
 
-  // const showViewComparison = shipperDoc?.fileStatus === "comparison_completed" ||
-  //   shipperDoc?.fileStatus === "approved" ||
-  //   shipperDoc?.fileStatus === "resubmit_requested" ||
-  //   shipperDoc?.fileStatus === "rejected";
+  const showViewComparison = shipperDoc?.fileStatus === "comparison_completed" ||
+    shipperDoc?.fileStatus === "approved" ||
+    shipperDoc?.fileStatus === "resubmit_requested" ||
+    shipperDoc?.fileStatus === "rejected";
 
   const showVerification = shipperDoc?.fileStatus !== "comparison_completed" &&
     shipperDoc?.fileStatus !== "approved" &&
@@ -196,26 +197,26 @@ const ShipperFileDetailsView: React.FC = () => {
               <Scale size={18} /> Order Verification
             </Button>
           )}
-          {/* {showViewComparison && (
+          {showViewComparison && (
             <Button
               variant="default"
               size="sm"
-              onClick={() => navigate(`/load_planning/${requestId}/comparison-result`)}
+              onClick={() => navigate(`/plant/load_planning/${requestId}/comparison-result`)}
               className="flex items-center gap-2 font-inter font-bold bg-[#1E51A4] hover:bg-[#154085] text-white"
             >
               <Eye size={18} /> View Comparison Detail
             </Button>
-          )} */}
-          {/* {shipperDoc?.fileStatus === "approved" && (
+          )}
+          {shipperDoc?.fileStatus === "approved" && (
             <Button
               variant="default"
               size="sm"
-              onClick={() => navigate(`/load_planning/${shipperDoc.leadId}`)}
+              onClick={() => navigate(`/plant/load_planning/${shipperDoc.leadId}`)}
               className="flex items-center gap-2 font-inter font-bold bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
             >
               Start Load Planning
             </Button>
-          )} */}
+          )}
         </div>
       </div>
 
