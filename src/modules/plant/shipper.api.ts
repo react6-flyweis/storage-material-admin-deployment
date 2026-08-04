@@ -205,4 +205,73 @@ export async function pollCompareJobsStatusProvider(
   return response.data;
 }
 
+export type ComparisonPartItem = {
+  partCode?: string;
+  description?: string;
+  color?: string;
+  partColor?: string;
+  lengthFeet?: number;
+  weight?: number;
+  totalQty?: number;
+};
+
+export type ComparisonResultItem = {
+  resultId: string;
+  status: string;
+  reason?: string;
+  expected?: ComparisonPartItem | null;
+  received?: ComparisonPartItem | null;
+  difference?: {
+    qtyDiff?: number | null;
+  };
+};
+
+export type ComparisonSummaryData = {
+  requestId: string;
+  leadId?: string;
+  projectId?: string;
+  projectName: string;
+  vendorName: string;
+  vendorCode: string;
+  status: string;
+  canProceedToApproval?: boolean;
+  results: ComparisonResultItem[];
+};
+
+export type ComparisonSummaryResponse = {
+  success: boolean;
+  message: string;
+  data: ComparisonSummaryData;
+};
+
+export async function getComparisonSummaryProvider(
+  requestId: string
+): Promise<ComparisonSummaryResponse> {
+  const response = await apiClient.get<ComparisonSummaryResponse>(
+    `/api/admin/plant/shipper-files/${encodeURIComponent(requestId)}/comparison-summary`
+  );
+  return response.data;
+}
+
+export async function approveShipperRequestProvider(
+  requestId: string
+): Promise<{ success: boolean; message: string }> {
+  const response = await apiClient.post<{ success: boolean; message: string }>(
+    `/api/admin/plant/shipper-files/${encodeURIComponent(requestId)}/approve`
+  );
+  return response.data;
+}
+
+export async function requestResubmitShipperRequestProvider(data: {
+  requestId: string;
+  note: string;
+}): Promise<{ success: boolean; message: string }> {
+  const response = await apiClient.post<{ success: boolean; message: string }>(
+    `/api/admin/plant/shipper-files/${encodeURIComponent(data.requestId)}/request-resubmit`,
+    { note: data.note }
+  );
+  return response.data;
+}
+
+
 
