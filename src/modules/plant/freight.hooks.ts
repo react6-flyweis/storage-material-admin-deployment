@@ -10,11 +10,14 @@ import {
   getAwardedLoads,
   rescheduleDelivery,
   updateDeliveryDetails,
+  createPlantDeliveryProvider,
+  sendFreightBidsProvider,
   type GetFreightLoadsParams,
   type RevisionBody,
   type GetAwardedLoadsParams,
   type RescheduleDeliveryBody,
   type UpdateDeliveryDetailsBody,
+  type CreatePlantDeliveryRequest,
 } from "./freight.api";
 
 export function useFreightStatsQuery() {
@@ -123,5 +126,39 @@ export function useUpdateDeliveryDetailsMutation() {
     },
   });
 }
+
+export function useCreatePlantDeliveryMutation() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (payload: any) => createPlantDeliveryProvider(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plant", "deliveries"] });
+    },
+  });
+
+  const trigger = (payload: any) => ({
+    unwrap: () => mutation.mutateAsync(payload),
+  });
+
+  return [trigger, { isLoading: mutation.isPending, isPending: mutation.isPending, error: mutation.error }] as const;
+}
+
+export function useSendFreightBidsMutation() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (payload: { deliveryId: string; carrierIds?: string[] }) =>
+      sendFreightBidsProvider(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plant", "deliveries"] });
+    },
+  });
+
+  const trigger = (payload: { deliveryId: string; carrierIds?: string[] }) => ({
+    unwrap: () => mutation.mutateAsync(payload),
+  });
+
+  return [trigger, { isLoading: mutation.isPending, isPending: mutation.isPending, error: mutation.error }] as const;
+}
+
 
 
