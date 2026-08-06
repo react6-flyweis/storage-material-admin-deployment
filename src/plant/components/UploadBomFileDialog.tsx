@@ -1,91 +1,441 @@
-import React, { useState } from "react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import React, { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router";
+import { X, Upload, FileText, Loader2, ArrowRight } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Upload, X, File as FileIcon } from "lucide-react";
+import SuccessDialog from "@/components/success-dialog";
+import {
+  useGetProjectBuildingsQuery,
+  useUploadProjectBomsMutation,
+  useGetBomJobsStatusBatchMutation,
+  useGenerateConsolidatedBOMMutation,
+  type ProjectBuilding,
+} from "@/modules/plant/bom.hooks";
+import { uploadFileToS3 } from "@/lib/upload";
 
-interface UploadBomFileDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+export interface UploadBomFileDialogProps {
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  isOpen?: boolean;
+  onClose?: () => void;
+  leadId?: string;
+  onUpload?: (files: File[], buildingId?: string) => void;
+  isUploading?: boolean;
 }
 
 export default function UploadBomFileDialog({
   open,
   onOpenChange,
+  isOpen,
+  onClose,
+  leadId = "",
+  onUpload,
+  isUploading: isUploadingProp = false,
 }: UploadBomFileDialogProps) {
-  const [uploadedFile, setUploadedFile] = useState<{name: string, size: string} | null>(
-    { name: "BOM-Project 001", size: "5.3MB" } // Mock state to match screenshot
-  );
+  const navigate = useNavigate();
+
+  const dialogOpen = isOpen ?? open ?? false;
+  const handleDialogClose = () => {
+    if (onClose) onClose();
+    if (onOpenChange) onOpenChange(false);
+  };
+
+  const { data: buildingsData, isLoading, refetch } = useGetProjectBuildingsQuery(leadId, {
+    skip: !leadId || !dialogOpen,
+  });
+
+  const { mutateAsync: uploadProjectBoms } = useUploadProjectBomsMutation();
+  const { mutateAsync: getBomJobsStatusBatch } = useGetBomJobsStatusBatchMutation();
+  const { mutateAsync: generateConsolidatedBOM, isPending: isGenerating } = useGenerateConsolidatedBOMMutation();
+
+  const [uploadingBuilding, setUploadingBuilding] = useState<ProjectBuilding | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isS3Uploading, setIsS3Uploading] = useState(false);
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [successTitle, setSuccessTitle] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [uploadedJobIds, setUploadedJobIds] = useState<string[]>([]);
+
+  const buildings = useMemo(() => buildingsData?.buildings || [], [buildingsData]);
+
+  const canConsolidate = useMemo(() => {
+    if (buildings.length === 0) return false;
+    return buildings.every((b) => b.latestBomJob?.isConfirmed === true);
+  }, [buildings]);
+
+  useEffect(() => {
+    if (dialogOpen && leadId) {
+      refetch();
+    }
+  }, [dialogOpen, leadId, refetch]);
+
+  const activeJobIds = useMemo(() => {
+    const ids: string[] = [];
+    buildings.forEach((b) => {
+      if (b.latestBomJob) {
+        const status = b.latestBomJob.status?.toLowerCase();
+        if (status === "queued" || status === "processing") {
+          ids.push(b.latestBomJob.bomJobId);
+        }
+      }
+    });
+    return ids;
+  }, [buildings]);
+
+  const allPollingJobIds = useMemo(() => {
+    return Array.from(new Set([...activeJobIds, ...uploadedJobIds]));
+  }, [activeJobIds, uploadedJobIds]);
+
+  useEffect(() => {
+    if (allPollingJobIds.length === 0) return;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const response = await getBomJobsStatusBatch({ jobIds: allPollingJobIds });
+        const jobs = response.jobs || [];
+
+        const finishedJobIds: string[] = [];
+        jobs.forEach((job: { jobId: string; status?: string }) => {
+          const status = job.status?.toLowerCase();
+          if (status !== "queued" && status !== "processing") {
+            finishedJobIds.push(job.jobId);
+          }
+        });
+
+        if (finishedJobIds.length > 0) {
+          refetch();
+          setUploadedJobIds((prev) => prev.filter((id) => !finishedJobIds.includes(id)));
+        }
+      } catch (err) {
+        console.error("Error polling job statuses:", err);
+      }
+    }, 2000);
+
+    return () => clearInterval(intervalId);
+  }, [allPollingJobIds, getBomJobsStatusBatch, refetch]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      setSelectedFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleUploadSubmit = async () => {
+    if (!selectedFile || !uploadingBuilding) return;
+
+    setIsS3Uploading(true);
+    setErrorMessage(null);
+
+    try {
+      const fileUrl = await uploadFileToS3(selectedFile, "boms");
+      const fileFormat = selectedFile.name.split(".").pop() || "txt";
+
+      const result = await uploadProjectBoms({
+        leadId,
+        bomFiles: [
+          {
+            buildingId: uploadingBuilding.buildingId,
+            fileUrl,
+            fileName: selectedFile.name,
+            fileFormat,
+          },
+        ],
+      });
+
+      const newJobIds = (result?.jobs || []).map((j: { bomJobId: string }) => j.bomJobId);
+      if (newJobIds.length > 0) {
+        setUploadedJobIds((prev) => Array.from(new Set([...prev, ...newJobIds])));
+      }
+
+      if (onUpload) onUpload([selectedFile], uploadingBuilding.buildingId);
+      setSuccessTitle(`BOM for Building ${uploadingBuilding.buildingNumber} Uploaded Successfully`);
+      setSuccessDialogOpen(true);
+      setUploadingBuilding(null);
+      setSelectedFile(null);
+    } catch (err: unknown) {
+      console.error("Failed to upload BOM file:", err);
+      const errorObj = err as { data?: { message?: string }; message?: string };
+      const errMsg = errorObj?.data?.message || errorObj?.message || "Failed to upload BOM file.";
+      setErrorMessage(errMsg);
+    } finally {
+      setIsS3Uploading(false);
+    }
+  };
+
+  const handleConsolidate = async () => {
+    try {
+      setErrorMessage(null);
+      await generateConsolidatedBOM(leadId);
+      handleDialogClose();
+      navigate(`/plant/uploaded-bom-files/${leadId}`);
+    } catch (err: unknown) {
+      console.error("Failed to generate consolidated BOM:", err);
+      const errorObj = err as { data?: { message?: string }; message?: string };
+      const errMsg = errorObj?.data?.message || errorObj?.message || "Failed to generate consolidated BOM.";
+      setErrorMessage(errMsg);
+    }
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] p-6 rounded-3xl border-0 bg-white shadow-xl">
-        
-        <DialogHeader className="mb-4">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl font-bold text-slate-900">Upload BOM File</DialogTitle>
-          </div>
-          <p className="text-sm text-slate-500 mt-1">Add your documents here, and you can upload up to 5 files max</p>
-        </DialogHeader>
-
-        <div className="border-2 border-dashed border-[#3b59df]/30 rounded-xl bg-slate-50/50 p-8 flex flex-col items-center justify-center text-center">
-          <div className="w-12 h-12 bg-[#3b59df] text-white rounded-lg flex items-center justify-center mb-4">
-            <Upload className="w-6 h-6" />
-          </div>
-          <p className="text-sm text-slate-900 font-medium mb-2">Drag your file(s) to start uploading</p>
-          <div className="flex items-center gap-2 w-full max-w-[200px] mb-4">
-            <div className="flex-1 h-[1px] bg-slate-200"></div>
-            <span className="text-xs font-semibold text-slate-400 uppercase">OR</span>
-            <div className="flex-1 h-[1px] bg-slate-200"></div>
-          </div>
-          <Button variant="outline" className="rounded-full border-[#3b59df] text-[#3b59df] hover:bg-[#3b59df]/5 font-semibold px-6">
-            Browse files
-          </Button>
-        </div>
-        
-        <p className="text-[13px] text-slate-500 mt-3 mb-6">Only support .jpg, .png and .svg and zip files</p>
-
-        {uploadedFile && (
-          <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-red-500 rounded flex items-center justify-center text-white font-bold text-xs">
-                PDF
-              </div>
+    <>
+      <Dialog open={dialogOpen} onOpenChange={(op) => !op && handleDialogClose()}>
+        <DialogContent className="sm:max-w-[650px] max-h-[85vh] flex flex-col p-6 rounded-2xl bg-white shadow-xl border-0 overflow-hidden">
+          <div className="flex flex-col space-y-6 min-h-0 overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b pb-4 shrink-0">
               <div>
-                <p className="text-sm font-bold text-slate-900">{uploadedFile.name}</p>
-                <p className="text-[12px] text-slate-500">{uploadedFile.size}</p>
+                <h2 className="text-xl font-bold text-slate-900 font-sans">Building BOM Files</h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  View BOM status per building or upload/replace files.
+                </p>
               </div>
             </div>
-            <button 
-              className="text-slate-400 hover:text-slate-600 transition-colors"
-              onClick={() => setUploadedFile(null)}
-            >
-              <X className="w-5 h-5" />
-            </button>
+
+            {/* Error Banner */}
+            {errorMessage && (
+              <div className="p-3 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm flex items-center justify-between font-sans shrink-0">
+                <span className="break-words mr-2">{errorMessage}</span>
+                <button onClick={() => setErrorMessage(null)} className="text-red-400 hover:text-red-600 shrink-0">
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+
+            {/* Building List */}
+            <div className="space-y-3 min-h-0 flex-1 overflow-y-auto pr-1">
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-2">
+                  <Loader2 className="w-8 h-8 animate-spin text-[#1D51A4]" />
+                  <p className="text-sm text-slate-500 font-sans">Loading buildings...</p>
+                </div>
+              ) : buildings.length === 0 ? (
+                <div className="text-center py-8 text-slate-500 font-sans text-sm">
+                  No buildings found for this project.
+                </div>
+              ) : (
+                <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 bg-[#F8FAFC]">
+                  {buildings.map((b) => {
+                    const isCompleted = b.bomJobStatus?.toLowerCase() === "completed";
+                    const isConfirmed = b.latestBomJob?.isConfirmed === true;
+                    const latestJob = b.latestBomJob;
+
+                    let badgeStyle = "bg-slate-100 text-slate-700 border-slate-200";
+                    let displayStatus = b.bomJobStatus || "No BOM";
+
+                    if (isCompleted) {
+                      if (isConfirmed) {
+                        badgeStyle = "bg-blue-50 text-[#1D51A4] border-blue-200";
+                        displayStatus = "BOM Confirmed";
+                      } else {
+                        badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                        displayStatus = "BOM Extracted";
+                      }
+                    } else if (b.bomJobStatus?.toLowerCase() === "failed") {
+                      badgeStyle = "bg-rose-50 text-rose-700 border-rose-200";
+                    }
+
+                    return (
+                      <div
+                        key={b.buildingId}
+                        className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white hover:bg-slate-50/80 transition-colors"
+                      >
+                        <div className="space-y-1.5 flex-1 min-w-0">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="font-bold text-sm text-slate-900 shrink-0">
+                              Building {b.buildingNumber}
+                            </span>
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-[11px] font-medium border capitalize shrink-0 ${badgeStyle}`}
+                            >
+                              {displayStatus}
+                            </span>
+                          </div>
+
+                          {latestJob ? (
+                            <div className="flex items-center gap-2 text-xs text-slate-500 min-w-0 flex-wrap">
+                              <div className="flex items-center gap-1.5 min-w-0 max-w-full">
+                                <FileText className="w-4 h-4 text-[#1D51A4] shrink-0" />
+                                <span className="font-medium text-slate-800 truncate" title={latestJob.fileName}>
+                                  {latestJob.fileName}
+                                </span>
+                              </div>
+                              <span className="text-slate-300 hidden sm:inline">|</span>
+                              <span className="shrink-0">{latestJob.totalItems || 0} items</span>
+                              {latestJob.uploadedAt && (
+                                <>
+                                  <span className="text-slate-300 hidden sm:inline">|</span>
+                                  <span className="shrink-0">
+                                    {new Date(latestJob.uploadedAt).toLocaleDateString("en-US", {
+                                      month: "short",
+                                      day: "numeric",
+                                    })}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-slate-400">No files uploaded yet</p>
+                          )}
+                          {latestJob?.errorMessage && (
+                            <p className="text-[11px] text-red-500 bg-red-50 p-1.5 rounded border border-red-100 mt-1 break-words">
+                              Error: {latestJob.errorMessage}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className={
+                              b.hasBomJob
+                                ? "border-[#1D51A4] text-[#1D51A4] hover:bg-blue-50"
+                                : "bg-[#1D51A4] text-white hover:bg-[#1D51A4]/90"
+                            }
+                            onClick={() => {
+                              setUploadingBuilding(b);
+                              setSelectedFile(null);
+                            }}
+                          >
+                            <Upload className="w-3.5 h-3.5 mr-1.5 shrink-0" />
+                            {b.hasBomJob ? "Replace file" : "Upload file"}
+                          </Button>
+
+                          {latestJob && latestJob.status?.toLowerCase() === "completed" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-slate-600 hover:text-slate-900 border border-slate-200"
+                              onClick={() => {
+                                handleDialogClose();
+                                navigate(`/plant/uploaded-bom-files/${latestJob.bomJobId}`);
+                              }}
+                            >
+                              {latestJob.isConfirmed ? "View" : "View and Confirm"}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 pt-2 shrink-0 border-t border-slate-100">
+              <Button
+                variant="outline"
+                className="rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 px-5"
+                onClick={handleDialogClose}
+              >
+                Close
+              </Button>
+              {canConsolidate && (
+                <Button
+                  className="rounded-xl bg-[#1D51A4] hover:bg-[#1D51A4]/90 text-white px-5 flex items-center gap-2"
+                  disabled={isGenerating}
+                  onClick={handleConsolidate}
+                >
+                  {isGenerating ? "Consolidating..." : "Consolidate"} <ArrowRight className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
           </div>
-        )}
+        </DialogContent>
+      </Dialog>
 
-        <div className="flex items-center justify-end gap-3 mt-2">
-          <Button 
-            variant="outline" 
-            className="rounded-xl border-slate-200 text-slate-700 hover:bg-slate-50 w-[100px] font-semibold"
-            onClick={() => onOpenChange(false)}
-          >
-            Cancel
-          </Button>
-          <Button 
-            className="rounded-xl bg-[#1d4ed8] hover:bg-[#1e40af] text-white w-[100px] font-semibold"
-            onClick={() => onOpenChange(false)}
-          >
-            Upload
-          </Button>
-        </div>
+      {/* Upload File Sub-Dialog */}
+      {uploadingBuilding && (
+        <Dialog open={!!uploadingBuilding} onOpenChange={() => setUploadingBuilding(null)}>
+          <DialogContent className="sm:max-w-[500px] p-6 rounded-2xl bg-white shadow-xl border-0">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between border-b pb-3">
+                <h3 className="text-lg font-bold text-slate-900">
+                  Upload BOM: Building {uploadingBuilding.buildingNumber}
+                </h3>
+              </div>
 
-      </DialogContent>
-    </Dialog>
+              <div
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={handleDrop}
+                className="border-2 border-dashed border-[#1D51A4]/30 rounded-xl bg-slate-50/50 p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-blue-50/30 transition-colors relative"
+              >
+                <input
+                  type="file"
+                  accept=".txt,.out"
+                  onChange={handleFileSelect}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <div className="w-12 h-12 bg-[#1D51A4] text-white rounded-xl flex items-center justify-center mb-3">
+                  <Upload className="w-6 h-6" />
+                </div>
+                <p className="text-sm font-medium text-slate-900 mb-1">
+                  Drag & drop BOM file here, or click to browse
+                </p>
+                <p className="text-xs text-slate-500">
+                  Supports .txt, .out
+                </p>
+              </div>
+
+              {selectedFile && (
+                <div className="p-3 bg-blue-50/60 border border-blue-100 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-3 overflow-hidden">
+                    <FileText className="w-5 h-5 text-[#1D51A4] shrink-0" />
+                    <span className="text-sm font-medium text-slate-800 truncate">
+                      {selectedFile.name}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFile(null)}
+                    className="text-slate-400 hover:text-slate-600 p-1"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  className="rounded-xl border-slate-200"
+                  onClick={() => setUploadingBuilding(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  disabled={!selectedFile || isS3Uploading || isUploadingProp}
+                  className="rounded-xl bg-[#1D51A4] hover:bg-[#1D51A4]/90 text-white px-6 flex items-center gap-2"
+                  onClick={handleUploadSubmit}
+                >
+                  {isS3Uploading || isUploadingProp ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Submit"
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      <SuccessDialog
+        open={successDialogOpen}
+        onClose={() => setSuccessDialogOpen(false)}
+        title={successTitle}
+      />
+    </>
   );
 }
+
+export { UploadBomFileDialog as UploadBOMModal };
+
