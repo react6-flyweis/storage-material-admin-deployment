@@ -176,3 +176,18 @@ export const printQRCodeLabel = (data: QRModalData) => {
   `);
   printWindow.document.close();
 };
+
+export function getLeadProjectName(
+  lead?: { projectName?: string; name?: string; [key: string]: unknown } | null,
+  client?: { firstName?: string; lastName?: string; name?: string; [key: string]: unknown } | null
+): string {
+  if (lead?.projectName) return lead.projectName;
+  if (lead?.name) return lead.name;
+  if (client?.firstName || client?.lastName) {
+    const name = `${client.firstName || ""} ${client.lastName || ""}`.trim();
+    return name ? `${name}'s Project` : "N/A";
+  }
+  if (client?.name) return `${client.name}'s Project`;
+  return "N/A";
+}
+
