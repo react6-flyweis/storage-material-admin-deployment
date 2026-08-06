@@ -315,7 +315,7 @@ const ComparisonResultView: React.FC = () => {
             <Button
               variant="default"
               size="sm"
-              onClick={() => navigate(`/plant/load_planning/${data.leadId}`)}
+              onClick={() => navigate(`/plant/load-planning/${data.leadId}`)}
               className="flex items-center gap-2 font-inter font-bold bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
             >
               Start Load Planning
