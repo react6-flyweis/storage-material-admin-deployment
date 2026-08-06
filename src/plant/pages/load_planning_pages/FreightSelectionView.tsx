@@ -16,6 +16,7 @@ import {
   Check,
   DollarSign,
   Plus,
+  Send,
 } from "lucide-react";
 import LoadPlanningHeader from "./LoadPlanningHeader";
 import CarrierFilterModal from "@/plant/components/modals/CarrierFilterModal";
@@ -221,6 +222,12 @@ const FreightSelectionView: React.FC = () => {
   const [stagedFormData, setStagedFormData] = useState<FreightFormData | null>(null);
 
   const hasDeliveries = deliveriesList.length > 0;
+  const activeFreightDeliveries = deliveriesList.filter((d) => {
+    const norm = (d.status || "").toLowerCase().replace(/[\s_-]+/g, "");
+    return ["confirmed", "delivered", "intransit", "scheduled", "carrierselected", "biddingsent"].includes(norm);
+  });
+  const hasActiveFreight = activeFreightDeliveries.length > 0;
+  const hasActiveDelivery = hasActiveFreight;
 
   const {
     control,
@@ -254,6 +261,15 @@ const FreightSelectionView: React.FC = () => {
       additionalNotes: "",
     },
   });
+
+  useEffect(() => {
+    if (hasActiveDelivery && selectedType === "new") {
+      setSelectedType("existing");
+      if (deliveriesList.length > 0) {
+        handleSelectDelivery(deliveriesList[0]);
+      }
+    }
+  }, [hasActiveDelivery, deliveriesList]);
 
   useEffect(() => {
     if (autofillData && selectedType === "new" && !savedDeliveryId) {
@@ -464,788 +480,890 @@ const FreightSelectionView: React.FC = () => {
       />
 
       <form onSubmit={handleSubmit(onFormSubmitValid)} className="md:p-6 p-3 pt-0">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className="lg:col-span-8 space-y-8">
-            {/* Available Deliveries Section */}
-            {hasDeliveries && (
-              <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#E8F1FF] rounded-full flex items-center justify-center text-[#1E51A4]">
-                    <Truck size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-inter font-semibold text-[#212B36]">
-                      Available Deliveries to Send
-                    </h3>
-                    <p className="text-xs text-[#637381]">
-                      Select an existing delivery load to pre-fill details, or create a new one
-                    </p>
-                  </div>
+        {hasActiveFreight ? (
+          <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-6 mb-8">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#E8F1FF] rounded-full flex items-center justify-center text-[#1E51A4]">
+                  <Truck size={20} />
                 </div>
-
-                <div className="flex flex-row overflow-x-auto gap-4 pb-2 pt-1 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
-                  {/* Create New Option */}
-                  <div
-                    onClick={() => {
-                      if (selectedType === "new") {
-                        setSelectedType(null);
-                        setShowForm(false);
-                      } else {
-                        setSelectedType("new");
-                        setSavedDeliveryId(null);
-                        setShowForm(true);
-                        reset({
-                          description: "Project outbound freight",
-                          loadDescription: autofillData?.loadDescription || "",
-                          weight: autofillData?.weight || autofillData?.totalWeight || undefined,
-                          weightUnit: "Lbs",
-                          dimensionsInput: autofillData?.dimensions
-                            ? `${autofillData.dimensions.lengthFeet}' x ${autofillData.dimensions.widthFeet}' x ${autofillData.dimensions.heightFeet}'`
-                            : "",
-                          metalType: autofillData?.metalType || autofillData?.materialType || "",
-                          packageCount: autofillData?.packageCount || autofillData?.totalBundles || undefined,
-                          loadingEquipment: ["Crane"],
-                          bidDeadline: "",
-                          pickupLocation: autofillData?.pickupLocation || "",
-                          deliveryLocation: autofillData?.deliveryLocation || "",
-                          pickupDate: "",
-                          pickupTime: "",
-                          deliveryDate: "",
-                          deliveryTime: "",
-                          receivingPoc: autofillData?.receivingPoc || "",
-                          pickupContactPhone: autofillData?.pickupContactPhone || "",
-                          specialRequirements: "",
-                          additionalNotes: "",
-                        });
-                        setUploadedFiles([]);
-                      }
-                    }}
-                    className={`min-w-[280px] max-w-[320px] p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-center items-center gap-2 text-center ${selectedType === "new"
-                        ? "border-[#1E51A4] bg-[#F4F8FF]"
-                        : "border-dashed border-gray-300 bg-white hover:border-gray-400"
-                      }`}
-                  >
-                    <div className="w-10 h-10 bg-[#E8F1FF] rounded-full flex items-center justify-center text-[#1E51A4]">
-                      <Plus size={20} />
-                    </div>
-                    <div>
-                      <span className="font-semibold text-sm text-[#212B36]">
-                        Create New Delivery
-                      </span>
-                      <p className="text-xs text-[#637381] mt-1">
-                        Start with a blank form or autofilled project defaults
-                      </p>
-                    </div>
-                    {selectedType === "new" && (
-                      <div className="w-5 h-5 bg-[#1E51A4] rounded-full flex items-center justify-center text-white mt-1">
-                        <Check size={12} strokeWidth={3} />
-                      </div>
-                    )}
-                  </div>
-
-                  {deliveriesList.map((delivery: DeliveryItem) => {
-                    const isSelected = selectedType === "existing" && savedDeliveryId === delivery._id;
-                    const statusColors: Record<string, string> = {
-                      draft: "text-[#D08700] bg-[#FFF9E6] border-[#FFEAA6]",
-                      bidding_sent: "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
-                      carrier_selected: "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
-                      scheduled: "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
-                      confirmed: "text-[#00C853] bg-[#E6FFEF] border-[#A3F3B8]",
-                      in_transit: "text-[#4A5565] bg-[#F4F6F8] border-[#E2E4E6]",
-                      delivered: "text-[#00C853] bg-[#E6FFEF] border-[#A3F3B8]",
-                      delayed: "text-[#FF4842] bg-[#FFE9E9] border-[#FFD1D1]",
-                      cancelled: "text-[#FF4842] bg-[#FFE9E9] border-[#FFD1D1]",
-                    };
-                    const statusKey = (delivery.status || "").toLowerCase().replace(/[\s-]+/g, "_");
-                    const statusColor = statusColors[statusKey] || "text-[#4A5565] bg-[#F4F6F8] border-[#E2E4E6]";
-
-                    return (
-                      <div
-                        key={delivery._id}
-                        onClick={() => {
-                          if (isSelected) {
-                            setSelectedType(null);
-                            setSavedDeliveryId(null);
-                            setShowForm(false);
-                          } else {
-                            handleSelectDelivery(delivery);
-                          }
-                        }}
-                        className={`min-w-[280px] max-w-[320px] p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${isSelected
-                            ? "border-[#1E51A4] bg-[#F4F8FF]"
-                            : "border-gray-100 bg-white hover:border-gray-200"
-                          }`}
-                      >
-                        <div className="space-y-2">
-                          <div className="flex justify-between items-start">
-                            <span className="font-semibold text-sm text-[#212B36] truncate">
-                              {delivery.deliveryNumber || ""}
-                            </span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>
-                              {formatStatusText(delivery.status).toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="text-xs text-[#637381] space-y-1">
-                            <p className="truncate">
-                              <strong>From:</strong> {delivery.pickupLocation || "-"}
-                            </p>
-                            <p className="truncate">
-                              <strong>To:</strong> {delivery.deliveryLocation || "-"}
-                            </p>
-                            <p>
-                              <strong>Pickup:</strong> {delivery.pickupDate ? new Date(delivery.pickupDate).toLocaleDateString() : "-"}
-                            </p>
-                            <p>
-                              <strong>Delivery:</strong> {delivery.deliveryDate ? new Date(delivery.deliveryDate).toLocaleDateString() : "-"}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 flex items-center justify-between">
-                          <span className="text-xs font-semibold text-[#1E51A4]">
-                            {delivery.loadSize?.weight || delivery.weight || delivery.loadWeight || 0} Lbs
-                          </span>
-                          {isSelected && (
-                            <div className="w-5 h-5 bg-[#1E51A4] rounded-full flex items-center justify-center text-white">
-                              <Check size={12} strokeWidth={3} />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div>
+                  <h3 className="text-lg font-inter font-semibold text-[#212B36]">
+                    Freight Request In Progress
+                  </h3>
+                  <p className="text-xs text-[#637381]">
+                    An active freight bid request has already been initiated for this project.
+                  </p>
                 </div>
               </div>
-            )}
 
-            {/* Form and Selection States */}
-            {selectedType !== null && showForm && (
-              <>
-                {/* Load Details Card */}
-                <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-8">
-                  <CardHeader
-                    icon={<Package />}
-                    title="Load Details (Auto-Fill)"
-                    subtitle="Describe what needs to be transported"
-                    iconBgColor="bg-[#FFF4E5]"
-                    iconColor="text-[#FFAB00]"
-                  />
+              <button
+                type="button"
+                onClick={() => {
+                  const activeDelivery = activeFreightDeliveries[0];
+                  const navId = activeDelivery?.requestId || activeDelivery?._id || projectId;
+                  navigate(`/plant/freight-request-details/${navId}`);
+                }}
+                className="px-4 py-2 bg-[#1E51A4] hover:bg-[#123E84] text-white font-semibold rounded-md transition-all text-sm cursor-pointer flex items-center gap-2"
+              >
+                <span>Go to Freight Request</span>
+                <Send size={14} />
+              </button>
+            </div>
 
-                  <div className="space-y-6">
-                    <Controller
-                      control={control}
-                      name="loadDescription"
-                      render={({ field }) => (
-                        <div className="space-y-2">
-                          <label className="text-sm font-inter font-semibold text-[#212B36]">
-                            Load Description <span className="text-red-500">*</span>
-                          </label>
-                          <input
-                            type="text"
-                            {...field}
-                            className="w-full px-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
-                          />
-                          {errors.loadDescription?.message && (
-                            <p className="text-xs text-red-500 mt-1">{errors.loadDescription.message}</p>
-                          )}
-                        </div>
-                      )}
-                    />
+            <div className="border-t border-gray-100 pt-6">
+              <div className="flex justify-between items-center mb-4">
+                <h4 className="text-xs font-bold text-[#637381] uppercase tracking-wider">
+                  Active Deliveries
+                </h4>
+              </div>
+              <div className="flex flex-row overflow-x-auto gap-4 pb-2 pt-1 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
+                {activeFreightDeliveries.map((delivery: any) => {
+                  const statusColors: Record<string, string> = {
+                    draft: "text-[#D08700] bg-[#FFF9E6] border-[#FFEAA6]",
+                    bidding_sent: "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
+                    carrier_selected: "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
+                    scheduled: "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
+                    confirmed: "text-[#00C853] bg-[#E6FFEF] border-[#A3F3B8]",
+                    in_transit: "text-[#4A5565] bg-[#F4F6F8] border-[#E2E4E6]",
+                    delivered: "text-[#00C853] bg-[#E6FFEF] border-[#A3F3B8]",
+                    delayed: "text-[#FF4842] bg-[#FFE9E9] border-[#FFD1D1]",
+                    cancelled: "text-[#FF4842] bg-[#FFE9E9] border-[#FFD1D1]",
+                  };
+                  const statusKey = (delivery.status || "").toLowerCase().replace(/[\s-]+/g, "_");
+                  const statusColor = statusColors[statusKey] || "text-[#4A5565] bg-[#F4F6F8] border-[#E2E4E6]";
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  return (
+                    <div
+                      key={delivery._id}
+                      onClick={() => {
+                        const navId = delivery.requestId || delivery._id || projectId;
+                        navigate(`/plant/freight-request-details/${navId}`);
+                      }}
+                      className="min-w-[280px] max-w-[320px] p-4 rounded-xl border border-gray-100 bg-white flex flex-col justify-between cursor-pointer hover:border-gray-300 transition-all"
+                    >
                       <div className="space-y-2">
-                        <label className="text-sm font-inter font-semibold text-[#212B36]">
-                          Weight <span className="text-red-500">*</span>
-                        </label>
-                        <div className="flex gap-3">
-                          <div className="relative flex-1">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                              <Package size={18} />
-                            </span>
-                            <Controller
-                              control={control}
-                              name="weight"
-                              render={({ field }) => (
-                                <input
-                                  type="number"
-                                  {...field}
-                                  value={(field.value as string | number) ?? ""}
-                                  className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-xl text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
-                                />
-                              )}
-                            />
-                          </div>
-                          <div className="w-24">
-                            <Controller
-                              control={control}
-                              name="weightUnit"
-                              render={({ field }) => (
-                                <CommonDropdown
-                                  options={[
-                                    { label: "Lbs", value: "Lbs" },
-                                    { label: "Kg", value: "Kg" },
-                                  ]}
-                                  value={field.value}
-                                  onChange={field.onChange}
-                                  className="rounded-xl"
-                                />
-                              )}
-                            />
-                          </div>
+                        <div className="flex justify-between items-start">
+                          <span className="font-semibold text-sm text-[#212B36] truncate">
+                            {delivery.deliveryNumber || ""}
+                          </span>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>
+                            {formatStatusText(delivery.status).toUpperCase()}
+                          </span>
                         </div>
-                        {errors.weight?.message && (
-                          <p className="text-xs text-red-500 mt-1">{errors.weight.message}</p>
-                        )}
+                        <div className="text-xs text-[#637381] space-y-1">
+                          <p className="truncate">
+                            <strong>From:</strong> {delivery.pickupLocation || "-"}
+                          </p>
+                          <p className="truncate">
+                            <strong>To:</strong> {delivery.deliveryLocation || "-"}
+                          </p>
+                          <p>
+                            <strong>Pickup:</strong> {delivery.pickupDate ? new Date(delivery.pickupDate).toLocaleDateString() : "-"}
+                          </p>
+                          <p>
+                            <strong>Delivery:</strong> {delivery.deliveryDate ? new Date(delivery.deliveryDate).toLocaleDateString() : "-"}
+                          </p>
+                        </div>
                       </div>
 
+                      <div className="mt-3 flex items-center justify-between">
+                        <span className="text-xs font-semibold text-[#1E51A4]">
+                          {delivery.loadSize?.weight || delivery.weight || delivery.loadWeight || 0} Lbs
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-8 space-y-8">
+              {/* Available Deliveries Section */}
+              {hasDeliveries && (
+                <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-[#E8F1FF] rounded-full flex items-center justify-center text-[#1E51A4]">
+                      <Truck size={20} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-inter font-semibold text-[#212B36]">
+                        Available Deliveries to Send
+                      </h3>
+                      <p className="text-xs text-[#637381]">
+                        Select an existing delivery load to pre-fill details, or create a new one
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-row overflow-x-auto gap-4 pb-2 pt-1 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
+                    {/* Create New Option (hidden if active delivery exists) */}
+                    {!hasActiveDelivery && (
+                      <div
+                        onClick={() => {
+                          if (selectedType === "new") {
+                            setSelectedType(null);
+                            setShowForm(false);
+                          } else {
+                            setSelectedType("new");
+                            setSavedDeliveryId(null);
+                            setShowForm(true);
+                            reset({
+                              description: "Project outbound freight",
+                              loadDescription: autofillData?.loadDescription || "",
+                              weight: autofillData?.weight || autofillData?.totalWeight || undefined,
+                              weightUnit: "Lbs",
+                              dimensionsInput: autofillData?.dimensions
+                                ? `${autofillData.dimensions.lengthFeet}' x ${autofillData.dimensions.widthFeet}' x ${autofillData.dimensions.heightFeet}'`
+                                : "",
+                              metalType: autofillData?.metalType || autofillData?.materialType || "",
+                              packageCount: autofillData?.packageCount || autofillData?.totalBundles || undefined,
+                              loadingEquipment: ["Crane"],
+                              bidDeadline: "",
+                              pickupLocation: autofillData?.pickupLocation || "",
+                              deliveryLocation: autofillData?.deliveryLocation || "",
+                              pickupDate: "",
+                              pickupTime: "",
+                              deliveryDate: "",
+                              deliveryTime: "",
+                              receivingPoc: autofillData?.receivingPoc || "",
+                              pickupContactPhone: autofillData?.pickupContactPhone || "",
+                              specialRequirements: "",
+                              additionalNotes: "",
+                            });
+                            setUploadedFiles([]);
+                          }
+                        }}
+                        className={`min-w-[280px] max-w-[320px] p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-center items-center gap-2 text-center ${selectedType === "new"
+                          ? "border-[#1E51A4] bg-[#F4F8FF]"
+                          : "border-dashed border-gray-300 bg-white hover:border-gray-400"
+                          }`}
+                      >
+                        <div className="w-10 h-10 bg-[#E8F1FF] rounded-full flex items-center justify-center text-[#1E51A4]">
+                          <Plus size={20} />
+                        </div>
+                        <div>
+                          <span className="font-semibold text-sm text-[#212B36]">
+                            Create New Delivery
+                          </span>
+                          <p className="text-xs text-[#637381] mt-1">
+                            Start with a blank form or autofilled project defaults
+                          </p>
+                        </div>
+                        {selectedType === "new" && (
+                          <div className="w-5 h-5 bg-[#1E51A4] rounded-full flex items-center justify-center text-white mt-1">
+                            <Check size={12} strokeWidth={3} />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {deliveriesList.map((delivery: DeliveryItem) => {
+                      const isSelected = selectedType === "existing" && savedDeliveryId === delivery._id;
+                      const statusColors: Record<string, string> = {
+                        draft: "text-[#D08700] bg-[#FFF9E6] border-[#FFEAA6]",
+                        bidding_sent: "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
+                        carrier_selected: "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
+                        scheduled: "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
+                        confirmed: "text-[#00C853] bg-[#E6FFEF] border-[#A3F3B8]",
+                        in_transit: "text-[#4A5565] bg-[#F4F6F8] border-[#E2E4E6]",
+                        delivered: "text-[#00C853] bg-[#E6FFEF] border-[#A3F3B8]",
+                        delayed: "text-[#FF4842] bg-[#FFE9E9] border-[#FFD1D1]",
+                        cancelled: "text-[#FF4842] bg-[#FFE9E9] border-[#FFD1D1]",
+                      };
+                      const statusKey = (delivery.status || "").toLowerCase().replace(/[\s-]+/g, "_");
+                      const statusColor = statusColors[statusKey] || "text-[#4A5565] bg-[#F4F6F8] border-[#E2E4E6]";
+
+                      return (
+                        <div
+                          key={delivery._id}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedType(null);
+                              setSavedDeliveryId(null);
+                              setShowForm(false);
+                            } else {
+                              handleSelectDelivery(delivery);
+                            }
+                          }}
+                          className={`min-w-[280px] max-w-[320px] p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${isSelected
+                            ? "border-[#1E51A4] bg-[#F4F8FF]"
+                            : "border-gray-100 bg-white hover:border-gray-200"
+                            }`}
+                        >
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-start">
+                              <span className="font-semibold text-sm text-[#212B36] truncate">
+                                {delivery.deliveryNumber || ""}
+                              </span>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>
+                                {formatStatusText(delivery.status).toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="text-xs text-[#637381] space-y-1">
+                              <p className="truncate">
+                                <strong>From:</strong> {delivery.pickupLocation || "-"}
+                              </p>
+                              <p className="truncate">
+                                <strong>To:</strong> {delivery.deliveryLocation || "-"}
+                              </p>
+                              <p>
+                                <strong>Pickup:</strong> {delivery.pickupDate ? new Date(delivery.pickupDate).toLocaleDateString() : "-"}
+                              </p>
+                              <p>
+                                <strong>Delivery:</strong> {delivery.deliveryDate ? new Date(delivery.deliveryDate).toLocaleDateString() : "-"}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="mt-3 flex items-center justify-between">
+                            <span className="text-xs font-semibold text-[#1E51A4]">
+                              {delivery.loadSize?.weight || delivery.weight || delivery.loadWeight || 0} Lbs
+                            </span>
+                            {isSelected && (
+                              <div className="w-5 h-5 bg-[#1E51A4] rounded-full flex items-center justify-center text-white">
+                                <Check size={12} strokeWidth={3} />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Form and Selection States */}
+              {selectedType !== null && showForm && (
+                <>
+                  {/* Load Details Card */}
+                  <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-8">
+                    <CardHeader
+                      icon={<Package />}
+                      title="Load Details (Auto-Fill)"
+                      subtitle="Describe what needs to be transported"
+                      iconBgColor="bg-[#FFF4E5]"
+                      iconColor="text-[#FFAB00]"
+                    />
+
+                    <div className="space-y-6">
                       <Controller
                         control={control}
-                        name="dimensionsInput"
+                        name="loadDescription"
                         render={({ field }) => (
                           <div className="space-y-2">
                             <label className="text-sm font-inter font-semibold text-[#212B36]">
-                              Dimensions
+                              Load Description <span className="text-red-500">*</span>
                             </label>
-                            <div className="relative">
-                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                                <Ruler size={18} />
-                              </span>
-                              <input
-                                type="text"
-                                {...field}
-                                className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-xl text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
-                              />
-                            </div>
-                            {errors.dimensionsInput?.message && (
-                              <p className="text-xs text-red-500 mt-1">{errors.dimensionsInput.message}</p>
+                            <input
+                              type="text"
+                              {...field}
+                              className="w-full px-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
+                            />
+                            {errors.loadDescription?.message && (
+                              <p className="text-xs text-red-500 mt-1">{errors.loadDescription.message}</p>
                             )}
                           </div>
                         )}
                       />
-                    </div>
 
-                    <Controller
-                      control={control}
-                      name="metalType"
-                      render={({ field }) => (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                           <label className="text-sm font-inter font-semibold text-[#212B36]">
-                            Material Type
+                            Weight <span className="text-red-500">*</span>
                           </label>
-                          <CommonDropdown
-                            options={materialOptions}
-                            value={field.value}
-                            onChange={field.onChange}
-                            className="rounded-xl"
-                          />
-                          {errors.metalType?.message && (
-                            <p className="text-xs text-red-500 mt-1">{errors.metalType.message}</p>
+                          <div className="flex gap-3">
+                            <div className="relative flex-1">
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                                <Package size={18} />
+                              </span>
+                              <Controller
+                                control={control}
+                                name="weight"
+                                render={({ field }) => (
+                                  <input
+                                    type="number"
+                                    {...field}
+                                    value={(field.value as string | number) ?? ""}
+                                    className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-xl text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
+                                  />
+                                )}
+                              />
+                            </div>
+                            <div className="w-24">
+                              <Controller
+                                control={control}
+                                name="weightUnit"
+                                render={({ field }) => (
+                                  <CommonDropdown
+                                    options={[
+                                      { label: "Lbs", value: "Lbs" },
+                                      { label: "Kg", value: "Kg" },
+                                    ]}
+                                    value={field.value}
+                                    onChange={field.onChange}
+                                    className="rounded-xl"
+                                  />
+                                )}
+                              />
+                            </div>
+                          </div>
+                          {errors.weight?.message && (
+                            <p className="text-xs text-red-500 mt-1">{errors.weight.message}</p>
                           )}
                         </div>
-                      )}
-                    />
 
-                    <Controller
-                      control={control}
-                      name="packageCount"
-                      render={({ field }) => (
-                        <div className="space-y-2">
-                          <label className="text-sm font-inter font-semibold text-[#212B36]">
-                            Pallet / Package Count
-                          </label>
-                          <input
-                            type="number"
-                            {...field}
-                            value={(field.value as string | number) ?? ""}
-                            placeholder="e.g., 18"
-                            className="w-full px-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
-                          />
-                          {errors.packageCount?.message && (
-                            <p className="text-xs text-red-500 mt-1">{errors.packageCount.message}</p>
+                        <Controller
+                          control={control}
+                          name="dimensionsInput"
+                          render={({ field }) => (
+                            <div className="space-y-2">
+                              <label className="text-sm font-inter font-semibold text-[#212B36]">
+                                Dimensions
+                              </label>
+                              <div className="relative">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                                  <Ruler size={18} />
+                                </span>
+                                <input
+                                  type="text"
+                                  {...field}
+                                  className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-xl text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
+                                />
+                              </div>
+                              {errors.dimensionsInput?.message && (
+                                <p className="text-xs text-red-500 mt-1">{errors.dimensionsInput.message}</p>
+                              )}
+                            </div>
                           )}
-                        </div>
-                      )}
-                    />
+                        />
+                      </div>
 
-                    <Controller
-                      control={control}
-                      name="loadingEquipment"
-                      render={({ field }) => (
-                        <div className="space-y-2">
-                          <label className="text-sm font-inter font-semibold text-[#212B36]">
-                            Loading Equipment
-                          </label>
-                          <CommonDropdown
-                            options={[
-                              { label: "Crane", value: "Crane" },
-                              { label: "Forklift", value: "Forklift" },
-                            ]}
-                            value={field.value?.[0] || "Crane"}
-                            onChange={(val) => field.onChange([val])}
-                            className="rounded-xl"
-                          />
-                          {errors.loadingEquipment?.message && (
-                            <p className="text-xs text-red-500 mt-1">{errors.loadingEquipment.message}</p>
-                          )}
-                        </div>
-                      )}
-                    />
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <Controller
                         control={control}
-                        name="bidDeadline"
+                        name="metalType"
                         render={({ field }) => (
                           <div className="space-y-2">
                             <label className="text-sm font-inter font-semibold text-[#212B36]">
-                              Bid Deadline <span className="text-red-500">*</span>
+                              Material Type
                             </label>
-                            <div className="relative mt-2">
+                            <CommonDropdown
+                              options={materialOptions}
+                              value={field.value}
+                              onChange={field.onChange}
+                              className="rounded-xl"
+                            />
+                            {errors.metalType?.message && (
+                              <p className="text-xs text-red-500 mt-1">{errors.metalType.message}</p>
+                            )}
+                          </div>
+                        )}
+                      />
+
+                      <Controller
+                        control={control}
+                        name="packageCount"
+                        render={({ field }) => (
+                          <div className="space-y-2">
+                            <label className="text-sm font-inter font-semibold text-[#212B36]">
+                              Pallet / Package Count
+                            </label>
+                            <input
+                              type="number"
+                              {...field}
+                              value={(field.value as string | number) ?? ""}
+                              placeholder="e.g., 18"
+                              className="w-full px-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
+                            />
+                            {errors.packageCount?.message && (
+                              <p className="text-xs text-red-500 mt-1">{errors.packageCount.message}</p>
+                            )}
+                          </div>
+                        )}
+                      />
+
+                      <Controller
+                        control={control}
+                        name="loadingEquipment"
+                        render={({ field }) => (
+                          <div className="space-y-2">
+                            <label className="text-sm font-inter font-semibold text-[#212B36]">
+                              Loading Equipment
+                            </label>
+                            <CommonDropdown
+                              options={[
+                                { label: "Crane", value: "Crane" },
+                                { label: "Forklift", value: "Forklift" },
+                              ]}
+                              value={field.value?.[0] || "Crane"}
+                              onChange={(val) => field.onChange([val])}
+                              className="rounded-xl"
+                            />
+                            {errors.loadingEquipment?.message && (
+                              <p className="text-xs text-red-500 mt-1">{errors.loadingEquipment.message}</p>
+                            )}
+                          </div>
+                        )}
+                      />
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Controller
+                          control={control}
+                          name="bidDeadline"
+                          render={({ field }) => (
+                            <div className="space-y-2">
+                              <label className="text-sm font-inter font-semibold text-[#212B36]">
+                                Bid Deadline <span className="text-red-500">*</span>
+                              </label>
+                              <div className="relative mt-2">
+                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                                  <Clock size={18} />
+                                </span>
+                                <input
+                                  type="datetime-local"
+                                  min={getMinDateTime()}
+                                  {...field}
+                                  className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-sm font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
+                                />
+                              </div>
+                              {errors.bidDeadline?.message && (
+                                <p className="text-xs text-red-500 mt-1">{errors.bidDeadline.message}</p>
+                              )}
+                            </div>
+                          )}
+                        />
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-inter font-semibold text-[#212B36]">
+                            Document Upload
+                          </label>
+                          {uploadedFiles.length === 0 ? (
+                            <div
+                              className="relative mt-2 cursor-pointer"
+                              onClick={() => setIsUploadOpen(true)}
+                            >
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                                <Paperclip size={18} />
+                              </span>
+                              <input
+                                type="text"
+                                readOnly
+                                placeholder="Upload PDF Documents"
+                                value=""
+                                className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-sm font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE] text-gray-400 cursor-pointer"
+                              />
+                            </div>
+                          ) : (
+                            <div className="mt-2 space-y-1">
+                              {uploadedFiles.map((file, idx) => (
+                                <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-100 rounded-lg text-sm font-inter">
+                                  <span className="text-[#212B36] truncate max-w-[80%] font-medium">{file.name}</span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setUploadedFiles((prev) => prev.filter((_, i) => i !== idx));
+                                    }}
+                                    className="text-red-500 hover:text-red-700 font-semibold text-xs"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <UploadFileDialog
+                            open={isUploadOpen}
+                            onOpenChange={setIsUploadOpen}
+                            title="Upload Documents"
+                            description="Upload PDF documents for this freight request."
+                            supportText="Only support .pdf files"
+                            accept=".pdf"
+                            onUploadComplete={(files) => {
+                              setUploadedFiles((prev) => [...prev, ...files]);
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Locations Card */}
+                  <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-8">
+                    <CardHeader
+                      icon={<MapPin size={24} />}
+                      title="Locations"
+                      subtitle="Pickup and delivery addresses"
+                      iconBgColor="bg-[#E8F1FF]"
+                      iconColor="text-[#1E51A4]"
+                    />
+
+                    <div className="space-y-6">
+                      <Controller
+                        control={control}
+                        name="pickupLocation"
+                        render={({ field }) => (
+                          <LocationSelector
+                            {...field}
+                            label="Pickup Location"
+                            placeholder="e.g., Steel Mill, Pittsburgh, PA"
+                            required
+                            error={errors.pickupLocation?.message}
+                            iconColor="text-[#22C55E]"
+                          />
+                        )}
+                      />
+
+                      <Controller
+                        control={control}
+                        name="deliveryLocation"
+                        render={({ field }) => (
+                          <LocationSelector
+                            {...field}
+                            label="Delivery Location"
+                            placeholder="e.g., Construction Site, Austin, TX"
+                            required
+                            error={errors.deliveryLocation?.message}
+                            iconColor="text-[#EF4444]"
+                          />
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Timing Card */}
+                  <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-8">
+                    <CardHeader
+                      icon={<Calendar />}
+                      title="Timing"
+                      subtitle="Pickup and delivery schedule"
+                      iconBgColor="bg-[#E8F5E9]"
+                      iconColor="text-[#2E7D32]"
+                    />
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                      <Controller
+                        control={control}
+                        name="pickupDate"
+                        render={({ field }) => (
+                          <div className="space-y-2">
+                            <label className="text-sm font-inter font-bold text-[#212B36]">
+                              Pickup Date <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative">
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                                <Calendar size={18} />
+                              </span>
+                              <input
+                                type="date"
+                                {...field}
+                                min={getLocalTodayString()}
+                                className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
+                              />
+                            </div>
+                            {errors.pickupDate?.message && (
+                              <p className="text-xs text-red-500 mt-1">{errors.pickupDate.message}</p>
+                            )}
+                          </div>
+                        )}
+                      />
+
+                      <Controller
+                        control={control}
+                        name="pickupTime"
+                        render={({ field }) => (
+                          <div className="space-y-2">
+                            <label className="text-sm font-inter font-bold text-[#212B36]">
+                              Pickup Time
+                            </label>
+                            <div className="relative">
                               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
                                 <Clock size={18} />
                               </span>
                               <input
-                                type="datetime-local"
-                                min={getMinDateTime()}
+                                type="time"
                                 {...field}
-                                className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-sm font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
+                                className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
                               />
                             </div>
-                            {errors.bidDeadline?.message && (
-                              <p className="text-xs text-red-500 mt-1">{errors.bidDeadline.message}</p>
+                            {errors.pickupTime?.message && (
+                              <p className="text-xs text-red-500 mt-1">{errors.pickupTime.message}</p>
                             )}
                           </div>
                         )}
                       />
 
-                      <div className="space-y-2">
-                        <label className="text-sm font-inter font-semibold text-[#212B36]">
-                          Document Upload
-                        </label>
-                        {uploadedFiles.length === 0 ? (
-                          <div
-                            className="relative mt-2 cursor-pointer"
-                            onClick={() => setIsUploadOpen(true)}
-                          >
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                              <Paperclip size={18} />
-                            </span>
-                            <input
-                              type="text"
-                              readOnly
-                              placeholder="Upload PDF Documents"
-                              value=""
-                              className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-sm font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE] text-gray-400 cursor-pointer"
-                            />
-                          </div>
-                        ) : (
-                          <div className="mt-2 space-y-1">
-                            {uploadedFiles.map((file, idx) => (
-                              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-100 rounded-lg text-sm font-inter">
-                                <span className="text-[#212B36] truncate max-w-[80%] font-medium">{file.name}</span>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setUploadedFiles((prev) => prev.filter((_, i) => i !== idx));
-                                  }}
-                                  className="text-red-500 hover:text-red-700 font-semibold text-xs"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            ))}
+                      <Controller
+                        control={control}
+                        name="deliveryDate"
+                        render={({ field }) => (
+                          <div className="space-y-2">
+                            <label className="text-sm font-inter font-bold text-[#212B36]">
+                              Delivery Date <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative">
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                                <Calendar size={18} />
+                              </span>
+                              <input
+                                type="date"
+                                {...field}
+                                min={pickupDateValue || getLocalTodayString()}
+                                className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
+                              />
+                            </div>
+                            {errors.deliveryDate?.message && (
+                              <p className="text-xs text-red-500 mt-1">{errors.deliveryDate.message}</p>
+                            )}
                           </div>
                         )}
+                      />
 
-                        <UploadFileDialog
-                          open={isUploadOpen}
-                          onOpenChange={setIsUploadOpen}
-                          title="Upload Documents"
-                          description="Upload PDF documents for this freight request."
-                          supportText="Only support .pdf files"
-                          accept=".pdf"
-                          onUploadComplete={(files) => {
-                            setUploadedFiles((prev) => [...prev, ...files]);
-                          }}
-                        />
-                      </div>
+                      <Controller
+                        control={control}
+                        name="deliveryTime"
+                        render={({ field }) => (
+                          <div className="space-y-2">
+                            <label className="text-sm font-inter font-bold text-[#212B36]">
+                              Delivery Time
+                            </label>
+                            <div className="relative">
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                                <Clock size={18} />
+                              </span>
+                              <input
+                                type="time"
+                                {...field}
+                                className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
+                              />
+                            </div>
+                            {errors.deliveryTime?.message && (
+                              <p className="text-xs text-red-500 mt-1">{errors.deliveryTime.message}</p>
+                            )}
+                          </div>
+                        )}
+                      />
                     </div>
                   </div>
-                </div>
 
-                {/* Locations Card */}
-                <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-8">
-                  <CardHeader
-                    icon={<MapPin size={24} />}
-                    title="Locations"
-                    subtitle="Pickup and delivery addresses"
-                    iconBgColor="bg-[#E8F1FF]"
-                    iconColor="text-[#1E51A4]"
-                  />
-
-                  <div className="space-y-6">
-                    <Controller
-                      control={control}
-                      name="pickupLocation"
-                      render={({ field }) => (
-                        <LocationSelector
-                          {...field}
-                          label="Pickup Location"
-                          placeholder="e.g., Steel Mill, Pittsburgh, PA"
-                          required
-                          error={errors.pickupLocation?.message}
-                          iconColor="text-[#22C55E]"
-                        />
-                      )}
+                  {/* Coordination Card */}
+                  <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-8">
+                    <CardHeader
+                      icon={<User />}
+                      title="Coordination"
+                      subtitle="Contact and special requirements"
+                      iconBgColor="bg-[#F3E5F5]"
+                      iconColor="text-[#9C27B0]"
                     />
 
-                    <Controller
-                      control={control}
-                      name="deliveryLocation"
-                      render={({ field }) => (
-                        <LocationSelector
-                          {...field}
-                          label="Delivery Location"
-                          placeholder="e.g., Construction Site, Austin, TX"
-                          required
-                          error={errors.deliveryLocation?.message}
-                          iconColor="text-[#EF4444]"
-                        />
-                      )}
-                    />
+                    <div className="space-y-4">
+                      <Controller
+                        control={control}
+                        name="receivingPoc"
+                        render={({ field }) => (
+                          <div className="space-y-2">
+                            <label className="text-sm font-inter font-bold text-[#212B36]">
+                              Receiving POC <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative mt-2">
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#919EAB]">
+                                <User size={20} />
+                              </span>
+                              <input
+                                type="text"
+                                {...field}
+                                placeholder="e.g., John Doe"
+                                className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-sm font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
+                              />
+                            </div>
+                            {errors.receivingPoc?.message && (
+                              <p className="text-xs text-red-500 mt-1">{errors.receivingPoc.message}</p>
+                            )}
+                          </div>
+                        )}
+                      />
+
+                      <Controller
+                        control={control}
+                        name="pickupContactPhone"
+                        render={({ field }) => (
+                          <div className="space-y-2">
+                            <label className="text-sm font-inter font-bold text-[#212B36]">
+                              Pickup Contact Phone <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative mt-2">
+                              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#919EAB]">
+                                <User size={20} />
+                              </span>
+                              <input
+                                type="text"
+                                {...field}
+                                placeholder="e.g., +15551234567"
+                                className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-sm font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
+                              />
+                            </div>
+                            {errors.pickupContactPhone?.message && (
+                              <p className="text-xs text-red-500 mt-1">{errors.pickupContactPhone.message}</p>
+                            )}
+                          </div>
+                        )}
+                      />
+
+                      <Controller
+                        control={control}
+                        name="specialRequirements"
+                        render={({ field }) => (
+                          <div className="space-y-2">
+                            <label className="text-sm font-inter font-bold text-[#212B36]">
+                              Special Requirements
+                            </label>
+                            <textarea
+                              rows={3}
+                              {...field}
+                              placeholder="Tarp required, PPE requirements, etc."
+                              className="w-full p-3 bg-white border border-[#E2E4E6] rounded-md text-sm font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
+                            />
+                          </div>
+                        )}
+                      />
+
+                      <Controller
+                        control={control}
+                        name="additionalNotes"
+                        render={({ field }) => (
+                          <div className="space-y-2">
+                            <label className="text-sm font-inter font-bold text-[#212B36]">
+                              Additional Notes
+                            </label>
+                            <textarea
+                              rows={3}
+                              {...field}
+                              placeholder="Any extra instructions or notes..."
+                              className="w-full p-3 bg-white border border-[#E2E4E6] rounded-md text-sm font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
+                            />
+                          </div>
+                        )}
+                      />
+                    </div>
                   </div>
-                </div>
 
-                {/* Timing Card */}
-                <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-8">
-                  <CardHeader
-                    icon={<Calendar />}
-                    title="Timing"
-                    subtitle="Pickup and delivery schedule"
-                    iconBgColor="bg-[#E8F5E9]"
-                    iconColor="text-[#2E7D32]"
-                  />
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                    <Controller
-                      control={control}
-                      name="pickupDate"
-                      render={({ field }) => (
-                        <div className="space-y-2">
-                          <label className="text-sm font-inter font-bold text-[#212B36]">
-                            Pickup Date <span className="text-red-500">*</span>
-                          </label>
-                          <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                              <Calendar size={18} />
-                            </span>
-                            <input
-                              type="date"
-                              {...field}
-                              min={getLocalTodayString()}
-                              className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
-                            />
-                          </div>
-                          {errors.pickupDate?.message && (
-                            <p className="text-xs text-red-500 mt-1">{errors.pickupDate.message}</p>
-                          )}
-                        </div>
-                      )}
-                    />
-
-                    <Controller
-                      control={control}
-                      name="pickupTime"
-                      render={({ field }) => (
-                        <div className="space-y-2">
-                          <label className="text-sm font-inter font-bold text-[#212B36]">
-                            Pickup Time
-                          </label>
-                          <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                              <Clock size={18} />
-                            </span>
-                            <input
-                              type="time"
-                              {...field}
-                              className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
-                            />
-                          </div>
-                          {errors.pickupTime?.message && (
-                            <p className="text-xs text-red-500 mt-1">{errors.pickupTime.message}</p>
-                          )}
-                        </div>
-                      )}
-                    />
-
-                    <Controller
-                      control={control}
-                      name="deliveryDate"
-                      render={({ field }) => (
-                        <div className="space-y-2">
-                          <label className="text-sm font-inter font-bold text-[#212B36]">
-                            Delivery Date <span className="text-red-500">*</span>
-                          </label>
-                          <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                              <Calendar size={18} />
-                            </span>
-                            <input
-                              type="date"
-                              {...field}
-                              min={pickupDateValue || getLocalTodayString()}
-                              className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
-                            />
-                          </div>
-                          {errors.deliveryDate?.message && (
-                            <p className="text-xs text-red-500 mt-1">{errors.deliveryDate.message}</p>
-                          )}
-                        </div>
-                      )}
-                    />
-
-                    <Controller
-                      control={control}
-                      name="deliveryTime"
-                      render={({ field }) => (
-                        <div className="space-y-2">
-                          <label className="text-sm font-inter font-bold text-[#212B36]">
-                            Delivery Time
-                          </label>
-                          <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                              <Clock size={18} />
-                            </span>
-                            <input
-                              type="time"
-                              {...field}
-                              className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
-                            />
-                          </div>
-                          {errors.deliveryTime?.message && (
-                            <p className="text-xs text-red-500 mt-1">{errors.deliveryTime.message}</p>
-                          )}
-                        </div>
-                      )}
-                    />
+                  {/* Submit Action */}
+                  <div className="flex justify-end pt-4">
+                    <Button
+                      type="submit"
+                      variant="gradient"
+                      size="lg"
+                      className="px-8 font-bold cursor-pointer"
+                    >
+                      Review & Send Request to Carriers
+                    </Button>
                   </div>
-                </div>
+                </>
+              )}
+            </div>
 
-                {/* Coordination Card */}
-                <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-8">
-                  <CardHeader
-                    icon={<User />}
-                    title="Coordination"
-                    subtitle="Contact and special requirements"
-                    iconBgColor="bg-[#F3E5F5]"
-                    iconColor="text-[#9C27B0]"
-                  />
-
-                  <div className="space-y-4">
-                    <Controller
-                      control={control}
-                      name="receivingPoc"
-                      render={({ field }) => (
-                        <div className="space-y-2">
-                          <label className="text-sm font-inter font-bold text-[#212B36]">
-                            Receiving POC <span className="text-red-500">*</span>
-                          </label>
-                          <div className="relative mt-2">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#919EAB]">
-                              <User size={20} />
-                            </span>
-                            <input
-                              type="text"
-                              {...field}
-                              placeholder="e.g., John Doe"
-                              className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-sm font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
-                            />
-                          </div>
-                          {errors.receivingPoc?.message && (
-                            <p className="text-xs text-red-500 mt-1">{errors.receivingPoc.message}</p>
-                          )}
-                        </div>
-                      )}
-                    />
-
-                    <Controller
-                      control={control}
-                      name="pickupContactPhone"
-                      render={({ field }) => (
-                        <div className="space-y-2">
-                          <label className="text-sm font-inter font-bold text-[#212B36]">
-                            Pickup Contact Phone <span className="text-red-500">*</span>
-                          </label>
-                          <div className="relative mt-2">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#919EAB]">
-                              <User size={20} />
-                            </span>
-                            <input
-                              type="text"
-                              {...field}
-                              placeholder="e.g., +15551234567"
-                              className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-sm font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
-                            />
-                          </div>
-                          {errors.pickupContactPhone?.message && (
-                            <p className="text-xs text-red-500 mt-1">{errors.pickupContactPhone.message}</p>
-                          )}
-                        </div>
-                      )}
-                    />
-
-                    <Controller
-                      control={control}
-                      name="specialRequirements"
-                      render={({ field }) => (
-                        <div className="space-y-2">
-                          <label className="text-sm font-inter font-bold text-[#212B36]">
-                            Special Requirements
-                          </label>
-                          <textarea
-                            rows={3}
-                            {...field}
-                            placeholder="Tarp required, PPE requirements, etc."
-                            className="w-full p-3 bg-white border border-[#E2E4E6] rounded-md text-sm font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
-                          />
-                        </div>
-                      )}
-                    />
-
-                    <Controller
-                      control={control}
-                      name="additionalNotes"
-                      render={({ field }) => (
-                        <div className="space-y-2">
-                          <label className="text-sm font-inter font-bold text-[#212B36]">
-                            Additional Notes
-                          </label>
-                          <textarea
-                            rows={3}
-                            {...field}
-                            placeholder="Any extra instructions or notes..."
-                            className="w-full p-3 bg-white border border-[#E2E4E6] rounded-md text-sm font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
-                          />
-                        </div>
-                      )}
-                    />
+            {/* Right Column: Carrier Selection */}
+            <div className="lg:col-span-4 space-y-8">
+              <div className="bg-white rounded-[14px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-6">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-start md:items-center gap-3">
+                    <div className="w-8 h-8 md:w-10 md:h-10 bg-[#E8F1FF] rounded-full flex items-center justify-center text-[#1E51A4]">
+                      <Truck size={16} className="md:size-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm md:text-lg font-inter font-semibold text-[#212B36]">Select Carriers</h3>
+                      <p className="text-xs text-[#637381]">Send bid request to carriers</p>
+                    </div>
                   </div>
-                </div>
-
-                {/* Submit Action */}
-                <div className="flex justify-end pt-4">
-                  <Button
-                    type="submit"
-                    variant="gradient"
-                    size="lg"
-                    className="px-8 font-bold cursor-pointer"
+                  <button
+                    type="button"
+                    onClick={() => setIsFilterModalOpen(true)}
+                    className="p-2 bg-[#DFDFDF] ml-auto rounded-full border border-[#E2E4E6] text-black"
                   >
-                    Review & Send Request to Carriers
-                  </Button>
+                    <SlidersHorizontal size={20} strokeWidth={2.5} />
+                  </button>
                 </div>
-              </>
-            )}
-          </div>
 
-          {/* Right Column: Carrier Selection */}
-          <div className="lg:col-span-4 space-y-8">
-            <div className="bg-white rounded-[14px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-6">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-start md:items-center gap-3">
-                  <div className="w-8 h-8 md:w-10 md:h-10 bg-[#E8F1FF] rounded-full flex items-center justify-center text-[#1E51A4]">
-                    <Truck size={16} className="md:size-5" />
+                {isLoadingCarriers ? (
+                  <div className="space-y-4 animate-pulse">
+                    {[1, 2, 3].map((n) => (
+                      <div key={n} className="h-24 bg-gray-100 rounded-md"></div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {carriersList.map((carrier: any) => {
+                      const isChecked = selectedCarrierIds.includes(carrier._id);
+                      return (
+                        <div
+                          key={carrier._id}
+                          onClick={() => {
+                            setSelectedCarrierIds((prev) =>
+                              prev.includes(carrier._id)
+                                ? prev.filter((id) => id !== carrier._id)
+                                : [...prev, carrier._id]
+                            );
+                          }}
+                          className={`p-2 md:p-4 rounded-md border transition-all cursor-pointer font-inter text-sm ${isChecked ? "border-[#E2E4E6] bg-white" : "border-gray-50 bg-white opacity-70 hover:opacity-100"
+                            }`}
+                        >
+                          <div className="flex items-start gap-4">
+                            <div
+                              className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${isChecked ? "bg-white border-[#22C55E]" : "bg-white border-gray-200"
+                                }`}
+                            >
+                              {isChecked && <Check size={12} className="text-[#22C55E]" strokeWidth={4} />}
+                            </div>
+                            <div className="flex-1 space-y-1">
+                              <div className="flex justify-between items-start">
+                                <h4 className="font-semibold text-[#212B36] text-sm">
+                                  {carrier.carrierName}
+                                </h4>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="text-[#FFAB00] font-bold">
+                                  ★ {(4.0 + (carrier.bidWinRate || 50) * 0.01).toFixed(1)}
+                                </span>
+                                <span className="text-gray-300">•</span>
+                                <span className="text-[#637381]">
+                                  Last: ${carrier.avgBid?.toLocaleString() || "2,500"}
+                                </span>
+                              </div>
+                              <p className="text-xs text-[#637381] font-medium leading-relaxed">
+                                {carrier.equipmentTypes?.join(", ") || carrier.serviceType || "Flatbed, Step Deck"}
+                                <br />
+                                On-time rate: 94%
+                                <br />
+                                Service Area: {carrier.serviceArea}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {carriersList.length === 0 && (
+                      <p className="text-sm text-gray-500 text-center py-4">No carriers found.</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Selection Summary */}
+                <div className="bg-[#EFF6FF] rounded-xl p-4 flex items-start gap-3">
+                  <div className="text-[#1D4ED8] mt-1">
+                    <DollarSign size={20} />
                   </div>
                   <div>
-                    <h3 className="text-sm md:text-lg font-inter font-semibold text-[#212B36]">Select Carriers</h3>
-                    <p className="text-xs text-[#637381]">Send bid request to carriers</p>
+                    <p className="text-sm font-bold text-[#1D4ED8]">{selectedCarrierIds.length} Carriers Selected</p>
+                    <p className="text-xs text-[#1D4ED8]/70">Select carriers to request freight quotes</p>
                   </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsFilterModalOpen(true)}
-                  className="p-2 bg-[#DFDFDF] ml-auto rounded-full border border-[#E2E4E6] text-black"
-                >
-                  <SlidersHorizontal size={20} strokeWidth={2.5} />
-                </button>
-              </div>
-
-              {isLoadingCarriers ? (
-                <div className="space-y-4 animate-pulse">
-                  {[1, 2, 3].map((n) => (
-                    <div key={n} className="h-24 bg-gray-100 rounded-md"></div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {carriersList.map((carrier: any) => {
-                    const isChecked = selectedCarrierIds.includes(carrier._id);
-                    return (
-                      <div
-                        key={carrier._id}
-                        onClick={() => {
-                          setSelectedCarrierIds((prev) =>
-                            prev.includes(carrier._id)
-                              ? prev.filter((id) => id !== carrier._id)
-                              : [...prev, carrier._id]
-                          );
-                        }}
-                        className={`p-2 md:p-4 rounded-md border transition-all cursor-pointer font-inter text-sm ${isChecked ? "border-[#E2E4E6] bg-white" : "border-gray-50 bg-white opacity-70 hover:opacity-100"
-                          }`}
-                      >
-                        <div className="flex items-start gap-4">
-                          <div
-                            className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${isChecked ? "bg-white border-[#22C55E]" : "bg-white border-gray-200"
-                              }`}
-                          >
-                            {isChecked && <Check size={12} className="text-[#22C55E]" strokeWidth={4} />}
-                          </div>
-                          <div className="flex-1 space-y-1">
-                            <div className="flex justify-between items-start">
-                              <h4 className="font-semibold text-[#212B36] text-sm">
-                                {carrier.carrierName}
-                              </h4>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="text-[#FFAB00] font-bold">
-                                ★ {(4.0 + (carrier.bidWinRate || 50) * 0.01).toFixed(1)}
-                              </span>
-                              <span className="text-gray-300">•</span>
-                              <span className="text-[#637381]">
-                                Last: ${carrier.avgBid?.toLocaleString() || "2,500"}
-                              </span>
-                            </div>
-                            <p className="text-xs text-[#637381] font-medium leading-relaxed">
-                              {carrier.equipmentTypes?.join(", ") || carrier.serviceType || "Flatbed, Step Deck"}
-                              <br />
-                              On-time rate: 94%
-                              <br />
-                              Service Area: {carrier.serviceArea}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {carriersList.length === 0 && (
-                    <p className="text-sm text-gray-500 text-center py-4">No carriers found.</p>
-                  )}
-                </div>
-              )}
-
-              {/* Selection Summary */}
-              <div className="bg-[#EFF6FF] rounded-xl p-4 flex items-start gap-3">
-                <div className="text-[#1D4ED8] mt-1">
-                  <DollarSign size={20} />
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-[#1D4ED8]">{selectedCarrierIds.length} Carriers Selected</p>
-                  <p className="text-xs text-[#1D4ED8]/70">Select carriers to request freight quotes</p>
                 </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </form>
 
       <CarrierFilterModal
