@@ -49,10 +49,9 @@ const ShipperFileDetailsView: React.FC = () => {
   const navigate = useNavigate();
   const { fileId: requestId } = useParams();
 
-  const { data: shipperDocResponse, isLoading, error, refetch } = useShipperDocumentQuery(requestId || "");
+  const { data: shipperDoc, isLoading, error, refetch } = useShipperDocumentQuery(requestId || "");
   const { mutateAsync: pollCompareJobsStatus } = usePollCompareJobsStatusMutation();
 
-  const shipperDoc = shipperDocResponse?.data;
 
   useEffect(() => {
     const compareJobId = shipperDoc?.compareJobId;
@@ -211,7 +210,7 @@ const ShipperFileDetailsView: React.FC = () => {
             <Button
               variant="default"
               size="sm"
-              onClick={() => navigate(`/plant/load_planning/${shipperDoc.leadId}`)}
+              onClick={() => navigate(`/plant/load-planning/${shipperDoc.leadId}`)}
               className="flex items-center gap-2 font-inter font-bold bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
             >
               Start Load Planning
