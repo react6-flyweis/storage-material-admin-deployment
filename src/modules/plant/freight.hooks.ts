@@ -4,6 +4,7 @@ import {
   getFreightLoads,
   getDeliveryFreightBids,
   getDeliveryDetail,
+  getProjectDelivery,
   selectFreightBid,
   requestFreightBidRevision,
   getAwardedStats,
@@ -61,6 +62,18 @@ export function useDeliveryDetailQuery(
     queryKey: ["plant", "deliveries", deliveryId, "detail"],
     queryFn: () => getDeliveryDetail(deliveryId),
     enabled: Boolean(deliveryId) && (options?.enabled ?? true),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useProjectDeliveryQuery(
+  projectId: string,
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: ["plant", "deliveries", "project", projectId],
+    queryFn: () => getProjectDelivery(projectId),
+    enabled: Boolean(projectId) && (options?.enabled ?? true),
     staleTime: 60 * 1000,
   });
 }
