@@ -146,3 +146,162 @@ export async function getBomDetailsProvider(
   return response.data;
 }
 
+export interface ConsolidatedBOMItem {
+  _id?: string;
+  category?: string;
+  partCode?: string | null;
+  description?: string | null;
+  partColor?: string | null;
+  markIds?: string[];
+  totalQty?: number;
+  totalLengthFeet?: number;
+  costUnit?: string | null;
+  totalWeight?: number;
+  totalCost?: number;
+  buildings?: (number | string)[];
+  [key: string]: unknown;
+}
+
+export interface ConsolidatedBOMSentVendor {
+  _id: string;
+  vendorId: string;
+  vendorName: string;
+  sentAt: string;
+}
+
+export interface ConsolidatedBOM {
+  _id?: string;
+  leadId?: string;
+  status?: string;
+  fileUrl?: string;
+  itemCount?: number;
+  totalCost?: number;
+  totalWeight?: number;
+  totalPanelsArea?: number;
+  items?: ConsolidatedBOMItem[];
+  sentToVendors?: ConsolidatedBOMSentVendor[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface PlantProjectDetail {
+  jobId?: string;
+  lead?: { projectName?: string; name?: string; [key: string]: unknown };
+  client?: { firstName?: string; lastName?: string; name?: string; [key: string]: unknown };
+  [key: string]: unknown;
+}
+
+export interface ConsolidatedBOMResponse {
+  consolidatedBOM?: ConsolidatedBOM;
+  fileUrl?: string;
+  [key: string]: unknown;
+}
+
+export async function getPlantProjectDetailProvider(projectId: string): Promise<PlantProjectDetail> {
+  const response = await apiClient.get<Record<string, unknown>>(
+    `/api/admin/plant/projects/${projectId}`
+  );
+  if (response.data && typeof response.data === "object" && "data" in response.data) {
+    return (response.data as { data: PlantProjectDetail }).data;
+  }
+  return response.data as PlantProjectDetail;
+}
+
+export async function getConsolidatedBOMProvider(leadId: string): Promise<ConsolidatedBOMResponse> {
+  const response = await apiClient.get<Record<string, unknown>>(
+    `/api/admin/plant/projects/${encodeURIComponent(leadId)}/consolidated-bom`
+  );
+  if (response.data && typeof response.data === "object" && "data" in response.data) {
+    return (response.data as { data: ConsolidatedBOMResponse }).data;
+  }
+  return response.data as ConsolidatedBOMResponse;
+}
+
+export async function getConsolidatedBOMUrlProvider(leadId: string) {
+  const response = await apiClient.get(
+    `/api/admin/plant/bom/projects/${encodeURIComponent(leadId)}/consolidated-url`
+  );
+  return response.data?.data || response.data;
+}
+
+export const getConsolidatedUrlProvider = getConsolidatedBOMUrlProvider;
+
+export async function getProjectBomFilesProvider(leadId: string) {
+  const response = await apiClient.get(
+    `/api/admin/plant/projects/${encodeURIComponent(leadId)}/bom-files`
+  );
+  return response.data?.data || response.data;
+}
+
+export interface ProjectDrawing {
+  _id?: string;
+  buildingId?: string;
+  buildingNumber?: number;
+  fileName?: string;
+  fileUrl?: string;
+  status?: string;
+  versionNumber?: number;
+  uploadedAt?: string;
+  rejectionReason?: string;
+}
+
+export interface BuildingWithDrawings {
+  buildingId: string;
+  buildingNumber: number;
+  latestDrawingStatus?: string;
+  drawings?: ProjectDrawing[];
+}
+
+export interface ProjectDrawingsData {
+  buildings: BuildingWithDrawings[];
+  totalBuildings?: number;
+}
+
+export async function getProjectDrawingsProvider(projectId: string): Promise<ProjectDrawingsData> {
+  const response = await apiClient.get<Record<string, unknown>>(
+    `/api/admin/plant/projects/${encodeURIComponent(projectId)}/drawings`
+  );
+  if (response.data && typeof response.data === "object" && "data" in response.data) {
+    return (response.data as { data: ProjectDrawingsData }).data;
+  }
+  return response.data as unknown as ProjectDrawingsData;
+}
+
+export async function uploadProjectBomsProvider(leadId: string, bomFiles: Array<{ buildingId: string; fileUrl: string; fileName: string; fileFormat: string }>) {
+  const response = await apiClient.post(`/api/admin/plant/projects/${encodeURIComponent(leadId)}/bom`, { bomFiles });
+  return response.data?.data || response.data;
+}
+
+export async function getBomJobsStatusBatchProvider(jobIds: string[]) {
+  const response = await apiClient.post("/api/admin/plant/bom/jobs/status", { jobIds });
+  return response.data?.data || response.data;
+}
+
+export async function getBomJobStatusProvider(jobId: string) {
+  const response = await apiClient.get(`/api/admin/plant/bom/job/${encodeURIComponent(jobId)}/status`);
+  return response.data?.data || response.data;
+}
+
+export async function generateConsolidatedBOMProvider(leadId: string) {
+  const response = await apiClient.post(`/api/admin/plant/projects/${encodeURIComponent(leadId)}/consolidated-bom/generate`);
+  return response.data?.data || response.data;
+}
+
+export async function sendConsolidatedBOMToVendorsProvider(leadId: string, vendorIds: string[]) {
+  const response = await apiClient.post(`/api/admin/plant/projects/${encodeURIComponent(leadId)}/consolidated-bom/send`, { vendorIds });
+  return response.data?.data || response.data;
+}
+
+export async function updateBomItemPriceProvider(bomItemId: string, manualUnitCost: number, saveToSMDT: boolean) {
+  const response = await apiClient.put(`/api/admin/plant/bom/items/${encodeURIComponent(bomItemId)}/price`, { manualUnitCost, saveToSMDT });
+  return response.data?.data || response.data;
+}
+
+export async function confirmBuildingBomProvider(buildingId: string) {
+  const response = await apiClient.post(`/api/admin/plant/bom/buildings/${encodeURIComponent(buildingId)}/confirm`);
+  return response.data?.data || response.data;
+}
+
+
+
+
