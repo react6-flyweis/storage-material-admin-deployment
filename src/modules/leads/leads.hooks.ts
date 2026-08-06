@@ -22,6 +22,7 @@ import {
   type TerminateLeadPayload,
   createLeadProvider,
   type CreateLeadPayload,
+  uploadLeadDocumentProvider,
 } from "./leads.api";
 
 type EscalationStatus = "pending" | "assigned" | "resolved";
@@ -304,3 +305,27 @@ export function useCreateLeadMutation() {
     },
   });
 }
+
+export function useUploadLeadDocumentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      leadId,
+      files,
+      type,
+    }: {
+      leadId: string;
+      files: File[];
+      type: "bom" | "drawing" | "other";
+    }) => uploadLeadDocumentProvider(leadId, files, type),
+    onSuccess: (_, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: ["leads", "documents", variables.leadId],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["leads", "detail", variables.leadId],
+      });
+    },
+  });
+}
+
