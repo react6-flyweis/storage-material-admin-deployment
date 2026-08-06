@@ -16,7 +16,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import UploadBomFileDialog from "@/plant/components/UploadBomFileDialog";
 import { useBomStatsQuery, useBomProjectsQuery } from "@/modules/plant/bom.hooks";
 import type { FileStatus } from "@/modules/plant/bom.api";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,7 +23,7 @@ import SummaryCard from "@/plant/components/SummaryCard";
 
 export default function UploadedBomFiles() {
   const navigate = useNavigate();
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
+
 
   // Pagination & Filtering State
   const [page, setPage] = useState(1);
@@ -332,7 +331,6 @@ export default function UploadedBomFiles() {
 
           {Array.from({ length: totalPages }).map((_, idx) => {
             const pageNum = idx + 1;
-            // Simple page buttons, limit how many show if there are many pages
             return (
               <Button
                 key={pageNum}
@@ -359,10 +357,7 @@ export default function UploadedBomFiles() {
         </div>
       </div>
 
-      <UploadBomFileDialog
-        open={isUploadOpen}
-        onOpenChange={setIsUploadOpen}
-      />
+
     </div>
   );
 }
