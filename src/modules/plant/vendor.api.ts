@@ -19,6 +19,7 @@ export interface GetPlantVendorsParams {
   search?: string;
   materialType?: string;
   status?: "active" | "inactive";
+  type?: string;
   page?: number;
   limit?: number;
 }
@@ -38,8 +39,9 @@ export interface CreatePlantVendorRequest {
   vendorName: string;
   email: string;
   phone: string;
-  contactName: string;
-  vendorCode: string;
+  contactName?: string;
+  vendorCode?: string;
+  type?: string;
   yearsWithCompany?: string | number;
   serviceCategory?: string;
   vendorType?: string;
