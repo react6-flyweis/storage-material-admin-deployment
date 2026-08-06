@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router";
 import { ArrowLeft, ArrowUpDown, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import steelLogo from "@/assets/steel-building-depot-logo.png";
-import { useBomDetailsQuery } from "@/modules/plant/bom.hooks";
+import { useBomDetailsQuery, useConfirmBuildingBomMutation } from "@/modules/plant/bom.hooks";
 import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
 
 const BOMFilesDetailsView: React.FC = () => {
@@ -13,7 +13,10 @@ const BOMFilesDetailsView: React.FC = () => {
   const [page, setPage] = useState(1);
   const limit = 50;
 
-  const { data: detailsResponse, isLoading, isFetching, error } = useBomDetailsQuery(
+  const { mutate: confirmBuildingBom, isPending: isConfirming } = useConfirmBuildingBomMutation();
+  const [confirmSuccess, setConfirmSuccess] = useState(false);
+
+  const { data: detailsResponse, isLoading, isFetching, error, refetch } = useBomDetailsQuery(
     id || "",
     filter,
     page,
@@ -22,6 +25,19 @@ const BOMFilesDetailsView: React.FC = () => {
   );
 
   const data = detailsResponse?.data;
+
+  const handleConfirmBOM = () => {
+    if (!data?.bomJob?.buildingId) return;
+    confirmBuildingBom(data.bomJob.buildingId, {
+      onSuccess: () => {
+        setConfirmSuccess(true);
+        refetch();
+      },
+      onError: (err) => {
+        console.error("Failed to confirm building BOM:", err);
+      },
+    });
+  };
 
   // Extract lead ID from items to fetch project/client information
   const leadId = useMemo(() => {
@@ -106,6 +122,19 @@ const BOMFilesDetailsView: React.FC = () => {
           <h1 className="text-[28px] font-normal text-slate-900 tracking-tight">BOM Files Details</h1>
         </div>
         <div className="flex items-center gap-3">
+          {data.bomJob?.isConfirmed ? (
+            <span className="px-3 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-semibold">
+              BOM Confirmed
+            </span>
+          ) : (
+            <Button
+              className="bg-[#1E51A4] hover:bg-[#1E51A4]/90 text-white rounded-lg h-10 px-5 font-semibold text-sm"
+              disabled={isConfirming || confirmSuccess}
+              onClick={handleConfirmBOM}
+            >
+              {isConfirming ? "Confirming..." : confirmSuccess ? "Confirmed" : "Confirm Building BOM"}
+            </Button>
+          )}
         </div>
       </div>
 
