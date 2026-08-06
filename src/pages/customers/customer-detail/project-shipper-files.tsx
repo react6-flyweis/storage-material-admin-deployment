@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, CheckCircle, Eye, Filter, Search, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, Filter, Search, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -23,25 +25,38 @@ import {
   useProjectShipperRequestsQuery,
 } from "@/modules/plant/shipper.hooks";
 
-const statusClasses: Record<string, string> = {
-  Pending: "bg-[#FEF9C3] text-[#CA8A04] border-[#FDE68A]",
-  Approved: "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]",
-  Compared: "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]",
-  "File Received": "bg-[#FEF9C3] text-[#CA8A04] border-[#FDE68A]",
-  "Order Sent": "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]",
-  "Revision Sent": "bg-[#FEF9C3] text-[#CA8A04] border-[#FDE68A]",
+const statusStyles: Record<string, string> = {
+  "Approved": "border-emerald-200 bg-emerald-100 text-emerald-600",
+  "Rejected": "border-rose-200 bg-rose-100 text-rose-500",
+  "File Received": "border-amber-200 bg-amber-100 text-amber-600",
+  "Compared": "border-green-200 bg-green-100 text-green-600",
+  "Comparison Completed": "border-emerald-200 bg-emerald-100 text-emerald-600",
+  "Comparison Processing": "border-amber-200 bg-amber-100 text-amber-600",
+  "Comparison Failed": "border-rose-200 bg-rose-100 text-rose-500",
+  "Order Sent": "border-indigo-200 bg-indigo-100 text-indigo-500",
+  "Revision Sent": "border-blue-200 bg-blue-100 text-blue-500",
+  "Sent": "border-indigo-200 bg-indigo-100 text-indigo-500",
+  "Resubmit Requested": "border-cyan-200 bg-cyan-100 text-cyan-600",
 };
 
-const displayStatus = (fileStatus: string, comparisonStatus: string) => {
+const displayStatus = (fileStatus: string, comparisonStatus?: string) => {
   const s = fileStatus?.toLowerCase();
   const c = comparisonStatus?.toLowerCase();
-  if (s === "submitted") return "File Received";
-  if (c === "completed") return "Compared";
+
   if (s === "approved") return "Approved";
   if (s === "rejected") return "Rejected";
+  if (s === "resubmit_requested" || s === "resubmit requested") return "Resubmit Requested";
   if (s === "order sent" || s === "ordersent") return "Order Sent";
   if (s === "revision sent" || s === "revisionsent") return "Revision Sent";
-  return fileStatus || "Pending";
+  if (s === "sent") return "Sent";
+
+  if (c === "completed" || s === "comparison_completed") return "Compared";
+  if (c === "processing" || s === "comparison_processing") return "Comparison Processing";
+  if (c === "failed" || s === "comparison_failed") return "Comparison Failed";
+
+  if (s === "submitted") return "File Received";
+
+  return fileStatus || "File Received";
 };
 
 export default function ProjectShipperFilesPage() {
@@ -52,6 +67,7 @@ export default function ProjectShipperFilesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const { data: statsResponse, isLoading: isStatsLoading } = useProjectShipperStatsQuery(leadId, {
     enabled: !!leadId,
@@ -68,8 +84,16 @@ export default function ProjectShipperFilesPage() {
   );
 
   const statsData = statsResponse?.data;
-  const requests = requestsResponse?.data?.shipperRequests || [];
+  const requests = useMemo(() => requestsResponse?.data?.shipperRequests || [], [requestsResponse]);
   const total = requestsResponse?.data?.total || 0;
+
+  const filteredRequests = useMemo(() => {
+    if (statusFilter === "all") return requests;
+    return requests.filter((r) => {
+      const statusVal = displayStatus(r.fileStatus, r.comparisonStatus);
+      return statusVal.toLowerCase() === statusFilter.toLowerCase();
+    });
+  }, [requests, statusFilter]);
 
   const shipperStats = useMemo(() => {
     return [
@@ -102,7 +126,7 @@ export default function ProjectShipperFilesPage() {
 
   if (isStatsLoading || isRequestsLoading) {
     return (
-      <div className="flex-1 min-h-screen flex items-center justify-center bg-slate-50/50">
+      <div className="flex-1 min-h-screen flex items-center justify-center ">
         <Loader2 className="w-8 h-8 animate-spin text-[#1D51A4]" />
       </div>
     );
@@ -139,29 +163,41 @@ export default function ProjectShipperFilesPage() {
         ))}
       </div>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="relative w-full max-w-xs">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input
-            value={searchTerm}
-            onChange={(event) => {
-              setSearchTerm(event.target.value);
-              setCurrentPage(1);
-            }}
-            placeholder="Search"
-            className="pl-9 bg-white border-slate-200"
-          />
+      <div className="flex flex-col sm:flex-row justify-between gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 w-full max-w-md">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+            <Input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              placeholder="Search"
+              className="pl-9 bg-white border-slate-200"
+            />
+          </div>
+          <Button variant="outline" className="bg-white border-slate-200 text-slate-700 gap-2">
+            <Filter className="w-4 h-4" />
+            Filter
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          className="bg-white border-slate-200 text-slate-700"
-        >
-          <Filter className="h-4 w-4 mr-2" />
-          Filter
-        </Button>
+        <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val)}>
+          <SelectTrigger className="w-[160px] bg-white text-slate-700 border-slate-200">
+            <SelectValue placeholder="Select Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="File Received">File Received</SelectItem>
+            <SelectItem value="Order Sent">Order Sent</SelectItem>
+            <SelectItem value="Revision Sent">Revision Sent</SelectItem>
+            <SelectItem value="Compared">Compared</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden p-0">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -191,14 +227,14 @@ export default function ProjectShipperFilesPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {requests.length === 0 ? (
+              {filteredRequests.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8 text-slate-500">
                     No shipper requests found.
                   </TableCell>
                 </TableRow>
               ) : (
-                requests.map((row) => {
+                filteredRequests.map((row) => {
                   const statusVal = displayStatus(row.fileStatus, row.comparisonStatus);
                   return (
                     <TableRow key={row.requestId} className="hover:bg-slate-50/80">
@@ -210,11 +246,11 @@ export default function ProjectShipperFilesPage() {
                           <div className="h-9 w-9 rounded-full bg-[#1D51A4] text-white flex items-center justify-center text-sm font-semibold">
                             {row.vendorName
                               ? row.vendorName
-                                  .split(" ")
-                                  .map((part) => part[0])
-                                  .join("")
-                                  .slice(0, 2)
-                                  .toUpperCase()
+                                .split(" ")
+                                .map((part) => part[0])
+                                .join("")
+                                .slice(0, 2)
+                                .toUpperCase()
                               : "V"}
                           </div>
                           <div>
@@ -237,15 +273,15 @@ export default function ProjectShipperFilesPage() {
                         18,500 IBS
                       </TableCell>
                       <TableCell>
-                        <span
+                        <Badge
+                          variant="outline"
                           className={cn(
-                            "inline-flex items-center rounded-md py-0.5 text-xs font-medium px-2 border ",
-                            statusClasses[statusVal] ?? "text-slate-600",
+                            "px-3 py-1 rounded-full text-xs font-semibold border",
+                            statusStyles[statusVal] || "border-gray-200 bg-gray-100 text-gray-700"
                           )}
                         >
                           {statusVal}
-                          <CheckCircle className="ml-1 size-3" />
-                        </span>
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <Button
