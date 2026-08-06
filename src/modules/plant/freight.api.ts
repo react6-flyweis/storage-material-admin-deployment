@@ -341,6 +341,45 @@ export async function getDeliveryDetail(
   return response.data;
 }
 
+export interface ProjectDeliveryItem {
+  requestId: string;
+  deliveryId: string;
+  projectName: string;
+  description: string;
+  pickupLocation: string;
+  deliveryLocation: string;
+  pickupDate: string;
+  deliveryDate: string;
+  carrier: string | null;
+  averageBid: number | null;
+  status: string;
+  loadWeight: number;
+  isSelected: boolean;
+  hasSelectedCarrier: boolean;
+}
+
+export interface GetProjectDeliveryResponse {
+  success?: boolean;
+  message?: string;
+  requests?: ProjectDeliveryItem[];
+  total?: number;
+  selectedDeliveryId?: string | null;
+  data?: {
+    requests: ProjectDeliveryItem[];
+    total: number;
+    selectedDeliveryId: string | null;
+  };
+}
+
+export async function getProjectDelivery(
+  projectId: string
+): Promise<GetProjectDeliveryResponse> {
+  const response = await apiClient.get<GetProjectDeliveryResponse>(
+    `/api/admin/plant/deliveries/project/${encodeURIComponent(projectId)}`
+  );
+  return response.data;
+}
+
 export async function selectFreightBid(
   bidId: string
 ): Promise<SelectFreightBidResponse["data"]> {
