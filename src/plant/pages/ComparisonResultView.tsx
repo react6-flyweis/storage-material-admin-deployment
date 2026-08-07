@@ -47,7 +47,8 @@ const ComparisonResultView: React.FC = () => {
       setIsResubmitModalOpen(false);
       setResubmitNote("");
       setSuccessTitle("Resubmit Request Sent Successfully");
-      setNavigateOnClose(`/projects/${data?.leadId}/shipper-files`);
+      const targetLeadId = data?.leadId || data?.projectId || "";
+      setNavigateOnClose(`/plant/shipper-quotation/${targetLeadId}`);
       setIsSuccessModalOpen(true);
     } catch (err) {
       console.error("Failed to request resubmit:", err);
@@ -307,8 +308,11 @@ const ComparisonResultView: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => navigate(`/projects/${data.projectId}/shipper-files/${requestId}`)}
-              className="font-inter font-bold text-black border-gray-200 bg-white hover:bg-gray-50"
+              onClick={() => {
+                const targetLeadId = data?.leadId || data?.projectId || "";
+                navigate(`/plant/shipper-quotation/${targetLeadId}/file/${requestId}`);
+              }}
+              className="font-inter font-bold text-[#212B36] border-gray-200 bg-white hover:bg-gray-50"
             >
               Back to Shipper File
             </Button>
