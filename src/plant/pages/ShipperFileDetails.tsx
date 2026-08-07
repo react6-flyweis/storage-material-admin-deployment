@@ -1,6 +1,5 @@
-
 import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, Scale, FileDown, Eye } from "lucide-react";
+import { ArrowLeft, Scale, FileDown, Eye, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -155,6 +154,9 @@ const ShipperFileDetailsView: React.FC = () => {
   }
 
   const currentDisplayStatus = getDisplayStatus(shipperDoc.fileStatus);
+  const isProcessingStatus =
+    currentDisplayStatus === "Comparison Processing" ||
+    shipperDoc.fileStatus?.toLowerCase() === "comparison_processing";
 
   return (
     <div className="xl:pr-5 px-2 pb-10 space-y-6">
@@ -189,7 +191,7 @@ const ShipperFileDetailsView: React.FC = () => {
             <Button
               variant="default"
               size="sm"
-              onClick={() => navigate("/plant/order-verification")}
+              onClick={() => navigate(`/plant/order-verification/${requestId}`)}
               className="flex items-center gap-2 font-inter font-bold bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
               disabled={shipperDoc?.fileStatus === "comparison_processing"}
             >
@@ -260,10 +262,11 @@ const ShipperFileDetailsView: React.FC = () => {
                 <Badge
                   variant="outline"
                   className={cn(
-                    "px-2.5 py-0.5 rounded-full text-xs font-semibold border",
+                    "px-2.5 py-0.5 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5",
                     statusStyles[currentDisplayStatus] || "border-gray-200 bg-gray-50 text-gray-500"
                   )}
                 >
+                  {isProcessingStatus && <Loader2 className="w-3 h-3 animate-spin text-amber-600 shrink-0" />}
                   {currentDisplayStatus}
                 </Badge>
               </div>
