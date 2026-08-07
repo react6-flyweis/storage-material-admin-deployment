@@ -272,6 +272,17 @@ export async function uploadProjectBomsProvider(leadId: string, bomFiles: Array<
   return response.data?.data || response.data;
 }
 
+export async function uploadProjectDrawingsProvider(
+  projectId: string,
+  drawings: Array<{ buildingId: string; fileUrl: string; fileName: string }>
+) {
+  const response = await apiClient.post(
+    `/api/admin/plant/projects/${encodeURIComponent(projectId)}/drawings`,
+    { drawings }
+  );
+  return response.data?.data || response.data;
+}
+
 export async function getBomJobsStatusBatchProvider(jobIds: string[]) {
   const response = await apiClient.post("/api/admin/plant/bom/jobs/status", { jobIds });
   return response.data?.data || response.data;
