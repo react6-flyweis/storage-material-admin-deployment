@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
-import { useForm, Controller, type SubmitHandler } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
@@ -26,14 +26,17 @@ import Button from "@/plant/components/common_component/Button";
 import CommonDropdown from "@/plant/components/common_component/CommonDropdown";
 import CardHeader from "@/plant/components/common_component/CardHeader";
 import LocationSelector from "@/plant/components/common_component/LocationSelector";
-import { UploadFileDialog } from "@/components/upload-file-dialog";
+import { UploadModal } from "@/plant/pages/modals/ProjectUploadModals";
 import { useGetFreightAutofillQuery } from "@/modules/plant/load-planning.hooks";
+import { type FreightAutofillData } from "@/modules/plant/load-planning.api";
 import { usePlantCarriersQuery } from "@/modules/plant/carrier.hooks";
 import {
   useCreatePlantDeliveryMutation,
   useSendFreightBidsMutation,
-  useFreightLoadsQuery,
+  useProjectDeliveryQuery,
 } from "@/modules/plant/freight.hooks";
+import type { ProjectDeliveryItem } from "@/modules/plant/freight.api";
+
 
 const parseDimensions = (input: string) => {
   const parts = input.replace(/['"]/g, "").split(/x/i);
@@ -71,7 +74,7 @@ const freightFormSchema = z
     loadDescription: z.string().trim().min(1, "Load description is required"),
     weight: z.preprocess(
       (val) => (val === "" || val === undefined || val === null ? undefined : Number(val)),
-      z.number({ error: "Weight must be a number" }).positive("Weight must be a positive number")
+      z.number({ message: "Weight must be a number" }).positive("Weight must be a positive number")
     ),
     weightUnit: z.string().default("Lbs"),
     dimensionsInput: z
@@ -95,7 +98,7 @@ const freightFormSchema = z
     packageCount: z.preprocess(
       (val) => (val === "" || val === undefined || val === null ? undefined : Number(val)),
       z
-        .number({ error: "Package count must be a number" })
+        .number({ message: "Package count must be a number" })
         .int("Package count must be an integer")
         .positive("Package count must be a positive number")
     ),
@@ -196,13 +199,30 @@ const FreightSelectionView: React.FC = () => {
     projectId || "",
     { skip: !projectId }
   );
-  const autofillData = autofillRes?.data;
+  const autofillData: FreightAutofillData | undefined = autofillRes;
 
   const { data: carriersRes, isLoading: isLoadingCarriers } = usePlantCarriersQuery({ limit: 100 });
   const carriersList = carriersRes?.data?.carriers || [];
 
-  const { data: freightLoadsRes } = useFreightLoadsQuery({ projectId, limit: 100 }, { enabled: !!projectId });
-  const deliveriesList: DeliveryItem[] = (freightLoadsRes?.data?.requests || (freightLoadsRes?.data as any)?.deliveries || []) as DeliveryItem[];
+  const { data: projectDeliveryRes } = useProjectDeliveryQuery(projectId || "", { enabled: !!projectId });
+
+  const deliveriesList: DeliveryItem[] = (
+    projectDeliveryRes?.requests ||
+    projectDeliveryRes?.data?.requests ||
+    []
+  ).map((item: ProjectDeliveryItem) => ({
+    _id: item.deliveryId || item.requestId,
+    requestId: item.requestId,
+    deliveryNumber: item.deliveryId || item.requestId,
+    status: item.status,
+    description: item.description,
+    pickupLocation: item.pickupLocation,
+    deliveryLocation: item.deliveryLocation,
+    pickupDate: item.pickupDate,
+    deliveryDate: item.deliveryDate,
+    weight: item.loadWeight,
+    loadWeight: item.loadWeight,
+  }));
 
   const [createDelivery, { isLoading: isCreating }] = useCreatePlantDeliveryMutation();
   const [sendFreightBids, { isLoading: isSendingBids }] = useSendFreightBidsMutation();
@@ -228,6 +248,29 @@ const FreightSelectionView: React.FC = () => {
   });
   const hasActiveFreight = activeFreightDeliveries.length > 0;
   const hasActiveDelivery = hasActiveFreight;
+  const getFreightFormDefaults = (data?: FreightAutofillData): FreightFormValues => ({
+    description: "Project outbound freight",
+    loadDescription: data?.loadDescription || data?.summary?.loadDescription || "",
+    weight: data?.weight || data?.totalWeight || data?.summary?.totalWeight || undefined,
+    weightUnit: "Lbs",
+    dimensionsInput: data?.dimensions
+      ? `${data.dimensions.lengthFeet}' x ${data.dimensions.widthFeet}' x ${data.dimensions.heightFeet}'`
+      : data?.summary?.dimensionsText || "",
+    metalType: data?.metalType || data?.materialType || data?.summary?.materialType || "",
+    packageCount: data?.packageCount || data?.totalBundles || data?.summary?.packageCount || undefined,
+    loadingEquipment: ["Crane"],
+    bidDeadline: "",
+    pickupLocation: data?.pickupLocation || data?.summary?.suggestedPickupLocation || "",
+    deliveryLocation: data?.deliveryLocation || data?.summary?.suggestedDeliveryLocation || "",
+    pickupDate: "",
+    pickupTime: "",
+    deliveryDate: "",
+    deliveryTime: "",
+    receivingPoc: data?.receivingPoc || data?.summary?.receivingPoc || "",
+    pickupContactPhone: data?.pickupContactPhone || data?.summary?.pickupContactPhone || "",
+    specialRequirements: "",
+    additionalNotes: "",
+  });
 
   const {
     control,
@@ -235,32 +278,23 @@ const FreightSelectionView: React.FC = () => {
     formState: { errors },
     reset,
     watch,
-  } = useForm<FreightFormValues>({
+  } = useForm({
     resolver: zodResolver(freightFormSchema),
-    defaultValues: {
-      description: "Project outbound freight",
-      loadDescription: autofillData?.loadDescription || "",
-      weight: autofillData?.weight || autofillData?.totalWeight || undefined,
-      weightUnit: "Lbs",
-      dimensionsInput: autofillData?.dimensions
-        ? `${autofillData.dimensions.lengthFeet}' x ${autofillData.dimensions.widthFeet}' x ${autofillData.dimensions.heightFeet}'`
-        : "",
-      metalType: autofillData?.metalType || autofillData?.materialType || "",
-      packageCount: autofillData?.packageCount || autofillData?.totalBundles || undefined,
-      loadingEquipment: ["Crane"],
-      bidDeadline: "",
-      pickupLocation: autofillData?.pickupLocation || "",
-      deliveryLocation: autofillData?.deliveryLocation || "",
-      pickupDate: "",
-      pickupTime: "",
-      deliveryDate: "",
-      deliveryTime: "",
-      receivingPoc: autofillData?.receivingPoc || "",
-      pickupContactPhone: autofillData?.pickupContactPhone || "",
-      specialRequirements: "",
-      additionalNotes: "",
-    },
+    defaultValues: getFreightFormDefaults(autofillData),
   });
+
+  const handleCreateNewDelivery = () => {
+    if (selectedType === "new") {
+      setSelectedType(null);
+      setShowForm(false);
+    } else {
+      setSelectedType("new");
+      setSavedDeliveryId(null);
+      setShowForm(true);
+      reset(getFreightFormDefaults(autofillData));
+      setUploadedFiles([]);
+    }
+  };
 
   useEffect(() => {
     if (hasActiveDelivery && selectedType === "new") {
@@ -273,29 +307,7 @@ const FreightSelectionView: React.FC = () => {
 
   useEffect(() => {
     if (autofillData && selectedType === "new" && !savedDeliveryId) {
-      reset({
-        description: "Project outbound freight",
-        loadDescription: autofillData.loadDescription || "",
-        weight: autofillData.weight || autofillData.totalWeight || undefined,
-        weightUnit: "Lbs",
-        dimensionsInput: autofillData.dimensions
-          ? `${autofillData.dimensions.lengthFeet}' x ${autofillData.dimensions.widthFeet}' x ${autofillData.dimensions.heightFeet}'`
-          : "",
-        metalType: autofillData.metalType || autofillData.materialType || "",
-        packageCount: autofillData.packageCount || autofillData.totalBundles || undefined,
-        loadingEquipment: ["Crane"],
-        bidDeadline: "",
-        pickupLocation: autofillData.pickupLocation || "",
-        deliveryLocation: autofillData.deliveryLocation || "",
-        pickupDate: "",
-        pickupTime: "",
-        deliveryDate: "",
-        deliveryTime: "",
-        receivingPoc: autofillData.receivingPoc || "",
-        pickupContactPhone: autofillData.pickupContactPhone || "",
-        specialRequirements: "",
-        additionalNotes: "",
-      });
+      reset(getFreightFormDefaults(autofillData));
     }
   }, [autofillData, reset, selectedType, savedDeliveryId]);
 
@@ -304,7 +316,7 @@ const FreightSelectionView: React.FC = () => {
   const handleSelectDelivery = (delivery: DeliveryItem) => {
     setSavedDeliveryId(delivery._id);
     setSelectedType("existing");
-    setShowForm(true);
+    setShowForm(false);
 
     let dimensionsStr = "";
     if (delivery.dimensions) {
@@ -360,7 +372,30 @@ const FreightSelectionView: React.FC = () => {
     return now.toISOString().slice(0, 16);
   };
 
-  const onFormSubmitValid: SubmitHandler<FreightFormValues> = (data) => {
+  const handleSendBidsDirectly = async (deliveryId: string, bidDeadline?: string) => {
+    setSubmitError(null);
+    try {
+      const carrierIds = selectedCarrierIds.length > 0
+        ? selectedCarrierIds
+        : carriersList.map((c) => c._id);
+
+      const formattedDeadline = bidDeadline ? new Date(bidDeadline).toISOString() : undefined;
+
+      await sendFreightBids({
+        deliveryId,
+        carrierIds,
+        bidDeadline: formattedDeadline,
+      }).unwrap();
+
+      navigate(`/plant/freight-request-details/${deliveryId}`);
+    } catch (err: any) {
+      console.error("Failed to send freight bids:", err);
+      const errMsg = err?.data?.message || err?.message || "Failed to send freight request. Please try again.";
+      setSubmitError(errMsg);
+    }
+  };
+
+  const onFormSubmitValid = (data: FreightFormValues) => {
     const finalData: FreightFormData = {
       loadDescription: data.loadDescription,
       weight: data.weight || 0,
@@ -415,6 +450,7 @@ const FreightSelectionView: React.FC = () => {
           pickupContactPhone: stagedFormData.pickupContactPhone,
           specialRequirements: stagedFormData.specialRequirements,
           additionalNotes: stagedFormData.additionalNotes,
+          documentUrl: stagedFormData.documentUrl || undefined,
         };
 
         const createRes = await createDelivery(deliveryPayload).unwrap();
@@ -424,16 +460,25 @@ const FreightSelectionView: React.FC = () => {
       if (deliveryId) {
         const carrierIds = selectedCarrierIds.length > 0
           ? selectedCarrierIds
-          : carriersList.map((c: any) => c._id);
+          : carriersList.map((c) => c._id);
+
+        const formattedDeadline = stagedFormData.bidDeadline
+          ? new Date(stagedFormData.bidDeadline).toISOString()
+          : undefined;
 
         await sendFreightBids({
           deliveryId,
           carrierIds,
+          bidDeadline: formattedDeadline,
         }).unwrap();
       }
 
       setIsReviewModalOpen(false);
-      setIsSuccessModalOpen(true);
+      if (deliveryId) {
+        navigate(`/plant/freight-request-details/${deliveryId}`);
+      } else {
+        setIsSuccessModalOpen(true);
+      }
     } catch (err: any) {
       console.error("Failed to submit freight request:", err);
       const errMsg = err?.data?.message || err?.message || "Failed to submit freight request. Please try again.";
@@ -518,7 +563,7 @@ const FreightSelectionView: React.FC = () => {
                 </h4>
               </div>
               <div className="flex flex-row overflow-x-auto gap-4 pb-2 pt-1 scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
-                {activeFreightDeliveries.map((delivery: any) => {
+                {activeFreightDeliveries.map((delivery) => {
                   const statusColors: Record<string, string> = {
                     draft: "text-[#D08700] bg-[#FFF9E6] border-[#FFEAA6]",
                     bidding_sent: "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
@@ -602,40 +647,7 @@ const FreightSelectionView: React.FC = () => {
                     {/* Create New Option (hidden if active delivery exists) */}
                     {!hasActiveDelivery && (
                       <div
-                        onClick={() => {
-                          if (selectedType === "new") {
-                            setSelectedType(null);
-                            setShowForm(false);
-                          } else {
-                            setSelectedType("new");
-                            setSavedDeliveryId(null);
-                            setShowForm(true);
-                            reset({
-                              description: "Project outbound freight",
-                              loadDescription: autofillData?.loadDescription || "",
-                              weight: autofillData?.weight || autofillData?.totalWeight || undefined,
-                              weightUnit: "Lbs",
-                              dimensionsInput: autofillData?.dimensions
-                                ? `${autofillData.dimensions.lengthFeet}' x ${autofillData.dimensions.widthFeet}' x ${autofillData.dimensions.heightFeet}'`
-                                : "",
-                              metalType: autofillData?.metalType || autofillData?.materialType || "",
-                              packageCount: autofillData?.packageCount || autofillData?.totalBundles || undefined,
-                              loadingEquipment: ["Crane"],
-                              bidDeadline: "",
-                              pickupLocation: autofillData?.pickupLocation || "",
-                              deliveryLocation: autofillData?.deliveryLocation || "",
-                              pickupDate: "",
-                              pickupTime: "",
-                              deliveryDate: "",
-                              deliveryTime: "",
-                              receivingPoc: autofillData?.receivingPoc || "",
-                              pickupContactPhone: autofillData?.pickupContactPhone || "",
-                              specialRequirements: "",
-                              additionalNotes: "",
-                            });
-                            setUploadedFiles([]);
-                          }
-                        }}
+                        onClick={handleCreateNewDelivery}
                         className={`min-w-[280px] max-w-[320px] p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-center items-center gap-2 text-center ${selectedType === "new"
                           ? "border-[#1E51A4] bg-[#F4F8FF]"
                           : "border-dashed border-gray-300 bg-white hover:border-gray-400"
@@ -736,6 +748,34 @@ const FreightSelectionView: React.FC = () => {
               )}
 
               {/* Form and Selection States */}
+              {selectedType === "existing" && savedDeliveryId && !showForm && (
+                <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-4">
+                  <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div>
+                      <h4 className="text-base font-semibold text-[#212B36]">
+                        Selected Delivery Ready
+                      </h4>
+                      <p className="text-xs text-[#637381]">
+                        Send freight bid request directly to selected carriers for this delivery.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="gradient"
+                      size="lg"
+                      disabled={isSubmitting}
+                      onClick={() => handleSendBidsDirectly(savedDeliveryId, watch("bidDeadline"))}
+                      className="px-6 font-bold cursor-pointer"
+                    >
+                      {isSubmitting ? "Sending Bids..." : "Send Freight Bid"}
+                    </Button>
+                  </div>
+                  {submitError && (
+                    <p className="text-xs text-red-500 mt-2">{submitError}</p>
+                  )}
+                </div>
+              )}
+
               {selectedType !== null && showForm && (
                 <>
                   {/* Load Details Card */}
@@ -975,15 +1015,14 @@ const FreightSelectionView: React.FC = () => {
                             </div>
                           )}
 
-                          <UploadFileDialog
-                            open={isUploadOpen}
-                            onOpenChange={setIsUploadOpen}
-                            title="Upload Documents"
-                            description="Upload PDF documents for this freight request."
-                            supportText="Only support .pdf files"
-                            accept=".pdf"
-                            onUploadComplete={(files) => {
-                              setUploadedFiles((prev) => [...prev, ...files]);
+                          <UploadModal
+                            isOpen={isUploadOpen}
+                            onClose={() => setIsUploadOpen(false)}
+                            title="Upload Freight Documents"
+                            subtitle="Upload documents (PDF, Excel, text files, etc.) for this freight request."
+                            folder="freight-documents"
+                            onUpload={(file, fileUrl) => {
+                              setUploadedFiles((prev) => [...prev, { name: file.name, url: fileUrl }]);
                             }}
                           />
                         </div>
@@ -1388,7 +1427,7 @@ const FreightSelectionView: React.FC = () => {
           navigate(`/plant/deliveries`);
         }}
         title="Freight Request Sent Successfully!"
-        description="Your freight request has been broadcasted to carriers. You can monitor incoming bids in the deliveries section."
+        subTitle="Your freight request has been broadcasted to carriers. You can monitor incoming bids in the deliveries section."
         buttonText="Go to Deliveries"
       />
     </div>
