@@ -4,7 +4,7 @@ import { Download, QrCode } from "lucide-react";
 import LoadPlanningHeader, { type HeaderAction } from "./LoadPlanningHeader";
 import CommonInfoList from "@/plant/components/common_component/CommonInfoList";
 import {
-  useGetBundlePlanQuery,
+  useGetLoadPlanningStateQuery,
   useConfirmBundlePlanMutation,
   useGeneratePackingListPlanMutation,
 } from "@/modules/plant/load-planning.hooks";
@@ -31,19 +31,22 @@ const BundlePlannerView: React.FC = () => {
 
   const [apiError, setApiError] = useState<string | null>(null);
 
-  const { data: bundlePlanData, isLoading, isError, error } = useGetBundlePlanQuery(projectId || "");
+  const { data: loadPlanningData, isLoading, isError, error } = useGetLoadPlanningStateQuery(projectId || "");
 
   const [confirmBundlePlan, { isPending: isConfirming }] = useConfirmBundlePlanMutation();
   const [generatePackingListPlan, { isPending: isGeneratingPackingList }] = useGeneratePackingListPlanMutation();
 
-  const bundlePlan = bundlePlanData?.bundlePlan;
-  const isConfirmed = !!bundlePlan?.confirmedAt || !!bundlePlan?.confirmedBy || bundlePlan?.status === "confirmed";
+  const [isJustConfirmed, setIsJustConfirmed] = useState(false);
+
+  const bundlePlan = loadPlanningData?.bundlePlan;
+  const isConfirmed = isJustConfirmed || !!bundlePlan?.confirmedAt || !!bundlePlan?.confirmedBy || bundlePlan?.status === "confirmed";
 
   const handleConfirm = async () => {
     if (!bundlePlan?._id) return;
     setApiError(null);
     try {
       await confirmBundlePlan(bundlePlan._id).unwrap();
+      setIsJustConfirmed(true);
     } catch (err: unknown) {
       console.error("Failed to confirm bundle plan:", err);
       const errObj = err as { data?: { message?: string }; message?: string };
@@ -74,10 +77,10 @@ const BundlePlannerView: React.FC = () => {
       variant: "white",
       className: "border-[#E2E4E6] text-[#212B36] font-bold text-sm px-5",
       icon: <Download size={18} className="mr-2" />,
-      disabled: isLoading || !bundlePlanData,
+      disabled: isLoading || !loadPlanningData,
       onClick: () => {
-        const bpDetails = bundlePlanData?.bundlePlan;
-        const bundles = bundlePlanData?.bundles || [];
+        const bpDetails = loadPlanningData?.bundlePlan;
+        const bundles = loadPlanningData?.bundles || [];
         exportBundleListToCSV(
           bundles,
           bpDetails?.planNumber || "N/A",
@@ -105,7 +108,7 @@ const BundlePlannerView: React.FC = () => {
     },
   ];
 
-  if (isLoading || !bundlePlanData) {
+  if (isLoading || !loadPlanningData) {
     return (
       <div className="min-h-screen">
         <LoadPlanningHeader
@@ -124,7 +127,7 @@ const BundlePlannerView: React.FC = () => {
     );
   }
 
-  if (isError || !bundlePlanData) {
+  if (isError || !loadPlanningData || !loadPlanningData.bundlePlan) {
     const errorObj = error as { data?: { message?: string }; message?: string };
     const errorMsg = errorObj?.data?.message || errorObj?.message || "Failed to load bundle plan. Please ensure a bundle plan has been generated.";
     return (
@@ -145,13 +148,24 @@ const BundlePlannerView: React.FC = () => {
     );
   }
 
-  const { bundlePlan: bpDetails, bundles, summary } = bundlePlanData;
+  const bpDetails = loadPlanningData.bundlePlan;
+  const bundles = loadPlanningData.bundles || [];
+  const summary = loadPlanningData.bundleSummary || {
+    totalBundles: bundles.length,
+    totalWeight: bundles.reduce((acc, b) => acc + (b.totalWeight || 0), 0),
+    maxLengthFeet: Math.max(0, ...bundles.map((b) => b.maxLengthFeet || 0)),
+    warnings: [],
+  };
   const avgWeight = summary.totalBundles > 0 ? summary.totalWeight / summary.totalBundles : 0;
+  const formattedProjectId =
+    loadPlanningData.project?.projectId || loadPlanningData.projectId || projectId || "";
+  const projectName =
+    loadPlanningData.project?.projectName || loadPlanningData.projectName || "N/A";
 
   return (
     <div className="min-h-screen">
       <LoadPlanningHeader
-        requestId={projectId || ""}
+        requestId={formattedProjectId}
         title="Bundle / Pallet Planner"
         description="Group items into optimized bundles or pallets for efficient truck loading and site unloading."
         actions={actions}
@@ -166,9 +180,10 @@ const BundlePlannerView: React.FC = () => {
           {/* Project header */}
           <div className="bg-[#F8F9FB] rounded-xl p-4 border border-gray-100">
             <CommonInfoList
-              title={`Project: ${projectId || "N/A"} | Bundle Plan ID: ${bpDetails.planNumber}`}
+              title={`Project: ${projectName} | Bundle Plan ID: ${bpDetails.planNumber}`}
               items={[
-                { label: "Project ID", value: projectId || "" },
+                { label: "Project Name", value: projectName },
+                { label: "Project ID", value: formattedProjectId },
                 { label: "Bundle Plan Id", value: bpDetails.planNumber },
               ]}
             />
@@ -315,7 +330,7 @@ const BundlePlannerView: React.FC = () => {
                                 parts: bundle.bundleType,
                                 weight: `${Number(bundle.totalWeight).toFixed(2)} lbs`,
                                 length: `${Number(bundle.maxLengthFeet).toFixed(2)} ft`,
-                                projectName: projectId || "N/A",
+                                projectName: projectName !== "N/A" ? `${projectName} (${formattedProjectId})` : formattedProjectId,
                                 shipperRef: bpDetails?.shipperRequestId || "N/A",
                               });
                               setIsQRModalOpen(true);
