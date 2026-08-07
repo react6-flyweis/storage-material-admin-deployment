@@ -273,5 +273,27 @@ export async function requestResubmitShipperRequestProvider(data: {
   return response.data;
 }
 
+export type CompareShipperRequestResponse = {
+  success: boolean;
+  message: string;
+  data?: {
+    requestId: string;
+    compareJobId: string;
+    status: string;
+    message: string;
+  };
+};
+
+export async function compareShipperRequestProvider(
+  requestId: string
+): Promise<CompareShipperRequestResponse> {
+  const response = await apiClient.post<CompareShipperRequestResponse>(
+    `/api/admin/plant/shipper-files/${encodeURIComponent(requestId)}/compare`
+  );
+  return response.data;
+}
+
+
+
 
 
