@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link, useParams } from "react-router";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -60,7 +60,7 @@ export default function ShipperQuotationProject() {
     enabled: !!leadId,
   });
 
-  const { data: requestsResponse, isLoading: isRequestsLoading } = useProjectShipperRequestsQuery(
+  const { data: requestsResponse, isLoading: isRequestsLoading, refetch } = useProjectShipperRequestsQuery(
     leadId,
     currentPage,
     rowsPerPage,
@@ -74,6 +74,22 @@ export default function ShipperQuotationProject() {
   const requests = useMemo(() => requestsResponse?.data?.shipperRequests || [], [requestsResponse]);
   const total = requestsResponse?.data?.total || 0;
   const totalPages = Math.ceil(total / rowsPerPage) || 1;
+
+  const isAnyProcessing = useMemo(() => {
+    return requests.some(
+      (r) =>
+        r.fileStatus?.toLowerCase() === "comparison_processing" ||
+        r.comparisonStatus?.toLowerCase() === "processing"
+    );
+  }, [requests]);
+
+  useEffect(() => {
+    if (!isAnyProcessing) return;
+    const interval = setInterval(() => {
+      refetch();
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [isAnyProcessing, refetch]);
 
   // Filter requests based on status filter locally if needed
   const filteredRequests = useMemo(() => {
@@ -166,6 +182,10 @@ export default function ShipperQuotationProject() {
               ) : (
                 filteredRequests.map((row) => {
                   const statusVal = displayStatus(row.fileStatus, row.comparisonStatus);
+                  const isProcessing =
+                    statusVal === "Comparison Processing" ||
+                    row.fileStatus?.toLowerCase() === "comparison_processing" ||
+                    row.comparisonStatus?.toLowerCase() === "processing";
                   return (
                     <tr key={row.requestId} className="hover:bg-gray-50">
                       <td className="px-6 py-5 text-center">
@@ -194,10 +214,11 @@ export default function ShipperQuotationProject() {
                         <Badge
                           variant="outline"
                           className={cn(
-                            "px-3 py-1 rounded-full text-xs font-semibold border",
+                            "px-3 py-1 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5",
                             statusStyles[statusVal] || "border-gray-200 bg-gray-100 text-gray-700"
                           )}
                         >
+                          {isProcessing && <Loader2 className="w-3 h-3 animate-spin text-amber-600 shrink-0" />}
                           {statusVal}
                         </Badge>
                       </td>
@@ -215,6 +236,7 @@ export default function ShipperQuotationProject() {
             </tbody>
           </table>
         </CardContent>
+
 
         <CardFooter className="border-t bg-white flex items-center justify-between text-sm text-gray-600">
           <div className="flex items-center gap-2">
