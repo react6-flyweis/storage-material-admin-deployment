@@ -106,10 +106,10 @@ const GenerateShipperOrder: React.FC = () => {
   const leadObj = leadData?.data?.lead as Record<string, unknown> | undefined;
   const projectDetail: PlantProjectDetail | undefined = leadObj
     ? {
-        lead: leadObj as PlantProjectDetail["lead"],
-        client: typeof leadObj.customerId === "object" && leadObj.customerId !== null ? (leadObj.customerId as PlantProjectDetail["client"]) : undefined,
-        jobId: typeof leadObj.jobId === "string" ? leadObj.jobId : (typeof leadObj.leadId === "string" ? leadObj.leadId : undefined),
-      }
+      lead: leadObj as PlantProjectDetail["lead"],
+      client: typeof leadObj.customerId === "object" && leadObj.customerId !== null ? (leadObj.customerId as PlantProjectDetail["client"]) : undefined,
+      jobId: typeof leadObj.jobId === "string" ? leadObj.jobId : (typeof leadObj.leadId === "string" ? leadObj.leadId : undefined),
+    }
     : undefined;
 
   const toggleShipper = (id: string) => {
@@ -305,8 +305,8 @@ const GenerateShipperOrder: React.FC = () => {
       <SuccessModal
         isOpen={isAddSuccessOpen}
         onClose={() => setIsAddSuccessOpen(false)}
-        title="Shipper Mail Added in the Order"
-        subTitle="After Shipper/vendor processes the order, they prepare the actual shipment. Then they send the shipper file."
+        title="Shipper Added!"
+        subTitle="Shipper has been added successfully."
       />
     </div>
   );
