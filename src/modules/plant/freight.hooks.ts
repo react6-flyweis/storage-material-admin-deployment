@@ -159,14 +159,14 @@ export function useCreatePlantDeliveryMutation() {
 export function useSendFreightBidsMutation() {
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: (payload: { deliveryId: string; carrierIds?: string[] }) =>
+    mutationFn: (payload: { deliveryId: string; carrierIds?: string[]; bidDeadline?: string }) =>
       sendFreightBidsProvider(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["plant", "deliveries"] });
     },
   });
 
-  const trigger = (payload: { deliveryId: string; carrierIds?: string[] }) => ({
+  const trigger = (payload: { deliveryId: string; carrierIds?: string[]; bidDeadline?: string }) => ({
     unwrap: () => mutation.mutateAsync(payload),
   });
 
