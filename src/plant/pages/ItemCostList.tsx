@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import AddEditPartCostModal from "./modals/AddEditPartCostModal";
-import UploadBOMModal from "./modals/UploadBOMModal";
 import Pagination from "../components/Pagination";
 import ItemCostFilterModal, { type ItemCostFilterValues } from "./ItemCostFilterModal";
 import { useSmdtStatsQuery, useSmdtItemsQuery, useExportSmdtExcelMutation } from "@/modules/plant/smdt.hooks";
@@ -42,7 +41,6 @@ function useDebounce<T>(value: T, delay: number): T {
 export default function ItemCostList() {
   const [isAddEditOpen, setIsAddEditOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-  const [isUploadBOMOpen, setIsUploadBOMOpen] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   // Search & Filter State
@@ -99,7 +97,7 @@ export default function ItemCostList() {
       link.click();
       link.parentNode?.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
+
       toast.success("Excel exported successfully!");
     } catch (error: any) {
       console.error("Failed to export SMDT excel:", error);
@@ -158,8 +156,8 @@ export default function ItemCostList() {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="bg-white hover:bg-gray-50 border-gray-200"
             onClick={handleExport}
             disabled={exportMutation.isPending}
@@ -239,8 +237,8 @@ export default function ItemCostList() {
           <Button
             variant="outline"
             className={`bg-white border-gray-200 h-10 px-4 ${appliedFilters.category || appliedFilters.isFrameType !== "all" || appliedFilters.isActive !== "true"
-                ? "border-blue-500 text-blue-600 bg-blue-50/50 hover:bg-blue-50"
-                : ""
+              ? "border-blue-500 text-blue-600 bg-blue-50/50 hover:bg-blue-50"
+              : ""
               }`}
             onClick={() => setIsFilterModalOpen(true)}
           >
@@ -387,10 +385,6 @@ export default function ItemCostList() {
         initialData={editingItem}
       />
 
-      <UploadBOMModal
-        isOpen={isUploadBOMOpen}
-        onClose={() => setIsUploadBOMOpen(false)}
-      />
     </div>
   );
 }
