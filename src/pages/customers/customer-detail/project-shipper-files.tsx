@@ -236,6 +236,22 @@ export default function ProjectShipperFilesPage() {
               ) : (
                 filteredRequests.map((row) => {
                   const statusVal = displayStatus(row.fileStatus, row.comparisonStatus);
+                  const isNotReceived =
+                    !row.uploadedDate ||
+                    row.fileStatus?.toLowerCase() === "sent" ||
+                    row.fileStatus?.toLowerCase() === "order sent" ||
+                    row.fileStatus?.toLowerCase() === "ordersent" ||
+                    row.fileStatus?.toLowerCase() === "pending" ||
+                    statusVal === "Order Sent" ||
+                    statusVal === "Sent";
+
+                  const isResubmitRequested =
+                    row.fileStatus?.toLowerCase() === "resubmit_requested" ||
+                    row.fileStatus?.toLowerCase() === "resubmit requested" ||
+                    statusVal === "Resubmit Requested";
+
+                  const isEyeDisabled = isNotReceived || isResubmitRequested;
+
                   return (
                     <TableRow key={row.requestId} className="hover:bg-slate-50/80">
                       <TableCell className="text-center py-4">
@@ -287,7 +303,8 @@ export default function ProjectShipperFilesPage() {
                         <Button
                           variant="ghost"
                           onClick={() => navigate(`/plant/shipper-quotation/${leadId}/file/${row.requestId}`)}
-                          className="text-slate-500 hover:text-slate-900 p-2 rounded-full"
+                          disabled={isEyeDisabled}
+                          className="text-slate-500 hover:text-slate-900 p-2 rounded-full disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
