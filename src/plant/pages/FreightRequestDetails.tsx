@@ -190,7 +190,7 @@ const FreightRequestDetailsView: React.FC = () => {
   const lowestBidAmount = bidsResponse?.data?.bidRange?.lowestBid?.amount ?? 0;
 
   return (
-    <div className="xl:pr-5 pb-10 space-y-8 mt-2 px-4 md:px-0 font-inter max-w-[1600px] mx-auto">
+    <div className="p-5 space-y-5">
       {/* Header Section */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 md:gap-6">
         <div className="flex items-center gap-4">
