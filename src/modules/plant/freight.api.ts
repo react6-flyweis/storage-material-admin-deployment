@@ -647,6 +647,7 @@ export async function createPlantDeliveryProvider(
 export interface SendFreightBidsRequest {
   deliveryId: string;
   carrierIds?: string[];
+  bidDeadline?: string;
 }
 
 export interface SendFreightBidsResponse {
@@ -658,9 +659,13 @@ export interface SendFreightBidsResponse {
 export async function sendFreightBidsProvider(
   payload: SendFreightBidsRequest
 ): Promise<SendFreightBidsResponse> {
+  const { deliveryId, carrierIds, bidDeadline } = payload;
   const response = await apiClient.post<SendFreightBidsResponse>(
-    `/api/admin/plant/deliveries/${encodeURIComponent(payload.deliveryId)}/send-bids`,
-    payload
+    `/api/admin/plant/deliveries/${encodeURIComponent(deliveryId)}/send-bids`,
+    {
+      carrierIds,
+      ...(bidDeadline ? { bidDeadline } : {}),
+    }
   );
   return response.data;
 }
