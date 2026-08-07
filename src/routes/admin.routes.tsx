@@ -667,7 +667,7 @@ export const adminRoutes: RouteObject[] = [
               { path: "shipper-quotation", element: <ShipperQuotation /> },
               { path: "shipper-quotation/:projectId", element: <ShipperQuotationProject /> },
               { path: "shipper-quotation/:projectId/file/:fileId", element: <ShipperFileDetails /> },
-              { path: "order-verification", element: <OrderVerification /> },
+              { path: "order-verification/:requestId", element: <OrderVerification /> },
               { path: "packing-list", element: <PackingList /> },
               { path: "packing-list/:projectId", element: <PackingListProject /> },
               { path: "packing-list/:projectId/details/:packingId", element: <PackingListDetails /> },
