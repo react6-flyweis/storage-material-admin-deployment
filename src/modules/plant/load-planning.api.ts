@@ -213,9 +213,14 @@ export async function generatePackingListPlanProvider(
 }
 
 export type LoadPlanningStateResponse = {
-  leadId: string;
-  projectId: string;
-  projectName: string;
+  project?: {
+    _id?: string;
+    projectId?: string;
+    projectName?: string;
+  };
+  leadId?: string;
+  projectId?: string;
+  projectName?: string;
   bundlePlan: BundlePlan | null;
   packingListPlan: PackingListPlan | null;
   bundles: Bundle[];
@@ -285,12 +290,29 @@ export async function confirmTruckPlanProvider(projectId: string): Promise<Confi
   return response.data.data;
 }
 
-export type FreightAutofillResponse = {
-  project: {
+export type FreightAutofillData = {
+  projectName?: string;
+  loadDescription?: string;
+  weight?: number;
+  totalWeight?: number;
+  dimensions?: {
+    lengthFeet?: number;
+    widthFeet?: number;
+    heightFeet?: number;
+  };
+  metalType?: string;
+  materialType?: string;
+  packageCount?: number;
+  totalBundles?: number;
+  pickupLocation?: string;
+  deliveryLocation?: string;
+  receivingPoc?: string;
+  pickupContactPhone?: string;
+  project?: {
     projectId: string;
     projectName: string;
   };
-  summary: {
+  summary?: {
     totalWeight: number;
     maxLengthFeet: number;
     packageCount: number;
@@ -298,8 +320,13 @@ export type FreightAutofillResponse = {
     materialType: string;
     suggestedPickupLocation: string;
     suggestedDeliveryLocation: string;
+    loadDescription?: string;
+    receivingPoc?: string;
+    pickupContactPhone?: string;
   };
 };
+
+export type FreightAutofillResponse = FreightAutofillData;
 
 export async function getFreightAutofillProvider(projectId: string): Promise<FreightAutofillResponse> {
   const response = await apiClient.get<{ success: boolean; data: FreightAutofillResponse }>(
