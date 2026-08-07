@@ -712,6 +712,7 @@ export default function ProjectDetailsPage() {
         open={bomModalOpen}
         onOpenChange={setBomModalOpen}
         leadId={leadId}
+        customerId={id}
       />
 
       <UploadDrawingsModal
