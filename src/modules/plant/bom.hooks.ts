@@ -9,6 +9,7 @@ import {
   getProjectBomFilesProvider,
   getProjectDrawingsProvider,
   uploadProjectBomsProvider,
+  uploadProjectDrawingsProvider,
   getBomJobsStatusBatchProvider,
   getBomJobStatusProvider,
   generateConsolidatedBOMProvider,
@@ -64,7 +65,7 @@ export function useGetProjectBomFilesQuery(leadId: string, options?: { skip?: bo
         }));
         return { buildings, bomFiles: resData.bomFiles };
       }
-      return { buildings: resData?.buildings || [], bomFiles: resData?.bomFiles || [] };
+      return { buildings: resData?.buildings || [], bomFiles: resData?.buildings || [], bomFilesList: resData?.bomFiles || [] };
     },
     enabled: Boolean(leadId) && !options?.skip,
     staleTime: 30 * 1000,
@@ -135,6 +136,17 @@ export function useUploadProjectBomsMutation() {
       uploadProjectBomsProvider(params.leadId, params.bomFiles),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["plant", "projects", variables.leadId, "bom-files"] });
+    },
+  });
+}
+
+export function useUploadProjectDrawingsMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { projectId: string; drawings: Array<{ buildingId: string; fileUrl: string; fileName: string }> }) =>
+      uploadProjectDrawingsProvider(params.projectId, params.drawings),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["plant", "project-drawings", variables.projectId] });
     },
   });
 }
