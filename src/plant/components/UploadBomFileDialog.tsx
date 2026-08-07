@@ -19,6 +19,7 @@ export interface UploadBomFileDialogProps {
   isOpen?: boolean;
   onClose?: () => void;
   leadId?: string;
+  customerId?: string;
   onUpload?: (files: File[], buildingId?: string) => void;
   isUploading?: boolean;
 }
@@ -29,6 +30,7 @@ export default function UploadBomFileDialog({
   isOpen,
   onClose,
   leadId = "",
+  customerId,
   onUpload,
   isUploading: isUploadingProp = false,
 }: UploadBomFileDialogProps) {
@@ -174,7 +176,11 @@ export default function UploadBomFileDialog({
       setErrorMessage(null);
       await generateConsolidatedBOM(leadId);
       handleDialogClose();
-      navigate(`/plant/uploaded-bom-files/${leadId}`);
+      if (customerId) {
+        navigate(`/customers/${customerId}/project-bom/${leadId}`);
+      } else {
+        navigate(`/customers/unknown/project-bom/${leadId}`);
+      }
     } catch (err: unknown) {
       console.error("Failed to generate consolidated BOM:", err);
       const errorObj = err as { data?: { message?: string }; message?: string };
