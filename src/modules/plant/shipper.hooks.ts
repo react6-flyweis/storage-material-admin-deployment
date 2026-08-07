@@ -9,6 +9,7 @@ import {
   getComparisonSummaryProvider,
   approveShipperRequestProvider,
   requestResubmitShipperRequestProvider,
+  compareShipperRequestProvider,
   type PollCompareJobsStatusRequest,
 } from "./shipper.api";
 
@@ -39,28 +40,58 @@ export function useProjectShipperStatsQuery(leadId: string, options?: { enabled?
 
 export function useProjectShipperRequestsQuery(
   leadId: string,
-  page = 1,
+  pageOrOptions?: number | { skip?: boolean; enabled?: boolean },
   limit = 20,
   search?: string,
-  options?: { enabled?: boolean }
+  options?: { enabled?: boolean; skip?: boolean }
 ) {
+  let page = 1;
+  let queryOptions = options;
+
+  if (typeof pageOrOptions === "object" && pageOrOptions !== null) {
+    queryOptions = pageOrOptions;
+  } else if (typeof pageOrOptions === "number") {
+    page = pageOrOptions;
+  }
+
+  const isEnabled = Boolean(leadId) && !queryOptions?.skip && (queryOptions?.enabled ?? true);
+
   return useQuery({
     queryKey: ["plant", "shipper", "project-requests", leadId, page, limit, search],
-    queryFn: () => getProjectShipperRequestsProvider(leadId, page, limit, search),
+    queryFn: async () => {
+      const res = await getProjectShipperRequestsProvider(leadId, page, limit, search);
+      return {
+        ...res,
+        ...res.data,
+      };
+    },
     staleTime: 60 * 1000,
-    ...options,
+    ...queryOptions,
+    enabled: isEnabled,
   });
 }
 
-export function useShipperDocumentQuery(requestId: string, options?: { enabled?: boolean }) {
+export const useGetProjectShipperRequestsQuery = useProjectShipperRequestsQuery;
+
+export function useShipperDocumentQuery(
+  requestId: string,
+  options?: { enabled?: boolean; skip?: boolean }
+) {
+  const isEnabled = Boolean(requestId) && !options?.skip && (options?.enabled ?? true);
   return useQuery({
     queryKey: ["plant", "shipper", "document", requestId],
     queryFn: () => getShipperDocumentProvider(requestId),
     staleTime: 10 * 1000,
     ...options,
-    select: data => data.data
+    enabled: isEnabled,
+    select: (data) => ({
+      ...data,
+      ...data.data,
+    }),
   });
 }
+
+export const useGetShipperDocumentQuery = useShipperDocumentQuery;
 
 export function usePollCompareJobsStatusMutation() {
   return useMutation({
@@ -111,6 +142,23 @@ export function useRequestResubmitShipperRequestMutation() {
 
   return [trigger, { isLoading: mutation.isPending, isPending: mutation.isPending, error: mutation.error }] as const;
 }
+
+export function useCompareShipperRequestMutation() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (requestId: string) => compareShipperRequestProvider(requestId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["plant", "shipper"] });
+    },
+  });
+
+  const trigger = (requestId: string) => ({
+    unwrap: () => mutation.mutateAsync(requestId),
+  });
+
+  return [trigger, { isLoading: mutation.isPending, isPending: mutation.isPending, error: mutation.error }] as const;
+}
+
 
 
 
