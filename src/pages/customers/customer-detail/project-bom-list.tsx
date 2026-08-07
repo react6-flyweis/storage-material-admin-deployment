@@ -290,6 +290,7 @@ export default function ProjectBomListPage() {
         open={bomModalOpen}
         onOpenChange={setBomModalOpen}
         leadId={leadId || id || ""}
+        customerId={id}
       />
 
       <SuccessDialog
