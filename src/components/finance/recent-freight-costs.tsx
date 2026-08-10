@@ -76,95 +76,95 @@ const statusStyles: Record<Freight["status"], string> = {
 
 export default function RecentFreightCosts() {
   return (
-    <Link to="/finance/freight-costs" className="block">
-      <Card className="bg-[#FAFBFF] rounded-sm py-4 gap-0">
-        <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 border-b border-gray-200">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Recent Freight Costs
-            </h3>
-            <p className="text-sm text-gray-500">
-              Latest freight billing and invoice records
-            </p>
-          </div>
 
-          <div className="mt-3 sm:mt-0 flex items-center gap-2">
-            <Button variant="outline" size="sm">
-              Filter
-            </Button>
-            <Button variant="outline" size="sm">
-              Export
-            </Button>
-            <Link to="/finance/freight-costs" className="inline-block">
-              <Button size="sm">View All Costs</Button>
-            </Link>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-gray-50">
-              <TableRow>
-                <TableHead className="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Freight ID
-                </TableHead>
-                <TableHead className="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Project
-                </TableHead>
-                <TableHead className="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Carrier
-                </TableHead>
-                <TableHead className="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Delivery ID
-                </TableHead>
-                <TableHead className="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Date
-                </TableHead>
-                <TableHead className="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Cost
-                </TableHead>
-                <TableHead className="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Status
-                </TableHead>
+    <Card className="bg-[#FAFBFF] rounded-sm py-4 gap-0">
+      <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 border-b border-gray-200">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">
+            Recent Freight Costs
+          </h3>
+          <p className="text-sm text-gray-500">
+            Latest freight billing and invoice records
+          </p>
+        </div>
+
+        <div className="mt-3 sm:mt-0 flex items-center gap-2">
+          <Button variant="outline" size="sm">
+            Filter
+          </Button>
+          <Button variant="outline" size="sm">
+            Export
+          </Button>
+          <Link to="/finance/freight-costs" className="inline-block">
+            <Button size="sm">View All Costs</Button>
+          </Link>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader className="bg-gray-50">
+            <TableRow>
+              <TableHead className="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Freight ID
+              </TableHead>
+              <TableHead className="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Project
+              </TableHead>
+              <TableHead className="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Carrier
+              </TableHead>
+              <TableHead className="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Delivery ID
+              </TableHead>
+              <TableHead className="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Date
+              </TableHead>
+              <TableHead className="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Cost
+              </TableHead>
+              <TableHead className="text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Status
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="bg-white divide-y divide-gray-100">
+            {freights.map((f) => (
+              <TableRow key={f.id} className="hover:bg-gray-50">
+                <TableCell>
+                  <div className="text-sm font-semibold text-blue-600">
+                    {f.id}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm font-semibold text-gray-900">
+                    {f.project}
+                  </div>
+                </TableCell>
+                <TableCell className="text-sm text-gray-600">
+                  {f.carrier}
+                </TableCell>
+                <TableCell className="text-sm text-gray-600">
+                  {f.deliveryId}
+                </TableCell>
+                <TableCell className="text-sm text-gray-600">
+                  {f.date}
+                </TableCell>
+                <TableCell className="text-sm font-semibold text-gray-900">
+                  {f.cost}
+                </TableCell>
+                <TableCell>
+                  <span
+                    className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${statusStyles[f.status]}`}
+                  >
+                    {f.status}
+                  </span>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody className="bg-white divide-y divide-gray-100">
-              {freights.map((f) => (
-                <TableRow key={f.id} className="hover:bg-gray-50">
-                  <TableCell>
-                    <div className="text-sm font-semibold text-blue-600">
-                      {f.id}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm font-semibold text-gray-900">
-                      {f.project}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-600">
-                    {f.carrier}
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-600">
-                    {f.deliveryId}
-                  </TableCell>
-                  <TableCell className="text-sm text-gray-600">
-                    {f.date}
-                  </TableCell>
-                  <TableCell className="text-sm font-semibold text-gray-900">
-                    {f.cost}
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${statusStyles[f.status]}`}
-                    >
-                      {f.status}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </Link>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+
   );
 }
