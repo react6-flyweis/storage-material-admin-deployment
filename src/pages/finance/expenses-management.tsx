@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { DateRange as RDateRange } from "react-day-picker";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import TitleSubtitle from "@/components/TitleSubtitle";
 import {
@@ -26,6 +27,7 @@ import {
   CircleDollarSign,
   ChevronLeft,
   ChevronRight,
+  Loader2,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -38,180 +40,10 @@ import { BudgetAlert, ImportantNote } from "@/components/finance/alerts";
 import { ExpensesCategoryManagement } from "@/components/finance/expenses-category-management";
 import { UploadFileDialog } from "@/components/upload-file-dialog";
 import SuccessDialog from "@/components/success-dialog";
-
-interface Expense {
-  id: string;
-  date: string;
-  category: string;
-  subCategory: string;
-  profile: string;
-  profileImage?: string;
-  projectBuilding: string;
-  amount: string;
-  paymentMethod: string;
-}
-
-const expenseCards = [
-  { title: "Total Expense", value: "$48,950.00", growth: "+12.5%" },
-  { title: "Vendor / Freight", value: "$28,320.00", growth: "+12.5%" },
-  { title: "Operations", value: "$8,650.00", growth: "+12.5%" },
-  { title: "Miscellaneous", value: "$6,230.00", growth: "+12.5%" },
-  { title: "Salaries", value: "$4,900.00", growth: "+12.5%" },
-  { title: "Marketing", value: "$2,847,392", growth: "+12.5%" },
-];
-
-const expenseData: Expense[] = [
-  {
-    id: "EXP00525",
-    date: "22 Feb 2025",
-    category: "Vendor/Freight",
-    subCategory: "Freight",
-    profile: "Emily Clark",
-    projectBuilding: "Project1 - B-A",
-    amount: "$10,000",
-    paymentMethod: "Bank Transfer",
-  },
-  {
-    id: "EXP00524",
-    date: "07 Feb 2025",
-    category: "Vendor/Freight",
-    subCategory: "Vendor",
-    profile: "John Carter",
-    projectBuilding: "Project2 - B-A",
-    amount: "$25,750",
-    paymentMethod: "Check",
-  },
-  {
-    id: "EXP00523",
-    date: "30 Jan 2025",
-    category: "Vendor/Freight",
-    subCategory: "Freight",
-    profile: "Sophia White",
-    projectBuilding: "Project 3 - B-A",
-    amount: "$50,025",
-    paymentMethod: "Cash",
-  },
-  {
-    id: "EXP00522",
-    date: "17 Jan 2025",
-    category: "Vendor/Freight",
-    subCategory: "Vendor",
-    profile: "Michael Johnson",
-    projectBuilding: "Project 4 - B-A",
-    amount: "$75,900",
-    paymentMethod: "Bank Transfer",
-  },
-  {
-    id: "EXP00521",
-    date: "04 Jan 2025",
-    category: "Vendor/Freight",
-    subCategory: "Freight",
-    profile: "Olivia Harris",
-    projectBuilding: "Project1 - B-A",
-    amount: "$99,999",
-    paymentMethod: "Card",
-  },
-  {
-    id: "EXP00520",
-    date: "09 Dec 2024",
-    category: "Vendor/Freight",
-    subCategory: "Vendor",
-    profile: "David Anderson",
-    projectBuilding: "Project1 - B-A",
-    amount: "$120,500",
-    paymentMethod: "Bank Transfer",
-  },
-  {
-    id: "EXP00519",
-    date: "02 Dec 2024",
-    category: "Vendor/Freight",
-    subCategory: "Freight",
-    profile: "Emma Lewis",
-    projectBuilding: "Project1 - B-A",
-    amount: "$250,000",
-    paymentMethod: "Cash",
-  },
-  {
-    id: "EXP00518",
-    date: "15 Nov 2024",
-    category: "Vendor/Freight",
-    subCategory: "Vendor",
-    profile: "Robert Thomas",
-    projectBuilding: "Project1 - B-A",
-    amount: "$55,00,750",
-    paymentMethod: "Bank Transfer",
-  },
-  {
-    id: "EXP00517",
-    date: "30 Nov 2024",
-    category: "Vendor/Freight",
-    subCategory: "Freight",
-    profile: "Isabella Scott",
-    projectBuilding: "Project1 - B-A",
-    amount: "$750,300",
-    paymentMethod: "Cash",
-  },
-  {
-    id: "EXP00516",
-    date: "12 Oct 2024",
-    category: "Vendor/Freight",
-    subCategory: "Vendor",
-    profile: "Daniel Martinez",
-    projectBuilding: "Project1 - B-A",
-    amount: "$8,98,999",
-    paymentMethod: "Bank Transfer",
-  },
-  {
-    id: "EXP00515",
-    date: "05 Oct 2024",
-    category: "Vendor/Freight",
-    subCategory: "Freight",
-    profile: "Charlotte Brown",
-    projectBuilding: "Project1 - B-A",
-    amount: "$87,650",
-    paymentMethod: "Cash",
-  },
-  {
-    id: "EXP00514",
-    date: "09 Sep 2024",
-    category: "Vendor/Freight",
-    subCategory: "Vendor",
-    profile: "William Parker",
-    projectBuilding: "Project1 - B-A",
-    amount: "$89,400",
-    paymentMethod: "Bank Transfer",
-  },
-  {
-    id: "EXP00513",
-    date: "02 Sep 2024",
-    category: "Vendor/Freight",
-    subCategory: "Freight",
-    profile: "Mia Thompson",
-    projectBuilding: "Project1 - B-A",
-    amount: "$33,210",
-    paymentMethod: "Cash",
-  },
-  {
-    id: "EXP00512",
-    date: "07 Aug 2024",
-    category: "Vendor/Freight",
-    subCategory: "Vendor",
-    profile: "Amelia Robinson",
-    projectBuilding: "Project1 - B-A",
-    amount: "$2,10,000",
-    paymentMethod: "Bank Transfer",
-  },
-];
-
-const categories = [
-  "All",
-  "Vendor / Freight",
-  "Manual (Operations)",
-  "Miscellaneous",
-  "Salaries",
-  "Marketing",
-  "Custom Categories",
-];
+import {
+  useExpensesFiltersQuery,
+  useExpensesQuery,
+} from "@/modules/financials/financials.hooks";
 
 function ExpenseCard({
   title,
@@ -239,7 +71,10 @@ function ExpenseCard({
 }
 
 export default function ExpensesManagementPage() {
-  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedProject, setSelectedProject] = useState("all");
+  const [selectedBuilding, setSelectedBuilding] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [dateRange, setDateRange] = useState<RDateRange | undefined>(undefined);
   const [addExpenseDialogOpen, setAddExpenseDialogOpen] = useState(false);
@@ -247,13 +82,59 @@ export default function ExpensesManagementPage() {
   const [successDialogTitle, setSuccessDialogTitle] = useState(
     "File(s) Uploaded Successfully",
   );
-  const itemsPerPage = 10;
-  const totalPages = Math.ceil(expenseData.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedData = expenseData.slice(
-    startIndex,
-    startIndex + itemsPerPage,
-  );
+
+  const limit = 10;
+
+  // Fetch dynamic filters
+  const { data: filtersRes, isLoading: isFiltersLoading } = useExpensesFiltersQuery();
+  const filtersData = filtersRes?.data;
+
+  const categories = filtersData?.categories || [];
+  const buildingLabels = filtersData?.buildingLabels || [];
+  const statuses = filtersData?.statuses || [];
+  const projects = filtersData?.projects || [];
+
+  // Build query params
+  const startDateStr = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
+  const endDateStr = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
+
+  const queryParams = {
+    projectId: selectedProject !== "all" ? selectedProject : undefined,
+    buildingLabel: selectedBuilding !== "all" ? selectedBuilding : undefined,
+    status: selectedStatus !== "all" ? selectedStatus : undefined,
+    category: selectedCategory !== "all" ? selectedCategory : undefined,
+    startDate: startDateStr,
+    endDate: endDateStr,
+    page: currentPage,
+    limit,
+  };
+
+  // Fetch expenses list & stats
+  const { data: expensesRes, isLoading: isExpensesLoading, isFetching: isExpensesFetching } = useExpensesQuery(queryParams);
+
+  const stats = expensesRes?.data?.stats;
+  const expensesList = expensesRes?.data?.expenses || [];
+  const totalCount = expensesRes?.data?.total || 0;
+  const totalPages = Math.ceil(totalCount / limit) || 1;
+
+  // Expense card values derived from stats
+  const formattedTotalExpense = stats?.totalExpense !== undefined ? `$${stats.totalExpense.toLocaleString()}` : "$0.00";
+
+  const getCategoryTotal = (catName: string) => {
+    const item = stats?.byCategory?.find(
+      (c) => c.category.toLowerCase() === catName.toLowerCase()
+    );
+    return item ? `$${item.total.toLocaleString()}` : "$0.00";
+  };
+
+  const dynamicCards = [
+    { title: "Total Expense", value: formattedTotalExpense, growth: "+12.5%" },
+    { title: "Vendor / Freight", value: getCategoryTotal("Vendor/Freight"), growth: "+12.5%" },
+    { title: "Operations", value: getCategoryTotal("Operations"), growth: "+12.5%" },
+    { title: "Miscellaneous", value: getCategoryTotal("Miscellaneous"), growth: "+12.5%" },
+    { title: "Salaries", value: getCategoryTotal("Salaries"), growth: "+12.5%" },
+    { title: "Marketing", value: getCategoryTotal("Marketing"), growth: "+12.5%" },
+  ];
 
   return (
     <div className="space-y-4 p-5">
@@ -297,7 +178,7 @@ export default function ExpensesManagementPage() {
 
       {/* Expense Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
-        {expenseCards.map((card) => (
+        {dynamicCards.map((card) => (
           <ExpenseCard
             key={card.title}
             title={card.title}
@@ -309,65 +190,100 @@ export default function ExpensesManagementPage() {
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4">
-        <Select defaultValue="all-projects">
-          <SelectTrigger className="w-auto bg-white">
-            <SelectValue />
+        <Select
+          value={selectedProject}
+          onValueChange={(val) => {
+            setSelectedProject(val);
+            setCurrentPage(1);
+          }}
+        >
+          <SelectTrigger className="w-auto bg-white min-w-[200px]">
+            <SelectValue placeholder="Select Project" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all-projects">
-              Select Project: All Projects
-            </SelectItem>
-            <SelectItem value="project-1">Project 1</SelectItem>
-            <SelectItem value="project-2">Project 2</SelectItem>
+            <SelectItem value="all">Select Project: All Projects</SelectItem>
+            {projects.map((proj) => (
+              <SelectItem key={proj.leadId} value={proj.leadId}>
+                {proj.projectName} ({proj.jobId})
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
-        <Select defaultValue="all-buildings">
-          <SelectTrigger className="w-auto bg-white">
-            <SelectValue />
+        <Select
+          value={selectedBuilding}
+          onValueChange={(val) => {
+            setSelectedBuilding(val);
+            setCurrentPage(1);
+          }}
+        >
+          <SelectTrigger className="w-auto bg-white min-w-[180px]">
+            <SelectValue placeholder="Select Building" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all-buildings">
-              Buildings: All Buildings
-            </SelectItem>
-            <SelectItem value="building-1">Building 1</SelectItem>
-            <SelectItem value="building-2">Building 2</SelectItem>
+            <SelectItem value="all">Buildings: All Buildings</SelectItem>
+            {buildingLabels.map((b) => (
+              <SelectItem key={b} value={b}>
+                {b}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
-        <Select defaultValue="all-status">
-          <SelectTrigger className="w-auto bg-white">
-            <SelectValue />
+        <Select
+          value={selectedStatus}
+          onValueChange={(val) => {
+            setSelectedStatus(val);
+            setCurrentPage(1);
+          }}
+        >
+          <SelectTrigger className="w-auto bg-white min-w-[160px]">
+            <SelectValue placeholder="Select Status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all-status">Status: All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
+            <SelectItem value="all">Status: All Status</SelectItem>
+            {statuses.map((st) => (
+              <SelectItem key={st} value={st}>
+                {st.charAt(0).toUpperCase() + st.slice(1)}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
         <DateRangeFilter
           value={dateRange}
-          onChange={setDateRange}
+          onChange={(range) => {
+            setDateRange(range);
+            setCurrentPage(1);
+          }}
           className="bg-white"
         />
+
+        {isExpensesFetching && (
+          <div className="flex items-center gap-2 text-sm text-slate-500">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Updating...
+          </div>
+        )}
       </div>
 
       {/* Category Tabs with Table Card */}
       <Card className="overflow-hidden gap-0 p-0">
         <Tabs
           value={selectedCategory}
-          onValueChange={setSelectedCategory}
+          onValueChange={(val) => {
+            setSelectedCategory(val);
+            setCurrentPage(1);
+          }}
           className="w-full flex flex-col"
         >
           <TabsList variant="line">
-            {categories.map((category) => (
-              <TabsTrigger
-                key={category}
-                value={category}
-                className="px-4 py-2"
-              >
-                {category}
+            <TabsTrigger value="all" className="px-4 py-2">
+              All
+            </TabsTrigger>
+            {categories.map((cat) => (
+              <TabsTrigger key={cat} value={cat} className="px-4 py-2">
+                {cat}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -383,45 +299,89 @@ export default function ExpensesManagementPage() {
                     <TableHead className="w-28">Category</TableHead>
                     <TableHead className="w-28">Sub Category</TableHead>
                     <TableHead className="w-32">Profile</TableHead>
-                    <TableHead className="w-28">Project Building</TableHead>
+                    <TableHead className="w-32">Project Building</TableHead>
                     <TableHead className="w-24 text-right">Amount</TableHead>
                     <TableHead className="w-32">Payment Method</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedData.map((expense, index) => (
-                    <TableRow
-                      key={expense.id}
-                      className={index % 2 === 0 ? "bg-white" : "bg-slate-50"}
-                    >
-                      <TableCell className="font-medium text-blue-600">
-                        {expense.id}
-                      </TableCell>
-                      <TableCell className="text-sm text-slate-600">
-                        {expense.date}
-                      </TableCell>
-                      <TableCell>
-                        <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
-                          {expense.category}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-sm text-slate-600">
-                        {expense.subCategory}
-                      </TableCell>
-                      <TableCell className="text-sm text-slate-600">
-                        {expense.profile}
-                      </TableCell>
-                      <TableCell className="text-sm text-slate-600">
-                        {expense.projectBuilding}
-                      </TableCell>
-                      <TableCell className="text-right font-medium text-slate-900">
-                        {expense.amount}
-                      </TableCell>
-                      <TableCell className="text-sm text-slate-600">
-                        {expense.paymentMethod}
+                  {isExpensesLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-32 text-center text-slate-500">
+                        <div className="flex items-center justify-center gap-2">
+                          <Loader2 className="h-5 w-5 animate-spin text-violet-600" />
+                          <span>Loading expenses...</span>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : expensesList.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-32 text-center text-slate-500">
+                        No expenses found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    expensesList.map((expense, index) => {
+                      const profileName =
+                        typeof expense.createdBy === "object" && expense.createdBy !== null
+                          ? expense.createdBy.name
+                          : "-";
+                      const leadObj =
+                        typeof expense.leadId === "object" && expense.leadId !== null
+                          ? expense.leadId
+                          : null;
+                      const projectBuilding = leadObj
+                        ? `${leadObj.projectName} - ${expense.buildingLabel || ""}`
+                        : expense.buildingLabel || "-";
+
+                      const formattedDate = expense.date
+                        ? format(new Date(expense.date), "dd MMM yyyy")
+                        : "-";
+
+                      const formattedAmount = `$${expense.amount.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}`;
+
+                      const paymentMethodLabel = expense.paymentMethod
+                        ? expense.paymentMethod.replace(/_/g, " ").toUpperCase()
+                        : "-";
+
+                      return (
+                        <TableRow
+                          key={expense._id}
+                          className={index % 2 === 0 ? "bg-white" : "bg-slate-50"}
+                        >
+                          <TableCell className="font-medium text-blue-600">
+                            {expense.expenseId}
+                          </TableCell>
+                          <TableCell className="text-sm text-slate-600">
+                            {formattedDate}
+                          </TableCell>
+                          <TableCell>
+                            <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+                              {expense.category}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm text-slate-600">
+                            {expense.subcategory || "-"}
+                          </TableCell>
+                          <TableCell className="text-sm text-slate-600">
+                            {profileName}
+                          </TableCell>
+                          <TableCell className="text-sm text-slate-600">
+                            {projectBuilding}
+                          </TableCell>
+                          <TableCell className="text-right font-medium text-slate-900">
+                            {formattedAmount}
+                          </TableCell>
+                          <TableCell className="text-sm text-slate-600">
+                            {paymentMethodLabel}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -429,12 +389,13 @@ export default function ExpensesManagementPage() {
             {/* Pagination */}
             <div className="flex items-center justify-between px-6 pb-6">
               <div className="text-sm text-slate-600">
-                Showing <span className="font-medium">10</span> Results
+                Showing <span className="font-medium">{expensesList.length}</span> of{" "}
+                <span className="font-medium">{totalCount}</span> Results
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
+                  disabled={currentPage === 1 || isExpensesLoading}
                   className="rounded-lg border border-slate-200 p-2 hover:bg-slate-50 disabled:opacity-50"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -445,6 +406,7 @@ export default function ExpensesManagementPage() {
                       <button
                         key={page}
                         onClick={() => setCurrentPage(page)}
+                        disabled={isExpensesLoading}
                         className={`h-8 w-8 rounded-lg text-sm font-medium transition-colors ${
                           page === currentPage
                             ? "bg-violet-600 text-white"
@@ -460,7 +422,7 @@ export default function ExpensesManagementPage() {
                   onClick={() =>
                     setCurrentPage(Math.min(totalPages, currentPage + 1))
                   }
-                  disabled={currentPage === totalPages}
+                  disabled={currentPage >= totalPages || isExpensesLoading}
                   className="rounded-lg border border-slate-200 p-2 hover:bg-slate-50 disabled:opacity-50"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -511,3 +473,4 @@ export default function ExpensesManagementPage() {
     </div>
   );
 }
+
