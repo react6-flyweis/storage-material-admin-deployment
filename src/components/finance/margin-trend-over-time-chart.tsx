@@ -10,22 +10,50 @@ import {
   YAxis,
 } from "recharts";
 import MarginChartLegend from "@/components/finance/margin-chart-legend";
+import type { MarginTrendItem } from "@/modules/financials/financials.api";
 
-export interface MarginTrendDataPoint {
-  month: string;
-  gross: number;
-  operating: number;
-  net: number;
-  contribution: number;
-}
+const MONTH_NAMES = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 interface MarginTrendOverTimeChartProps {
-  data: MarginTrendDataPoint[];
+  data?: MarginTrendItem[];
+  grossMarginPct?: number;
+  operatingMarginPct?: number;
+  netProfitMarginPct?: number;
+  contributionMarginPct?: number;
 }
 
 export default function MarginTrendOverTimeChart({
-  data,
+  data = [],
+  grossMarginPct = 0,
+  operatingMarginPct = 0,
+  netProfitMarginPct = 0,
+  contributionMarginPct = 0,
 }: MarginTrendOverTimeChartProps) {
+  const chartData =
+    data.length > 0
+      ? data.map((item) => ({
+          month: `${MONTH_NAMES[(item._id.month - 1) % 12]} ${item._id.year}`,
+          revenue: item.revenue,
+          gross: grossMarginPct,
+          operating: operatingMarginPct,
+          net: netProfitMarginPct,
+          contribution: contributionMarginPct,
+        }))
+      : [];
+
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
@@ -46,7 +74,7 @@ export default function MarginTrendOverTimeChart({
 
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data}>
+          <LineChart data={chartData}>
             <CartesianGrid stroke="#e2e8f0" vertical={true} />
             <XAxis
               dataKey="month"
@@ -54,7 +82,7 @@ export default function MarginTrendOverTimeChart({
               tickLine={false}
               axisLine={false}
             />
-            <YAxis hide domain={[0, 40]} tickLine={false} axisLine={false} />
+            <YAxis tick={{ fill: "#64748b", fontSize: 12 }} tickLine={false} axisLine={false} />
             <Tooltip />
             <Line
               type="monotone"
@@ -62,6 +90,7 @@ export default function MarginTrendOverTimeChart({
               stroke="#3b82f6"
               strokeWidth={3}
               dot={false}
+              name="Gross Margin"
             />
             <Line
               type="monotone"
@@ -69,6 +98,7 @@ export default function MarginTrendOverTimeChart({
               stroke="#10b981"
               strokeWidth={3}
               dot={false}
+              name="Operating Margin"
             />
             <Line
               type="monotone"
@@ -76,6 +106,7 @@ export default function MarginTrendOverTimeChart({
               stroke="#4f46e5"
               strokeWidth={3}
               dot={false}
+              name="Net Profit Margin"
             />
             <Line
               type="monotone"
@@ -83,6 +114,7 @@ export default function MarginTrendOverTimeChart({
               stroke="#d4a917"
               strokeWidth={3}
               dot={false}
+              name="Contribution Margin"
             />
           </LineChart>
         </ResponsiveContainer>
@@ -90,3 +122,4 @@ export default function MarginTrendOverTimeChart({
     </div>
   );
 }
+
