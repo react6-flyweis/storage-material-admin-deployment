@@ -10,22 +10,31 @@ import {
   YAxis,
 } from "recharts";
 import MarginChartLegend from "@/components/finance/margin-chart-legend";
-
-export interface MarginByProjectsDataPoint {
-  name: string;
-  gross: number;
-  operating: number;
-  net: number;
-  contribution: number;
-}
+import type { ProjectMarginItem } from "@/modules/financials/financials.api";
 
 interface MarginByProjectsChartProps {
-  data: MarginByProjectsDataPoint[];
+  data?: ProjectMarginItem[];
+  grossMarginPct?: number;
+  operatingMarginPct?: number;
+  netProfitMarginPct?: number;
+  contributionMarginPct?: number;
 }
 
 export default function MarginByProjectsChart({
-  data,
+  data = [],
+  grossMarginPct = 0,
+  operatingMarginPct = 0,
+  netProfitMarginPct = 0,
+  contributionMarginPct = 0,
 }: MarginByProjectsChartProps) {
+  const chartData = data.map((item) => ({
+    name: item.projectName,
+    gross: grossMarginPct,
+    operating: operatingMarginPct,
+    net: netProfitMarginPct,
+    contribution: contributionMarginPct,
+  }));
+
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
@@ -46,7 +55,7 @@ export default function MarginByProjectsChart({
 
       <div className="h-80">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} barGap={6}>
+          <BarChart data={chartData} barGap={6}>
             <CartesianGrid stroke="#e2e8f0" vertical={false} />
             <XAxis
               dataKey="name"
@@ -58,16 +67,16 @@ export default function MarginByProjectsChart({
               tick={{ fill: "#64748b", fontSize: 12 }}
               tickLine={false}
               axisLine={false}
-              domain={[0, 100]}
             />
             <Tooltip />
-            <Bar dataKey="gross" fill="#3b82f6" radius={[8, 8, 8, 8]} />
-            <Bar dataKey="operating" fill="#10b981" radius={[8, 8, 8, 8]} />
-            <Bar dataKey="net" fill="#4f46e5" radius={[8, 8, 8, 8]} />
-            <Bar dataKey="contribution" fill="#d4a917" radius={[8, 8, 8, 8]} />
+            <Bar dataKey="gross" fill="#3b82f6" radius={[8, 8, 8, 8]} name="Gross Margin" />
+            <Bar dataKey="operating" fill="#10b981" radius={[8, 8, 8, 8]} name="Operating Margin" />
+            <Bar dataKey="net" fill="#4f46e5" radius={[8, 8, 8, 8]} name="Net Profit Margin" />
+            <Bar dataKey="contribution" fill="#d4a917" radius={[8, 8, 8, 8]} name="Contribution Margin" />
           </BarChart>
         </ResponsiveContainer>
       </div>
     </div>
   );
 }
+
