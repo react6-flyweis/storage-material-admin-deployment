@@ -120,20 +120,8 @@ export default function MarginAnalysisPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-            <MarginTrendOverTimeChart
-              data={marginData?.marginTrend}
-              grossMarginPct={marginData?.grossMarginPct}
-              operatingMarginPct={marginData?.operatingMarginPct}
-              netProfitMarginPct={marginData?.netProfitMarginPct}
-              contributionMarginPct={marginData?.contributionMarginPct}
-            />
-            <MarginByProjectsChart
-              data={marginData?.projectMargins}
-              grossMarginPct={marginData?.grossMarginPct}
-              operatingMarginPct={marginData?.operatingMarginPct}
-              netProfitMarginPct={marginData?.netProfitMarginPct}
-              contributionMarginPct={marginData?.contributionMarginPct}
-            />
+            <MarginTrendOverTimeChart />
+            <MarginByProjectsChart />
           </div>
 
           <MarginProfitLossSummaryTable
