@@ -226,6 +226,49 @@ export async function getConsolidatedBOMUrlProvider(leadId: string) {
 
 export const getConsolidatedUrlProvider = getConsolidatedBOMUrlProvider;
 
+export interface ProjectBuilding {
+  buildingId: string;
+  buildingNumber: number;
+  status?: string;
+  latestDrawing?: unknown;
+  latestDrawingStatus?: string | null;
+  drawingCount?: number;
+  hasDrawing?: boolean;
+  latestBomJob?: {
+    bomJobId?: string;
+    fileName?: string;
+    uploadedAt?: string;
+    totalItems?: number;
+    status?: string;
+    isConfirmed?: boolean;
+    errorMessage?: string;
+    [key: string]: unknown;
+  } | null;
+  hasBomJob?: boolean;
+  bomJobStatus?: string | null;
+  [key: string]: unknown;
+}
+
+export interface ProjectBuildingsResponseData {
+  leadId: string;
+  projectName: string;
+  numberOfBuildings: number;
+  buildings: ProjectBuilding[];
+}
+
+export interface ProjectBuildingsResponse {
+  success: boolean;
+  message: string;
+  data: ProjectBuildingsResponseData;
+}
+
+export async function getProjectBuildingsProvider(leadId: string): Promise<ProjectBuildingsResponseData> {
+  const response = await apiClient.get<ProjectBuildingsResponse>(
+    `/api/admin/plant/projects/${encodeURIComponent(leadId)}/buildings`
+  );
+  return response.data?.data;
+}
+
 export async function getProjectBomFilesProvider(leadId: string) {
   const response = await apiClient.get(
     `/api/admin/plant/projects/${encodeURIComponent(leadId)}/bom-files`

@@ -6,6 +6,7 @@ import {
   getPlantProjectDetailProvider,
   getConsolidatedBOMProvider,
   getConsolidatedUrlProvider,
+  getProjectBuildingsProvider,
   getProjectBomFilesProvider,
   getProjectDrawingsProvider,
   uploadProjectBomsProvider,
@@ -20,9 +21,10 @@ import {
   type PlantProjectDetail,
   type ConsolidatedBOMItem,
   type ConsolidatedBOMSentVendor,
+  type ProjectBuilding,
 } from "./bom.api";
 
-export type { ConsolidatedBOM, PlantProjectDetail, ConsolidatedBOMItem, ConsolidatedBOMSentVendor };
+export type { ConsolidatedBOM, PlantProjectDetail, ConsolidatedBOMItem, ConsolidatedBOMSentVendor, ProjectBuilding };
 
 export function useBomStatsQuery() {
   return useQuery({
@@ -37,6 +39,15 @@ export function useBomProjectsQuery(page = 1, limit = 20) {
     queryKey: ["plant", "bom", "projects", page, limit],
     queryFn: () => getBomProjectsProvider(page, limit),
     staleTime: 60 * 1000,
+  });
+}
+
+export function useGetProjectBuildingsQuery(leadId: string, options?: { skip?: boolean }) {
+  return useQuery({
+    queryKey: ["plant", "projects", leadId, "buildings"],
+    queryFn: () => getProjectBuildingsProvider(leadId),
+    enabled: Boolean(leadId) && !options?.skip,
+    staleTime: 30 * 1000,
   });
 }
 
@@ -71,8 +82,6 @@ export function useGetProjectBomFilesQuery(leadId: string, options?: { skip?: bo
     staleTime: 30 * 1000,
   });
 }
-
-export const useGetProjectBuildingsQuery = useGetProjectBomFilesQuery;
 
 export function useBomDetailsQuery(
   jobId: string,
