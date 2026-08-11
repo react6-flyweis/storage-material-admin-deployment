@@ -43,6 +43,8 @@ import SuccessDialog from "@/components/success-dialog";
 import {
   useExpensesFiltersQuery,
   useExpensesQuery,
+  useExportExpensesMutation,
+  useImportExpensesMutation,
 } from "@/modules/financials/financials.hooks";
 
 function ExpenseCard({
@@ -111,6 +113,57 @@ export default function ExpensesManagementPage() {
 
   // Fetch expenses list & stats
   const { data: expensesRes, isLoading: isExpensesLoading, isFetching: isExpensesFetching } = useExpensesQuery(queryParams);
+  const exportMutation = useExportExpensesMutation();
+  const importMutation = useImportExpensesMutation();
+
+  const handleExport = async () => {
+    try {
+      const exportParams = {
+        projectId: selectedProject !== "all" ? selectedProject : undefined,
+        buildingLabel: selectedBuilding !== "all" ? selectedBuilding : undefined,
+        status: selectedStatus !== "all" ? selectedStatus : undefined,
+        category: selectedCategory !== "all" ? selectedCategory : undefined,
+        startDate: startDateStr,
+        endDate: endDateStr,
+      };
+
+      const blob = await exportMutation.mutateAsync(exportParams);
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `expenses-report-${Date.now()}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      setSuccessDialogTitle("Expenses report exported successfully");
+      setSuccessDialogOpen(true);
+    } catch (error) {
+      console.error("Export expenses failed:", error);
+    }
+  };
+
+  const handleImportExpenses = async (files: File[]) => {
+    if (!files.length) return;
+    const file = files[0];
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+      const csvContent = e.target?.result as string;
+      if (!csvContent) return;
+
+      try {
+        await importMutation.mutateAsync({ csv: csvContent });
+        setSuccessDialogTitle("Expense(s) Imported Successfully");
+        setSuccessDialogOpen(true);
+      } catch (error) {
+        console.error("Import expenses failed:", error);
+      }
+    };
+
+    reader.readAsText(file);
+  };
 
   const stats = expensesRes?.data?.stats;
   const expensesList = expensesRes?.data?.expenses || [];
@@ -145,27 +198,40 @@ export default function ExpensesManagementPage() {
         />
 
         <div className="flex flex-wrap gap-2">
-          <Button className="h-9 bg-white border border-slate-200 text-slate-900 hover:bg-slate-50">
-            <Download className="mr-2 h-4 w-4" />
+          <Button
+            className="h-9 bg-white border border-slate-200 text-slate-900 hover:bg-slate-50"
+            onClick={handleExport}
+            disabled={exportMutation.isPending}
+          >
+            {exportMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
             Export Report
           </Button>
+
           <UploadFileDialog
             title="Upload Expense File"
-            description="Add your documents here, and you can upload up to 5 files max"
-            supportText="Only support .jpg, .png and .svg and zip files"
-            accept=".jpg,.jpeg,.png,.svg,.zip,.pdf,.csv,.xls,.xlsx"
-            maxFiles={5}
-            onUpload={(files) => {
-              console.log("Imported expense files:", files);
-              setSuccessDialogTitle("File(s) Imported Successfully");
-              setSuccessDialogOpen(true);
-            }}
+            description="Upload CSV expense files to import into the system"
+            supportText="Only CSV files (.csv) are supported for import"
+            accept=".csv"
+            maxFiles={1}
+            onUpload={handleImportExpenses}
           >
-            <Button className="h-9 bg-white border border-slate-200 text-slate-900 hover:bg-slate-50">
-              <Upload className="mr-2 h-4 w-4" />
+            <Button
+              className="h-9 bg-white border border-slate-200 text-slate-900 hover:bg-slate-50"
+              disabled={importMutation.isPending}
+            >
+              {importMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="mr-2 h-4 w-4" />
+              )}
               Import Expenses
             </Button>
           </UploadFileDialog>
+
           <Button
             className="h-9 bg-violet-600 px-4 text-white hover:bg-violet-700"
             onClick={() => setAddExpenseDialogOpen(true)}
