@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { Truck, DollarSign, Users, CalendarDays, Info } from "lucide-react";
 import RecentFreightCosts from "@/components/finance/recent-freight-costs";
@@ -13,9 +14,10 @@ type MetricCardProps = {
   value: string | number;
   icon: React.ReactNode;
   className?: string;
+  isLoading?: boolean;
 };
 
-function MetricCard({ title, value, icon, className }: MetricCardProps) {
+function MetricCard({ title, value, icon, className, isLoading }: MetricCardProps) {
   return (
     <div
       className={cn(
@@ -24,8 +26,12 @@ function MetricCard({ title, value, icon, className }: MetricCardProps) {
       )}
     >
       <div>
-        <div className="text-2xl font-bold">{value}</div>
-        <div className="text-xs opacity-90">{title}</div>
+        {isLoading ? (
+          <Skeleton className="h-8 w-24 bg-white/30" />
+        ) : (
+          <div className="text-2xl font-bold">{value}</div>
+        )}
+        <div className="text-xs opacity-90 mt-1">{title}</div>
       </div>
       <div className="p-3 bg-white/20 rounded-md">{icon}</div>
     </div>
@@ -51,30 +57,34 @@ export default function FreightCostTracking() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <MetricCard
           title="Total Freight Cost"
-          value={isLoading ? "..." : `$${totalCost.toLocaleString()}`}
+          value={`$${totalCost.toLocaleString()}`}
           icon={<DollarSign className="h-6 w-6 text-white" />}
           className="bg-blue-600"
+          isLoading={isLoading}
         />
 
         <MetricCard
           title="Active Carriers"
-          value={isLoading ? "..." : activeCarriers}
+          value={activeCarriers}
           icon={<Truck className="h-6 w-6 text-white" />}
           className="bg-green-500"
+          isLoading={isLoading}
         />
 
         <MetricCard
           title="Avg Cost/Delivery"
-          value={isLoading ? "..." : `$${avgCost.toLocaleString()}`}
+          value={`$${avgCost.toLocaleString()}`}
           icon={<CalendarDays className="h-6 w-6 text-white" />}
           className="bg-orange-500"
+          isLoading={isLoading}
         />
 
         <MetricCard
           title="Pending Invoices"
-          value={isLoading ? "..." : pendingInvoices}
+          value={pendingInvoices}
           icon={<Users className="h-6 w-6 text-white" />}
           className="bg-yellow-500"
+          isLoading={isLoading}
         />
       </div>
 
