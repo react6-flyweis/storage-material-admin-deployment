@@ -18,14 +18,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useProfitLossQuery } from "@/modules/financials/financials.hooks";
+import {
+  useProfitLossQuery,
+  useExportExpensesMutation,
+  useBudgetVsActualProjectsQuery,
+} from "@/modules/financials/financials.hooks";
+import type { ProfitLossPeriod } from "@/modules/financials/financials.api";
 import ProjectWiseProfitLoss from "@/modules/financials/components/ProjectWiseProfitLoss";
 import IncomeVsExpenseTrendChart from "@/modules/financials/components/IncomeVsExpenseTrendChart";
 import ProfitLossExpenseBreakdownChart from "@/modules/financials/components/ProfitLossExpenseBreakdownChart";
-import ProfitLossSummaryTable, {
-  type SummaryRow,
-  type SummaryTotalsRow,
-} from "@/modules/financials/components/ProfitLossSummaryTable";
+import ProfitLossSummaryTable from "@/modules/financials/components/ProfitLossSummaryTable";
 
 const formatCurrency = (val?: number) => {
   if (val === undefined || val === null) return "$0";
@@ -41,22 +43,42 @@ const formatPercent = (val?: number) => {
   return `${val.toFixed(2)}%`;
 };
 
-const calcVariance = (thisVal?: number, lastVal?: number) => {
-  const current = thisVal ?? 0;
-  const previous = lastVal ?? 0;
-  const diff = current - previous;
-  const pct = previous !== 0 ? (diff / Math.abs(previous)) * 100 : current !== 0 ? 100 : 0;
-  return {
-    diff: formatCurrency(diff),
-    pct: `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`,
-  };
-};
-
 export default function ProfitLossPage() {
   const [project, setProject] = useState("all-projects");
+  const [period, setPeriod] = useState<ProfitLossPeriod>("monthly");
 
-  const { data: response, isLoading, isError, error, refetch } = useProfitLossQuery();
+  const { data: projectsRes } = useBudgetVsActualProjectsQuery();
+  const projectOptions = projectsRes?.data?.projects || [];
+
+  const queryParams = {
+    projectId: project !== "all-projects" ? project : undefined,
+    period,
+  };
+
+  const { data: response, isLoading, isError, error, refetch } = useProfitLossQuery(queryParams);
   const plData = response?.data;
+
+  const exportExpensesMutation = useExportExpensesMutation();
+
+  const handleExport = async () => {
+    try {
+      const exportParams = {
+        projectId: project !== "all-projects" ? project : undefined,
+      };
+
+      const blob = await exportExpensesMutation.mutateAsync(exportParams);
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `expenses-report-${Date.now()}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export expenses report failed:", err);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -117,122 +139,6 @@ export default function ProfitLossPage() {
     },
   ];
 
-  const thisMonthSummary = plData?.summary?.thisMonth;
-  const lastMonthSummary = plData?.summary?.lastMonth;
-  const incomeBreakdown = plData?.incomeBreakdown;
-  const expenseBreakdown = plData?.expenseBreakdown;
-
-  // Income summary rows
-  const projectRevenueVar = calcVariance(incomeBreakdown?.projectRevenue, undefined);
-  const otherIncomeVar = calcVariance(incomeBreakdown?.otherIncome, undefined);
-  const totalIncomeVar = calcVariance(
-    thisMonthSummary?.totalRevenue ?? incomeBreakdown?.totalIncome,
-    lastMonthSummary?.totalRevenue
-  );
-
-  // Expense summary rows
-  const directCostsVar = calcVariance(expenseBreakdown?.directCosts, undefined);
-  const indirectCostsVar = calcVariance(expenseBreakdown?.indirectCosts, undefined);
-  const adminExpensesVar = calcVariance(expenseBreakdown?.administrativeExpenses, undefined);
-  const otherExpensesVar = calcVariance(expenseBreakdown?.otherExpenses, undefined);
-  const totalExpensesVar = calcVariance(
-    thisMonthSummary?.totalExpenses ?? expenseBreakdown?.totalExpenses,
-    lastMonthSummary?.totalExpenses
-  );
-
-  // Operating & Net Profit rows
-  const grossProfitVar = calcVariance(thisMonthSummary?.grossProfit, lastMonthSummary?.grossProfit);
-  const netProfitVar = calcVariance(thisMonthSummary?.netProfit ?? plData?.netProfit, undefined);
-
-  const summaryIncomeRows: SummaryRow[] = [
-    {
-      label: "Project Revenue",
-      thisPeriod: formatCurrency(incomeBreakdown?.projectRevenue),
-      lastPeriod: "-",
-      varianceAmount: projectRevenueVar.diff,
-      variancePercent: projectRevenueVar.pct,
-      tone: "income",
-    },
-    {
-      label: "Other Income",
-      thisPeriod: formatCurrency(incomeBreakdown?.otherIncome),
-      lastPeriod: "-",
-      varianceAmount: otherIncomeVar.diff,
-      variancePercent: otherIncomeVar.pct,
-      tone: "income",
-    },
-    {
-      label: "Total Income (A)",
-      thisPeriod: formatCurrency(thisMonthSummary?.totalRevenue ?? incomeBreakdown?.totalIncome),
-      lastPeriod: formatCurrency(lastMonthSummary?.totalRevenue),
-      varianceAmount: totalIncomeVar.diff,
-      variancePercent: totalIncomeVar.pct,
-      tone: "total",
-    },
-  ];
-
-  const summaryExpenseRows: SummaryRow[] = [
-    {
-      label: "Direct Costs",
-      thisPeriod: formatCurrency(expenseBreakdown?.directCosts),
-      lastPeriod: "-",
-      varianceAmount: directCostsVar.diff,
-      variancePercent: directCostsVar.pct,
-      tone: "expense",
-    },
-    {
-      label: "Indirect Costs",
-      thisPeriod: formatCurrency(expenseBreakdown?.indirectCosts),
-      lastPeriod: "-",
-      varianceAmount: indirectCostsVar.diff,
-      variancePercent: indirectCostsVar.pct,
-      tone: "expense",
-    },
-    {
-      label: "Administrative Expenses",
-      thisPeriod: formatCurrency(expenseBreakdown?.administrativeExpenses),
-      lastPeriod: "-",
-      varianceAmount: adminExpensesVar.diff,
-      variancePercent: adminExpensesVar.pct,
-      tone: "expense",
-    },
-    {
-      label: "Other Expenses",
-      thisPeriod: formatCurrency(expenseBreakdown?.otherExpenses),
-      lastPeriod: "-",
-      varianceAmount: otherExpensesVar.diff,
-      variancePercent: otherExpensesVar.pct,
-      tone: "expense",
-    },
-  ];
-
-  const totalExpensesRow: SummaryTotalsRow = {
-    label: "Total Expenses (B)",
-    thisPeriod: formatCurrency(thisMonthSummary?.totalExpenses ?? expenseBreakdown?.totalExpenses),
-    lastPeriod: formatCurrency(lastMonthSummary?.totalExpenses),
-    varianceAmount: totalExpensesVar.diff,
-    variancePercent: totalExpensesVar.pct,
-    rowTone: "expense-total",
-  };
-
-  const grossProfitRow: SummaryTotalsRow = {
-    label: "Gross Profit (A-B)",
-    thisPeriod: formatCurrency(thisMonthSummary?.grossProfit ?? plData?.grossProfit),
-    lastPeriod: formatCurrency(lastMonthSummary?.grossProfit),
-    varianceAmount: grossProfitVar.diff,
-    variancePercent: grossProfitVar.pct,
-    rowTone: "gross-profit",
-  };
-
-  const netProfitRow: SummaryTotalsRow = {
-    label: "Net Profit",
-    thisPeriod: formatCurrency(thisMonthSummary?.netProfit ?? plData?.netProfit),
-    lastPeriod: "-",
-    varianceAmount: netProfitVar.diff,
-    variancePercent: netProfitVar.pct,
-    rowTone: "net-profit",
-  };
-
   return (
     <div className="min-h-full bg-[#e8efff] px-4 py-4 sm:px-5 lg:px-6">
       <div className="mx-auto flex w-full max-w-400 flex-col gap-4">
@@ -242,29 +148,45 @@ export default function ProfitLossPage() {
             subtitle="Overview of income, expenses and profitability for your projects."
           />
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="outline"
-              className="h-9 rounded-lg border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm hover:bg-slate-50"
-            >
-              <CalendarRange className="mr-2 h-4 w-4" />
-              This Month
-            </Button>
-
-            <Select value={project} onValueChange={setProject}>
-              <SelectTrigger className="h-9 w-40 rounded-lg border-slate-200 bg-white text-sm text-slate-700 shadow-sm">
-                <SelectValue />
+          <div className="flex   items-center gap-2">
+            <Select value={period} onValueChange={(val) => setPeriod(val as ProfitLossPeriod)}>
+              <SelectTrigger className="h-9 w-38 rounded-lg border-slate-200 bg-white text-sm text-slate-700 shadow-sm">
+                <div className="flex items-center">
+                  <CalendarRange className="mr-2 h-4 w-4 text-slate-500" />
+                  <SelectValue placeholder="Period" />
+                </div>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all-projects">All Projects</SelectItem>
-                <SelectItem value="project-1">Project 1</SelectItem>
-                <SelectItem value="project-2">Project 2</SelectItem>
-                <SelectItem value="project-3">Project 3</SelectItem>
+                <SelectItem value="monthly">Monthly</SelectItem>
+                <SelectItem value="quarterly">Quarterly</SelectItem>
+                <SelectItem value="yearly">Yearly</SelectItem>
               </SelectContent>
             </Select>
 
-            <Button className="h-9 rounded-lg bg-[#1976d2] px-4 text-sm font-medium text-white shadow-sm hover:bg-[#1667b8]">
-              <Download className="mr-2 h-4 w-4" />
+            <Select value={project} onValueChange={setProject}>
+              <SelectTrigger className="h-9 w-48 rounded-lg border-slate-200 bg-white text-sm text-slate-700 shadow-sm">
+                <SelectValue placeholder="Select Project" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all-projects">All Projects</SelectItem>
+                {projectOptions.map((proj) => (
+                  <SelectItem key={proj._id} value={proj._id}>
+                    {proj.jobId ? `${proj.jobId} - ${proj.projectName}` : proj.projectName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              onClick={handleExport}
+              disabled={exportExpensesMutation.isPending}
+              className="h-9 rounded-lg bg-[#1976d2] px-4 text-sm font-medium text-white shadow-sm hover:bg-[#1667b8]"
+            >
+              {exportExpensesMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
               Export Report
             </Button>
           </div>
@@ -276,22 +198,17 @@ export default function ProfitLossPage() {
           ))}
         </div>
 
-        <ProfitLossSummaryTable
-          incomeRows={summaryIncomeRows}
-          expenseRows={summaryExpenseRows}
-          totalExpensesRow={totalExpensesRow}
-          grossProfitRow={grossProfitRow}
-          netProfitRow={netProfitRow}
-        />
+        <ProfitLossSummaryTable summaryItems={plData?.summary} />
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           <IncomeVsExpenseTrendChart
             totalRevenue={plData?.totalRevenue}
             totalExpenses={plData?.totalExpenses}
+            trendData={plData?.incomeVsExpenseTrend}
           />
 
           <ProfitLossExpenseBreakdownChart
-            expenseBreakdown={expenseBreakdown}
+            expenseBreakdown={plData?.expenseBreakdown}
             totalExpenses={plData?.totalExpenses}
           />
         </div>
