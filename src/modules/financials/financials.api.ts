@@ -863,6 +863,21 @@ export async function getFinancialOverviewProvider(params?: GetFinancialOverview
   return response.data;
 }
 
+export async function exportFinancialOverviewProvider(params?: GetFinancialOverviewParams) {
+  const queryParams = new URLSearchParams();
+  if (params?.projectId) queryParams.append("projectId", params.projectId);
+  if (params?.startDate) queryParams.append("startDate", params.startDate);
+  if (params?.endDate) queryParams.append("endDate", params.endDate);
+
+  const queryString = queryParams.toString();
+  const url = `/api/admin/financials/financial-overview/export${queryString ? `?${queryString}` : ""}`;
+
+  const response = await apiClient.get(url, {
+    responseType: "blob",
+  });
+  return response.data;
+}
+
 
 
 
