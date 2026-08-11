@@ -22,6 +22,7 @@ import type { DateRange } from "react-day-picker";
 import {
   useFinancialOverviewQuery,
   useBudgetVsActualProjectsQuery,
+  useExportFinancialOverviewMutation,
 } from "@/modules/financials/financials.hooks";
 
 function StatCard({
@@ -68,6 +69,23 @@ export default function FinancialOverviewPage() {
 
   const { data: overviewRes, isLoading: isOverviewLoading } = useFinancialOverviewQuery(queryParams);
   const overviewData = overviewRes?.data;
+  const exportMutation = useExportFinancialOverviewMutation();
+
+  const handleExport = async () => {
+    try {
+      const blob = await exportMutation.mutateAsync(queryParams);
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `financial-overview-${Date.now()}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Export financial overview failed:", error);
+    }
+  };
 
 
   const statCards = [
@@ -150,8 +168,16 @@ export default function FinancialOverviewPage() {
           subtitle="Monitor your business financial performance and key metrics"
         />
 
-        <Button className="h-9 bg-violet-600 px-4 text-white hover:bg-violet-700">
-          <Download className="mr-2 h-4 w-4" />
+        <Button
+          onClick={handleExport}
+          disabled={exportMutation.isPending}
+          className="h-9 bg-violet-600 px-4 text-white hover:bg-violet-700"
+        >
+          {exportMutation.isPending ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="mr-2 h-4 w-4" />
+          )}
           Export
         </Button>
       </div>
