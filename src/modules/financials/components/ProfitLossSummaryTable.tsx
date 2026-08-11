@@ -1,38 +1,32 @@
-export type SummaryRow = {
-  label: string;
-  thisPeriod: string;
-  lastPeriod: string;
-  varianceAmount: string;
-  variancePercent: string;
-  tone?: "income" | "expense" | "total";
-};
-
-export type SummaryTotalsRow = {
-  label: string;
-  thisPeriod: string;
-  lastPeriod: string;
-  varianceAmount: string;
-  variancePercent: string;
-  rowTone: "expense-total" | "gross-profit" | "net-profit";
-};
+import type { ProfitLossSummaryItem } from "../financials.api";
 
 interface ProfitLossSummaryTableProps {
-  incomeRows: SummaryRow[];
-  expenseRows: SummaryRow[];
-  totalExpensesRow: SummaryTotalsRow;
-  grossProfitRow: SummaryTotalsRow;
-  netProfitRow: SummaryTotalsRow;
+  summaryItems?: ProfitLossSummaryItem[];
   currencyLabel?: string;
 }
 
+const formatCurrency = (val?: number) => {
+  if (val === undefined || val === null) return "$0.00";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  }).format(val);
+};
+
+const formatPct = (pct?: number) => {
+  if (pct === undefined || pct === null) return "0.00%";
+  return `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
+};
+
 export default function ProfitLossSummaryTable({
-  incomeRows,
-  expenseRows,
-  totalExpensesRow,
-  grossProfitRow,
-  netProfitRow,
+  summaryItems = [],
   currencyLabel = "All Amounts are in USD",
 }: ProfitLossSummaryTableProps) {
+  const incomeItems = summaryItems.filter((item) => item.section === "income");
+  const expenseItems = summaryItems.filter((item) => item.section === "expenses");
+  const profitItems = summaryItems.filter((item) => item.section === "profit");
+
   return (
     <div className="rounded-2xl border border-white/80 bg-white shadow-[0_10px_30px_rgba(148,163,184,0.12)]">
       <div className="border-b border-slate-200 px-4 py-4 sm:px-5">
@@ -66,130 +60,148 @@ export default function ProfitLossSummaryTable({
           </thead>
 
           <tbody>
-            <tr className="bg-white">
-              <td className="px-4 py-2 text-sm font-semibold text-emerald-500">
-                Income
-              </td>
-              <td />
-              <td />
-              <td />
-              <td />
-            </tr>
+            {/* Income Section */}
+            {incomeItems.length > 0 && (
+              <>
+                <tr className="bg-white">
+                  <td className="px-4 py-2 text-sm font-semibold text-emerald-500">
+                    Income
+                  </td>
+                  <td />
+                  <td />
+                  <td />
+                  <td />
+                </tr>
 
-            {incomeRows.map((row) => (
-              <tr
-                key={row.label}
-                className={
-                  row.tone === "total" ? "bg-emerald-50" : "bg-white"
-                }
-              >
-                <td
-                  className={`px-4 py-2 text-sm ${
-                    row.tone === "total"
-                      ? "font-semibold text-slate-900"
-                      : "text-slate-600"
-                  }`}
+                {incomeItems.map((item) => (
+                  <tr
+                    key={item.particulars}
+                    className={item.bold ? "bg-emerald-50" : "bg-white"}
+                  >
+                    <td
+                      className={`px-4 py-2 text-sm ${
+                        item.bold
+                          ? "font-semibold text-slate-900"
+                          : "text-slate-600"
+                      } ${item.underline ? "underline" : ""}`}
+                    >
+                      {item.particulars}
+                    </td>
+                    <td
+                      className={`px-4 py-2 text-sm ${
+                        item.bold ? "font-semibold text-slate-900" : "text-slate-600"
+                      }`}
+                    >
+                      {formatCurrency(item.thisPeriod)}
+                    </td>
+                    <td
+                      className={`px-4 py-2 text-sm ${
+                        item.bold ? "font-semibold text-slate-900" : "text-slate-600"
+                      }`}
+                    >
+                      {formatCurrency(item.lastPeriod)}
+                    </td>
+                    <td
+                      className={`px-4 py-2 text-sm ${
+                        item.bold ? "font-semibold text-slate-900" : "text-slate-600"
+                      }`}
+                    >
+                      {formatCurrency(item.variance.amount)}
+                    </td>
+                    <td className="px-4 py-2 text-sm font-semibold text-emerald-500">
+                      {formatPct(item.variance.pct)}
+                    </td>
+                  </tr>
+                ))}
+              </>
+            )}
+
+            {/* Expense Section */}
+            {expenseItems.length > 0 && (
+              <>
+                <tr className="bg-white">
+                  <td className="px-4 py-2 text-sm font-semibold text-rose-500">
+                    Expenses
+                  </td>
+                  <td />
+                  <td />
+                  <td />
+                  <td />
+                </tr>
+
+                {expenseItems.map((item) => (
+                  <tr
+                    key={item.particulars}
+                    className={item.bold ? "bg-rose-50/70" : "bg-white"}
+                  >
+                    <td
+                      className={`px-4 py-2 text-sm ${
+                        item.bold
+                          ? "font-semibold text-slate-900"
+                          : "text-slate-600"
+                      } ${item.underline ? "underline" : ""}`}
+                    >
+                      {item.particulars}
+                    </td>
+                    <td
+                      className={`px-4 py-2 text-sm ${
+                        item.bold ? "font-semibold text-slate-900" : "text-slate-600"
+                      }`}
+                    >
+                      {formatCurrency(item.thisPeriod)}
+                    </td>
+                    <td
+                      className={`px-4 py-2 text-sm ${
+                        item.bold ? "font-semibold text-slate-900" : "text-slate-600"
+                      }`}
+                    >
+                      {formatCurrency(item.lastPeriod)}
+                    </td>
+                    <td
+                      className={`px-4 py-2 text-sm ${
+                        item.bold ? "font-semibold text-slate-900" : "text-slate-600"
+                      }`}
+                    >
+                      {formatCurrency(item.variance.amount)}
+                    </td>
+                    <td className="px-4 py-2 text-sm font-semibold text-rose-500">
+                      {formatPct(item.variance.pct)}
+                    </td>
+                  </tr>
+                ))}
+              </>
+            )}
+
+            {/* Profit Section */}
+            {profitItems.map((item) => {
+              const isNet = item.particulars.toLowerCase().includes("net profit");
+              return (
+                <tr
+                  key={item.particulars}
+                  className={isNet ? "bg-blue-50/80" : "bg-emerald-50/70"}
                 >
-                  {row.label}
-                </td>
-                <td className="px-4 py-2 text-sm text-slate-600">
-                  {row.thisPeriod}
-                </td>
-                <td className="px-4 py-2 text-sm text-slate-600">
-                  {row.lastPeriod}
-                </td>
-                <td className="px-4 py-2 text-sm text-slate-600">
-                  {row.varianceAmount}
-                </td>
-                <td className="px-4 py-2 text-sm font-semibold text-emerald-500">
-                  {row.variancePercent}
-                </td>
-              </tr>
-            ))}
-
-            <tr className="bg-white">
-              <td className="px-4 py-2 text-sm font-semibold text-rose-500">
-                Expenses
-              </td>
-              <td />
-              <td />
-              <td />
-              <td />
-            </tr>
-
-            {expenseRows.map((row) => (
-              <tr key={row.label} className="bg-white">
-                <td className="px-4 py-2 text-sm text-slate-600">
-                  {row.label}
-                </td>
-                <td className="px-4 py-2 text-sm text-slate-600">
-                  {row.thisPeriod}
-                </td>
-                <td className="px-4 py-2 text-sm text-slate-600">
-                  {row.lastPeriod}
-                </td>
-                <td className="px-4 py-2 text-sm text-slate-600">
-                  {row.varianceAmount}
-                </td>
-                <td className="px-4 py-2 text-sm font-semibold text-rose-500">
-                  {row.variancePercent}
-                </td>
-              </tr>
-            ))}
-
-            <tr className="bg-rose-50/70">
-              <td className="px-4 py-2 text-sm font-semibold text-slate-900">
-                {totalExpensesRow.label}
-              </td>
-              <td className="px-4 py-2 text-sm font-semibold text-slate-900">
-                {totalExpensesRow.thisPeriod}
-              </td>
-              <td className="px-4 py-2 text-sm font-semibold text-slate-900">
-                {totalExpensesRow.lastPeriod}
-              </td>
-              <td className="px-4 py-2 text-sm font-semibold text-slate-900">
-                {totalExpensesRow.varianceAmount}
-              </td>
-              <td className="px-4 py-2 text-sm font-semibold text-rose-500">
-                {totalExpensesRow.variancePercent}
-              </td>
-            </tr>
-
-            <tr className="bg-emerald-50/70">
-              <td className="px-4 py-2 text-sm font-semibold text-slate-900">
-                {grossProfitRow.label}
-              </td>
-              <td className="px-4 py-2 text-sm font-semibold text-slate-900">
-                {grossProfitRow.thisPeriod}
-              </td>
-              <td className="px-4 py-2 text-sm font-semibold text-slate-900">
-                {grossProfitRow.lastPeriod}
-              </td>
-              <td className="px-4 py-2 text-sm font-semibold text-slate-900">
-                {grossProfitRow.varianceAmount}
-              </td>
-              <td className="px-4 py-2 text-sm font-semibold text-emerald-500">
-                {grossProfitRow.variancePercent}
-              </td>
-            </tr>
-
-            <tr className="bg-blue-50/80">
-              <td className="px-4 py-2 text-sm font-semibold text-blue-700">
-                {netProfitRow.label}
-              </td>
-              <td className="px-4 py-2 text-sm font-semibold text-slate-900">
-                {netProfitRow.thisPeriod}
-              </td>
-              <td className="px-4 py-2 text-sm font-semibold text-slate-900">
-                {netProfitRow.lastPeriod}
-              </td>
-              <td className="px-4 py-2 text-sm font-semibold text-slate-900">
-                {netProfitRow.varianceAmount}
-              </td>
-              <td className="px-4 py-2 text-sm font-semibold text-emerald-500">
-                {netProfitRow.variancePercent}
-              </td>
-            </tr>
+                  <td
+                    className={`px-4 py-2 text-sm font-semibold ${
+                      isNet ? "text-blue-700" : "text-slate-900"
+                    } ${item.underline ? "underline" : ""}`}
+                  >
+                    {item.particulars}
+                  </td>
+                  <td className="px-4 py-2 text-sm font-semibold text-slate-900">
+                    {formatCurrency(item.thisPeriod)}
+                  </td>
+                  <td className="px-4 py-2 text-sm font-semibold text-slate-900">
+                    {formatCurrency(item.lastPeriod)}
+                  </td>
+                  <td className="px-4 py-2 text-sm font-semibold text-slate-900">
+                    {formatCurrency(item.variance.amount)}
+                  </td>
+                  <td className="px-4 py-2 text-sm font-semibold text-emerald-500">
+                    {formatPct(item.variance.pct)}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
