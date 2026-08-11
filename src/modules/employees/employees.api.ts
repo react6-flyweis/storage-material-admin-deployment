@@ -231,9 +231,18 @@ export async function createAdminEmployeeProvider(data: CreateEmployeeData) {
 }
 
 export async function updateAdminEmployeeProvider(employeeId: string, data: UpdateEmployeeData) {
-  const response = await apiClient.put<{ success: boolean; message: string; data: any }>(
+  const response = await apiClient.put<{ success: boolean; message: string; data: unknown }>(
     `/api/admin/employees/${encodeURIComponent(employeeId)}`,
     data
   );
   return response.data;
 }
+
+export async function deleteAdminEmployeeProvider(employeeId: string) {
+  const response = await apiClient.delete<{ success: boolean; message: string; data?: unknown }>(
+    `/api/admin/employees/${encodeURIComponent(employeeId)}`,
+  );
+  return response.data;
+}
+
+
