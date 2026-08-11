@@ -205,6 +205,42 @@ export async function getExpensesProvider(params?: GetExpensesParams) {
   return response.data;
 }
 
+export async function exportExpensesProvider(params?: GetExpensesParams) {
+  const queryParams = new URLSearchParams();
+  if (params?.projectId) queryParams.append("projectId", params.projectId);
+  if (params?.buildingLabel) queryParams.append("buildingLabel", params.buildingLabel);
+  if (params?.status) queryParams.append("status", params.status);
+  if (params?.category) queryParams.append("category", params.category);
+  if (params?.startDate) queryParams.append("startDate", params.startDate);
+  if (params?.endDate) queryParams.append("endDate", params.endDate);
+
+  const queryString = queryParams.toString();
+  const url = `/api/admin/financials/expenses/export${queryString ? `?${queryString}` : ""}`;
+
+  const response = await apiClient.get(url, {
+    responseType: "blob",
+  });
+  return response.data;
+}
+
+export type ImportExpensesPayload = {
+  csv: string;
+};
+
+export type ImportExpensesResponse = {
+  success: boolean;
+  message: string;
+  data?: unknown;
+};
+
+export async function importExpensesProvider(payload: ImportExpensesPayload) {
+  const response = await apiClient.post<ImportExpensesResponse>(
+    "/api/admin/financials/expenses/import",
+    payload
+  );
+  return response.data;
+}
+
 export type ExpenseCategoryApiItem = {
   _id: string;
   name: string;
@@ -380,11 +416,23 @@ export async function addWipPaymentProvider(
   return response.data;
 }
 
-export type ProfitLossSummaryPeriod = {
-  totalRevenue: number;
-  totalExpenses: number;
-  grossProfit: number;
-  netProfit?: number;
+export type ProfitLossTrendItem = {
+  date: string;
+  income: number;
+  expense: number;
+};
+
+export type ProfitLossSummaryItem = {
+  particulars: string;
+  section: "income" | "expenses" | "profit";
+  bold?: boolean;
+  underline?: boolean;
+  thisPeriod: number;
+  lastPeriod: number;
+  variance: {
+    amount: number;
+    pct: number;
+  };
 };
 
 export type ProfitLossIncomeBreakdown = {
@@ -407,12 +455,11 @@ export type ProfitLossData = {
   grossProfit: number;
   netProfit: number;
   netProfitMargin: number;
-  summary: {
-    thisMonth: ProfitLossSummaryPeriod;
-    lastMonth: ProfitLossSummaryPeriod;
-  };
-  incomeBreakdown: ProfitLossIncomeBreakdown;
-  expenseBreakdown: ProfitLossExpenseBreakdown;
+  incomeVsExpenseTrend?: ProfitLossTrendItem[];
+  summary?: ProfitLossSummaryItem[];
+  incomeBreakdown?: ProfitLossIncomeBreakdown;
+  expenseBreakdown?: ProfitLossExpenseBreakdown;
+  note?: string;
 };
 
 export type GetProfitLossResponse = {
@@ -421,10 +468,117 @@ export type GetProfitLossResponse = {
   data: ProfitLossData;
 };
 
-export async function getProfitLossProvider() {
-  const response = await apiClient.get<GetProfitLossResponse>(
-    "/api/admin/financials/profit-loss"
-  );
+export type ProfitLossPeriod = "monthly" | "quarterly" | "yearly";
+
+export type GetProfitLossParams = {
+  projectId?: string;
+  period?: ProfitLossPeriod;
+};
+
+export async function getProfitLossProvider(params?: GetProfitLossParams) {
+  const queryParams = new URLSearchParams();
+  if (params?.projectId) queryParams.append("projectId", params.projectId);
+  if (params?.period) queryParams.append("period", params.period);
+
+  const queryString = queryParams.toString();
+  const url = `/api/admin/financials/profit-loss${queryString ? `?${queryString}` : ""}`;
+
+  const response = await apiClient.get<GetProfitLossResponse>(url);
+  return response.data;
+}
+
+export type ProjectProfitLossItem = {
+  projectId: string;
+  leadId: string;
+  projectName: string;
+  revenue: number;
+  totalExpenses: number;
+  netProfit: number;
+  netProfitMargin: number;
+  status: string;
+};
+
+export type GetProjectProfitLossParams = {
+  page?: number;
+  limit?: number;
+};
+
+export type GetProjectProfitLossResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    projects: ProjectProfitLossItem[];
+    total: number;
+    page: number;
+    limit: number;
+  };
+};
+
+export async function getProjectProfitLossProvider(
+  params?: GetProjectProfitLossParams
+) {
+  const queryParams = new URLSearchParams();
+  if (params?.page) queryParams.append("page", params.page.toString());
+  if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+  const queryString = queryParams.toString();
+  const url = `/api/admin/financials/profit-loss/projects${queryString ? `?${queryString}` : ""}`;
+
+  const response = await apiClient.get<GetProjectProfitLossResponse>(url);
+  return response.data;
+}
+
+export type FreightCostItem = {
+  _id: string;
+  freightId?: string;
+  id?: string;
+  projectName?: string;
+  project?: string;
+  carrierName?: string;
+  carrier?: string;
+  deliveryId?: string;
+  date?: string;
+  cost?: number | string;
+  amount?: number;
+  status?: string;
+  [key: string]: unknown;
+};
+
+export type GetRecentFreightCostsParams = {
+  page?: number;
+  limit?: number;
+};
+
+export type GetRecentFreightCostsResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    costs: FreightCostItem[];
+    total: number;
+    page: number;
+    limit: number;
+  };
+};
+
+export async function getRecentFreightCostsProvider(
+  params?: GetRecentFreightCostsParams
+) {
+  const queryParams = new URLSearchParams();
+  if (params?.page) queryParams.append("page", params.page.toString());
+  if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+  const queryString = queryParams.toString();
+  const url = `/api/admin/financials/freight-cost-tracking/recent${queryString ? `?${queryString}` : ""}`;
+
+  const response = await apiClient.get<GetRecentFreightCostsResponse>(url);
+  return response.data;
+}
+
+export async function exportFreightCostsProvider() {
+  const url = `/api/admin/financials/freight-cost-tracking/export`;
+  const response = await apiClient.get(url, {
+    responseType: "blob",
+  });
   return response.data;
 }
 
@@ -503,6 +657,214 @@ export async function getMarginAnalysisProvider() {
   );
   return response.data;
 }
+
+export type MarginTrendPeriod = "month" | "quarter" | "year";
+
+export type GetMarginTrendParams = {
+  period?: MarginTrendPeriod;
+};
+
+export type MarginTrendApiItem = {
+  period: string;
+  revenue: number;
+  expense: number;
+  grossMarginPct: number;
+};
+
+export type MarginTrendData = {
+  period: MarginTrendPeriod;
+  trend: MarginTrendApiItem[];
+};
+
+export type GetMarginTrendResponse = {
+  success: boolean;
+  message: string;
+  data: MarginTrendData;
+};
+
+export async function getMarginTrendProvider(params?: GetMarginTrendParams) {
+  const queryParams = new URLSearchParams();
+  if (params?.period) queryParams.append("period", params.period);
+
+  const queryString = queryParams.toString();
+  const url = `/api/admin/financials/margin-analysis/trend${queryString ? `?${queryString}` : ""}`;
+
+  const response = await apiClient.get<GetMarginTrendResponse>(url);
+  return response.data;
+}
+
+export type MarginByProjectApiItem = {
+  leadId: string;
+  projectName: string;
+  jobId: string;
+  revenue: number;
+  expenses: number;
+  grossProfit: number;
+  grossMarginPct: number;
+};
+
+export type GetMarginByProjectParams = {
+  limit?: number;
+};
+
+export type GetMarginByProjectResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    projects: MarginByProjectApiItem[];
+  };
+};
+
+export async function getMarginByProjectProvider(params?: GetMarginByProjectParams) {
+  const queryParams = new URLSearchParams();
+  if (params?.limit) queryParams.append("limit", params.limit.toString());
+
+  const queryString = queryParams.toString();
+  const url = `/api/admin/financials/margin-analysis/by-project${queryString ? `?${queryString}` : ""}`;
+
+  const response = await apiClient.get<GetMarginByProjectResponse>(url);
+  return response.data;
+}
+
+
+
+export type BudgetVsActualProject = {
+  _id: string;
+  jobId: string;
+  projectName: string;
+};
+
+export type GetBudgetVsActualProjectsResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    projects: BudgetVsActualProject[];
+  };
+};
+
+export async function getBudgetVsActualProjectsProvider() {
+  const response = await apiClient.get<GetBudgetVsActualProjectsResponse>(
+    "/api/admin/financials/budget-vs-actual"
+  );
+  return response.data;
+}
+
+export type BudgetVsActualProjectDetailInfo = {
+  _id: string;
+  projectCode?: string;
+  projectName?: string;
+  location?: string;
+  projectManager?: string;
+};
+
+export type BudgetVsActualSummary = {
+  totalBudget: number;
+  totalActual: number;
+  totalVariance: number;
+  budgetUsedPct: number;
+  status: string;
+};
+
+export type BudgetVsActualCostHeadItem = {
+  head: string;
+  budget: number;
+  actual: number;
+  variance: number;
+  variancePct: number;
+  status: string;
+};
+
+export type BudgetVsActualProjectDetailData = {
+  project?: BudgetVsActualProjectDetailInfo;
+  budgetSummary?: BudgetVsActualSummary;
+  costHeads?: BudgetVsActualCostHeadItem[];
+};
+
+export type GetBudgetVsActualProjectDetailResponse = {
+  success: boolean;
+  message: string;
+  data: BudgetVsActualProjectDetailData;
+};
+
+export async function getBudgetVsActualProjectDetailProvider(leadId: string) {
+  const response = await apiClient.get<GetBudgetVsActualProjectDetailResponse>(
+    `/api/admin/financials/budget-vs-actual?leadId=${encodeURIComponent(leadId)}`
+  );
+  return response.data;
+}
+
+export type FinancialOverviewRevenueTrendItem = {
+  _id: {
+    year: number;
+    month: number;
+  };
+  revenue: number;
+};
+
+export type FinancialOverviewIncomeVsExpenseTrendItem = {
+  year: number;
+  month: number;
+  income: number;
+  expense: number;
+};
+
+export type FinancialOverviewProfitabilityBreakdown = {
+  costOfGoodsSold: number;
+  operatingExpenses: number;
+  otherIncome: number;
+  netProfit: number;
+  note?: string;
+};
+
+export type FinancialOverviewTopCustomer = {
+  _id: string;
+  revenue: number;
+  customer: {
+    firstName: string;
+    lastName: string;
+  };
+};
+
+export type FinancialOverviewData = {
+  totalRevenue: number;
+  grossProfit: number;
+  grossMargin: number;
+  netProfit: number;
+  operatingCashFlow: number;
+  revenueTrend: FinancialOverviewRevenueTrendItem[];
+  incomeVsExpenseTrend: FinancialOverviewIncomeVsExpenseTrendItem[];
+  profitabilityBreakdown: FinancialOverviewProfitabilityBreakdown;
+  totalExpenses: number;
+  topCustomers: FinancialOverviewTopCustomer[];
+};
+
+export type GetFinancialOverviewParams = {
+  projectId?: string;
+  startDate?: string;
+  endDate?: string;
+};
+
+export type GetFinancialOverviewResponse = {
+  success: boolean;
+  message: string;
+  data: FinancialOverviewData;
+};
+
+export async function getFinancialOverviewProvider(params?: GetFinancialOverviewParams) {
+  const queryParams = new URLSearchParams();
+  if (params?.projectId) queryParams.append("projectId", params.projectId);
+  if (params?.startDate) queryParams.append("startDate", params.startDate);
+  if (params?.endDate) queryParams.append("endDate", params.endDate);
+
+  const queryString = queryParams.toString();
+  const url = `/api/admin/financials/financial-overview${queryString ? `?${queryString}` : ""}`;
+
+  const response = await apiClient.get<GetFinancialOverviewResponse>(url);
+  return response.data;
+}
+
+
+
 
 
 
