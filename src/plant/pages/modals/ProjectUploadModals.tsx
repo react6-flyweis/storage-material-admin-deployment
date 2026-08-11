@@ -246,6 +246,11 @@ export const UploadModal: React.FC<UploadModalProps> = ({
             <input
               type="file"
               ref={fileInputRef}
+              accept={
+                allowedExtensions && allowedExtensions.length > 0
+                  ? allowedExtensions.map((e) => `.${e.toLowerCase().replace(/^\./, "")}`).join(",")
+                  : undefined
+              }
               onChange={handleFileChange}
               disabled={isUploading}
               className="hidden"

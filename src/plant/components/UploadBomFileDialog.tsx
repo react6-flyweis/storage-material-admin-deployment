@@ -11,7 +11,7 @@ import {
   useGenerateConsolidatedBOMMutation,
   type ProjectBuilding,
 } from "@/modules/plant/bom.hooks";
-import { uploadFileToS3 } from "@/lib/upload";
+import { UploadModal } from "@/plant/pages/modals/ProjectUploadModals";
 
 export interface UploadBomFileDialogProps {
   open?: boolean;
@@ -32,9 +32,11 @@ export default function UploadBomFileDialog({
   leadId = "",
   customerId,
   onUpload,
-  isUploading: isUploadingProp = false,
+  isUploading = false,
 }: UploadBomFileDialogProps) {
   const navigate = useNavigate();
+  // suppress unused parameter warning if needed
+  void isUploading;
 
   const dialogOpen = isOpen ?? open ?? false;
   const handleDialogClose = () => {
@@ -51,8 +53,6 @@ export default function UploadBomFileDialog({
   const { mutateAsync: generateConsolidatedBOM, isPending: isGenerating } = useGenerateConsolidatedBOMMutation();
 
   const [uploadingBuilding, setUploadingBuilding] = useState<ProjectBuilding | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isS3Uploading, setIsS3Uploading] = useState(false);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [successTitle, setSuccessTitle] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -116,28 +116,13 @@ export default function UploadBomFileDialog({
     return () => clearInterval(intervalId);
   }, [allPollingJobIds, getBomJobsStatusBatch, refetch]);
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
-    }
-  };
+  const handleUploadComplete = async (file: File, fileUrl: string) => {
+    if (!uploadingBuilding) return;
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setSelectedFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleUploadSubmit = async () => {
-    if (!selectedFile || !uploadingBuilding) return;
-
-    setIsS3Uploading(true);
     setErrorMessage(null);
 
     try {
-      const fileUrl = await uploadFileToS3(selectedFile, "boms");
-      const fileFormat = selectedFile.name.split(".").pop() || "txt";
+      const fileFormat = file.name.split(".").pop() || "txt";
 
       const result = await uploadProjectBoms({
         leadId,
@@ -145,7 +130,7 @@ export default function UploadBomFileDialog({
           {
             buildingId: uploadingBuilding.buildingId,
             fileUrl,
-            fileName: selectedFile.name,
+            fileName: file.name,
             fileFormat,
           },
         ],
@@ -156,18 +141,15 @@ export default function UploadBomFileDialog({
         setUploadedJobIds((prev) => Array.from(new Set([...prev, ...newJobIds])));
       }
 
-      if (onUpload) onUpload([selectedFile], uploadingBuilding.buildingId);
+      if (onUpload) onUpload([file], uploadingBuilding.buildingId);
       setSuccessTitle(`BOM for Building ${uploadingBuilding.buildingNumber} Uploaded Successfully`);
       setSuccessDialogOpen(true);
       setUploadingBuilding(null);
-      setSelectedFile(null);
     } catch (err: unknown) {
       console.error("Failed to upload BOM file:", err);
       const errorObj = err as { data?: { message?: string }; message?: string };
       const errMsg = errorObj?.data?.message || errorObj?.message || "Failed to upload BOM file.";
       setErrorMessage(errMsg);
-    } finally {
-      setIsS3Uploading(false);
     }
   };
 
@@ -307,7 +289,6 @@ export default function UploadBomFileDialog({
                             }
                             onClick={() => {
                               setUploadingBuilding(b);
-                              setSelectedFile(null);
                             }}
                           >
                             <Upload className="w-3.5 h-3.5 mr-1.5 shrink-0" />
@@ -358,80 +339,17 @@ export default function UploadBomFileDialog({
         </DialogContent>
       </Dialog>
 
-      {/* Upload File Sub-Dialog */}
+      {/* Upload File Sub-Dialog integrated with ProjectUploadModals UploadModal */}
       {uploadingBuilding && (
-        <Dialog open={!!uploadingBuilding} onOpenChange={() => setUploadingBuilding(null)}>
-          <DialogContent className="sm:max-w-[500px] p-6 rounded-2xl bg-white shadow-xl border-0">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b pb-3">
-                <h3 className="text-lg font-bold text-slate-900">
-                  Upload BOM: Building {uploadingBuilding.buildingNumber}
-                </h3>
-              </div>
-
-              <div
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={handleDrop}
-                className="border-2 border-dashed border-[#1D51A4]/30 rounded-xl bg-slate-50/50 p-8 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-blue-50/30 transition-colors relative"
-              >
-                <input
-                  type="file"
-                  accept=".txt,.out"
-                  onChange={handleFileSelect}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-                <div className="w-12 h-12 bg-[#1D51A4] text-white rounded-xl flex items-center justify-center mb-3">
-                  <Upload className="w-6 h-6" />
-                </div>
-                <p className="text-sm font-medium text-slate-900 mb-1">
-                  Drag & drop BOM file here, or click to browse
-                </p>
-                <p className="text-xs text-slate-500">
-                  Supports .txt, .out
-                </p>
-              </div>
-
-              {selectedFile && (
-                <div className="p-3 bg-blue-50/60 border border-blue-100 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <FileText className="w-5 h-5 text-[#1D51A4] shrink-0" />
-                    <span className="text-sm font-medium text-slate-800 truncate">
-                      {selectedFile.name}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedFile(null)}
-                    className="text-slate-400 hover:text-slate-600 p-1"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-3 pt-2">
-                <Button
-                  variant="outline"
-                  className="rounded-xl border-slate-200"
-                  onClick={() => setUploadingBuilding(null)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  disabled={!selectedFile || isS3Uploading || isUploadingProp}
-                  className="rounded-xl bg-[#1D51A4] hover:bg-[#1D51A4]/90 text-white px-6 flex items-center gap-2"
-                  onClick={handleUploadSubmit}
-                >
-                  {isS3Uploading || isUploadingProp ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    "Submit"
-                  )}
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <UploadModal
+          isOpen={!!uploadingBuilding}
+          onClose={() => setUploadingBuilding(null)}
+          title={`Upload BOM: Building ${uploadingBuilding.buildingNumber}`}
+          subtitle="Upload or drop your BOM file (.out)"
+          folder="boms"
+          allowedExtensions={["out"]}
+          onUpload={handleUploadComplete}
+        />
       )}
 
       <SuccessDialog
