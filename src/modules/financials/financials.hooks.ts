@@ -25,6 +25,7 @@ import {
   getBudgetVsActualProjectsProvider,
   getBudgetVsActualProjectDetailProvider,
   getFinancialOverviewProvider,
+  exportFinancialOverviewProvider,
   type GetWipProfitsParams,
   type GetExpensesParams,
   type GetProfitLossParams,
@@ -252,6 +253,12 @@ export function useFinancialOverviewQuery(params?: GetFinancialOverviewParams) {
     queryKey: ["financials", "financial-overview", params],
     queryFn: () => getFinancialOverviewProvider(params),
     staleTime: 60 * 1000,
+  });
+}
+
+export function useExportFinancialOverviewMutation() {
+  return useMutation({
+    mutationFn: (params?: GetFinancialOverviewParams) => exportFinancialOverviewProvider(params),
   });
 }
 
