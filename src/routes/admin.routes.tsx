@@ -191,6 +191,9 @@ const MarginAnalysisPage = lazy(
   () => import("@/pages/finance/margin-analysis"),
 );
 const BudgetActualPage = lazy(() => import("@/pages/finance/budget-actual"));
+const BudgetActualProjectPage = lazy(
+  () => import("@/pages/finance/budget-actual-project"),
+);
 
 // Invoice section
 const InvoiceForm = lazy(() => import("@/pages/invoices/invoice-form"));
@@ -684,6 +687,7 @@ export const adminRoutes: RouteObject[] = [
             children: [
               { index: true, element: <FinancialOverview /> },
               { path: "budget-actual", element: <BudgetActualPage /> },
+              { path: "budget-actual/:projectId", element: <BudgetActualProjectPage /> },
               { path: "wip-profits", element: <WipProfitsPage /> },
               { path: "profit-loss", element: <ProfitLossPage /> },
               { path: "expenses", element: <ExpensesManagement /> },
