@@ -106,12 +106,14 @@ export default function DateRangeFilter({ value, onChange, className }: Props) {
   const handleSelect = (selection: RDateRange | undefined) => {
     setDraftRange(selection);
     setActivePreset(findPresetKey(selection));
+    onChange?.(selection);
   };
 
   const handlePreset = (preset: (typeof presetOptions)[number]) => {
     const selection = preset.compute();
     setDraftRange(selection);
     setActivePreset(preset.key);
+    onChange?.(selection);
   };
 
   const handleApply = () => {
@@ -147,7 +149,25 @@ export default function DateRangeFilter({ value, onChange, className }: Props) {
             placeholder="Select date range"
             className={cn("min-w-40 w-full pr-9 placeholder:text-gray-400")}
           />
-          <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 size-4 pointer-events-none" />
+          {value?.from || value?.to ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setDraftRange(undefined);
+                setActivePreset(undefined);
+                onChange?.(undefined);
+              }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+            >
+              <CalendarIcon className="hidden" />
+              <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          ) : (
+            <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 size-4 pointer-events-none" />
+          )}
         </div>
       </PopoverTrigger>
       <PopoverContent className="w-auto max-h-[50vh] overflow-y-auto p-4 rounded-xl">
