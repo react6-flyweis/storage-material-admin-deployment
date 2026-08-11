@@ -20,27 +20,8 @@ export type IncomeExpenseTrendItem = {
 interface IncomeVsExpenseTrendChartProps {
   totalRevenue?: number;
   totalExpenses?: number;
-  trendData?: IncomeExpenseTrendItem[];
+  trendData?: { date: string; income: number; expense: number }[];
 }
-
-// const DEFAULT_MOCK_TREND_DATA: IncomeExpenseTrendItem[] = [
-//   { name: "Mon", income: 5000, expenses: 5000 },
-//   { name: "Tue", income: 16000, expenses: 27000 },
-//   { name: "Wed", income: 16000, expenses: 45000 },
-//   { name: "Thu", income: 26000, expenses: 37000 },
-//   { name: "Fri", income: 34000, expenses: 49000 },
-//   { name: "Sat", income: 23000, expenses: 52000 },
-//   { name: "Sun", income: 25000, expenses: 21000 },
-//   { name: "Mon", income: 28000, expenses: 39000 },
-//   { name: "Tue", income: 36000, expenses: 48000 },
-//   { name: "Wed", income: 39000, expenses: 52000 },
-//   { name: "Thu", income: 42000, expenses: 21000 },
-//   { name: "Fri", income: 32000, expenses: 14000 },
-//   { name: "Sat", income: 26000, expenses: 27000 },
-//   { name: "Sun", income: 34000, expenses: 37000 },
-//   { name: "Mon", income: 42000, expenses: 21000 },
-//   { name: "Tue", income: 30000, expenses: 41000 },
-// ];
 
 const formatCurrency = (val?: number) => {
   if (val === undefined || val === null) return "$0";
@@ -66,7 +47,11 @@ export default function IncomeVsExpenseTrendChart({
 }: IncomeVsExpenseTrendChartProps) {
   const [activeTab, setActiveTab] = useState<"income" | "expenses">("income");
 
-  const activeData = trendData;
+  const activeData: IncomeExpenseTrendItem[] = trendData.map((item) => ({
+    name: item.date ? item.date.slice(5) : "",
+    income: item.income,
+    expenses: item.expense,
+  }));
 
   const computedTotalIncome =
     totalRevenue ??
