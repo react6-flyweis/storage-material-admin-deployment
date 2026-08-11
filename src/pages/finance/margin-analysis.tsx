@@ -1,5 +1,7 @@
 import { useState } from "react";
 import TitleSubtitle from "@/components/TitleSubtitle";
+import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -12,17 +14,32 @@ import MarginStatCard from "@/components/finance/margin-stat-card";
 import MarginTrendOverTimeChart from "@/components/finance/margin-trend-over-time-chart";
 import MarginByProjectsChart from "@/components/finance/margin-by-projects-chart";
 import MarginProfitLossSummaryTable from "@/components/finance/margin-profit-loss-summary-table";
-import { useMarginAnalysisQuery } from "@/modules/financials/financials.hooks";
+import {
+  useMarginAnalysisQuery,
+  useBudgetVsActualProjectsQuery,
+} from "@/modules/financials/financials.hooks";
 import type { DateRange } from "react-day-picker";
 
 export default function MarginAnalysisPage() {
-  const [company, setCompany] = useState("all-companies");
+  // const [company, setCompany] = useState("all-companies");
+  // const [currency, setCurrency] = useState("usd");
   const [project, setProject] = useState("all-projects");
-  const [currency, setCurrency] = useState("usd");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+  const { data: projectsRes } = useBudgetVsActualProjectsQuery();
+  const projectOptions = projectsRes?.data?.projects || [];
 
   const { data, isLoading } = useMarginAnalysisQuery();
   const marginData = data?.data;
+
+  const isFiltered =
+    project !== "all-projects" ||
+    Boolean(dateRange?.from || dateRange?.to);
+
+  const handleClearFilters = () => {
+    setProject("all-projects");
+    setDateRange(undefined);
+  };
 
   const summaryCards = [
     {
@@ -51,9 +68,9 @@ export default function MarginAnalysisPage() {
       title: "Avg Selling Price",
       value: marginData
         ? new Intl.NumberFormat("en-US", {
-            style: "currency",
-            currency: "USD",
-          }).format(marginData.avgSellingPrice)
+          style: "currency",
+          currency: "USD",
+        }).format(marginData.avgSellingPrice)
         : "-",
       growth: "+12.5%",
     },
@@ -67,7 +84,7 @@ export default function MarginAnalysisPage() {
       />
 
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={company} onValueChange={setCompany}>
+        {/* <Select value={company} onValueChange={setCompany}>
           <SelectTrigger className="h-9 w-auto min-w-36 bg-white">
             <SelectValue />
           </SelectTrigger>
@@ -76,20 +93,23 @@ export default function MarginAnalysisPage() {
             <SelectItem value="company-1">Company 1</SelectItem>
             <SelectItem value="company-2">Company 2</SelectItem>
           </SelectContent>
-        </Select>
+        </Select> */}
 
         <Select value={project} onValueChange={setProject}>
-          <SelectTrigger className="h-9 w-auto min-w-36 bg-white">
-            <SelectValue />
+          <SelectTrigger className="h-9 w-auto min-w-48 bg-white">
+            <SelectValue placeholder="Select Project" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all-projects">All Projects</SelectItem>
-            <SelectItem value="project-a">Project A</SelectItem>
-            <SelectItem value="project-b">Project B</SelectItem>
+            {projectOptions.map((proj) => (
+              <SelectItem key={proj._id} value={proj._id}>
+                {proj.jobId ? `${proj.jobId} - ${proj.projectName}` : proj.projectName}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
-        <Select value={currency} onValueChange={setCurrency}>
+        {/* <Select value={currency} onValueChange={setCurrency}>
           <SelectTrigger className="h-9 w-auto min-w-44 bg-white">
             <SelectValue />
           </SelectTrigger>
@@ -98,13 +118,24 @@ export default function MarginAnalysisPage() {
             <SelectItem value="eur">EUR</SelectItem>
             <SelectItem value="gbp">GBP</SelectItem>
           </SelectContent>
-        </Select>
+        </Select> */}
 
         <DateRangeFilter
           value={dateRange}
           onChange={setDateRange}
           className="min-w-56 bg-white"
         />
+
+        {isFiltered && (
+          <Button
+            variant="ghost"
+            onClick={handleClearFilters}
+            className="h-9 px-3 text-xs font-medium text-slate-600 hover:text-slate-900"
+          >
+            <X className="mr-1.5 h-3.5 w-3.5" />
+            Clear Filters
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
