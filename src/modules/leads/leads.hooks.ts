@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSocket } from "@/utils/socketContextProvider";
 import { apiClient } from "@/modules/auth/auth.api";
 import {
   getLeadsProvider,
@@ -20,9 +22,12 @@ import {
   type LeadBudgetPayload,
   terminateLeadProvider,
   type TerminateLeadPayload,
+  deleteLeadProvider,
   createLeadProvider,
   type CreateLeadPayload,
   uploadLeadDocumentProvider,
+  getAdminLeadsProvider,
+  getLeadsStatsProvider,
 } from "./leads.api";
 
 type EscalationStatus = "pending" | "assigned" | "resolved";
@@ -77,7 +82,7 @@ async function getEscalationsProvider(status: string = "pending", page: number =
     page: page.toString(),
     limit: limit.toString()
   });
-  
+
   const response = await apiClient.get<EscalationsResponse>(
     `/api/admin/escalations?${params.toString()}`,
   );
@@ -296,6 +301,16 @@ export function useTerminateLeadMutation() {
   });
 }
 
+export function useDeleteLeadMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (leadId: string) => deleteLeadProvider(leadId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+  });
+}
+
 export function useCreateLeadMutation() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -327,5 +342,77 @@ export function useUploadLeadDocumentMutation() {
       });
     },
   });
+}
+
+
+type LeadRecord = {
+  _id: string;
+  [key: string]: unknown;
+};
+
+type LeadsAdminListResponse = {
+  data?: {
+    leads?: LeadRecord[];
+    total?: number;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+};
+
+export function useAdminLeadsQuery(filters: Record<string, unknown>) {
+  return useQuery({
+    queryKey: ["leads", "admin", "list", filters],
+    queryFn: () => getAdminLeadsProvider(filters),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useAdminLeadsStatsQuery(startDate?: string, endDate?: string) {
+  return useQuery({
+    queryKey: ["leads", "admin", "stats", startDate, endDate],
+    queryFn: () => getLeadsStatsProvider(startDate, endDate),
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useLeadsSocketSync() {
+  const queryClient = useQueryClient();
+  const { socket } = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleUpsert = ({ lead }: { lead: LeadRecord }) => {
+      queryClient.setQueriesData({ queryKey: ["leads", "admin", "list"] }, (oldData: unknown) => {
+        const typedData = oldData as LeadsAdminListResponse | undefined;
+        if (!typedData?.data?.leads) return oldData;
+        const list = typedData.data.leads;
+        const idx = list.findIndex((x) => String(x._id) === String(lead._id));
+
+        let nextList = [...list];
+        if (idx === -1) {
+          nextList = [lead, ...nextList];
+        } else {
+          nextList[idx] = lead;
+        }
+
+        return {
+          ...typedData,
+          data: {
+            ...typedData.data,
+            leads: nextList,
+          },
+        };
+      });
+    };
+
+    socket.on("lead_list_created", handleUpsert);
+    socket.on("lead_list_updated", handleUpsert);
+
+    return () => {
+      socket.off("lead_list_created", handleUpsert);
+      socket.off("lead_list_updated", handleUpsert);
+    };
+  }, [socket, queryClient]);
 }
 
