@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Upload, ChevronLeft, ChevronRight } from "lucide-react";
+import { Upload, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -18,161 +18,134 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AddProductDialog } from "@/components/add-product-dialog";
+import {
+  useProductsQuery,
+  useProductCategoriesQuery,
+  useExportProductsMutation,
+} from "@/modules/products/products.hooks";
 
-const categoryOptions = ["Structure", "Panels", "Hardware", "Trims", "Opening"];
-
-const subcategoryOptions = [
-  "Primary frame",
-  "Secondary frame",
-  "Roof panels",
-  "Wall Panels",
-  "Doors",
+const pricingTypeOptions = [
+  { label: "Per lb", value: "per_lb" },
+  { label: "Per sq ft", value: "per_sq_ft" },
+  { label: "Per linear ft", value: "per_linear_ft" },
+  { label: "Per qty", value: "per_qty" },
 ];
-
-const pricingTypeOptions = ["Per lb", "Per sq ft", "Per linear ft"];
-
-const vendorOptions = ["Vendor A", "Vendor B", "Vendor C"];
 
 const statusOptions = ["Active", "Inactive"];
 
+const getCategoryColor = (category?: string) => {
+  switch (category?.toLowerCase()) {
+    case "structure":
+      return "bg-gray-100 text-gray-800";
+    case "panels":
+      return "bg-blue-50 text-blue-600";
+    case "hardware":
+      return "bg-gray-100 text-gray-800";
+    case "trims":
+      return "bg-orange-50 text-orange-500";
+    case "opening":
+      return "bg-purple-50 text-purple-600";
+    case "accessories":
+      return "bg-pink-50 text-pink-600";
+    default:
+      return "bg-gray-100 text-gray-800";
+  }
+};
+
+const formatPricingType = (pricingType?: string) => {
+  if (!pricingType) return "-";
+  if (pricingType === "per_lb") return "Per lb";
+  if (pricingType === "per_sq_ft") return "Per sq ft";
+  if (pricingType === "per_linear_ft") return "Per linear ft";
+  if (pricingType === "per_qty") return "Per qty";
+  return pricingType;
+};
+
 export default function ProductLibrary() {
   const [searchTerm, setSearchTerm] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [subcategoryFilter, setSubcategoryFilter] = useState("all");
+  const [pricingTypeFilter, setPricingTypeFilter] = useState("all");
+  const [vendorFilter, setVendorFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
 
-  const products = [
-    {
-      id: 1,
-      name: "Main Frame (steel)",
-      category: "Structure",
-      subcategory: "Primary Frame",
-      sku: "ST-MF-001",
-      pricingType: "Per lb",
-      unit: "lb",
-      baseCost: "$2.40",
-      markup: "30%",
-      catColor: "bg-gray-100 text-gray-800",
-    },
-    {
-      id: 2,
-      name: "Purlin (Galvanized)",
-      category: "Panels",
-      subcategory: "Secondary Frame",
-      sku: "ST-MF-001",
-      pricingType: "Per lb",
-      unit: "lb",
-      baseCost: "$165.90",
-      markup: "28%",
-      catColor: "bg-blue-50 text-blue-600",
-    },
-    {
-      id: 3,
-      name: "Ridge Cap",
-      category: "Hardware",
-      subcategory: "Roof Panels",
-      sku: "ST-MF-001",
-      pricingType: "Per sq ft",
-      unit: "sq ft",
-      baseCost: "$2.40",
-      markup: "25%",
-      catColor: "bg-gray-100 text-gray-800",
-    },
-    {
-      id: 4,
-      name: "Self Drilling Screw",
-      category: "Panels",
-      subcategory: "Wall Panels",
-      sku: "ST-MF-001",
-      pricingType: "Per linear ft",
-      unit: "ft",
-      baseCost: "$165.90",
-      markup: "25%",
-      catColor: "bg-blue-50 text-blue-600",
-    },
-    {
-      id: 5,
-      name: "Self Drilling Screw",
-      category: "Trims",
-      subcategory: "Wall Panels",
-      sku: "ST-MF-001",
-      pricingType: "Per qty",
-      unit: "pcs",
-      baseCost: "$60.76",
-      markup: "30%",
-      catColor: "bg-orange-50 text-orange-500",
-    },
-    {
-      id: 6,
-      name: "Roof Panel (26 Gauge)",
-      category: "Structure",
-      subcategory: "Wall Panels",
-      sku: "ST-MF-001",
-      pricingType: "Per sq ft",
-      unit: "sq ft",
-      baseCost: "$2.40",
-      markup: "25%",
-      catColor: "bg-gray-100 text-gray-800",
-    },
-    {
-      id: 7,
-      name: "Roll Up Door",
-      category: "Trims",
-      subcategory: "Roof Trims",
-      sku: "ST-MF-001",
-      pricingType: "Per qty",
-      unit: "pcs",
-      baseCost: "$60.76",
-      markup: "35%",
-      catColor: "bg-orange-50 text-orange-500",
-    },
-    {
-      id: 8,
-      name: "Self Drilling Screw",
-      category: "Opening",
-      subcategory: "Doors",
-      sku: "ST-MF-001",
-      pricingType: "Per qty",
-      unit: "pcs",
-      baseCost: "$60.76",
-      markup: "35%",
-      catColor: "bg-purple-50 text-purple-600",
-    },
-    {
-      id: 9,
-      name: "Wall Panel (26 Gauge)",
-      category: "Hardware",
-      subcategory: "Fasteners",
-      sku: "ST-MF-001",
-      pricingType: "Per qty",
-      unit: "pcs",
-      baseCost: "$60.76",
-      markup: "35%",
-      catColor: "bg-gray-100 text-gray-800",
-    },
-    {
-      id: 10,
-      name: "Self Drilling Screw",
-      category: "Accessories",
-      subcategory: "Fasteners",
-      sku: "ST-MF-001",
-      pricingType: "Per qty",
-      unit: "pcs",
-      baseCost: "$60.76",
-      markup: "35%",
-      catColor: "bg-pink-50 text-pink-600",
-    },
-    {
-      id: 11,
-      name: "Self Drilling Screw",
-      category: "Accessories",
-      subcategory: "Fasteners",
-      sku: "ST-MF-001",
-      pricingType: "Per qty",
-      unit: "pcs",
-      baseCost: "$60.76",
-      markup: "35%",
-      catColor: "bg-pink-50 text-pink-600",
-    },
-  ];
+  const hasActiveFilters =
+    searchTerm.trim() !== "" ||
+    categoryFilter !== "all" ||
+    subcategoryFilter !== "all" ||
+    pricingTypeFilter !== "all" ||
+    vendorFilter !== "all" ||
+    statusFilter !== "all";
+
+  const handleClearFilters = () => {
+    setSearchTerm("");
+    setCategoryFilter("all");
+    setSubcategoryFilter("all");
+    setPricingTypeFilter("all");
+    setVendorFilter("all");
+    setStatusFilter("all");
+    setPage(1);
+  };
+
+  const { data: categoriesData } = useProductCategoriesQuery();
+
+  const categoryOptions = categoriesData?.data?.categories || [];
+  const subcategoryOptions = categoriesData?.data?.subcategories || [];
+  const vendorOptions = categoriesData?.data?.vendors || [];
+
+  const { data, isLoading, isError, error } = useProductsQuery({
+    page,
+    limit,
+    search: searchTerm.trim() || undefined,
+    category: categoryFilter,
+    subcategory: subcategoryFilter,
+    pricingType: pricingTypeFilter,
+    vendor: vendorFilter,
+    status: statusFilter,
+  });
+
+  const exportMutation = useExportProductsMutation();
+
+  const handleExport = async () => {
+    try {
+      const blob = await exportMutation.mutateAsync({
+        search: searchTerm.trim() || undefined,
+        category: categoryFilter,
+        subcategory: subcategoryFilter,
+        pricingType: pricingTypeFilter,
+        vendor: vendorFilter,
+        status: statusFilter,
+      });
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `products_export_${new Date().toISOString().split("T")[0]}.csv`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed:", err);
+    }
+  };
+
+  const productsData = data?.data?.products || [];
+  const totalProducts = data?.data?.total || 0;
+  const totalPages = Math.ceil(totalProducts / limit) || 1;
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setPage(newPage);
+    }
+  };
 
   return (
     <div className="space-y-6 p-6">
@@ -180,13 +153,22 @@ export default function ProductLibrary() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Product Library</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Manage all products ,Pricing and configurations used in quotations
+            Manage all products, pricing and configurations used in quotations
             and projects
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" className="bg-white border-gray-200">
-            <Upload className="w-4 h-4 mr-2" />
+          <Button
+            variant="outline"
+            className="bg-white border-gray-200"
+            onClick={handleExport}
+            disabled={exportMutation.isPending}
+          >
+            {exportMutation.isPending ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Upload className="w-4 h-4 mr-2" />
+            )}
             Export
           </Button>
           <Button
@@ -199,76 +181,94 @@ export default function ProductLibrary() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
-        <Select defaultValue="all">
-          <SelectTrigger className="bg-white">
+        <Select
+          value={categoryFilter}
+          onValueChange={(val) => {
+            setCategoryFilter(val);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-full bg-white">
             <SelectValue placeholder="All Categories" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Categories</SelectItem>
             {categoryOptions.map((option) => (
-              <SelectItem
-                key={option}
-                value={option.toLowerCase().replace(/\s+/g, "-")}
-              >
+              <SelectItem key={option} value={option}>
                 {option}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <Select defaultValue="all">
-          <SelectTrigger className="bg-white">
+        <Select
+          value={subcategoryFilter}
+          onValueChange={(val) => {
+            setSubcategoryFilter(val);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-full bg-white">
             <SelectValue placeholder="All Subcategories" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Subcategories</SelectItem>
             {subcategoryOptions.map((option) => (
-              <SelectItem
-                key={option}
-                value={option.toLowerCase().replace(/\s+/g, "-")}
-              >
+              <SelectItem key={option} value={option}>
                 {option}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <Select defaultValue="all">
-          <SelectTrigger className="bg-white">
+        <Select
+          value={pricingTypeFilter}
+          onValueChange={(val) => {
+            setPricingTypeFilter(val);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-full bg-white">
             <SelectValue placeholder="All Pricing Types" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Pricing Types</SelectItem>
             {pricingTypeOptions.map((option) => (
-              <SelectItem
-                key={option}
-                value={option.toLowerCase().replace(/\s+/g, "-")}
-              >
-                {option}
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <Select defaultValue="all">
-          <SelectTrigger className="bg-white">
+        <Select
+          value={vendorFilter}
+          onValueChange={(val) => {
+            setVendorFilter(val);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-full bg-white">
             <SelectValue placeholder="All Vendors" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Vendors</SelectItem>
             {vendorOptions.map((option) => (
-              <SelectItem
-                key={option}
-                value={option.toLowerCase().replace(/\s+/g, "-")}
-              >
+              <SelectItem key={option} value={option}>
                 {option}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <Select defaultValue="all">
-          <SelectTrigger className="bg-white">
+        <Select
+          value={statusFilter}
+          onValueChange={(val) => {
+            setStatusFilter(val);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-full bg-white">
             <SelectValue placeholder="All Status" />
           </SelectTrigger>
           <SelectContent>
@@ -283,13 +283,27 @@ export default function ProductLibrary() {
       </div>
 
       <div className="bg-white border border-gray-100 overflow-hidden">
-        <div className="p-4 flex justify-end border-b border-gray-100">
+        <div className="p-4 flex items-center justify-end gap-3 border-b border-gray-100">
+          {hasActiveFilters && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleClearFilters}
+              className="text-gray-600 border-gray-200 bg-white hover:bg-gray-50"
+            >
+              <X className="w-4 h-4 mr-1.5" />
+              Clear Filters
+            </Button>
+          )}
           <div className="w-full max-w-md">
             <Input
               type="text"
               placeholder="Search by Product name or SKU"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
               className="bg-white"
             />
           </div>
@@ -326,48 +340,80 @@ export default function ProductLibrary() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.map((product) => (
-                <TableRow key={product.id} className="hover:bg-gray-50/50">
-                  <TableCell className="font-medium text-gray-900 py-4">
-                    {product.name}
-                  </TableCell>
-                  <TableCell className="py-4">
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-xs font-medium ${product.catColor}`}
-                    >
-                      {product.category}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-gray-600 py-4">
-                    {product.subcategory}
-                  </TableCell>
-                  <TableCell className="text-gray-600 py-4">
-                    {product.sku}
-                  </TableCell>
-                  <TableCell className="text-gray-600 py-4">
-                    {product.pricingType}
-                  </TableCell>
-                  <TableCell className="text-gray-600 py-4">
-                    {product.unit}
-                  </TableCell>
-                  <TableCell className="font-medium text-gray-900 py-4">
-                    {product.baseCost}
-                  </TableCell>
-                  <TableCell className="text-gray-600 py-4">
-                    {product.markup}
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8">
+                    <div className="flex items-center justify-center gap-2 text-gray-500">
+                      <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                      <span>Loading products...</span>
+                    </div>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : isError ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-red-500">
+                    Failed to load products. {error?.message || "An error occurred."}
+                  </TableCell>
+                </TableRow>
+              ) : productsData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-gray-500">
+                    No products found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                productsData.map((product) => (
+                  <TableRow key={product._id} className="hover:bg-gray-50/50">
+                    <TableCell className="font-medium text-gray-900 py-4">
+                      {product.name}
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium ${getCategoryColor(
+                          product.category
+                        )}`}
+                      >
+                        {product.category || "-"}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-gray-600 py-4">
+                      {product.subcategory || "-"}
+                    </TableCell>
+                    <TableCell className="text-gray-600 py-4">
+                      {product.skuPartCode || "-"}
+                    </TableCell>
+                    <TableCell className="text-gray-600 py-4">
+                      {formatPricingType(product.pricingType)}
+                    </TableCell>
+                    <TableCell className="text-gray-600 py-4">
+                      {product.unit || "-"}
+                    </TableCell>
+                    <TableCell className="font-medium text-gray-900 py-4">
+                      ${typeof product.baseCost === "number" ? product.baseCost.toFixed(2) : product.baseCost ?? "-"}
+                    </TableCell>
+                    <TableCell className="text-gray-600 py-4">
+                      {typeof product.defaultMargin === "number" ? `${product.defaultMargin}%` : product.defaultMargin ?? "-"}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </div>
       </div>
+
       <div className="p-4 bg-white flex items-center justify-between">
         <div className="flex items-center text-sm text-gray-500">
           Showing
-          <Select defaultValue="10">
+          <Select
+            value={limit.toString()}
+            onValueChange={(val) => {
+              setLimit(Number(val));
+              setPage(1);
+            }}
+          >
             <SelectTrigger className="mx-2 w-16 h-8 bg-white">
-              <SelectValue placeholder="10" />
+              <SelectValue placeholder="20" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="10">10</SelectItem>
@@ -383,48 +429,40 @@ export default function ProductLibrary() {
             variant="outline"
             size="icon"
             className="h-8 w-8 text-gray-400 bg-white"
-            disabled
+            onClick={() => handlePageChange(page - 1)}
+            disabled={page <= 1 || isLoading}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 bg-purple-50 text-purple-600 border-purple-200"
-          >
-            1
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 bg-white border-transparent text-gray-600 hover:bg-gray-100"
-          >
-            2
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 bg-white border-transparent text-gray-600 hover:bg-gray-100"
-          >
-            3
-          </Button>
-          <span className="text-gray-400 px-1">...</span>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 w-8 bg-white border-transparent text-gray-600 hover:bg-gray-100"
-          >
-            15
-          </Button>
+
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+            <Button
+              key={pageNum}
+              variant="outline"
+              size="sm"
+              onClick={() => handlePageChange(pageNum)}
+              className={`h-8 w-8 ${
+                page === pageNum
+                  ? "bg-purple-50 text-purple-600 border-purple-200"
+                  : "bg-white border-transparent text-gray-600 hover:bg-gray-100"
+              }`}
+            >
+              {pageNum}
+            </Button>
+          ))}
+
           <Button
             variant="outline"
             size="icon"
             className="h-8 w-8 text-gray-400 bg-white"
+            onClick={() => handlePageChange(page + 1)}
+            disabled={page >= totalPages || isLoading}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </div>
+
       <AddProductDialog
         open={isAddProductOpen}
         onOpenChange={setIsAddProductOpen}

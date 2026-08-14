@@ -57,6 +57,23 @@ import FreightCostIcon from "@/assets/icons/sidebar/freight-cost-tracking.svg";
 import MarginAnalysisIcon from "@/assets/icons/sidebar/margin-analysis.svg";
 import BudgetVsActualIcon from "@/assets/icons/sidebar/budget-actual.svg";
 
+
+// Plant section icons
+import bomIcon from "@/assets/icons/sidebar/BOM.svg";
+import quotationIcon from "@/assets/icons/sidebar/quotation.svg";
+import loadPlanningIcon from "@/assets/icons/sidebar/load-planning.svg";
+import packingListIcon from "@/assets/icons/sidebar/packing-list.svg";
+import qrLabelsIcon from "@/assets/icons/sidebar/qr-labels.svg";
+import shippersIcon from "@/assets/icons/sidebar/shippers.svg";
+import freightCarriersIcon from "@/assets/icons/sidebar/freight-carriers.svg";
+import costingSavingIcon from "@/assets/icons/sidebar/costing-saving.svg";
+import freightLoadIcon from "@/assets/icons/sidebar/freight-load.svg";
+import awardedIcon from "@/assets/icons/sidebar/awarded.svg";
+import deliveryCalendarIcon from "@/assets/icons/sidebar/delivery-calendar.svg";
+import allDeliveriesIcon from "@/assets/icons/sidebar/all-deliveries.svg";
+import notificationDetailsIcon from "@/assets/icons/sidebar/notification-details.svg";
+
+
 import { Button } from "./ui/button";
 import activeBgImage from "@/assets/images/active-bg.png";
 import { cn } from "@/lib/utils";
@@ -240,19 +257,20 @@ const navigationGroups: NavigationGroup[] = [
     color: "#0ea5e9",
     link: "/plant",
     items: [
-      { path: "/plant/uploaded-bom-files", label: "Uploaded BOM Files" },
-      { path: "/plant/shipper-quotation", label: "Shipper Quotation" },
-      { path: "/plant/load-planning", label: "Load Planning" },
-      { path: "/plant/packing-list", label: "Packing List" },
-      { path: "/plant/qr-labels", label: "QR Labels" },
-      { path: "/plant/shippers", label: "Shippers" },
-      { path: "/plant/freight-carriers", label: "Freight Carriers" },
-      { path: "/plant/costing", label: "Costing" },
-      { path: "/plant/freight-loads", label: "Freight Loads" },
-      { path: "/plant/awarded-loads", label: "Awarded Loads" },
-      { path: "/plant/delivery-calendar", label: "Deliveries Calendar" },
-      { path: "/plant/all-deliveries", label: "All Deliveries" },
-      { path: "/plant/notification-history", label: "Notification History" },
+      { path: "/plant/uploaded-bom-files", label: "Uploaded BOM Files", icon: bomIcon },
+      { path: "/plant/shipper-quotation", label: "Shipper Quotation", icon: quotationIcon },
+      { path: "/plant/load-planning", label: "Load Planning", icon: loadPlanningIcon },
+      { path: "/plant/packing-list", label: "Packing List", icon: packingListIcon },
+      { path: "/plant/qr-labels", label: "QR Labels", icon: qrLabelsIcon },
+      { path: "/plant/shippers", label: "Shippers", icon: shippersIcon },
+      { path: "/plant/freight-carriers", label: "Freight Carriers", icon: freightCarriersIcon },
+      { path: "/plant/costing", label: "Costing", icon: costingSavingIcon },
+      { path: "/plant/savings", label: "Savings", icon: costingSavingIcon },
+      { path: "/plant/freight-loads", label: "Freight Loads", icon: freightLoadIcon },
+      { path: "/plant/awarded-loads", label: "Awarded Loads", icon: awardedIcon },
+      { path: "/plant/delivery-calendar", label: "Deliveries Calendar", icon: deliveryCalendarIcon },
+      { path: "/plant/all-deliveries", label: "All Deliveries", icon: allDeliveriesIcon },
+      { path: "/plant/notification-history", label: "Notification History", icon: notificationDetailsIcon },
       /*
       { path: "/plant/equipment_management", label: "Equipment" },
       {
@@ -562,21 +580,50 @@ export function Sidebar({
   // Determine active group based on current path
   const activeGroup =
     navigationGroups.find((group) => {
-      if (group.link === currentPath) {
-        return true;
+      // If group has sub-items, check if current path matches group link or any sub-item path
+      if (group.items.length > 0) {
+        if (group.link !== "/" && currentPath.startsWith(group.link)) {
+          return true;
+        }
+        return group.items.some((item) => {
+          if (item.path === "/") {
+            return currentPath === "/";
+          }
+          if (item.collapsible && item.subItems) {
+            return item.subItems.some((subItem) =>
+              currentPath.startsWith(subItem.path.split("?")[0]),
+            );
+          }
+          return currentPath.startsWith(item.path.split("?")[0]);
+        });
       }
-      return group.items.some((item) => {
-        if (item.path === "/") {
-          return currentPath === "/";
-        }
-        if (item.collapsible && item.subItems) {
-          return item.subItems.some((subItem) =>
-            currentPath.startsWith(subItem.path),
-          );
-        }
-        return currentPath.startsWith(item.path);
-      });
+      // For groups without sub-items (like Dashboard)
+      return group.link === "/" ? currentPath === "/" : currentPath.startsWith(group.link);
     }) || navigationGroups[0];
+
+  useEffect(() => {
+    const scrollContainer = iconSidebarScrollRef.current;
+    const activeButton = scrollContainer?.querySelector<HTMLButtonElement>(
+      `[data-group-id="${activeGroup.id}"]`,
+    );
+    if (activeButton && scrollContainer) {
+      const containerRect = scrollContainer.getBoundingClientRect();
+      const buttonRect = activeButton.getBoundingClientRect();
+      const padding = 20; // 20px offset buffer from top and bottom
+
+      if (buttonRect.top - padding < containerRect.top) {
+        scrollContainer.scrollTo({
+          top: scrollContainer.scrollTop + (buttonRect.top - containerRect.top) - padding,
+          behavior: "smooth",
+        });
+      } else if (buttonRect.bottom + padding > containerRect.bottom) {
+        scrollContainer.scrollTo({
+          top: scrollContainer.scrollTop + (buttonRect.bottom - containerRect.bottom) + padding,
+          behavior: "smooth",
+        });
+      }
+    }
+  }, [activeGroup.id, isOpen]);
 
   useLayoutEffect(() => {
     const updateActivePillPosition = () => {
@@ -594,7 +641,7 @@ export function Sidebar({
 
       setActivePillPosition({
         top: rect.top + rect.height / 2,
-        left: rect.right - 12,
+        left: rect.right - 45,
       });
     };
 
@@ -610,7 +657,7 @@ export function Sidebar({
       scrollContainer?.removeEventListener("scroll", updateActivePillPosition);
       window.removeEventListener("resize", updateActivePillPosition);
     };
-  }, [activeGroup.id, isOpen]);
+  }, [activeGroup.id, isOpen, location.pathname]);
 
   // Auto-expand collapsible section if any of its child routes is active
   useEffect(() => {
@@ -781,7 +828,7 @@ export function Sidebar({
             </div>
           </div>
 
-          {isOpen && activePillPosition && (
+          {activePillPosition && (
             <img
               src={activeBgImage}
               alt=""

@@ -74,6 +74,75 @@ export async function getLeadsProvider(
   return response.data;
 }
 
+export type LeadsStatsData = {
+  total: number;
+  assigned: number;
+  unassigned: number;
+  unreadMessages: number;
+};
+
+export type AdminLead = {
+  _id: string;
+  jobId?: string;
+  projectName?: string;
+  customerId?: {
+    customerId?: string;
+    firstName?: string;
+    lastName?: string;
+  };
+  buildingType?: string;
+  location?: string;
+  assignedSales?: {
+    name?: string;
+  } | null;
+  quoteValue?: number;
+  lifecycleStatus?: string;
+  leadScoring?: {
+    score?: number;
+  };
+  createdAt: string;
+};
+
+export type AdminLeadsData = {
+  leads: AdminLead[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
+export type LeadsStatsResponse = {
+  success: boolean;
+  message: string;
+  data: LeadsStatsData;
+};
+
+export type AdminLeadsResponse = {
+  success: boolean;
+  message: string;
+  data: AdminLeadsData;
+};
+
+export async function getLeadsStatsProvider(startDate?: string, endDate?: string) {
+  const params: Record<string, string> = {};
+  if (startDate) params.startDate = startDate;
+  if (endDate) params.endDate = endDate;
+
+  const response = await apiClient.get<LeadsStatsResponse>(
+    "/api/admin/leads/stats",
+    { params }
+  );
+
+  return response.data;
+}
+
+export async function getAdminLeadsProvider(filters: Record<string, any>) {
+  const response = await apiClient.get<AdminLeadsResponse>("/api/admin/leads", {
+    params: filters,
+  });
+
+  return response.data;
+}
+
 export async function getCustomerLeadsProvider(customerId: string) {
   const response = await apiClient.get<GetCustomerLeadsResponse>(
     `/api/admin/customers/${customerId}/leads`
@@ -537,6 +606,21 @@ export async function terminateLeadProvider(leadId: string, payload: TerminateLe
   return response.data;
 }
 
+export type DeleteLeadResponse = {
+  success: boolean;
+  message: string;
+  data?: {
+    lead?: Record<string, unknown>;
+  };
+};
+
+export async function deleteLeadProvider(leadId: string) {
+  const response = await apiClient.delete<DeleteLeadResponse>(
+    `/api/admin/leads/${encodeURIComponent(leadId)}`
+  );
+  return response.data;
+}
+
 export type LeadDocument = {
   _id: string;
   url: string;
@@ -590,5 +674,29 @@ export async function getLeadNotesProvider(leadId: string) {
   const response = await apiClient.get<{ success: boolean; message: string; data: any }>(
     `/api/admin/leads/${leadId}/notes`
   );
+  return response.data;
+}
+
+export async function uploadLeadDocumentProvider(
+  leadId: string,
+  files: File[],
+  type: "bom" | "drawing" | "other" = "other"
+) {
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
+  formData.append("type", type);
+
+  const response = await apiClient.post<{
+    success: boolean;
+    message: string;
+    data?: unknown;
+  }>(`/api/admin/leads/${leadId}/documents`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
   return response.data;
 }
