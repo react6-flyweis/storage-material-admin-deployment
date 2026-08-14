@@ -10,25 +10,27 @@ import {
 } from "@/components/ui/table";
 
 export interface ProfitLossData {
-  id: string;
+  _id?: string;
+  id?: string;
   projectName: string;
-  category: string;
-  sales: string;
-  cogs: string;
-  grossProfit: string;
-  grossMargin1: string;
-  grossMargin2: string;
-  grossMargin3: string;
-  grossMargin4: string;
+  category?: string;
+  revenue?: number;
+  sales?: string;
+  cogs?: string;
+  grossProfit?: string;
+  grossMargin1?: string;
+  grossMargin2?: string;
+  grossMargin3?: string;
+  grossMargin4?: string;
 }
 
 interface MarginProfitLossSummaryTableProps {
-  data: ProfitLossData[];
+  data?: ProfitLossData[];
   itemsPerPage?: number;
 }
 
 export default function MarginProfitLossSummaryTable({
-  data,
+  data = [],
   itemsPerPage = 10,
 }: MarginProfitLossSummaryTableProps) {
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,6 +39,14 @@ export default function MarginProfitLossSummaryTable({
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedData = data.slice(startIndex, startIndex + itemsPerPage);
   const showingCount = paginatedData.length;
+
+  const formatCurrency = (val?: number) =>
+    val !== undefined && val !== null
+      ? new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+        }).format(val)
+      : "-";
 
   return (
     <div className="mt-8 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
@@ -64,35 +74,35 @@ export default function MarginProfitLossSummaryTable({
           <TableBody>
             {paginatedData.map((row, index) => (
               <TableRow
-                key={row.id}
+                key={row._id || row.id || index}
                 className={index % 2 === 0 ? "bg-white" : "bg-slate-50"}
               >
                 <TableCell className="font-medium text-slate-900">
-                  {row.projectName}
+                  {row.projectName || "-"}
                 </TableCell>
                 <TableCell className="text-sm text-slate-600">
-                  {row.category}
+                  {row.category ? row.category.replace(/_/g, " ") : "-"}
                 </TableCell>
                 <TableCell className="text-right text-sm text-slate-600">
-                  {row.sales}
+                  {row.sales ?? (row.revenue !== undefined ? formatCurrency(row.revenue) : "-")}
                 </TableCell>
                 <TableCell className="text-right text-sm text-slate-600">
-                  {row.cogs}
+                  {row.cogs ?? "-"}
                 </TableCell>
                 <TableCell className="text-right text-sm text-slate-600">
-                  {row.grossProfit}
+                  {row.grossProfit ?? "-"}
                 </TableCell>
                 <TableCell className="text-right text-sm font-medium text-emerald-600">
-                  {row.grossMargin1}
+                  {row.grossMargin1 ?? "-"}
                 </TableCell>
                 <TableCell className="text-right text-sm font-medium text-emerald-600">
-                  {row.grossMargin2}
+                  {row.grossMargin2 ?? "-"}
                 </TableCell>
                 <TableCell className="text-right text-sm font-medium text-emerald-600">
-                  {row.grossMargin3}
+                  {row.grossMargin3 ?? "-"}
                 </TableCell>
                 <TableCell className="text-right text-sm font-medium text-emerald-600">
-                  {row.grossMargin4}
+                  {row.grossMargin4 ?? "-"}
                 </TableCell>
               </TableRow>
             ))}
@@ -141,3 +151,4 @@ export default function MarginProfitLossSummaryTable({
     </div>
   );
 }
+
