@@ -660,6 +660,7 @@ export default function LeadDetails() {
         leadId={leadId!}
       />
 
+
       <AddFollowUpDialog
         open={isAddFollowUpOpen}
         onOpenChange={setIsAddFollowUpOpen}
@@ -667,6 +668,7 @@ export default function LeadDetails() {
         defaultEmployeeId={typeof lead?.assignedSales === 'object' ? lead?.assignedSales?._id : lead?.assignedSales}
         disabledLeadId={true}
       />
+
 
       <AddMeetingDialog
         open={isAddMeetingOpen}

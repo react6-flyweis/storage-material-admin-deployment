@@ -25,6 +25,7 @@ import {
   deleteLeadProvider,
   createLeadProvider,
   type CreateLeadPayload,
+  uploadLeadDocumentProvider,
   getAdminLeadsProvider,
   getLeadsStatsProvider,
 } from "./leads.api";
@@ -81,7 +82,7 @@ async function getEscalationsProvider(status: string = "pending", page: number =
     page: page.toString(),
     limit: limit.toString()
   });
-  
+
   const response = await apiClient.get<EscalationsResponse>(
     `/api/admin/escalations?${params.toString()}`,
   );
@@ -319,6 +320,30 @@ export function useCreateLeadMutation() {
     },
   });
 }
+
+export function useUploadLeadDocumentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      leadId,
+      files,
+      type,
+    }: {
+      leadId: string;
+      files: File[];
+      type: "bom" | "drawing" | "other";
+    }) => uploadLeadDocumentProvider(leadId, files, type),
+    onSuccess: (_, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: ["leads", "documents", variables.leadId],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ["leads", "detail", variables.leadId],
+      });
+    },
+  });
+}
+
 
 type LeadRecord = {
   _id: string;

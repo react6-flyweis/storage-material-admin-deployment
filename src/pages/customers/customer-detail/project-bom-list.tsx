@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import {
   ArrowLeft,
   Eye,
@@ -7,6 +7,7 @@ import {
   FileText,
   Search,
   ArrowUpDown,
+  Upload,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import Pagination from "@/components/Pagination";
 import { Card } from "@/components/ui/card";
 import StatCard from "@/components/ui/stat-card";
+import UploadBomFileDialog from "@/plant/components/UploadBomFileDialog";
+
+import SuccessDialog from "@/components/success-dialog";
 
 const bomStats = [
   {
@@ -102,11 +106,18 @@ const statusStyles: Record<string, string> = {
   Locked: "bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]",
 };
 
-export default function ProjectBomFilesPage() {
+export default function ProjectBomListPage() {
   const navigate = useNavigate();
+  const { id, projectId } = useParams<{ id: string; projectId: string }>();
+  const leadId = projectId || id || "";
+
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [successTitle] = useState("BOM File(s) Uploaded Successfully");
+  const [bomModalOpen, setBomModalOpen] = useState(false);
+
 
   const filteredRows = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
@@ -138,8 +149,18 @@ export default function ProjectBomFilesPage() {
             Back
           </Button>
           <h1 className="text-3xl font-bold text-[#1E293B]">
-            Project 1 - BOM Files
+            BOM Files
           </h1>
+        </div>
+        <div>
+          <Button
+            variant="default"
+            className="bg-[#1D51A4] hover:bg-[#1D51A4]/90 text-white"
+            onClick={() => setBomModalOpen(true)}
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Upload BOM File
+          </Button>
         </div>
       </div>
 
@@ -232,6 +253,13 @@ export default function ProjectBomFilesPage() {
                   <Button
                     variant="ghost"
                     className="text-slate-500 hover:text-slate-900 p-2 rounded-full"
+                    onClick={() =>
+                      navigate(
+                        leadId
+                          ? `/customers/${leadId}/project-bom`
+                          : "/customers"
+                      )
+                    }
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
@@ -257,6 +285,19 @@ export default function ProjectBomFilesPage() {
           rowsPerPageOptions={[10, 20, 50]}
         />
       </div>
+
+      <UploadBomFileDialog
+        open={bomModalOpen}
+        onOpenChange={setBomModalOpen}
+        leadId={leadId || id || ""}
+        customerId={id}
+      />
+
+      <SuccessDialog
+        open={successDialogOpen}
+        onClose={() => setSuccessDialogOpen(false)}
+        title={successTitle}
+      />
     </div>
   );
 }

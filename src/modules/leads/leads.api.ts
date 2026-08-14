@@ -676,3 +676,27 @@ export async function getLeadNotesProvider(leadId: string) {
   );
   return response.data;
 }
+
+export async function uploadLeadDocumentProvider(
+  leadId: string,
+  files: File[],
+  type: "bom" | "drawing" | "other" = "other"
+) {
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
+  formData.append("type", type);
+
+  const response = await apiClient.post<{
+    success: boolean;
+    message: string;
+    data?: unknown;
+  }>(`/api/admin/leads/${leadId}/documents`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return response.data;
+}
