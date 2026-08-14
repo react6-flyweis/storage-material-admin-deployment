@@ -48,6 +48,23 @@ import FreightCostIcon from "@/assets/icons/sidebar/freight-cost-tracking.svg";
 import MarginAnalysisIcon from "@/assets/icons/sidebar/margin-analysis.svg";
 import BudgetVsActualIcon from "@/assets/icons/sidebar/budget-actual.svg";
 
+
+// Plant section icons
+import bomIcon from "@/assets/icons/sidebar/BOM.svg";
+import quotationIcon from "@/assets/icons/sidebar/quotation.svg";
+import loadPlanningIcon from "@/assets/icons/sidebar/load-planning.svg";
+import packingListIcon from "@/assets/icons/sidebar/packing-list.svg";
+import qrLabelsIcon from "@/assets/icons/sidebar/qr-labels.svg";
+import shippersIcon from "@/assets/icons/sidebar/shippers.svg";
+import freightCarriersIcon from "@/assets/icons/sidebar/freight-carriers.svg";
+import costingSavingIcon from "@/assets/icons/sidebar/costing-saving.svg";
+import freightLoadIcon from "@/assets/icons/sidebar/freight-load.svg";
+import awardedIcon from "@/assets/icons/sidebar/awarded.svg";
+import deliveryCalendarIcon from "@/assets/icons/sidebar/delivery-calendar.svg";
+import allDeliveriesIcon from "@/assets/icons/sidebar/all-deliveries.svg";
+import notificationDetailsIcon from "@/assets/icons/sidebar/notification-details.svg";
+
+
 import { Button } from "./ui/button";
 import activeBgImage from "@/assets/images/active-bg.png";
 import { cn } from "@/lib/utils";
@@ -231,19 +248,20 @@ const navigationGroups: NavigationGroup[] = [
     color: "#0ea5e9",
     link: "/plant",
     items: [
-      { path: "/plant/uploaded-bom-files", label: "Uploaded BOM Files" },
-      { path: "/plant/shipper-quotation", label: "Shipper Quotation" },
-      { path: "/plant/load-planning", label: "Load Planning" },
-      { path: "/plant/packing-list", label: "Packing List" },
-      { path: "/plant/qr-labels", label: "QR Labels" },
-      { path: "/plant/shippers", label: "Shippers" },
-      { path: "/plant/freight-carriers", label: "Freight Carriers" },
-      { path: "/plant/costing", label: "Costing" },
-      { path: "/plant/freight-loads", label: "Freight Loads" },
-      { path: "/plant/awarded-loads", label: "Awarded Loads" },
-      { path: "/plant/delivery-calendar", label: "Deliveries Calendar" },
-      { path: "/plant/all-deliveries", label: "All Deliveries" },
-      { path: "/plant/notification-history", label: "Notification History" },
+      { path: "/plant/uploaded-bom-files", label: "Uploaded BOM Files", icon: bomIcon },
+      { path: "/plant/shipper-quotation", label: "Shipper Quotation", icon: quotationIcon },
+      { path: "/plant/load-planning", label: "Load Planning", icon: loadPlanningIcon },
+      { path: "/plant/packing-list", label: "Packing List", icon: packingListIcon },
+      { path: "/plant/qr-labels", label: "QR Labels", icon: qrLabelsIcon },
+      { path: "/plant/shippers", label: "Shippers", icon: shippersIcon },
+      { path: "/plant/freight-carriers", label: "Freight Carriers", icon: freightCarriersIcon },
+      { path: "/plant/costing", label: "Costing", icon: costingSavingIcon },
+      { path: "/plant/savings", label: "Savings", icon: costingSavingIcon },
+      { path: "/plant/freight-loads", label: "Freight Loads", icon: freightLoadIcon },
+      { path: "/plant/awarded-loads", label: "Awarded Loads", icon: awardedIcon },
+      { path: "/plant/delivery-calendar", label: "Deliveries Calendar", icon: deliveryCalendarIcon },
+      { path: "/plant/all-deliveries", label: "All Deliveries", icon: allDeliveriesIcon },
+      { path: "/plant/notification-history", label: "Notification History", icon: notificationDetailsIcon },
       /*
       { path: "/plant/equipment_management", label: "Equipment" },
       {
@@ -691,7 +709,7 @@ export function Sidebar({
   // Determine final padding: use calculated padding if content fits, otherwise use 5
   const menuPaddingTop =
     activeGroupItemsHeight + calculatedPadding + topSectionHeight + 20 <
-    window.innerHeight
+      window.innerHeight
       ? calculatedPadding
       : 10;
 
@@ -748,9 +766,8 @@ export function Sidebar({
       )}
 
       <div
-        className={`flex fixed inset-y-0 left-0 lg:left-0 lg:top-0 z-50 transition-transform duration-300 lg:translate-x-0 h-screen ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`flex fixed inset-y-0 left-0 lg:left-0 lg:top-0 z-50 transition-transform duration-300 lg:translate-x-0 h-screen ${isOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         {/* Icon Sidebar */}
         <aside className="sidebar relative z-40 w-18 h-screen bg-sidebar overflow-visible">

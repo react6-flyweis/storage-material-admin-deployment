@@ -12,7 +12,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
+import { useLeadDetailQuery, useUploadLeadDocumentMutation } from "@/modules/leads/leads.hooks";
 import {
   Card,
   CardContent,
@@ -27,7 +27,8 @@ import { AddNotesDialog, type AddNotesFormValues } from "./add-notes-dialog";
 import { useNavigate, useParams } from "react-router";
 import { useState } from "react";
 
-import { UploadFileDialog } from "@/components/upload-file-dialog";
+import UploadBomFileDialog from "@/plant/components/UploadBomFileDialog";
+import UploadDrawingsModal from "@/plant/components/UploadDrawingsModal";
 
 const quickActionButtons1 = [
   { label: "View Invoices", path: "project-invoices" },
@@ -74,6 +75,7 @@ export default function ProjectDetailsPage() {
 
   const { data: leadData, isLoading: isLeadLoading } = useLeadDetailQuery(leadId);
   const project = leadData?.data?.lead;
+  const uploadDocMutation = useUploadLeadDocumentMutation();
 
   const [notes, setNotes] = useState<AddNotesFormValues[]>([
     {
@@ -89,6 +91,8 @@ export default function ProjectDetailsPage() {
     "Status Updated Successfully",
   );
   const [terminateDialogOpen, setTerminateDialogOpen] = useState(false);
+  const [bomModalOpen, setBomModalOpen] = useState(false);
+  const [drawingsModalOpen, setDrawingsModalOpen] = useState(false);
 
   const handleSaveNote = (data: AddNotesFormValues) => {
     setNotes((current) => [data, ...current]);
@@ -96,6 +100,42 @@ export default function ProjectDetailsPage() {
 
   const handleOpenStatusDialog = () => {
     setStatusDialogOpen(true);
+  };
+
+  const handleUploadBom = (files: File[]) => {
+    if (!leadId) return;
+    uploadDocMutation.mutate(
+      { leadId, files, type: "bom" },
+      {
+        onSuccess: () => {
+          setSuccessDialogTitle("BOM File(s) Uploaded Successfully");
+          setSuccessDialogOpen(true);
+        },
+        onError: (error) => {
+          console.error("Failed to upload BOM files:", error);
+          setSuccessDialogTitle("Failed to upload BOM files");
+          setSuccessDialogOpen(true);
+        },
+      }
+    );
+  };
+
+  const handleUploadDrawings = (files: File[]) => {
+    if (!leadId) return;
+    uploadDocMutation.mutate(
+      { leadId, files, type: "drawing" },
+      {
+        onSuccess: () => {
+          setSuccessDialogTitle("Building Drawings Uploaded Successfully");
+          setSuccessDialogOpen(true);
+        },
+        onError: (error) => {
+          console.error("Failed to upload drawing files:", error);
+          setSuccessDialogTitle("Failed to upload drawing files");
+          setSuccessDialogOpen(true);
+        },
+      }
+    );
   };
 
   if (isLeadLoading) {
@@ -122,46 +162,22 @@ export default function ProjectDetailsPage() {
           <h1 className="text-xl font-semibold">Project Details - {project?.projectName || "Unnamed Project"}</h1>
         </div>
         <div className="flex items-center gap-3">
-          <UploadFileDialog
-            title="Upload BOM File"
-            description="Add your documents here, and you can upload up to 5 files max"
-            supportText="Only support .jpg, .png and .svg and zip files"
-            accept=".jpg,.jpeg,.png,.svg,.zip,.pdf"
-            maxFiles={5}
-            onUpload={(files) => {
-              console.log("Uploaded BOM files:", files);
-              setSuccessDialogTitle("File(s) Uploaded Successfully");
-              setSuccessDialogOpen(true);
-            }}
+          <Button
+            variant="outline"
+            className="border-[#1D51A4] text-[#1D51A4] hover:bg-slate-50"
+            onClick={() => setBomModalOpen(true)}
           >
-            <Button
-              variant="outline"
-              className="border-[#1D51A4] text-[#1D51A4] hover:bg-slate-50"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload BOM File
-            </Button>
-          </UploadFileDialog>
-          <UploadFileDialog
-            title="Upload Building Drawings & Photos"
-            description="Add your documents here, and you can upload up to 5 files max"
-            supportText="Only support .jpg, .png and .svg and zip files"
-            accept=".jpg,.jpeg,.png,.svg,.zip,.pdf"
-            maxFiles={5}
-            onUpload={(files) => {
-              console.log("Uploaded Drawing files:", files);
-              setSuccessDialogTitle("File(s) Uploaded Successfully");
-              setSuccessDialogOpen(true);
-            }}
+            <Upload className="h-4 w-4 mr-2" />
+            Upload BOM File
+          </Button>
+          <Button
+            variant="outline"
+            className="border-[#1D51A4] text-[#1D51A4] hover:bg-slate-50"
+            onClick={() => setDrawingsModalOpen(true)}
           >
-            <Button
-              variant="outline"
-              className="border-[#1D51A4] text-[#1D51A4] hover:bg-slate-50"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Building Drawings
-            </Button>
-          </UploadFileDialog>
+            <Upload className="h-4 w-4 mr-2" />
+            Upload Building Drawings
+          </Button>
         </div>
       </div>
 
@@ -690,6 +706,19 @@ export default function ProjectDetailsPage() {
           // You could show a success dialog here if you prefer,
           // but toast is already handled in the dialog component.
         }}
+      />
+
+      <UploadBomFileDialog
+        open={bomModalOpen}
+        onOpenChange={setBomModalOpen}
+        leadId={leadId}
+        customerId={id}
+      />
+
+      <UploadDrawingsModal
+        isOpen={drawingsModalOpen}
+        onClose={() => setDrawingsModalOpen(false)}
+        leadId={leadId}
       />
     </div>
   );
