@@ -320,6 +320,9 @@ const ProjectViewPage = lazy(
 const DrawingAttachment = lazy(
   () => import("@/modules/construction/pages/DrawingAttachment"),
 );
+const ConstructionAllDeliveries = lazy(
+  () => import("@/modules/construction/pages/AllDeliveries"),
+);
 
 export const adminRoutes: RouteObject[] = [
   {
@@ -761,6 +764,7 @@ export const adminRoutes: RouteObject[] = [
               { path: "projects", element: <Projects /> },
               { path: "project-view-page", element: <ProjectViewPage /> },
               { path: "drawing-attachment", element: <DrawingAttachment /> },
+              { path: "all-deliveries", element: <ConstructionAllDeliveries /> },
               { path: "tasks", element: <Tasks /> },
               { path: "materials", element: <Materials /> },
               { path: "material-view-page", element: <MaterialsViewPage /> },

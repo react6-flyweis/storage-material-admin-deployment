@@ -1,93 +1,96 @@
-import { useState } from "react";
-import CustomSelect from "./common/CustomSelect";
+import { useEffect } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 import UploadCameraIcon from "../assets/uploadcameraicon.svg";
+import ProjectSelector from "./common/ProjectSelector";
+import TaskSelector from "./common/TaskSelector";
+import { useCreateWorkLogMutation } from "../construction.hooks";
+import { Loader2 } from "lucide-react";
 
 type DailyLogModalProps = {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: any) => void; // parent ko data bhejne ke liye
+  onSubmit?: (data: DailyLogFormData) => void;
 };
 
-const projectOptions = [
-  { label: "Downtown Office Complex", value: "Downtown Office Complex" },
-  { label: "Residential Tower A", value: "Residential Tower A" },
-  { label: "Shopping Mall Renovation", value: "Shopping Mall Renovation" },
-  { label: "Industrial Warehouse", value: "Industrial Warehouse" },
-];
+const dailyLogSchema = z.object({
+  leadId: z.string().min(1, "Project selection is required"),
+  taskId: z.string().min(1, "Task selection is required"),
+  date: z.string().min(1, "Date is required"),
+  progress: z.coerce
+    .number({ error: "Progress must be a number" })
+    .min(0, "Progress must be at least 0")
+    .max(100, "Progress cannot exceed 100"),
+  description: z.string().min(1, "Work description is required"),
+  issues: z.string().optional(),
+});
 
-const taskOptions = [
-  { label: "Foundation Work", value: "Foundation Work" },
-  { label: "Electrical Installation", value: "Electrical Installation" },
-  { label: "Plumbing Work", value: "Plumbing Work" },
-  { label: "Roofing", value: "Roofing" },
-];
+export type DailyLogFormData = z.infer<typeof dailyLogSchema>;
 
 export default function DailyLogModel({
   open,
   onClose,
   onSubmit,
 }: DailyLogModalProps) {
+  const createWorkLogMutation = useCreateWorkLogMutation();
+
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { errors },
+  } = useForm<DailyLogFormData>({
+    resolver: zodResolver(dailyLogSchema),
+    defaultValues: {
+      leadId: "",
+      taskId: "",
+      date: new Date().toISOString().split("T")[0],
+      progress: 0,
+      description: "",
+      issues: "None",
+    },
+  });
+
+  useEffect(() => {
+    if (open) {
+      reset({
+        leadId: "",
+        taskId: "",
+        date: new Date().toISOString().split("T")[0],
+        progress: 0,
+        description: "",
+        issues: "None",
+      });
+    }
+  }, [open, reset]);
+
   if (!open) return null;
 
-  // ✅ individual states
-  const [date, setDate] = useState("");
-  const [project, setProject] = useState("All Projects");
-  const [task, setTask] = useState("All Tasks");
-  const [progress, setProgress] = useState("");
-  const [description, setDescription] = useState("");
-  const [issues, setIssues] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-
-  const [error, setError] = useState("");
-
-  // ✅ handle file upload
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      const ext = selectedFile.name.split(".").pop()?.toLowerCase();
-      if (ext === "png" || ext === "jpg" || ext === "jpeg") {
-        setFile(selectedFile);
-      } else {
-        alert("Only PNG and JPG files are allowed!");
-      }
-    }
-  };
-
-  const handleSubmit = () => {
-    if (
-      !date ||
-      !project ||
-      !task ||
-      !progress ||
-      !description.trim() ||
-      !issues.trim()
-    ) {
-      setError("Please fill all required fields!");
-      return;
-    }
-
-    const data = {
-      date,
-      project,
-      task,
-      progress,
-      description,
-      issues,
-      fileName: file?.name || null,
+  const onFormSubmit = (data: DailyLogFormData) => {
+    const apiPayload = {
+      leadId: data.leadId,
+      taskId: data.taskId,
+      date: data.date,
+      progress: Number(data.progress),
+      description: data.description,
+      photos: [],
+      issues: data.issues || "None",
     };
 
-    onSubmit(data);
-    onClose();
-
-    // reset all
-    setDate("");
-    setProject("All Projects");
-    setTask("All Tasks");
-    setProgress("");
-    setDescription("");
-    setIssues("");
-    setFile(null);
-    setError("");
+    createWorkLogMutation.mutate(apiPayload, {
+      onSuccess: () => {
+        if (onSubmit) {
+          onSubmit(data);
+        }
+        onClose();
+        reset();
+      },
+      onError: (err: any) => {
+        console.error("Failed to create daily work log:", err);
+      },
+    });
   };
 
   return (
@@ -103,33 +106,41 @@ export default function DailyLogModel({
           <h2 className="text-lg font-semibold text-[#111827]">
             Daily Work Log
           </h2>
-          {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
         </div>
 
-        <div className="px-6 py-4 space-y-3">
+        <form onSubmit={handleSubmit(onFormSubmit)} className="px-6 py-4 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="text-sm text-[#111827]">Date</label>
               <input
                 type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
+                {...register("date")}
                 className="mt-2 w-full h-[40px] rounded-[8px] border px-4 outline-none text-sm"
               />
+              {errors.date && (
+                <p className="text-xs text-red-500 mt-1">{errors.date.message}</p>
+              )}
             </div>
 
             <div>
               <label className="text-sm text-[#111827] inline-block mb-2">
                 Project
               </label>
-              <CustomSelect
-                title="Select Project"
-                options={projectOptions}
-                value={project}
-                onChange={setProject}
-                width="100%"
-                searchable
+              <Controller
+                name="leadId"
+                control={control}
+                render={({ field }) => (
+                  <ProjectSelector
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder="Select Project"
+                    error={!!errors.leadId}
+                  />
+                )}
               />
+              {errors.leadId && (
+                <p className="text-xs text-red-500 mt-1">{errors.leadId.message}</p>
+              )}
             </div>
           </div>
 
@@ -138,107 +149,102 @@ export default function DailyLogModel({
               <label className="text-sm text-[#111827] inline-block mb-2">
                 Task
               </label>
-              <CustomSelect
-                title="Select Task"
-                options={taskOptions}
-                value={task}
-                onChange={setTask}
-                width="100%"
-                searchable
+              <Controller
+                name="taskId"
+                control={control}
+                render={({ field }) => (
+                  <TaskSelector
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder="Select Task"
+                    error={!!errors.taskId}
+                  />
+                )}
               />
+              {errors.taskId && (
+                <p className="text-xs text-red-500 mt-1">{errors.taskId.message}</p>
+              )}
             </div>
 
             <div>
               <label className="text-sm text-[#111827]">Progress (%)</label>
               <input
                 type="number"
-                value={progress}
+                {...register("progress")}
                 max={100}
                 min={0}
                 placeholder="Enter"
                 className="mt-2 w-full h-[40px] rounded-[8px] border px-4 outline-none text-sm"
-                onChange={(e) => {
-                  const value = Number(e.target.value);
-
-                  if (value <= 100) {
-                    setProgress(e.target.value);
-                  }
-                }}
               />
+              {errors.progress && (
+                <p className="text-xs text-red-500 mt-1">{errors.progress.message}</p>
+              )}
             </div>
           </div>
 
           <div>
             <label className="text-sm text-[#111827]">Work Description</label>
             <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              {...register("description")}
               placeholder="Describe the work completed today..."
               rows={4}
               className="mt-2 w-full rounded-[8px] border px-4 py-3 outline-none resize-none text-sm"
             />
+            {errors.description && (
+              <p className="text-xs text-red-500 mt-1">
+                {errors.description.message}
+              </p>
+            )}
           </div>
 
           <div>
             <label className="text-sm text-[#111827]">Upload Photos</label>
-            <div
-              className="border-2 border-dashed rounded-lg mt-2 p-6 flex flex-col items-center justify-center text-center gap-2 cursor-pointer"
-              onClick={() => document.getElementById("fileInput")?.click()}
-            >
-              {file ? (
-                <p className="text-sm mt-2">{file.name}</p>
-              ) : (
-                <>
-                  <img
-                    src={UploadCameraIcon}
-                    alt=""
-                    className="text-2xl mb-1"
-                  />
-                  <p className="text-sm text-[#6B7280]">
-                    Click to upload photos or drag and drop
-                  </p>
-                  <p className="text-xs text-[#9CA3AF]">
-                    PNG,JPG up to 10MB each
-                  </p>
-                </>
-              )}
-
-              <input
-                id="fileInput"
-                type="file"
-                accept=".png,.jpg,.jpeg"
-                className="hidden"
-                onChange={handleFileChange}
+            <div className="border-2 border-dashed rounded-lg mt-2 p-6 flex flex-col items-center justify-center text-center gap-2 cursor-pointer">
+              <img
+                src={UploadCameraIcon}
+                alt=""
+                className="text-2xl mb-1"
               />
+              <p className="text-sm text-[#6B7280]">
+                Click to upload photos or drag and drop
+              </p>
+              <p className="text-xs text-[#9CA3AF]">
+                PNG, JPG up to 10MB each
+              </p>
             </div>
           </div>
 
           <div>
             <label className="text-sm text-[#111827]">Issues/Notes</label>
             <textarea
-              value={issues}
-              onChange={(e) => setIssues(e.target.value)}
+              {...register("issues")}
               placeholder="Any issues, delays, or important notes..."
               rows={4}
               className="mt-2 w-full rounded-[8px] border px-4 py-3 outline-none resize-none text-sm"
             />
           </div>
-        </div>
 
-        <div className="px-6 py-3 border-t flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            className="px-6 py-2 rounded-lg bg-[#F3F4F6] text-[#111827]"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            className="px-6 py-2 rounded-lg bg-[#2563EB] text-white"
-          >
-            Create
-          </button>
-        </div>
+          <div className="px-6 py-3 border-t flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={createWorkLogMutation.isPending}
+              className="px-6 py-2 rounded-lg bg-[#F3F4F6] text-[#111827] disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={createWorkLogMutation.isPending}
+              className="px-6 py-2 rounded-lg bg-[#2563EB] text-white flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {createWorkLogMutation.isPending && (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              )}
+              Create
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

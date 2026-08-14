@@ -40,6 +40,15 @@ import taxFilingIcon from "@/assets/icons/sidebar/tax-filing.svg";
 import terminatedProjectsIcon from "@/assets/icons/sidebar/terminated-projects.svg";
 import vendorInvoicesIcon from "@/assets/icons/sidebar/vendor-invoices.svg";
 
+// construction icon
+// project-calendar,drawings,delivery,tasks,material-requests,reports
+import projectCalendarIcon from "@/assets/icons/sidebar/project-calendar.svg"
+import drawingsIcon from "@/assets/icons/sidebar/drawings.svg"
+import deliveryIcon from "@/assets/icons/sidebar/delivery.svg"
+import tasksIcon from "@/assets/icons/sidebar/tasks.svg"
+import materialRequestsIcon from "@/assets/icons/sidebar/material-requests.svg"
+import constructionReportsIcon from "@/assets/icons/sidebar/construction-reports.svg"
+
 // Finance icons
 import WipProfitsIcon from "@/assets/icons/sidebar/wip-profit.svg";
 import ExpenseManagementIcon from "@/assets/icons/sidebar/expense-management.svg";
@@ -382,10 +391,12 @@ const navigationGroups: NavigationGroup[] = [
     color: "#dc2626",
     link: "/construction",
     items: [
-      { path: "/construction/projects", label: "Project & Calendar" },
-      { path: "/construction/tasks", label: "Tasks & Progress" },
-      { path: "/construction/materials", label: "Material Request" },
-      { path: "/construction/reports", label: "Construction Reports" },
+      { path: "/construction/projects", label: "Project & Calendar", icon: projectCalendarIcon },
+      { path: "/construction/drawing-attachment", label: "Drawing & Attachment", icon: drawingsIcon },
+      { path: "/construction/all-deliveries", label: "All Deliveries", icon: deliveryIcon },
+      { path: "/construction/tasks", label: "Tasks & Progress", icon: tasksIcon },
+      { path: "/construction/materials", label: "Material Request", icon: materialRequestsIcon },
+      { path: "/construction/reports", label: "Construction Reports", icon: constructionReportsIcon },
     ],
   },
   {

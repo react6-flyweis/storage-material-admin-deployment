@@ -7,38 +7,55 @@ import FolderIcon from "../assets/activeproject.svg";
 import MoneyIcon from "../assets/righttick.svg";
 import BoxIcon from "../assets/clockicon.svg";
 import ShieldIcon from "../assets/safetyscoreicon.svg";
-
-const stats: StatItem[] = [
-  {
-    key: "activeProjects",
-    title: "Total Tasks",
-    value: 56,
-    icon: FolderIcon,
-  },
-  {
-    key: "completionRate",
-    title: "Completed",
-    value: 29,
-    icon: MoneyIcon,
-  },
-  {
-    key: "pendingMaterials",
-    title: "In Progress",
-    value: 13,
-    icon: BoxIcon,
-  },
-  {
-    key: "safetyScore",
-    title: "Overdue",
-    value: 3,
-    icon: ShieldIcon,
-  },
-];
+import { useTasksQuery } from "../construction.hooks";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Tasks() {
-    const [activeTab, setActiveTab] = useState<"Task Management" | "Progress Tracker">(
-      "Task Management"
-    );
+  const [activeTab] = useState<"Task Management" | "Progress Tracker">(
+    "Task Management"
+  );
+  const { data: response, isLoading: loading } = useTasksQuery();
+
+  const statsData = response?.data?.stats || {
+    total: 0,
+    completed: 0,
+    inProgress: 0,
+    overdue: 0,
+  };
+
+  const boardData = response?.data?.board || {
+    todo: [],
+    in_progress: [],
+    done: [],
+  };
+
+  const stats: StatItem[] = [
+    {
+      key: "activeProjects",
+      title: "Total Tasks",
+      value: statsData.total,
+      icon: FolderIcon,
+    },
+    {
+      key: "completionRate",
+      title: "Completed",
+      value: statsData.completed,
+      icon: MoneyIcon,
+    },
+    {
+      key: "pendingMaterials",
+      title: "In Progress",
+      value: statsData.inProgress,
+      icon: BoxIcon,
+    },
+    {
+      key: "safetyScore",
+      title: "Overdue",
+      value: statsData.overdue,
+      icon: ShieldIcon,
+    },
+  ];
+
   return (
     <div className="space-y-6">
       <div>
@@ -46,40 +63,33 @@ export default function Tasks() {
           <h1 className="text-[#111827] lg:text-[30px] text-[24px] font-bold leading-[36px]">
             Tasks & Progress
           </h1>
-          <div className="flex bg-[#F3F4F6] w-fit rounded-[10px] p-1 h-11 border border-[#E5E7EB]">
-            <button
-              onClick={() => setActiveTab("Task Management")}
-              className={`px-5 py-2 rounded-[8px] text-[14px] transition
-                ${
-                  activeTab === "Task Management"
-                    ? "bg-white text-[#1D51A4]"
-                    : "text-[#6B7280]"
-                }`}
-            >
-              Task Management
-            </button>
-
-            <button
-              onClick={() => setActiveTab("Progress Tracker")}
-              className={`px-5 py-2 rounded-[8px] text-[14px] transition
-                ${
-                  activeTab === "Progress Tracker"
-                    ? "bg-white text-[#1D51A4]"
-                    : "text-[#6B7280]"
-                }`}
-            >
-              Progress Tracker
-            </button>
-          </div>
         </div>
-        <StatsOverview stats={stats} />
+
+        {loading ? (
+          <div className="grid md:grid-cols-4 grid-cols-2 md:gap-6 gap-3 md:mb-6 mb-3">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <div
+                key={idx}
+                className="rounded-[8px] min-h-[106px] py-3 lg:px-6 px-3 flex items-center justify-between gap-1 bg-gray-100 animate-pulse"
+              >
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-7 w-12" />
+                </div>
+                <Skeleton className="w-[48px] h-[48px] rounded-[10px]" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <StatsOverview stats={stats} />
+        )}
       </div>
+
       {activeTab === "Task Management" && (
-          <TaskBoard />
+        <TaskBoard boardData={boardData} loading={loading} />
       )}
-      {activeTab === "Progress Tracker" && (
-          <ProgressTracker />
-      )}
+      {activeTab === "Progress Tracker" && <ProgressTracker />}
     </div>
   );
 }
+
