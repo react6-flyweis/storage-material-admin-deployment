@@ -28,12 +28,12 @@ import { downloadFile } from "@/lib/utils";
 
 // --- Types & Data Interfaces ---
 
-function mapStatusString(rawStatus?: string): DrawingFile["status"] {
+function mapStatusString(rawStatus?: string): string {
   const s = rawStatus ? rawStatus.toLowerCase() : "";
   if (s.includes("approved")) return "Approved";
-  if (s.includes("revision") || s.includes("required")) return "Revision Required";
-  if (s.includes("rejected")) return "Rejected";
-  return "Pending Review";
+  if (s.includes("revision") || s.includes("required") || s.includes("rejected")) return "Revision Requested";
+  if (s.includes("pending")) return "Pending Review";
+  return rawStatus || "Pending Review";
 }
 
 interface BuildingDrawingsGroup {
@@ -52,27 +52,20 @@ const mapStatusInfo = (status: string) => {
     return {
       text: "Approved",
       value: "approved",
-      badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+      badgeClass: "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]",
     };
   }
-  if (s.includes("revision") || s.includes("required")) {
+  if (s.includes("revision") || s.includes("required") || s.includes("rejected")) {
     return {
-      text: "Revision Required",
+      text: "Revision Requested",
       value: "revision-requested",
-      badgeClass: "bg-rose-50 text-rose-700 border-rose-200",
-    };
-  }
-  if (s.includes("reject")) {
-    return {
-      text: "Rejected",
-      value: "rejected",
-      badgeClass: "bg-red-50 text-red-700 border-red-200",
+      badgeClass: "bg-[#FFF7ED] text-[#FF9409] border-[#FFEDD5]",
     };
   }
   return {
     text: "Pending Review",
     value: "pending-review",
-    badgeClass: "bg-amber-50 text-amber-700 border-amber-200",
+    badgeClass: "bg-[#FEFAE2] text-[#F0CC16] border-[#FEFAE2]",
   };
 };
 
@@ -190,6 +183,16 @@ export default function ProjectDrawingsPage() {
         const photosList: DrawingFile[] = [];
 
         (b.drawings || []).forEach((d) => {
+          const commentsList = d.comments || (d as any).comments || [];
+          const latestComment =
+            commentsList.length > 0
+              ? [...commentsList].sort((a, b) => {
+                  const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                  const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                  return dateB - dateA;
+                })[0]?.text
+              : undefined;
+
           const fileObj: DrawingFile = {
             id: d._id || `DWG-${d.versionNumber || 1}`,
             name: d.fileName || `Building ${b.buildingNumber} Drawing`,
@@ -200,6 +203,11 @@ export default function ProjectDrawingsPage() {
             receivedDate: d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Recent",
             location: `Building ${b.buildingNumber}`,
             rejectionReason: d.rejectionReason,
+            comments: commentsList,
+            customerSuggestions:
+              latestComment ||
+              (d as any).customerSuggestions ||
+              (d as any).suggestions,
           };
 
           if (isPhotoFile(d.fileName || "")) {
@@ -231,9 +239,13 @@ export default function ProjectDrawingsPage() {
     buildingGroups.forEach((b) => {
       [...b.drawings, ...b.photos].forEach((f) => {
         totalFiles++;
-        if (f.status === "Approved") approved++;
-        else if (f.status === "Pending Review") pending++;
-        else if (f.status === "Revision Required" || f.status === "Rejected") revision++;
+        if (f.status?.toLowerCase().includes("approved")) approved++;
+        else if (f.status?.toLowerCase().includes("pending")) pending++;
+        else if (
+          f.status?.toLowerCase().includes("revision") ||
+          f.status?.toLowerCase().includes("required") ||
+          f.status?.toLowerCase().includes("rejected")
+        ) revision++;
       });
     });
 
@@ -260,7 +272,7 @@ export default function ProjectDrawingsPage() {
         iconWrapperClassName: "bg-white",
       },
       {
-        title: "Revision Required",
+        title: "Revision Requested",
         value: `${revision} Files`,
         icon: <AlertCircle className="h-5 w-5 text-[#F97316]" />,
         color: "bg-[#F97316]",
