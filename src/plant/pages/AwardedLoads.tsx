@@ -3,10 +3,20 @@ import { useNavigate } from "react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Filter, Download, Search, Ribbon, Truck, CheckCircle2, DollarSign, Phone, ChevronLeft, ChevronRight } from "lucide-react";
+import { Filter, Download, Search, Ribbon, Truck, CheckCircle2, DollarSign, Phone, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import AwardedLoadsFiltersDialog from "@/plant/components/AwardedLoadsFiltersDialog";
-import { useAwardedStatsQuery, useAwardedLoadsQuery } from "@/modules/plant/freight.hooks";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  useAwardedStatsQuery,
+  useAwardedLoadsQuery,
+  useFreightFiltersQuery,
+} from "@/modules/plant/freight.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AwardedLoads() {
@@ -16,6 +26,12 @@ export default function AwardedLoads() {
   const [limit] = useState(20);
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [projectId, setProjectId] = useState("all");
+  const [customerId, setCustomerId] = useState("all");
+  const [carrierId, setCarrierId] = useState("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
 
   // Debounce search input
   React.useEffect(() => {
@@ -27,33 +43,69 @@ export default function AwardedLoads() {
   }, [searchInput]);
 
   const { data: statsResponse } = useAwardedStatsQuery();
-  const { data: loadsResponse, isLoading: isLoadsLoading } = useAwardedLoadsQuery({
+  const { data: filtersResponse } = useFreightFiltersQuery();
+
+  const awardedLoadsParams: Record<string, string | number> = {
     page,
     limit,
-    search: search || undefined,
-  });
+  };
+  if (search.trim()) awardedLoadsParams.search = search.trim();
+  if (status && status !== "all") awardedLoadsParams.status = status;
+  if (projectId && projectId !== "all") awardedLoadsParams.projectId = projectId;
+  if (customerId && customerId !== "all") awardedLoadsParams.customerId = customerId;
+  if (carrierId && carrierId !== "all") awardedLoadsParams.carrierId = carrierId;
+  if (fromDate.trim()) awardedLoadsParams.fromDate = fromDate.trim();
+  if (toDate.trim()) awardedLoadsParams.toDate = toDate.trim();
+
+  const { data: loadsResponse, isLoading: isLoadsLoading } = useAwardedLoadsQuery(awardedLoadsParams);
 
   const stats = statsResponse?.data;
   const requests = loadsResponse?.data?.requests || [];
   const total = loadsResponse?.data?.total || 0;
 
+  const statusesList = filtersResponse?.data?.statuses || [];
+  const projectsList = filtersResponse?.data?.projects || [];
+  const customersList = filtersResponse?.data?.customers || [];
+  const carriersList = filtersResponse?.data?.carriers || [];
+
+  const handleClearFilters = () => {
+    setStatus("all");
+    setProjectId("all");
+    setCustomerId("all");
+    setCarrierId("all");
+    setFromDate("");
+    setToDate("");
+    setSearchInput("");
+    setSearch("");
+    setPage(1);
+  };
+
+  const hasActiveFilters =
+    status !== "all" ||
+    projectId !== "all" ||
+    customerId !== "all" ||
+    carrierId !== "all" ||
+    fromDate !== "" ||
+    toDate !== "" ||
+    search !== "";
+
   return (
     <div className="flex-1 space-y-6 p-6 bg-[#f9fafb] min-h-screen">
-      
+
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Awarded Loads</h1>
           <p className="text-sm text-slate-500 mt-1">Track all awarded freight loads</p>
         </div>
-        <div className="flex items-center gap-3">
+        {/* <div className="flex items-center gap-3">
           <Button 
             variant="outline" 
             className="bg-white gap-2 font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 rounded-xl"
-            onClick={() => setIsFilterOpen(true)}
+            onClick={() => setIsFilterOpen((prev) => !prev)}
           >
             <Filter className="w-4 h-4" />
-            Filter
+            {isFilterOpen ? "Hide Filters" : "Filter"}
           </Button>
           <Button 
             variant="outline" 
@@ -62,7 +114,7 @@ export default function AwardedLoads() {
             <Download className="w-4 h-4" />
             Export
           </Button>
-        </div>
+        </div> */}
       </div>
 
       {/* Summary Cards */}
@@ -124,24 +176,138 @@ export default function AwardedLoads() {
 
       {/* Search and Table Area */}
       <div className="bg-white rounded-3xl p-6 shadow-sm">
-        
-        {/* Search Bar & Filter Button */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input 
-              placeholder="Search awarded loads..." 
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-10 h-12 bg-slate-50 border-0 rounded-xl"
-            />
+
+        {/* Search Bar & Filter Controls */}
+        <div className="flex flex-col space-y-4 mb-6">
+          <div className="flex flex-col sm:flex-row justify-between gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                placeholder="Search awarded loads..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="pl-10 h-11 bg-slate-50 border-0 rounded-xl text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {hasActiveFilters && (
+                <Button
+                  variant="outline"
+                  className="border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50 h-11 px-6 rounded-xl w-full sm:w-auto"
+                  onClick={handleClearFilters}
+                >
+                  <X className="w-4 h-4 mr-2 text-slate-400" />
+                  Clear
+                </Button>
+              )}
+              <Button
+                className="h-11 px-8 rounded-xl bg-[#3b59df] hover:bg-[#2b41b3] text-white font-medium w-full sm:w-auto"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                Filters
+              </Button>
+            </div>
           </div>
-          <Button 
-            className="h-12 px-8 rounded-xl bg-[#3b59df] hover:bg-[#2b41b3] text-white font-medium"
-            onClick={() => setIsFilterOpen(true)}
-          >
-            Filter
-          </Button>
+
+          {/* Filter Panel */}
+          {isFilterOpen && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-1 duration-200">
+              {/* Status Select */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</label>
+                <Select value={status} onValueChange={(val) => { setStatus(val); setPage(1); }}>
+                  <SelectTrigger className="bg-white border-slate-200 rounded-xl">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {statusesList.map((st) => (
+                      <SelectItem key={st} value={st}>
+                        {st.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Project Select */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Project</label>
+                <Select value={projectId} onValueChange={(val) => { setProjectId(val); setPage(1); }}>
+                  <SelectTrigger className="bg-white border-slate-200 rounded-xl">
+                    <SelectValue placeholder="All Projects" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Projects</SelectItem>
+                    {projectsList.map((p) => (
+                      <SelectItem key={p._id} value={p._id}>
+                        {p.projectName ? `${p.projectName}${p.jobId ? ` (${p.jobId})` : ""}` : p.jobId || p._id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Customer Select */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Customer</label>
+                <Select value={customerId} onValueChange={(val) => { setCustomerId(val); setPage(1); }}>
+                  <SelectTrigger className="bg-white border-slate-200 rounded-xl">
+                    <SelectValue placeholder="All Customers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Customers</SelectItem>
+                    {customersList.map((c) => (
+                      <SelectItem key={c._id} value={c._id}>
+                        {c.name || c._id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Carrier Select */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Carrier</label>
+                <Select value={carrierId} onValueChange={(val) => { setCarrierId(val); setPage(1); }}>
+                  <SelectTrigger className="bg-white border-slate-200 rounded-xl">
+                    <SelectValue placeholder="All Carriers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Carriers</SelectItem>
+                    {carriersList.map((c) => (
+                      <SelectItem key={c._id} value={c._id}>
+                        {c.carrierName || c._id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* From Date */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">From Date</label>
+                <Input
+                  type="date"
+                  className="bg-white border-slate-200 h-10 text-sm rounded-xl"
+                  value={fromDate}
+                  onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
+                />
+              </div>
+
+              {/* To Date */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">To Date</label>
+                <Input
+                  type="date"
+                  className="bg-white border-slate-200 h-10 text-sm rounded-xl"
+                  value={toDate}
+                  onChange={(e) => { setToDate(e.target.value); setPage(1); }}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Table */}
@@ -183,8 +349,8 @@ export default function AwardedLoads() {
                 </tr>
               ) : (
                 requests.map((load, index) => (
-                  <tr 
-                    key={load._id || index} 
+                  <tr
+                    key={load._id || index}
                     className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
                     onClick={() => navigate(`/plant/freight-request-details/${load._id || load.requestId}`)}
                   >
@@ -193,8 +359,8 @@ export default function AwardedLoads() {
                       <p className="text-[11px] text-slate-500 mb-2">
                         Requested: {load.createdAt ? new Date(load.createdAt).toLocaleDateString() : "-"}
                       </p>
-                      <Badge 
-                        variant="outline" 
+                      <Badge
+                        variant="outline"
                         className={`text-[10px] rounded-full px-2 py-0.5 font-medium border
                           ${load.status === "delivered" ? "text-emerald-600 bg-emerald-50 border-emerald-200" : "text-blue-600 bg-blue-50 border-blue-200"}
                         `}
@@ -229,8 +395,8 @@ export default function AwardedLoads() {
                         {load.carrier?.carrierName || "-"}
                       </p>
                       {load.poc?.pickupContactPhone && (
-                        <a 
-                          href={`tel:${load.poc.pickupContactPhone}`} 
+                        <a
+                          href={`tel:${load.poc.pickupContactPhone}`}
                           onClick={(e) => e.stopPropagation()}
                           className="text-[11px] text-blue-600 flex items-center gap-1 hover:underline"
                         >
@@ -305,12 +471,6 @@ export default function AwardedLoads() {
           </div>
         )}
       </div>
-
-      {/* Filter Modal */}
-      <AwardedLoadsFiltersDialog 
-        open={isFilterOpen}
-        onOpenChange={setIsFilterOpen}
-      />
 
     </div>
   );
