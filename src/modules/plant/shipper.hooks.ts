@@ -21,10 +21,10 @@ export function useShipperStatsQuery() {
   });
 }
 
-export function useShipperProjectsQuery(page = 1, limit = 20) {
+export function useShipperProjectsQuery(page = 1, limit = 20, fileStatus?: string) {
   return useQuery({
-    queryKey: ["plant", "shipper", "projects", page, limit],
-    queryFn: () => getShipperProjectsProvider(page, limit),
+    queryKey: ["plant", "shipper", "projects", page, limit, fileStatus],
+    queryFn: () => getShipperProjectsProvider(page, limit, fileStatus),
     staleTime: 60 * 1000,
   });
 }
