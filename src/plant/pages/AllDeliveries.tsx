@@ -31,6 +31,14 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useDeliveriesQuery, useDeliveriesStatsQuery } from "@/modules/plant/deliveries.hooks";
+import { type PlantDelivery } from "@/modules/plant/deliveries.api";
+import { useDeliveryDetailQuery } from "@/modules/plant/freight.hooks";
+import { useDeliveryStatusUpdate } from "./useDeliveryStatusUpdate";
+import EditDeliveryModal from "@/plant/components/EditDeliveryModal";
+import RescheduleDeliveryDialog from "@/plant/components/RescheduleDeliveryDialog";
+import MarkDeliveredSuccessDialog from "@/plant/components/MarkDeliveredSuccessDialog";
+import { RescheduleSuccessModal } from "./DeliveryActionModals";
+import { convertTo24Hour } from "./delivery-details/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const toggleColumns = ["Project", "Customer", "Vendor", "Carrier", "POC", "Date"];
@@ -63,6 +71,20 @@ const getStatusBadgeStyles = (status: string) => {
 export default function AllDeliveries() {
   const navigate = useNavigate();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
+
+  // Modal / Action States
+  const [selectedDeliveryForEditId, setSelectedDeliveryForEditId] = useState<string | null>(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+
+  const [selectedDeliveryForReschedule, setSelectedDeliveryForReschedule] = useState<PlantDelivery | null>(null);
+  const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
+  const [isRescheduleSuccessOpen, setIsRescheduleSuccessOpen] = useState(false);
+  const [rescheduleData, setRescheduleData] = useState<{ date: string; timeWindowStart: string; timeWindowEnd: string } | null>(null);
+
+  const [selectedDeliveryForDelivered, setSelectedDeliveryForDelivered] = useState<PlantDelivery | null>(null);
+  const [isMarkDeliveredOpen, setIsMarkDeliveredOpen] = useState(false);
+
+  const { updateDeliveryStatus, toastMessage } = useDeliveryStatusUpdate();
 
   // Toggling columns
   const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>({
@@ -103,8 +125,8 @@ export default function AllDeliveries() {
   }, [searchInput]);
 
   // Query Hooks
-  const { data: statsResponse } = useDeliveriesStatsQuery();
-  const { data: deliveriesResponse, isLoading } = useDeliveriesQuery({
+  const { data: statsResponse, refetch: refetchStats } = useDeliveriesStatsQuery();
+  const { data: deliveriesResponse, isLoading, refetch: refetchDeliveries } = useDeliveriesQuery({
     page,
     limit,
     search: search || undefined,
@@ -116,6 +138,11 @@ export default function AllDeliveries() {
     fromDate: fromDateFilter || undefined,
     toDate: toDateFilter || undefined,
   });
+
+  const { data: editDeliveryDetailResponse } = useDeliveryDetailQuery(
+    selectedDeliveryForEditId || "",
+    { enabled: Boolean(selectedDeliveryForEditId) }
+  );
 
   const stats = statsResponse?.data || {};
   const deliveries = deliveriesResponse?.data?.deliveries || [];
@@ -134,8 +161,43 @@ export default function AllDeliveries() {
     setPage(1);
   };
 
+  const handleEdit = (row: PlantDelivery) => {
+    const deliveryId = row._id || row.requestId;
+    setSelectedDeliveryForEditId(deliveryId);
+    setIsEditOpen(true);
+  };
+
+  const handleReschedule = (row: PlantDelivery) => {
+    setSelectedDeliveryForReschedule(row);
+    setIsRescheduleOpen(true);
+  };
+
+  const handleMarkDelivered = (row: PlantDelivery) => {
+    const deliveryId = row._id || row.requestId;
+    setSelectedDeliveryForDelivered(row);
+    updateDeliveryStatus(deliveryId, "delivered", () => {
+      setIsMarkDeliveredOpen(true);
+      refetchDeliveries();
+      refetchStats();
+    });
+  };
+
+  const [rawTimeStart = "", rawTimeEnd = ""] = (selectedDeliveryForReschedule?.deliveryTime || "").split(/\s*[-–]\s*/);
+  const initialTimeStart = convertTo24Hour(rawTimeStart);
+  const initialTimeEnd = convertTo24Hour(rawTimeEnd);
+
   return (
     <div className="flex-1 space-y-6 p-6 bg-[#f8fafc] min-h-screen font-sans">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className={`fixed top-6 right-6 z-50 text-white font-semibold px-6 py-3.5 rounded-xl shadow-lg flex items-center gap-2 animate-bounce ${
+          toastMessage.includes("Error:") ? "bg-red-500" : "bg-[#10B981]"
+        }`}>
+          <AlertTriangle size={18} strokeWidth={3} />
+          {toastMessage}
+        </div>
+      )}
+
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-[#0f172a]">
@@ -550,22 +612,71 @@ export default function AllDeliveries() {
                           className="absolute right-8 top-10 z-50 w-40 bg-white border border-gray-100 shadow-xl rounded-xl p-2 flex flex-col gap-1.5"
                           onMouseLeave={() => setActiveMenu(null)}
                         >
-                          <Button size="sm" className="w-full bg-[#2563eb] hover:bg-blue-700 text-white rounded-md h-8 text-xs font-medium justify-center">
+                          <Button
+                            size="sm"
+                            className="w-full bg-[#2563eb] hover:bg-blue-700 text-white rounded-md h-8 text-xs font-medium justify-center"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenu(null);
+                              navigate(`/plant/delivery-details/${row._id || row.requestId}`);
+                            }}
+                          >
                             View
                           </Button>
-                          <Button size="sm" className="w-full bg-[#f97316] hover:bg-orange-600 text-white rounded-md h-8 text-xs font-medium justify-center">
+                          <Button
+                            size="sm"
+                            disabled={row.status?.toLowerCase() === "delivered"}
+                            className="w-full bg-[#f97316] hover:bg-orange-600 text-white rounded-md h-8 text-xs font-medium justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenu(null);
+                              handleEdit(row);
+                            }}
+                          >
                             Edit
                           </Button>
-                          <Button size="sm" className="w-full bg-[#06b6d4] hover:bg-cyan-600 text-white rounded-md h-8 text-xs font-medium justify-center">
+                          <Button
+                            size="sm"
+                            disabled={row.status?.toLowerCase() === "delivered"}
+                            className="w-full bg-[#06b6d4] hover:bg-cyan-600 text-white rounded-md h-8 text-xs font-medium justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenu(null);
+                              handleReschedule(row);
+                            }}
+                          >
                             Reschedule
                           </Button>
-                          <Button size="sm" className="w-full bg-[#22c55e] hover:bg-green-600 text-white rounded-md h-8 text-xs font-medium justify-center">
+                          <Button
+                            size="sm"
+                            disabled={row.status?.toLowerCase() === "delivered"}
+                            className="w-full bg-[#22c55e] hover:bg-green-600 text-white rounded-md h-8 text-xs font-medium justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenu(null);
+                              handleMarkDelivered(row);
+                            }}
+                          >
                             Mark Delivered
                           </Button>
-                          <Button size="sm" className="w-full bg-[#fef08a] hover:bg-yellow-300 text-yellow-800 rounded-md h-8 text-xs font-medium justify-center">
+                          <Button
+                            size="sm"
+                            className="w-full bg-[#fef08a] hover:bg-yellow-300 text-yellow-800 rounded-md h-8 text-xs font-medium justify-center"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenu(null);
+                            }}
+                          >
                             Send Reminder
                           </Button>
-                          <Button size="sm" className="w-full bg-[#bfdbfe] hover:bg-blue-300 text-blue-800 rounded-md h-8 text-xs font-medium justify-center">
+                          <Button
+                            size="sm"
+                            className="w-full bg-[#bfdbfe] hover:bg-blue-300 text-blue-800 rounded-md h-8 text-xs font-medium justify-center"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenu(null);
+                            }}
+                          >
                             Assign owner
                           </Button>
                         </div>
@@ -615,6 +726,62 @@ export default function AllDeliveries() {
           </div>
         </div>
       )}
+
+      {/* Edit Delivery Modal */}
+      {selectedDeliveryForEditId && editDeliveryDetailResponse?.data?.delivery && (
+        <EditDeliveryModal
+          isOpen={isEditOpen}
+          onClose={() => {
+            setIsEditOpen(false);
+            setSelectedDeliveryForEditId(null);
+          }}
+          deliveryId={selectedDeliveryForEditId}
+          delivery={editDeliveryDetailResponse.data.delivery}
+          onSaveSuccess={() => {
+            refetchDeliveries();
+            refetchStats();
+            setIsEditOpen(false);
+            setSelectedDeliveryForEditId(null);
+          }}
+        />
+      )}
+
+      {/* Reschedule Delivery Dialog */}
+      <RescheduleDeliveryDialog
+        open={isRescheduleOpen}
+        onOpenChange={setIsRescheduleOpen}
+        deliveryId={selectedDeliveryForReschedule?._id || selectedDeliveryForReschedule?.requestId || ""}
+        initialDate={selectedDeliveryForReschedule?.deliveryDate || ""}
+        initialTimeWindowStart={initialTimeStart}
+        initialTimeWindowEnd={initialTimeEnd}
+        initialAdditionalNotes={selectedDeliveryForReschedule?.description || ""}
+        onSubmit={(data) => {
+          setRescheduleData(data);
+          setIsRescheduleOpen(false);
+          setIsRescheduleSuccessOpen(true);
+          refetchDeliveries();
+          refetchStats();
+        }}
+      />
+
+      {/* Reschedule Success Modal */}
+      <RescheduleSuccessModal
+        isOpen={isRescheduleSuccessOpen}
+        onClose={() => setIsRescheduleSuccessOpen(false)}
+        projectName={selectedDeliveryForReschedule?.description || selectedDeliveryForReschedule?.project?.projectName || "Delivery"}
+        newDate={rescheduleData ? new Date(rescheduleData.date + "T00:00:00Z").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }) : undefined}
+        timeWindow={rescheduleData ? `${rescheduleData.timeWindowStart} – ${rescheduleData.timeWindowEnd}` : undefined}
+        contact={selectedDeliveryForReschedule?.poc?.receivingPoc || "Site Manager"}
+      />
+
+      {/* Mark Delivered Success Dialog */}
+      <MarkDeliveredSuccessDialog
+        open={isMarkDeliveredOpen}
+        onOpenChange={setIsMarkDeliveredOpen}
+        deliveryTime={new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+        receiverName={selectedDeliveryForDelivered?.poc?.receivingPoc || "Receiver Name"}
+        deliveryNotes="NA"
+      />
     </div>
   );
 }
