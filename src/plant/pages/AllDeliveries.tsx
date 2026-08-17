@@ -190,9 +190,8 @@ export default function AllDeliveries() {
     <div className="flex-1 space-y-6 p-6 bg-[#f8fafc] min-h-screen font-sans">
       {/* Toast Notification */}
       {toastMessage && (
-        <div className={`fixed top-6 right-6 z-50 text-white font-semibold px-6 py-3.5 rounded-xl shadow-lg flex items-center gap-2 animate-bounce ${
-          toastMessage.includes("Error:") ? "bg-red-500" : "bg-[#10B981]"
-        }`}>
+        <div className={`fixed top-6 right-6 z-50 text-white font-semibold px-6 py-3.5 rounded-xl shadow-lg flex items-center gap-2 animate-bounce ${toastMessage.includes("Error:") ? "bg-red-500" : "bg-[#10B981]"
+          }`}>
           <AlertTriangle size={18} strokeWidth={3} />
           {toastMessage}
         </div>
@@ -669,7 +668,7 @@ export default function AllDeliveries() {
                           >
                             Send Reminder
                           </Button>
-                          <Button
+                          {/* <Button
                             size="sm"
                             className="w-full bg-[#bfdbfe] hover:bg-blue-300 text-blue-800 rounded-md h-8 text-xs font-medium justify-center"
                             onClick={(e) => {
@@ -678,7 +677,7 @@ export default function AllDeliveries() {
                             }}
                           >
                             Assign owner
-                          </Button>
+                          </Button> */}
                         </div>
                       )}
                     </td>
