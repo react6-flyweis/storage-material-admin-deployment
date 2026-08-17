@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Search, Filter, Hammer, ShieldCheck,
   CircleDollarSign, TrendingUp, Check, AlertCircle,
-  ChevronLeft, ChevronRight
+  ChevronLeft, ChevronRight, X
 } from "lucide-react";
 import {
   Select,
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useBomStatsQuery, useBomProjectsQuery } from "@/modules/plant/bom.hooks";
+import { useBudgetVsActualProjectsQuery } from "@/modules/financials/financials.hooks";
 import type { FileStatus } from "@/modules/plant/bom.api";
 import { Skeleton } from "@/components/ui/skeleton";
 import SummaryCard from "@/plant/components/SummaryCard";
@@ -24,16 +25,24 @@ import SummaryCard from "@/plant/components/SummaryCard";
 export default function UploadedBomFiles() {
   const navigate = useNavigate();
 
-
   // Pagination & Filtering State
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [search, setSearch] = useState("");
+  const [projectId, setProjectId] = useState("all-projects");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  // Fetch Projects List for Filter Options
+  const { data: projectsRes } = useBudgetVsActualProjectsQuery();
+  const projectOptions = projectsRes?.data?.projects || [];
 
   // Fetch Stats & Projects
   const { data: statsResponse, isLoading: isStatsLoading } = useBomStatsQuery();
-  const { data: projectsResponse, isLoading: isProjectsLoading } = useBomProjectsQuery(page, limit);
+  const { data: projectsResponse, isLoading: isProjectsLoading } = useBomProjectsQuery(
+    page,
+    limit,
+    projectId !== "all-projects" ? projectId : undefined
+  );
 
   const stats = statsResponse?.data || {
     totalBomFilesUploaded: 0,
@@ -182,7 +191,7 @@ export default function UploadedBomFiles() {
 
       {/* Controls */}
       <div className="flex flex-col sm:flex-row justify-between gap-4 mt-8">
-        <div className="flex gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
@@ -192,10 +201,43 @@ export default function UploadedBomFiles() {
               className="pl-9 w-[240px] h-10 bg-white border-0 shadow-sm rounded-lg"
             />
           </div>
-          <Button variant="outline" className="bg-white border-0 shadow-sm h-10 px-4 rounded-lg text-slate-700 gap-2">
-            <Filter className="w-4 h-4" />
-            Filter
-          </Button>
+
+          <Select
+            value={projectId}
+            onValueChange={(val) => {
+              setProjectId(val);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-[200px] h-10 bg-white border-0 shadow-sm rounded-lg text-slate-700 font-medium">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-slate-400" />
+                <SelectValue placeholder="All Projects" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all-projects">All Projects</SelectItem>
+              {projectOptions.map((proj) => (
+                <SelectItem key={proj._id} value={proj._id}>
+                  {proj.jobId ? `${proj.jobId} - ${proj.projectName}` : proj.projectName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {projectId !== "all-projects" && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setProjectId("all-projects");
+                setPage(1);
+              }}
+              className="h-10 px-3 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white shadow-sm rounded-lg"
+            >
+              <X className="w-3.5 h-3.5 mr-1" />
+              Clear Filter
+            </Button>
+          )}
         </div>
         <div>
           <Select defaultValue="latest">
