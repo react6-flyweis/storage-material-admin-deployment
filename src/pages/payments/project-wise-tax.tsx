@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { format, isValid } from "date-fns";
 import type { DateRange as RDateRange } from "react-day-picker";
 import { Card } from "@/components/ui/card";
@@ -28,6 +28,7 @@ import {
   Hourglass,
   Clock,
   TrendingUp,
+  TrendingDown,
   ChevronLeft,
   ChevronRight,
   MoreHorizontal,
@@ -38,10 +39,14 @@ import StatCardV2 from "@/components/ui/stat-card-v2";
 import DateRangeFilter from "@/components/ui/date-range-filter";
 import {
   useProjectWiseTaxQuery,
+  useProjectWiseTaxStatsQuery,
   useExportProjectWiseTaxMutation,
+} from "@/modules/payments/payments.hooks";
+import {
+  useBudgetVsActualProjectsQuery,
   useExpensesFiltersQuery,
 } from "@/modules/financials/financials.hooks";
-import type { ProjectWiseTaxItem } from "@/modules/financials/financials.api";
+import type { ProjectWiseTaxItem, TaxFilingItem } from "@/modules/payments/payments.api";
 
 const AVATAR_COLORS = [
   "bg-blue-900",
@@ -83,13 +88,31 @@ function formatDateDisplay(dateStr?: string) {
   }
 }
 
-const GrowthText = ({ value }: { value: string }) => (
-  <span className="flex items-center text-emerald-500 font-medium">
-    <TrendingUp className="w-3 h-3 mr-1" />
-    {value}{" "}
-    <span className="text-gray-400 font-normal ml-1">from last month</span>
-  </span>
-);
+const ChangeText = ({ value }: { value?: number }) => {
+  if (value === undefined || value === null || isNaN(value)) {
+    return (
+      <span className="text-gray-400 font-normal text-xs">
+        from last month
+      </span>
+    );
+  }
+  const isPositive = value >= 0;
+  return (
+    <span
+      className={`flex items-center font-medium text-xs ${
+        isPositive ? "text-emerald-500" : "text-rose-500"
+      }`}
+    >
+      {isPositive ? (
+        <TrendingUp className="w-3 h-3 mr-1" />
+      ) : (
+        <TrendingDown className="w-3 h-3 mr-1" />
+      )}
+      {isPositive ? `+${value}%` : `${value}%`}{" "}
+      <span className="text-gray-400 font-normal ml-1">from last month</span>
+    </span>
+  );
+};
 
 export default function ProjectWiseTax() {
   const [page, setPage] = useState<number>(1);
@@ -102,70 +125,165 @@ export default function ProjectWiseTax() {
   const [selectedProject, setSelectedProject] = useState<{
     state: string;
     status: string;
+    item?: TaxFilingItem;
   } | null>(null);
+
+  // Fetch project options from budget vs actual and expenses filters
+  const { data: bvaProjectsData, isLoading: isBvaLoading } =
+    useBudgetVsActualProjectsQuery();
+  const { data: filtersData, isLoading: isFiltersLoading } =
+    useExpensesFiltersQuery();
+
+  const isProjectsLoading = isBvaLoading || isFiltersLoading;
+
+  // Build unified project options list
+  const projectOptions = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; jobId?: string }>();
+
+    // From budget vs actual
+    const bvaList = bvaProjectsData?.data?.projects || [];
+    for (const p of bvaList) {
+      if (p._id) {
+        map.set(p._id, {
+          id: p._id,
+          name: p.projectName || "",
+          jobId: p.jobId || "",
+        });
+      }
+    }
+
+    // From expense filters
+    const filterProjects = filtersData?.data?.projects || [];
+    for (const p of filterProjects) {
+      if (p.leadId) {
+        const existing = map.get(p.leadId);
+        map.set(p.leadId, {
+          id: p.leadId,
+          name: p.projectName || existing?.name || "",
+          jobId: p.jobId || existing?.jobId || "",
+        });
+      }
+    }
+
+    return Array.from(map.values()).map((p) => {
+      const displayLabel = p.name
+        ? p.jobId
+          ? `${p.name} (${p.jobId})`
+          : p.name
+        : p.jobId || p.id;
+      return {
+        id: p.id,
+        label: displayLabel,
+      };
+    });
+  }, [bvaProjectsData, filtersData]);
+
+  const startDateStr = dateRange?.from
+    ? format(dateRange.from, "yyyy-MM-dd")
+    : undefined;
+  const endDateStr = dateRange?.to
+    ? format(dateRange.to, "yyyy-MM-dd")
+    : undefined;
+  const activeProjectId =
+    selectedProjectId !== "all" ? selectedProjectId : undefined;
 
   const queryParams = {
     page,
     limit,
-    projectId: selectedProjectId !== "all" ? selectedProjectId : undefined,
-    startDate: dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined,
-    endDate: dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined,
+    projectId: activeProjectId,
+    startDate: startDateStr,
+    endDate: endDateStr,
+  };
+
+  const statsParams = {
+    projectId: activeProjectId,
+    startDate: startDateStr,
+    endDate: endDateStr,
   };
 
   const { data, isLoading, isFetching, isError, refetch } =
     useProjectWiseTaxQuery(queryParams);
-  const { data: filtersData } = useExpensesFiltersQuery();
+
+  const {
+    data: statsRes,
+    isFetching: isStatsFetching,
+    refetch: refetchStats,
+  } = useProjectWiseTaxStatsQuery(statsParams);
+
   const exportMutation = useExportProjectWiseTaxMutation();
 
   const projects: ProjectWiseTaxItem[] = data?.data?.projects || [];
   const totalItems: number = data?.data?.total || 0;
   const totalPages: number = Math.max(1, Math.ceil(totalItems / limit));
 
-  // Projects options for dropdown
-  const filterProjectList = filtersData?.data?.projects || [];
+  const statsData = statsRes?.data;
 
-  // Computed summary metrics
-  const totalTaxCollected = projects.reduce(
+  // Fallback calculations if stats endpoint doesn't return or is loading
+  const fallbackTaxCollected = projects.reduce(
     (acc, curr) => acc + (Number(curr.taxCollected) || 0),
     0
   );
-  const totalPaid = projects.reduce(
+  const fallbackPaid = projects.reduce(
     (acc, curr) => acc + (Number(curr.paidFiled) || 0),
     0
   );
-  const totalPayable = projects.reduce(
+  const fallbackPayable = projects.reduce(
     (acc, curr) => acc + (Number(curr.payable) || 0),
     0
   );
-  const pendingProjects = projects.filter(
+  const fallbackPendingProjects = projects.filter(
     (p) =>
       Number(p.payable) > 0 ||
       p.status?.toLowerCase().includes("due") ||
       p.status?.toLowerCase().includes("pending")
   );
-  const pendingCount = pendingProjects.length;
 
-  const nextDueProject = pendingProjects.slice().sort((a, b) => {
-    const dateA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
-    const dateB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
-    return dateA - dateB;
-  })[0];
+  const finalTaxCollected =
+    statsData?.totalTaxCollected?.value !== undefined
+      ? statsData.totalTaxCollected.value
+      : fallbackTaxCollected;
+
+  const finalPaid =
+    statsData?.totalPaid?.value !== undefined
+      ? statsData.totalPaid.value
+      : fallbackPaid;
+
+  const finalPayable =
+    statsData?.totalPayable?.value !== undefined
+      ? statsData.totalPayable.value
+      : fallbackPayable;
+
+  const finalPendingCount =
+    statsData?.pendingFiling?.count !== undefined
+      ? statsData.pendingFiling.count
+      : fallbackPendingProjects.length;
+
+  const pendingLabel =
+    statsData?.pendingFiling?.label || "Requires Filing";
+
+  const nextDueDateDisplay = statsData?.nextFilingDue?.date
+    ? formatDateDisplay(statsData.nextFilingDue.date)
+    : fallbackPendingProjects[0]?.dueDate
+    ? formatDateDisplay(fallbackPendingProjects[0].dueDate)
+    : "-";
+
+  const nextDueLocationDisplay =
+    statsData?.nextFilingDue?.location ||
+    fallbackPendingProjects[0]?.location ||
+    fallbackPendingProjects[0]?.projectName ||
+    "No Due";
 
   const handleSyncNow = async () => {
-    await refetch();
+    await Promise.all([refetch(), refetchStats()]);
     setLastSyncedTime(new Date());
   };
 
   const handleExport = async () => {
     try {
       const blob = await exportMutation.mutateAsync({
-        projectId: selectedProjectId !== "all" ? selectedProjectId : undefined,
-        startDate: dateRange?.from
-          ? format(dateRange.from, "yyyy-MM-dd")
-          : undefined,
-        endDate: dateRange?.to
-          ? format(dateRange.to, "yyyy-MM-dd")
-          : undefined,
+        projectId: activeProjectId,
+        startDate: startDateStr,
+        endDate: endDateStr,
       });
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement("a");
@@ -180,6 +298,8 @@ export default function ProjectWiseTax() {
       if (projects.length > 0) {
         const headers = [
           "Project",
+          "Job ID",
+          "Customer",
           "Location",
           "Tax Collected",
           "Taxable Sales",
@@ -190,6 +310,8 @@ export default function ProjectWiseTax() {
         ];
         const rows = projects.map((p) => [
           `"${p.projectName || ""}"`,
+          `"${p.jobId || ""}"`,
+          `"${p.customerName || ""}"`,
           `"${p.location || ""}"`,
           p.taxCollected ?? 0,
           p.taxableSales ?? 0,
@@ -214,8 +336,20 @@ export default function ProjectWiseTax() {
     }
   };
 
-  const handleOpenSheet = (state: string, status: string) => {
-    setSelectedProject({ state, status });
+  const handleOpenSheet = (state: string, status: string, item?: ProjectWiseTaxItem) => {
+    const taxItem: TaxFilingItem | undefined = item
+      ? {
+          _id: item.leadId || "",
+          state: item.location || state,
+          filingFrequency: "monthly",
+          dueDate: item.dueDate || "",
+          amount: item.payable ?? item.taxCollected ?? 0,
+          status: item.status || status,
+          createdAt: "",
+          updatedAt: "",
+        }
+      : undefined;
+    setSelectedProject({ state, status, item: taxItem });
     setIsSheetOpen(true);
   };
 
@@ -265,6 +399,7 @@ export default function ProjectWiseTax() {
 
   const startRecordIndex = totalItems === 0 ? 0 : (page - 1) * limit + 1;
   const endRecordIndex = Math.min(page * limit, totalItems);
+  const isSyncing = isFetching || isStatsFetching;
 
   return (
     <div className="p-5 space-y-6">
@@ -295,7 +430,7 @@ export default function ProjectWiseTax() {
 
       <Card className="p-4 flex flex-col md:flex-row md:items-end justify-between gap-4 border-none shadow-sm">
         <div className="flex flex-wrap gap-4">
-          <div className="space-y-1.5 w-60">
+          <div className="space-y-1.5 w-64">
             <label className="text-sm font-medium text-gray-700">Project</label>
             <Select
               value={selectedProjectId}
@@ -303,18 +438,16 @@ export default function ProjectWiseTax() {
                 setSelectedProjectId(val);
                 setPage(1);
               }}
+              disabled={isProjectsLoading}
             >
               <SelectTrigger className="bg-white w-full">
                 <SelectValue placeholder="All Projects" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Projects</SelectItem>
-                {filterProjectList.map((proj) => (
-                  <SelectItem
-                    key={proj.leadId || proj.projectName}
-                    value={proj.leadId || proj.projectName}
-                  >
-                    {proj.projectName}
+                {projectOptions.map((proj) => (
+                  <SelectItem key={proj.id} value={proj.id}>
+                    {proj.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -344,11 +477,11 @@ export default function ProjectWiseTax() {
             variant="outline"
             className="bg-white border-gray-200 text-gray-700 cursor-pointer"
             onClick={handleSyncNow}
-            disabled={isFetching}
+            disabled={isSyncing}
           >
             Sync Now
             <RefreshCcw
-              className={`w-4 h-4 ml-2 ${isFetching ? "animate-spin" : ""}`}
+              className={`w-4 h-4 ml-2 ${isSyncing ? "animate-spin" : ""}`}
             />
           </Button>
         </div>
@@ -357,8 +490,12 @@ export default function ProjectWiseTax() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCardV2
           title="Total Tax Collected"
-          value={formatCurrency(totalTaxCollected)}
-          subtitle={<GrowthText value="5.62%" />}
+          value={formatCurrency(finalTaxCollected)}
+          subtitle={
+            <ChangeText
+              value={statsData?.totalTaxCollected?.pctChangeFromLastMonth}
+            />
+          }
           icon={
             <div className="flex items-center justify-center p-1.5 rounded-md border border-purple-200 text-purple-600">
               <DollarSign className="w-4 h-4" />
@@ -368,8 +505,10 @@ export default function ProjectWiseTax() {
         />
         <StatCardV2
           title="Total Paid"
-          value={formatCurrency(totalPaid)}
-          subtitle={<GrowthText value="11.4%" />}
+          value={formatCurrency(finalPaid)}
+          subtitle={
+            <ChangeText value={statsData?.totalPaid?.pctChangeFromLastMonth} />
+          }
           icon={
             <div className="flex items-center justify-center p-1.5 rounded-md border border-emerald-200 text-emerald-600">
               <ShoppingBag className="w-4 h-4" />
@@ -379,8 +518,12 @@ export default function ProjectWiseTax() {
         />
         <StatCardV2
           title="Total Payable"
-          value={formatCurrency(totalPayable)}
-          subtitle={<GrowthText value="8.52%" />}
+          value={formatCurrency(finalPayable)}
+          subtitle={
+            <ChangeText
+              value={statsData?.totalPayable?.pctChangeFromLastMonth}
+            />
+          }
           icon={
             <div className="flex items-center justify-center p-1.5 rounded-md border border-amber-200 text-yellow-600">
               <Handbag className="w-4 h-4" />
@@ -392,11 +535,12 @@ export default function ProjectWiseTax() {
           title="Pending Filing"
           value={
             <span className="text-xl font-bold">
-              {pendingCount} {pendingCount === 1 ? "Project" : "Projects"}
+              {finalPendingCount}{" "}
+              {finalPendingCount === 1 ? "Project" : "Projects"}
             </span>
           }
           subtitle={
-            <span className="text-gray-500 text-sm">Requires Filing</span>
+            <span className="text-gray-500 text-sm">{pendingLabel}</span>
           }
           icon={
             <div className="flex items-center justify-center p-1.5 rounded-md border border-rose-200 text-red-500">
@@ -407,17 +551,10 @@ export default function ProjectWiseTax() {
         />
         <StatCardV2
           title="Next Filing Due"
-          value={
-            <span className="text-xl font-bold">
-              {nextDueProject?.dueDate
-                ? formatDateDisplay(nextDueProject.dueDate)
-                : "-"}
-            </span>
-          }
+          value={<span className="text-xl font-bold">{nextDueDateDisplay}</span>}
           subtitle={
             <span className="text-emerald-500 text-sm flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" />{" "}
-              {nextDueProject?.location || "No Due"}
+              <TrendingUp className="w-3 h-3" /> {nextDueLocationDisplay}
             </span>
           }
           icon={
@@ -493,88 +630,107 @@ export default function ProjectWiseTax() {
                 </TableCell>
               </TableRow>
             ) : (
-              projects.map((row, idx) => (
-                <TableRow
-                  key={row.leadId || idx}
-                  className="border-b last:border-none hover:bg-gray-50/50"
-                >
-                  <TableCell className="py-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${getAvatarColor(
-                          row.projectName,
-                          idx
-                        )}`}
-                      >
-                        <span className="text-xs font-bold">
-                          {(row.projectName || "P").charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-gray-900">
-                          {row.projectName || "Unnamed Project"}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {row.location || "-"}
-                        </span>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-4 text-gray-600">
-                    {formatCurrency(row.taxCollected)}
-                  </TableCell>
-                  <TableCell className="py-4 text-gray-600">
-                    {formatCurrency(row.taxableSales)}
-                  </TableCell>
-                  <TableCell className="py-4 text-gray-600">
-                    {formatCurrency(row.paidFiled)}
-                  </TableCell>
-                  <TableCell
-                    className={`py-4 font-medium ${
-                      (row.payable || 0) > 0
-                        ? "text-red-500"
-                        : "text-emerald-500"
-                    }`}
+              projects.map((row, idx) => {
+                const displayName =
+                  row.projectName?.trim() ||
+                  row.jobId ||
+                  row.customerName ||
+                  "Unnamed Project";
+                const initialLetter = displayName.charAt(0).toUpperCase();
+
+                const secondaryInfo = [
+                  row.jobId,
+                  row.location ||
+                    (row.customerName ? `Customer: ${row.customerName}` : null),
+                ]
+                  .filter(Boolean)
+                  .join(" • ");
+
+                return (
+                  <TableRow
+                    key={row.leadId || idx}
+                    className="border-b last:border-none hover:bg-gray-50/50"
                   >
-                    {formatCurrency(row.payable)}
-                  </TableCell>
-                  <TableCell className="py-4 text-gray-600">
-                    {formatDateDisplay(row.dueDate)}
-                  </TableCell>
-                  <TableCell className="py-4">
-                    {getStatusBadge(row.status)}
-                  </TableCell>
-                  <TableCell className="py-4">
-                    {row.status?.toLowerCase().includes("due") ||
-                    (row.payable || 0) > 0 ? (
-                      <Button
-                        className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs font-medium px-6 cursor-pointer"
-                        onClick={() =>
-                          handleOpenSheet(
-                            row.location || row.projectName,
-                            row.status
-                          )
-                        }
-                      >
-                        Pay Tax
-                      </Button>
-                    ) : (
-                      <button
-                        type="button"
-                        className="text-sm font-medium text-blue-600 hover:text-blue-800 px-2 cursor-pointer"
-                        onClick={() =>
-                          handleOpenSheet(
-                            row.location || row.projectName,
-                            row.status
-                          )
-                        }
-                      >
-                        View Details
-                      </button>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))
+                    <TableCell className="py-4">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${getAvatarColor(
+                            displayName,
+                            idx
+                          )}`}
+                        >
+                          <span className="text-xs font-bold">
+                            {initialLetter}
+                          </span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-gray-900">
+                            {displayName}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {secondaryInfo || "-"}
+                          </span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4 text-gray-600">
+                      {formatCurrency(row.taxCollected)}
+                    </TableCell>
+                    <TableCell className="py-4 text-gray-600">
+                      {formatCurrency(row.taxableSales)}
+                    </TableCell>
+                    <TableCell className="py-4 text-gray-600">
+                      {formatCurrency(row.paidFiled)}
+                    </TableCell>
+                    <TableCell
+                      className={`py-4 font-medium ${
+                        (row.payable || 0) > 0
+                          ? "text-red-500"
+                          : "text-emerald-500"
+                      }`}
+                    >
+                      {formatCurrency(row.payable)}
+                    </TableCell>
+                    <TableCell className="py-4 text-gray-600">
+                      {formatDateDisplay(row.dueDate)}
+                    </TableCell>
+                    <TableCell className="py-4">
+                      {getStatusBadge(row.status)}
+                    </TableCell>
+                    <TableCell className="py-4">
+                      {row.status?.toLowerCase().includes("due") ||
+                      (row.payable || 0) > 0 ? (
+                        <Button
+                          className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs font-medium px-6 cursor-pointer"
+                          onClick={() =>
+                            handleOpenSheet(
+                              row.location || displayName,
+                              row.status,
+                              row
+                            )
+                          }
+                        >
+                          Pay Tax
+                        </Button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="text-sm font-medium text-blue-600 hover:text-blue-800 px-2 cursor-pointer"
+                          onClick={() =>
+                            handleOpenSheet(
+                              row.location || displayName,
+                              row.status,
+                              row
+                            )
+                          }
+                        >
+                          View Details
+                        </button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -585,6 +741,7 @@ export default function ProjectWiseTax() {
             status={selectedProject.status}
             isOpen={isSheetOpen}
             onOpenChange={setIsSheetOpen}
+            item={selectedProject.item}
           />
         )}
 
