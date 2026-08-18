@@ -21,8 +21,8 @@ const Dashboard = lazy(() => import("@/pages/dashboard/dashboard"));
 const SalesTaxReportingLegacy = lazy(
   () => import("@/pages/dashboard/sales-tax-reporting"),
 );
-const SalesTaxFiling = lazy(() => import("@/pages/dashboard/sales-tax-filing"));
-const StateWiseTax = lazy(() => import("@/pages/dashboard/state-wise-tax"));
+const SalesTaxFiling = lazy(() => import("@/pages/payments/sales-tax-filing"));
+const StateWiseTax = lazy(() => import("@/pages/payments/state-wise-tax"));
 const PipelineStages = lazy(() => import("@/pages/dashboard/pipeline-stages"));
 
 // customers section
@@ -171,7 +171,7 @@ const DetailedTaxReportPage = lazy(
 );
 const PaymentTaxationPage = lazy(() => import("@/pages/payments/taxation"));
 const ProjectWiseTaxPage = lazy(
-  () => import("@/pages/dashboard/project-wise-tax"),
+  () => import("@/pages/payments/project-wise-tax"),
 );
 const CustomerPaymentProfile = lazy(
   () => import("@/pages/payments/customer-payment-profile"),

@@ -256,11 +256,10 @@ export default function SalesTaxFiling() {
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`pb-3 text-sm font-semibold relative ${
-                  activeTab === tab
-                    ? "text-blue-700"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
+                className={`pb-3 text-sm font-semibold relative ${activeTab === tab
+                  ? "text-blue-700"
+                  : "text-gray-500 hover:text-gray-700"
+                  }`}
               >
                 {tab}
                 {activeTab === tab && (

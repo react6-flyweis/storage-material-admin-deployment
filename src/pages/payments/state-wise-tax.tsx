@@ -30,10 +30,10 @@ import {
   ChevronRight,
   MoreHorizontal,
 } from "lucide-react";
-import TaxDetailsSheet from "@/components/dashboard/tax-details-sheet";
+import TaxDetailsSheet from "@/components/payments/tax-details-sheet";
 import StatCardV2 from "@/components/ui/stat-card-v2";
 import DateRangeFilter from "@/components/ui/date-range-filter";
-import UpcomingFilingDeadlines from "@/components/dashboard/upcoming-filing-deadlines";
+import UpcomingFilingDeadlines from "@/components/payments/upcoming-filing-deadlines";
 
 const filingData = [
   {
