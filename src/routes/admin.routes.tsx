@@ -212,10 +212,17 @@ const InvoiceList = lazy(() => import("@/pages/invoices/invoice-list"));
 const InvoicePreviewPage = lazy(
   () => import("@/pages/invoices/invoice-preview"),
 );
+const VendorInvoicePreviewPage = lazy(
+  () => import("@/pages/invoices/vendor-invoice-preview"),
+);
+const CarrierInvoicePreviewPage = lazy(
+  () => import("@/pages/invoices/carrier-invoice-preview"),
+);
 const InvoicesManagementPage = lazy(
   () => import("@/pages/invoices/invoices-management"),
 );
 const CarrierInvoices = lazy(() => import("@/pages/invoices/carrier-invoices"));
+
 
 // plant management section
 const EquipmentView = lazy(() => import("@/plant/components/EquipmentView"));
@@ -631,6 +638,10 @@ export const adminRoutes: RouteObject[] = [
               { index: true, element: <InvoiceForm /> },
               { path: "list", element: <InvoiceList /> },
               { path: "preview", element: <InvoicePreviewPage /> },
+              // { path: "vendor-preview", element: <VendorInvoicePreviewPage /> },
+              { path: "vendor-preview/:invoiceId", element: <VendorInvoicePreviewPage /> },
+              { path: "carrier-preview/:invoiceId", element: <CarrierInvoicePreviewPage /> },
+
               {
                 path: "invoices-management",
                 element: <InvoicesManagementPage />,
