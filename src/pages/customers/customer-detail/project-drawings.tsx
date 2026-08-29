@@ -17,8 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import StatCard from "@/components/ui/stat-card";
 import UploadDrawingsModal from "@/plant/components/UploadDrawingsModal";
-import SuccessDialog from "@/components/success-dialog";
-import { useLeadDetailQuery, useUploadLeadDocumentMutation } from "@/modules/leads/leads.hooks";
+import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
 import {
   useGetProjectDrawingsQuery,
   useGetPlantProjectDetailQuery,
@@ -167,8 +166,6 @@ export default function ProjectDrawingsPage() {
   const { data: leadData } = useLeadDetailQuery(leadId);
   const { data: drawingsApiData, isLoading: isDrawingsLoading } = useGetProjectDrawingsQuery(leadId, Boolean(leadId));
   const { data: projectDetailData } = useGetPlantProjectDetailQuery(leadId);
-  const uploadDocMutation = useUploadLeadDocumentMutation();
-
   const [searchTerm, setSearchTerm] = useState("");
   const [activeStatus, setActiveStatus] = useState("all");
   const [localBuildingGroups, setLocalBuildingGroups] = useState<BuildingDrawingsGroup[]>([]);
@@ -177,8 +174,6 @@ export default function ProjectDrawingsPage() {
   const [isViewDrawingOpen, setIsViewDrawingOpen] = useState(false);
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
-  const [successTitle, setSuccessTitle] = useState("Building Drawings Uploaded Successfully");
 
   const projectName = projectDetailData?.lead?.projectName || leadData?.data?.lead?.projectName || "Project";
 
@@ -294,30 +289,6 @@ export default function ProjectDrawingsPage() {
         ),
       }))
     );
-  };
-
-  const handleUploadSubmit = (files: File[]) => {
-    if (leadId) {
-      uploadDocMutation.mutate(
-        { leadId, files, type: "drawing" },
-        {
-          onSuccess: () => {
-            setSuccessTitle("Building Drawings & Photos Uploaded Successfully");
-            setIsUploadModalOpen(false);
-            setIsSuccessModalOpen(true);
-          },
-          onError: () => {
-            setSuccessTitle("Failed to upload building drawings");
-            setIsUploadModalOpen(false);
-            setIsSuccessModalOpen(true);
-          },
-        }
-      );
-    } else {
-      setSuccessTitle("Building Drawings & Photos Uploaded Successfully");
-      setIsUploadModalOpen(false);
-      setIsSuccessModalOpen(true);
-    }
   };
 
   if (isDrawingsLoading) {
@@ -518,15 +489,6 @@ export default function ProjectDrawingsPage() {
         isOpen={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
         leadId={leadId}
-        isUploading={uploadDocMutation.isPending}
-        onUpload={(files) => handleUploadSubmit(files)}
-      />
-
-      {/* Success Modal */}
-      <SuccessDialog
-        open={isSuccessModalOpen}
-        onClose={() => setIsSuccessModalOpen(false)}
-        title={successTitle}
       />
     </div>
   );

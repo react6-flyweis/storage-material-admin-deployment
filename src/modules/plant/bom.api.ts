@@ -51,12 +51,17 @@ export async function getBomStatsProvider(): Promise<BomStatsResponse> {
 
 export async function getBomProjectsProvider(
   page = 1,
-  limit = 20
+  limit = 20,
+  projectId?: string
 ): Promise<GetBomProjectsResponse> {
+  const params: Record<string, unknown> = { page, limit };
+  if (projectId && projectId !== "all" && projectId !== "all-projects") {
+    params.projectId = projectId;
+  }
   const response = await apiClient.get<GetBomProjectsResponse>(
     "/api/admin/plant/bom/projects",
     {
-      params: { page, limit },
+      params,
     }
   );
   return response.data;

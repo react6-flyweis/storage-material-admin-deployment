@@ -44,10 +44,10 @@ interface CarrierViewData {
   notes: string;
   assignedProjects: Array<{
     id: string;
-    route: string;
-    cargo: string;
-    date: string;
-    status: string;
+    jobId: string;
+    projectName: string;
+    deliveryCount: number;
+    lastAwardedAt: string;
   }>;
   freightHistory: Array<{
     id: string;
@@ -95,6 +95,7 @@ const mapCarrierDetail = (
   const carrier = data?.carrier;
   const stats = data?.stats;
   const history = data?.freightHistory ?? [];
+  const assignedProjectsRaw = data?.assignedProjects ?? [];
 
   const fleetEquipment = carrier?.fleetEquipment ?? [];
   const flatbed = fleetEquipment.find(e => e.equipmentName.toLowerCase().includes("flatbed"))?.quantity ?? 0;
@@ -117,12 +118,15 @@ const mapCarrierDetail = (
     status: toTitleCase(item.status || "—"),
   }));
 
-  const assignedProjects = formattedHistory.filter(
-    (h) =>
-      h.status.toLowerCase() === "selected" ||
-      h.status.toLowerCase() === "active" ||
-      h.status.toLowerCase() === "assigned",
-  );
+  const assignedProjects = assignedProjectsRaw.map((item) => ({
+    id: item._id,
+    jobId: item.jobId || "—",
+    projectName: item.projectName || "—",
+    deliveryCount: item.deliveryCount ?? 0,
+    lastAwardedAt: item.lastAwardedAt
+      ? new Date(item.lastAwardedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+      : "—",
+  }));
 
   const complianceDocs = (carrier?.documents ?? []).map((document) => {
     const isPdf =
@@ -568,42 +572,44 @@ const FreightCarrierDetails: React.FC = () => {
                 <table className="w-full text-left border-separate border-spacing-0">
                   <thead className="bg-[#F4F6F8]">
                     <tr>
-                      <th className="px-6 py-3 text-xs font-medium text-black border-b border-r border-[#E2E4E6]">
-                        Freight ID
-                      </th>
                       <th
                         className="px-6 py-3 text-xs font-medium text-black border-b border-r border-[#E2E4E6] cursor-pointer hover:bg-gray-100 transition-colors"
-                        onClick={() => handleSort("assigned", "route")}
+                        onClick={() => handleSort("assigned", "jobId")}
                       >
                         <div className="flex items-center gap-1">
-                          Route <ArrowUpDown size={14} className={assignedSort?.key === "route" ? "text-blue-500" : "text-gray-400"} />
+                          Job ID <ArrowUpDown size={14} className={assignedSort?.key === "jobId" ? "text-blue-500" : "text-gray-400"} />
                         </div>
                       </th>
                       <th
                         className="px-6 py-3 text-xs font-medium text-black border-b border-r border-[#E2E4E6] cursor-pointer hover:bg-gray-100 transition-colors"
-                        onClick={() => handleSort("assigned", "cargo")}
+                        onClick={() => handleSort("assigned", "projectName")}
                       >
                         <div className="flex items-center gap-1">
-                          Project <ArrowUpDown size={14} className={assignedSort?.key === "cargo" ? "text-blue-500" : "text-gray-400"} />
+                          Project Name <ArrowUpDown size={14} className={assignedSort?.key === "projectName" ? "text-blue-500" : "text-gray-400"} />
                         </div>
                       </th>
                       <th
                         className="px-6 py-3 text-xs font-medium text-black border-b border-r border-[#E2E4E6] cursor-pointer hover:bg-gray-100 transition-colors"
-                        onClick={() => handleSort("assigned", "date")}
+                        onClick={() => handleSort("assigned", "deliveryCount")}
                       >
                         <div className="flex items-center gap-1">
-                          Delivery Date <ArrowUpDown size={14} className={assignedSort?.key === "date" ? "text-blue-500" : "text-gray-400"} />
+                          Delivery Count <ArrowUpDown size={14} className={assignedSort?.key === "deliveryCount" ? "text-blue-500" : "text-gray-400"} />
                         </div>
                       </th>
-                      <th className="px-6 py-3 text-xs font-medium text-black border-b border-[#E2E4E6]">
-                        Status
+                      <th
+                        className="px-6 py-3 text-xs font-medium text-black border-b border-[#E2E4E6] cursor-pointer hover:bg-gray-100 transition-colors"
+                        onClick={() => handleSort("assigned", "lastAwardedAt")}
+                      >
+                        <div className="flex items-center gap-1">
+                          Last Awarded <ArrowUpDown size={14} className={assignedSort?.key === "lastAwardedAt" ? "text-blue-500" : "text-gray-400"} />
+                        </div>
                       </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#E2E4E6]">
                     {sortedAssigned.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="py-12 text-center bg-white rounded-b-lg">
+                        <td colSpan={4} className="py-12 text-center bg-white rounded-b-lg">
                           <div className="flex flex-col items-center justify-center max-w-sm mx-auto">
                             <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center border border-gray-100 shadow-xs mb-3 text-gray-400">
                               <Briefcase size={22} />
@@ -612,30 +618,25 @@ const FreightCarrierDetails: React.FC = () => {
                               No assigned projects
                             </h3>
                             <p className="text-xs text-[#5D6772] mt-1 max-w-[280px]">
-                              There are currently no active or selected projects assigned to this carrier.
+                              There are currently no projects assigned to this carrier.
                             </p>
                           </div>
                         </td>
                       </tr>
                     ) : (
                       sortedAssigned.map((project, i) => (
-                        <tr key={i} className="hover:bg-gray-50/50 transition-colors">
-                          <td className="px-6 py-4 text-sm text-[#5D6772] font-medium border-r border-[#E2E4E6]">
-                            {project.id}
+                        <tr key={project.id || i} className="hover:bg-gray-50/50 transition-colors">
+                          <td className="px-6 py-4 text-sm text-[#006CE4] font-medium border-r border-[#E2E4E6]">
+                            {project.jobId}
                           </td>
                           <td className="px-6 py-4 text-sm text-[#051321] font-semibold border-r border-[#E2E4E6]">
-                            {project.route}
+                            {project.projectName}
                           </td>
                           <td className="px-6 py-4 text-sm text-[#5D6772] border-r border-[#E2E4E6]">
-                            {project.cargo}
+                            {project.deliveryCount}
                           </td>
-                          <td className="px-6 py-4 text-sm text-[#051321] font-medium border-r border-[#E2E4E6]">
-                            {project.date}
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-1.5 text-xs font-medium text-green-600 bg-green-50 px-2.5 py-1 rounded-full w-fit">
-                              {project.status} <CheckCircle2 size={14} />
-                            </div>
+                          <td className="px-6 py-4 text-sm text-[#051321] font-medium">
+                            {project.lastAwardedAt}
                           </td>
                         </tr>
                       ))

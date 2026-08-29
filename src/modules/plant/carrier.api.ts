@@ -157,6 +157,14 @@ export interface PlantCarrierFreightHistoryItem {
   deliveryLocation?: string;
 }
 
+export interface PlantCarrierAssignedProjectItem {
+  _id: string;
+  projectName: string;
+  jobId: string;
+  deliveryCount: number;
+  lastAwardedAt?: string;
+}
+
 export interface GetPlantCarrierResponse {
   success: boolean;
   message: string;
@@ -173,6 +181,7 @@ export interface GetPlantCarrierResponse {
       assignedProjects?: number;
     };
     freightHistory?: PlantCarrierFreightHistoryItem[];
+    assignedProjects?: PlantCarrierAssignedProjectItem[];
   };
 }
 

@@ -7,11 +7,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+export interface FilterSelectOption {
+  label: string;
+  value: string;
+}
+
 interface FilterSelectProps {
   label: string;
   value: string;
   onValueChange: (value: string) => void;
-  options: readonly string[];
+  options: readonly (string | FilterSelectOption)[];
   icon: ComponentType<{ className?: string }>;
   className?: string;
 }
@@ -24,6 +29,10 @@ export function FilterSelect({
   icon: Icon,
   className,
 }: FilterSelectProps) {
+  const normalizedOptions: FilterSelectOption[] = options.map((opt) =>
+    typeof opt === "string" ? { label: opt, value: opt } : opt
+  );
+
   return (
     <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger
@@ -31,18 +40,19 @@ export function FilterSelect({
           className ?? ""
         }`}
       >
-        <span className="flex items-center gap-2 overflow-hidden">
-          <Icon className="h-4 w-4 text-slate-500" />
+        <span className="flex items-center gap-2 overflow-hidden truncate">
+          <Icon className="h-4 w-4 shrink-0 text-slate-500" />
           <SelectValue placeholder={label} />
         </span>
       </SelectTrigger>
       <SelectContent>
-        {options.map((option) => (
-          <SelectItem key={option} value={option}>
-            {option}
+        {normalizedOptions.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
           </SelectItem>
         ))}
       </SelectContent>
     </Select>
   );
 }
+

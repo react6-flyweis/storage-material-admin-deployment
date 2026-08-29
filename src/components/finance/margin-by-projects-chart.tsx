@@ -1,5 +1,11 @@
-import { Button } from "@/components/ui/button";
-import { CalendarIcon } from "lucide-react";
+import { useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Bar,
   BarChart,
@@ -9,11 +15,16 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useMarginByProjectQuery } from "@/modules/financials/financials.hooks";
+import {
+  useMarginByProjectQuery,
+  useBudgetVsActualProjectsQuery,
+} from "@/modules/financials/financials.hooks";
 import type { MarginByProjectApiItem } from "@/modules/financials/financials.api";
 
 interface MarginByProjectsChartProps {
   limit?: number;
+  projectId?: string;
+  onProjectChange?: (projectId: string) => void;
   grossMarginPct?: number;
   operatingMarginPct?: number;
   netProfitMarginPct?: number;
@@ -22,8 +33,27 @@ interface MarginByProjectsChartProps {
 
 export default function MarginByProjectsChart({
   limit = 5,
+  projectId: externalProjectId,
+  onProjectChange,
 }: MarginByProjectsChartProps) {
-  const { data, isLoading } = useMarginByProjectQuery({ limit });
+  const [internalProjectId, setInternalProjectId] = useState<string>("all-projects");
+
+  const selectedProjectId = externalProjectId !== undefined ? externalProjectId : internalProjectId;
+
+  const { data: projectsRes } = useBudgetVsActualProjectsQuery();
+  const projectOptions = projectsRes?.data?.projects || [];
+
+  const { data, isLoading } = useMarginByProjectQuery({
+    limit,
+    projectId: selectedProjectId !== "all-projects" ? selectedProjectId : undefined,
+  });
+
+  const handleProjectChange = (value: string) => {
+    if (externalProjectId === undefined) {
+      setInternalProjectId(value);
+    }
+    onProjectChange?.(value);
+  };
 
   const projectList: MarginByProjectApiItem[] = data?.data?.projects || [];
 
@@ -41,14 +71,22 @@ export default function MarginByProjectsChart({
         <h3 className="text-xl font-semibold text-slate-900 md:text-2xl">
           Margin by Projects
         </h3>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 border-slate-200 bg-white text-xs"
+        <Select
+          value={selectedProjectId}
+          onValueChange={handleProjectChange}
         >
-          <CalendarIcon className="mr-1 h-3.5 w-3.5" />
-          All Projects
-        </Button>
+          <SelectTrigger className="h-8 w-44 bg-white text-xs">
+            <SelectValue placeholder="All Projects" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all-projects">All Projects</SelectItem>
+            {projectOptions.map((proj) => (
+              <SelectItem key={proj._id} value={proj._id}>
+                {proj.jobId ? `${proj.jobId} - ${proj.projectName}` : proj.projectName}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="mb-3 flex items-center gap-4 text-xs font-medium text-slate-600">

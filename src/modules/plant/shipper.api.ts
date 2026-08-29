@@ -47,12 +47,17 @@ export async function getShipperStatsProvider(): Promise<ShipperStatsResponse> {
 
 export async function getShipperProjectsProvider(
   page = 1,
-  limit = 20
+  limit = 20,
+  fileStatus?: string
 ): Promise<GetShipperProjectsResponse> {
+  const params: Record<string, unknown> = { page, limit };
+  if (fileStatus && fileStatus !== "all_status") {
+    params.fileStatus = fileStatus;
+  }
   const response = await apiClient.get<GetShipperProjectsResponse>(
     "/api/admin/plant/shipper-files/projects",
     {
-      params: { page, limit },
+      params,
     }
   );
   return response.data;
