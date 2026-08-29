@@ -19,11 +19,13 @@ import {
   getRecentFreightCostsProvider,
   exportFreightCostsProvider,
   getMarginAnalysisProvider,
+  type GetMarginAnalysisParams,
   type GetRecentFreightCostsParams,
   getMarginTrendProvider,
   getMarginByProjectProvider,
   getBudgetVsActualProjectsProvider,
   getBudgetVsActualProjectDetailProvider,
+  type GetBudgetVsActualProjectDetailParams,
   getFinancialOverviewProvider,
   exportFinancialOverviewProvider,
   type GetWipProfitsParams,
@@ -207,10 +209,10 @@ export function useExportFreightCostsMutation() {
   });
 }
 
-export function useMarginAnalysisQuery() {
+export function useMarginAnalysisQuery(params?: GetMarginAnalysisParams) {
   return useQuery({
-    queryKey: ["financials", "margin-analysis"],
-    queryFn: getMarginAnalysisProvider,
+    queryKey: ["financials", "margin-analysis", params],
+    queryFn: () => getMarginAnalysisProvider(params),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -239,10 +241,15 @@ export function useBudgetVsActualProjectsQuery() {
   });
 }
 
-export function useBudgetVsActualProjectDetailQuery(leadId?: string) {
+export function useBudgetVsActualProjectDetailQuery(
+  params?: string | GetBudgetVsActualProjectDetailParams
+) {
+  const normalizedParams = typeof params === "string" ? { leadId: params } : params;
+  const leadId = normalizedParams?.leadId;
+
   return useQuery({
-    queryKey: ["financials", "budget-vs-actual-project-detail", leadId],
-    queryFn: () => getBudgetVsActualProjectDetailProvider(leadId!),
+    queryKey: ["financials", "budget-vs-actual-project-detail", normalizedParams],
+    queryFn: () => getBudgetVsActualProjectDetailProvider(normalizedParams || {}),
     enabled: Boolean(leadId),
     staleTime: 60 * 1000,
   });

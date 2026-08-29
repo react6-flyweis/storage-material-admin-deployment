@@ -3,7 +3,6 @@ import { useNavigate } from "react-router";
 import {
   Search,
   Filter,
-  Download,
   Award,
   Truck,
   CheckCircle2,
@@ -17,11 +16,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   useFreightStatsQuery,
+  useFreightFiltersQuery,
   useFreightLoadsQuery,
 } from "@/modules/plant/freight.hooks";
-import { useLeadsQuery } from "@/modules/leads/leads.hooks";
-import { useCustomersQuery } from "@/modules/customers/customers.hooks";
-import { usePlantCarriersQuery } from "@/modules/plant/carrier.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -56,32 +53,33 @@ export default function FreightLoads() {
     return () => clearTimeout(handler);
   }, [searchInput]);
 
-  // Fetch stats and lists for filter dropdowns
+  // Fetch stats and filters dropdown data
   const { data: statsResponse, isLoading: isStatsLoading } = useFreightStatsQuery();
-  const { data: leadsResponse } = useLeadsQuery(1, 100);
-  const { data: customersResponse } = useCustomersQuery(1, 100);
-  const { data: carriersResponse } = usePlantCarriersQuery({ limit: 100 });
+  const { data: filtersResponse } = useFreightFiltersQuery();
 
   // Fetch main freight loads data
-  const { data: loadsResponse, isLoading: isLoadsLoading } = useFreightLoadsQuery({
+  const freightLoadsParams: Record<string, string | number> = {
     page,
     limit,
-    search: search || undefined,
-    status: status !== "all" ? status : undefined,
-    projectId: projectId !== "all" ? projectId : undefined,
-    customerId: customerId !== "all" ? customerId : undefined,
-    carrierId: carrierId !== "all" ? carrierId : undefined,
-    fromDate: fromDate || undefined,
-    toDate: toDate || undefined,
-  });
+  };
+  if (search.trim()) freightLoadsParams.search = search.trim();
+  if (status && status !== "all") freightLoadsParams.status = status;
+  if (projectId && projectId !== "all") freightLoadsParams.projectId = projectId;
+  if (customerId && customerId !== "all") freightLoadsParams.customerId = customerId;
+  if (carrierId && carrierId !== "all") freightLoadsParams.carrierId = carrierId;
+  if (fromDate.trim()) freightLoadsParams.fromDate = fromDate.trim();
+  if (toDate.trim()) freightLoadsParams.toDate = toDate.trim();
+
+  const { data: loadsResponse, isLoading: isLoadsLoading } = useFreightLoadsQuery(freightLoadsParams);
 
   const stats = statsResponse?.data;
   const loads = loadsResponse?.data?.requests || [];
   const total = loadsResponse?.data?.total || 0;
 
-  const projectsList = leadsResponse?.data?.leads || [];
-  const customersList = customersResponse?.data?.customers || [];
-  const carriersList = carriersResponse?.data?.carriers || [];
+  const statusesList = filtersResponse?.data?.statuses || [];
+  const projectsList = filtersResponse?.data?.projects || [];
+  const customersList = filtersResponse?.data?.customers || [];
+  const carriersList = filtersResponse?.data?.carriers || [];
 
   const handleClearFilters = () => {
     setStatus("all");
@@ -105,24 +103,29 @@ export default function FreightLoads() {
     search !== "";
 
   const getStatusBadge = (statusStr: string) => {
-    switch (statusStr) {
+    switch (statusStr?.toLowerCase()) {
       case "awarded":
-      case "Awarded":
-        return <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full border border-green-200">Awarded</span>;
-      case "requested":
-      case "Requested":
-        return <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full border border-orange-200">Requested</span>;
+      case "selected":
+        return <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full border border-green-200">Selected</span>;
+      case "sent":
+        return <span className="px-3 py-1 bg-sky-100 text-sky-700 text-xs font-semibold rounded-full border border-sky-200">Sent</span>;
+      case "submitted":
       case "bids_received":
-      case "Bids Received":
-        return <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">Bids Received</span>;
+        return <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">Submitted</span>;
+      case "resubmit_requested":
+        return <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full border border-amber-200">Resubmit Requested</span>;
+      case "rejected":
+        return <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full border border-red-200">Rejected</span>;
+      case "expired":
+        return <span className="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-full border border-slate-200">Expired</span>;
+      case "requested":
+        return <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full border border-orange-200">Requested</span>;
       case "in_transit":
-      case "In Transit":
         return <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full border border-indigo-200">In Transit</span>;
       case "delivered":
-      case "Delivered":
         return <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200">Delivered</span>;
       default:
-        return <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-full uppercase">{statusStr.replace("_", " ")}</span>;
+        return <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-full uppercase">{(statusStr || "").replace(/_/g, " ")}</span>;
     }
   };
 
@@ -272,11 +275,11 @@ export default function FreightLoads() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="requested">Requested</SelectItem>
-                    <SelectItem value="bids_received">Bids Received</SelectItem>
-                    <SelectItem value="in_transit">In Transit</SelectItem>
-                    <SelectItem value="delivered">Delivered</SelectItem>
-                    <SelectItem value="awarded">Awarded</SelectItem>
+                    {statusesList.map((st) => (
+                      <SelectItem key={st} value={st}>
+                        {st.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -290,9 +293,9 @@ export default function FreightLoads() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Projects</SelectItem>
-                    {projectsList.map((p: any) => (
+                    {projectsList.map((p) => (
                       <SelectItem key={p._id} value={p._id}>
-                        {p.projectName || p.jobId || p._id}
+                        {p.projectName ? `${p.projectName}${p.jobId ? ` (${p.jobId})` : ""}` : p.jobId || p._id}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -308,9 +311,9 @@ export default function FreightLoads() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Customers</SelectItem>
-                    {customersList.map((c: any) => (
+                    {customersList.map((c) => (
                       <SelectItem key={c._id} value={c._id}>
-                        {c.name || c.email || c._id}
+                        {c.name || c._id}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -326,7 +329,7 @@ export default function FreightLoads() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Carriers</SelectItem>
-                    {carriersList.map((c: any) => (
+                    {carriersList.map((c) => (
                       <SelectItem key={c._id} value={c._id}>
                         {c.carrierName || c._id}
                       </SelectItem>

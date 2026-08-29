@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { format } from "date-fns";
 import TitleSubtitle from "@/components/TitleSubtitle";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
@@ -29,7 +30,16 @@ export default function MarginAnalysisPage() {
   const { data: projectsRes } = useBudgetVsActualProjectsQuery();
   const projectOptions = projectsRes?.data?.projects || [];
 
-  const { data, isLoading } = useMarginAnalysisQuery();
+  const startDateStr = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
+  const endDateStr = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
+
+  const queryParams = {
+    projectId: project !== "all-projects" ? project : undefined,
+    startDate: startDateStr,
+    endDate: endDateStr,
+  };
+
+  const { data, isLoading } = useMarginAnalysisQuery(queryParams);
   const marginData = data?.data;
 
   const isFiltered =

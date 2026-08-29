@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getFreightStats,
+  getFreightFilters,
   getFreightLoads,
   getDeliveryFreightBids,
   getDeliveryDetail,
@@ -25,6 +26,14 @@ export function useFreightStatsQuery() {
   return useQuery({
     queryKey: ["plant", "deliveries", "freight", "stats"],
     queryFn: getFreightStats,
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useFreightFiltersQuery() {
+  return useQuery({
+    queryKey: ["plant", "deliveries", "freight-loads", "filters"],
+    queryFn: getFreightFilters,
     staleTime: 60 * 1000,
   });
 }

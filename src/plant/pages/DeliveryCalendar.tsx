@@ -329,11 +329,13 @@ const DeliveryCalendarView: React.FC = () => {
     );
   }, [calendarData]);
 
-  const todaysDeliveriesCount = useMemo(() => {
-    const todayStr = format(new Date(), "yyyy-MM-dd");
-    const todayGroup = calendarData?.dates?.find((d) => d.date === todayStr);
-    return todayGroup ? todayGroup.totalDeliveries : 0;
-  }, [calendarData]);
+  const totalDeliveriesCount = useMemo(() => {
+    if (!calendarData?.dates) return deliveries.length;
+    return calendarData.dates.reduce(
+      (sum, d) => sum + (d.totalDeliveries !== undefined ? d.totalDeliveries : (d.deliveries?.length || 0)),
+      0
+    );
+  }, [calendarData, deliveries]);
 
   const handleDateSelect = (date: Date) => {
     setCurrentDate(date);
@@ -517,7 +519,7 @@ const DeliveryCalendarView: React.FC = () => {
 
       <div className={`bg-white rounded-[14px] border border-gray-100 overflow-auto max-h-[750px] p-4 calendar-custom custom-scrollbar calendar-view-${activeView.toLowerCase()}`}>
         <div className="flex flex-wrap gap-4 mb-8 mt-2">
-          <div className="px-5 py-2.5 bg-[#4169B830] text-[#02318C] rounded-[8px] text-sm font-normal">Total Deliveries: {todaysDeliveriesCount} deliveries</div>
+          <div className="px-5 py-2.5 bg-[#4169B830] text-[#02318C] rounded-[8px] text-sm font-normal">Total Deliveries: {totalDeliveriesCount} deliveries</div>
         </div>
 
         <FullCalendar

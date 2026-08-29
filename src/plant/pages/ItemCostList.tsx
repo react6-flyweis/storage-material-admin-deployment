@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import AddEditPartCostModal from "./modals/AddEditPartCostModal";
 import Pagination from "../components/Pagination";
 import ItemCostFilterModal, { type ItemCostFilterValues } from "./ItemCostFilterModal";
@@ -149,11 +150,13 @@ export default function ItemCostList() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Item Cost List</h1>
-          {stats?.activeVersion && (
+          {isStatsLoading ? (
+            <Skeleton className="h-4 w-64 mt-2" />
+          ) : stats?.activeVersion ? (
             <p className="text-sm text-gray-500 mt-1">
               Active: <span className="font-semibold text-slate-700">{stats.activeVersion.name}</span> (Effective: {new Date(stats.activeVersion.effectiveDate).toLocaleDateString()})
             </p>
-          )}
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Button
@@ -191,9 +194,13 @@ export default function ItemCostList() {
         <div className="bg-[#3B82F6] rounded-2xl p-6 text-white flex justify-between items-center shadow-sm">
           <div>
             <p className="text-blue-100 font-medium text-sm mb-1">Total Item Cost</p>
-            <h2 className="text-4xl font-bold">
-              {isStatsLoading ? "..." : formatCurrency(stats?.totalItemCost)}
-            </h2>
+            {isStatsLoading ? (
+              <Skeleton className="h-10 w-32 bg-white/30 rounded mt-1" />
+            ) : (
+              <h2 className="text-4xl font-bold">
+                {formatCurrency(stats?.totalItemCost)}
+              </h2>
+            )}
           </div>
           <DollarSign className="w-12 h-12 text-blue-200/50" strokeWidth={1.5} />
         </div>
@@ -201,9 +208,13 @@ export default function ItemCostList() {
         <div className="bg-[#10B981] rounded-2xl p-6 text-white flex justify-between items-center shadow-sm">
           <div>
             <p className="text-emerald-100 font-medium text-sm mb-1">Total Items</p>
-            <h2 className="text-4xl font-bold">
-              {isStatsLoading ? "..." : stats?.totalItems ?? 0}
-            </h2>
+            {isStatsLoading ? (
+              <Skeleton className="h-10 w-24 bg-white/30 rounded mt-1" />
+            ) : (
+              <h2 className="text-4xl font-bold">
+                {stats?.totalItems ?? 0}
+              </h2>
+            )}
           </div>
           <TrendingUp className="w-12 h-12 text-emerald-200/50" strokeWidth={1.5} />
         </div>
@@ -211,9 +222,13 @@ export default function ItemCostList() {
         <div className="bg-[#F97316] rounded-2xl p-6 text-white flex justify-between items-center shadow-sm">
           <div>
             <p className="text-orange-100 font-medium text-sm mb-1">New Added</p>
-            <h2 className="text-4xl font-bold">
-              {isStatsLoading ? "..." : stats?.newlyAdded ?? 0}
-            </h2>
+            {isStatsLoading ? (
+              <Skeleton className="h-10 w-24 bg-white/30 rounded mt-1" />
+            ) : (
+              <h2 className="text-4xl font-bold">
+                {stats?.newlyAdded ?? 0}
+              </h2>
+            )}
           </div>
           <FileText className="w-10 h-10 text-orange-200/50" strokeWidth={1.5} />
         </div>
@@ -301,28 +316,28 @@ export default function ItemCostList() {
                 Array.from({ length: 8 }).map((_, index) => (
                   <tr key={`item-skeleton-${index}`} className="border-b border-gray-50">
                     <td className="px-6 py-4">
-                      <div className="h-4 w-4 rounded bg-gray-100 animate-pulse" />
+                      <Skeleton className="h-4 w-4 rounded" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-4 w-32 rounded bg-gray-100 animate-pulse" />
+                      <Skeleton className="h-4 w-32" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-4 w-12 rounded bg-gray-100 animate-pulse" />
+                      <Skeleton className="h-4 w-12" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-4 w-8 rounded bg-gray-100 animate-pulse" />
+                      <Skeleton className="h-4 w-8" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-4 w-16 rounded bg-gray-100 animate-pulse" />
+                      <Skeleton className="h-4 w-16" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-4 w-16 rounded bg-gray-100 animate-pulse" />
+                      <Skeleton className="h-4 w-16" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="h-4 w-48 rounded bg-gray-100 animate-pulse" />
+                      <Skeleton className="h-4 w-48" />
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="h-7 w-16 rounded bg-gray-100 animate-pulse ml-auto" />
+                    <td className="px-6 py-4 text-right">
+                      <Skeleton className="h-7 w-16 rounded ml-auto" />
                     </td>
                   </tr>
                 ))

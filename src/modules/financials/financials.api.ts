@@ -645,16 +645,28 @@ export type MarginAnalysisData = {
   plSummary: ProjectMarginItem[];
 };
 
+export type GetMarginAnalysisParams = {
+  projectId?: string;
+  startDate?: string;
+  endDate?: string;
+};
+
 export type GetMarginAnalysisResponse = {
   success: boolean;
   message: string;
   data: MarginAnalysisData;
 };
 
-export async function getMarginAnalysisProvider() {
-  const response = await apiClient.get<GetMarginAnalysisResponse>(
-    "/api/admin/financials/margin-analysis"
-  );
+export async function getMarginAnalysisProvider(params?: GetMarginAnalysisParams) {
+  const queryParams = new URLSearchParams();
+  if (params?.projectId) queryParams.append("projectId", params.projectId);
+  if (params?.startDate) queryParams.append("startDate", params.startDate);
+  if (params?.endDate) queryParams.append("endDate", params.endDate);
+
+  const queryString = queryParams.toString();
+  const url = `/api/admin/financials/margin-analysis${queryString ? `?${queryString}` : ""}`;
+
+  const response = await apiClient.get<GetMarginAnalysisResponse>(url);
   return response.data;
 }
 
@@ -705,6 +717,7 @@ export type MarginByProjectApiItem = {
 
 export type GetMarginByProjectParams = {
   limit?: number;
+  projectId?: string;
 };
 
 export type GetMarginByProjectResponse = {
@@ -718,6 +731,7 @@ export type GetMarginByProjectResponse = {
 export async function getMarginByProjectProvider(params?: GetMarginByProjectParams) {
   const queryParams = new URLSearchParams();
   if (params?.limit) queryParams.append("limit", params.limit.toString());
+  if (params?.projectId) queryParams.append("projectId", params.projectId);
 
   const queryString = queryParams.toString();
   const url = `/api/admin/financials/margin-analysis/by-project${queryString ? `?${queryString}` : ""}`;
@@ -786,10 +800,43 @@ export type GetBudgetVsActualProjectDetailResponse = {
   data: BudgetVsActualProjectDetailData;
 };
 
-export async function getBudgetVsActualProjectDetailProvider(leadId: string) {
-  const response = await apiClient.get<GetBudgetVsActualProjectDetailResponse>(
-    `/api/admin/financials/budget-vs-actual?leadId=${encodeURIComponent(leadId)}`
-  );
+export type GetBudgetVsActualProjectDetailParams = {
+  leadId?: string;
+  department?: string;
+  costCategory?: string;
+  startDate?: string;
+  endDate?: string;
+  groupBy?: string;
+};
+
+export async function getBudgetVsActualProjectDetailProvider(
+  params?: string | GetBudgetVsActualProjectDetailParams
+) {
+  const normalizedParams: GetBudgetVsActualProjectDetailParams =
+    typeof params === "string" ? { leadId: params } : params || {};
+
+  const queryParams = new URLSearchParams();
+  if (normalizedParams.leadId) queryParams.append("leadId", normalizedParams.leadId);
+  if (normalizedParams.department && normalizedParams.department !== "all") {
+    queryParams.append("department", normalizedParams.department);
+  }
+  if (normalizedParams.costCategory && normalizedParams.costCategory !== "all") {
+    queryParams.append("costCategory", normalizedParams.costCategory);
+  }
+  if (normalizedParams.startDate) {
+    queryParams.append("startDate", normalizedParams.startDate);
+  }
+  if (normalizedParams.endDate) {
+    queryParams.append("endDate", normalizedParams.endDate);
+  }
+  if (normalizedParams.groupBy && normalizedParams.groupBy !== "all") {
+    queryParams.append("groupBy", normalizedParams.groupBy);
+  }
+
+  const queryString = queryParams.toString();
+  const url = `/api/admin/financials/budget-vs-actual${queryString ? `?${queryString}` : ""}`;
+
+  const response = await apiClient.get<GetBudgetVsActualProjectDetailResponse>(url);
   return response.data;
 }
 
