@@ -39,6 +39,8 @@ import supportIcon from "@/assets/icons/sidebar/support.svg";
 import taxFilingIcon from "@/assets/icons/sidebar/tax-filing.svg";
 import terminatedProjectsIcon from "@/assets/icons/sidebar/terminated-projects.svg";
 import vendorInvoicesIcon from "@/assets/icons/sidebar/vendor-invoices.svg";
+import { useChatUnreadCountQuery } from "@/modules/team-chat/team-chat.hooks";
+import { useNotificationUnreadCountQuery } from "@/modules/notifications/notifications.hooks";
 
 // construction icon
 // project-calendar,drawings,delivery,tasks,material-requests,reports
@@ -540,6 +542,11 @@ export function Sidebar({
   const location = useLocation();
   const navigate = useNavigate();
   const employeeCounts = useEmployeeCountsStore();
+  const { data: unreadData } = useChatUnreadCountQuery();
+  const unreadCount = unreadData?.count ?? unreadData?.total ?? 0;
+  const { data: notificationUnreadCount = 0 } = useNotificationUnreadCountQuery({
+    refetchInterval: 30000,
+  });
   const iconSidebarScrollRef = useRef<HTMLDivElement | null>(null);
   const [hoveredGroup, setHoveredGroup] = useState<{
     label: string;
@@ -791,6 +798,8 @@ export function Sidebar({
               <nav className="flex flex-col gap-5">
                 {navigationGroups.map((group) => {
                   const iconSrc = group.icon as string;
+                  const isCommunication = group.id === "messages";
+                  const showBadge = isCommunication && unreadCount > 0;
 
                   return (
                     <button
@@ -820,6 +829,11 @@ export function Sidebar({
                           alt={group.label}
                           className="max-w-5 max-h-5 object-contain"
                         />
+                        {showBadge && (
+                          <span className="absolute -top-1 -right-1 z-60 bg-red-500 text-white text-[10px] font-bold rounded-full h-4.5 min-w-4.5 px-1 flex items-center justify-center shadow-xs">
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </span>
+                        )}
                       </div>
                     </button>
                   );
@@ -922,8 +936,13 @@ export function Sidebar({
                 }}
                 className="block px-4 py-2 rounded-md transition-colors text-sm w-[95%] text-white"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <span>{activeGroup.label}</span>
+                  {activeGroup.id === "messages" && unreadCount > 0 && (
+                    <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-xs">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </div>
               </NavLink>
 
@@ -1050,15 +1069,29 @@ export function Sidebar({
                           },
                         )}
                       >
-                        <div className="flex items-center gap-2">
-                          <SidebarItemIcon
-                            src={item.icon}
-                            alt={item.label}
-                            className={cn({
-                              "brightness-0 invert": isActive,
-                            })}
-                          />
-                          <span>{item.label}</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <SidebarItemIcon
+                              src={item.icon}
+                              alt={item.label}
+                              className={cn({
+                                "brightness-0 invert": isActive,
+                              })}
+                            />
+                            <span>{item.label}</span>
+                          </div>
+                          {item.path === "/plant/notification-history" && notificationUnreadCount > 0 && (
+                            <span
+                              className={cn(
+                                "text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-xs",
+                                isActive
+                                  ? "bg-white text-blue-600"
+                                  : "bg-red-500 text-white"
+                              )}
+                            >
+                              {notificationUnreadCount > 99 ? "99+" : notificationUnreadCount}
+                            </span>
+                          )}
                         </div>
                       </div>
                     )}
