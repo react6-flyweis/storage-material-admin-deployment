@@ -151,11 +151,10 @@ export default function TaxPaymentDialog({
                 <button
                   type="button"
                   onClick={() => setPaymentMethod("ach")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium text-sm border transition-colors ${
-                    paymentMethod === "ach"
-                      ? "bg-violet-50 text-violet-700 border-violet-300"
-                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                  }`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium text-sm border transition-colors ${paymentMethod === "ach"
+                    ? "bg-violet-50 text-violet-700 border-violet-300"
+                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                    }`}
                 >
                   <Building2 className="w-4 h-4" />
                   Bank Account (ACH)
@@ -163,11 +162,10 @@ export default function TaxPaymentDialog({
                 <button
                   type="button"
                   onClick={() => setPaymentMethod("card")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium text-sm border transition-colors ${
-                    paymentMethod === "card"
-                      ? "bg-violet-50 text-violet-700 border-violet-300"
-                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                  }`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium text-sm border transition-colors ${paymentMethod === "card"
+                    ? "bg-violet-50 text-violet-700 border-violet-300"
+                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                    }`}
                 >
                   <CreditCard className="w-4 h-4" />
                   Credit/Debit Card
@@ -175,11 +173,10 @@ export default function TaxPaymentDialog({
                 <button
                   type="button"
                   onClick={() => setPaymentMethod("new")}
-                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium text-sm border transition-colors ${
-                    paymentMethod === "new"
-                      ? "bg-violet-50 text-violet-700 border-violet-300"
-                      : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                  }`}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium text-sm border transition-colors ${paymentMethod === "new"
+                    ? "bg-violet-50 text-violet-700 border-violet-300"
+                    : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                    }`}
                 >
                   + New Payment Method
                 </button>
