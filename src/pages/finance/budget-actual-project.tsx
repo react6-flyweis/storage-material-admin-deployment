@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router";
+import { format } from "date-fns";
+import type { DateRange } from "react-day-picker";
 import {
   ArrowLeft,
   CircleDollarSign,
@@ -40,10 +42,35 @@ export default function BudgetActualProject() {
   const navigate = useNavigate();
   const { projectId } = useParams();
 
-  const [groupBy, setGroupBy] = useState("Group by: Cost Head");
-  const [department, setDepartment] = useState("Department: All");
-  const [costCategory, setCostCategory] = useState("Cost Category: All");
-  const [dateRange, setDateRange] = useState("24 Mar 2025 - 31 Mar 2025");
+  const [groupBy, setGroupBy] = useState("costHead");
+  const [department, setDepartment] = useState("all");
+  const [costCategory, setCostCategory] = useState("all");
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
+
+  const startDateStr = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
+  const endDateStr = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
+
+  const queryParams = useMemo(() => ({
+    leadId: projectId,
+    department: department !== "all" ? department : undefined,
+    costCategory: costCategory !== "all" ? costCategory : undefined,
+    startDate: startDateStr,
+    endDate: endDateStr,
+    groupBy: groupBy !== "all" ? groupBy : undefined,
+  }), [projectId, department, costCategory, startDateStr, endDateStr, groupBy]);
+
+  const isFiltered =
+    groupBy !== "costHead" ||
+    department !== "all" ||
+    costCategory !== "all" ||
+    Boolean(dateRange?.from || dateRange?.to);
+
+  const handleClearFilters = () => {
+    setGroupBy("costHead");
+    setDepartment("all");
+    setCostCategory("all");
+    setDateRange(undefined);
+  };
 
   const { data: projectsData } = useBudgetVsActualProjectsQuery();
   const {
@@ -51,7 +78,7 @@ export default function BudgetActualProject() {
     isLoading,
     isError,
     refetch,
-  } = useBudgetVsActualProjectDetailQuery(projectId);
+  } = useBudgetVsActualProjectDetailQuery(queryParams);
 
   const allProjects = projectsData?.data?.projects ?? [];
   const projectInfo = detailData?.data?.project;
@@ -155,6 +182,8 @@ export default function BudgetActualProject() {
               setCostCategory={setCostCategory}
               dateRange={dateRange}
               setDateRange={setDateRange}
+              onClearFilters={handleClearFilters}
+              isFiltered={isFiltered}
             />
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">

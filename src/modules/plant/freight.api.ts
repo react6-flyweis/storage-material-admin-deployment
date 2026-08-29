@@ -15,9 +15,45 @@ export interface FreightStatsResponse {
   data: FreightStatsData;
 }
 
+export interface FreightFilterCarrier {
+  _id: string;
+  carrierName: string;
+}
+
+export interface FreightFilterProject {
+  _id: string;
+  projectName: string;
+  jobId?: string;
+}
+
+export interface FreightFilterCustomer {
+  _id: string;
+  name: string;
+}
+
+export interface FreightFiltersData {
+  statuses: string[];
+  carriers: FreightFilterCarrier[];
+  projects: FreightFilterProject[];
+  customers: FreightFilterCustomer[];
+}
+
+export interface FreightFiltersResponse {
+  success: boolean;
+  message: string;
+  data: FreightFiltersData;
+}
+
 export async function getFreightStats(): Promise<FreightStatsResponse> {
   const response = await apiClient.get<FreightStatsResponse>(
     "/api/admin/plant/deliveries/freight/stats"
+  );
+  return response.data;
+}
+
+export async function getFreightFilters(): Promise<FreightFiltersResponse> {
+  const response = await apiClient.get<FreightFiltersResponse>(
+    "/api/admin/plant/freight-loads/filters"
   );
   return response.data;
 }
@@ -111,9 +147,20 @@ export interface GetFreightLoadsResponse {
 export async function getFreightLoads(
   params?: GetFreightLoadsParams
 ): Promise<GetFreightLoadsResponse> {
+  const queryParams: Record<string, string | number> = {};
+  if (params?.page) queryParams.page = params.page;
+  if (params?.limit) queryParams.limit = params.limit;
+  if (params?.search?.trim()) queryParams.search = params.search.trim();
+  if (params?.status && params.status !== "all") queryParams.status = params.status;
+  if (params?.projectId && params.projectId !== "all") queryParams.projectId = params.projectId;
+  if (params?.customerId && params.customerId !== "all") queryParams.customerId = params.customerId;
+  if (params?.carrierId && params.carrierId !== "all") queryParams.carrierId = params.carrierId;
+  if (params?.fromDate?.trim()) queryParams.fromDate = params.fromDate.trim();
+  if (params?.toDate?.trim()) queryParams.toDate = params.toDate.trim();
+
   const response = await apiClient.get<GetFreightLoadsResponse>(
     "/api/admin/plant/deliveries/freight",
-    { params }
+    { params: queryParams }
   );
   return response.data;
 }
@@ -505,9 +552,20 @@ export interface GetAwardedLoadsResponse {
 export async function getAwardedLoads(
   params?: GetAwardedLoadsParams
 ): Promise<GetAwardedLoadsResponse> {
+  const queryParams: Record<string, string | number> = {};
+  if (params?.page) queryParams.page = params.page;
+  if (params?.limit) queryParams.limit = params.limit;
+  if (params?.search?.trim()) queryParams.search = params.search.trim();
+  if (params?.status && params.status !== "all") queryParams.status = params.status;
+  if (params?.projectId && params.projectId !== "all") queryParams.projectId = params.projectId;
+  if (params?.customerId && params.customerId !== "all") queryParams.customerId = params.customerId;
+  if (params?.carrierId && params.carrierId !== "all") queryParams.carrierId = params.carrierId;
+  if (params?.fromDate?.trim()) queryParams.fromDate = params.fromDate.trim();
+  if (params?.toDate?.trim()) queryParams.toDate = params.toDate.trim();
+
   const response = await apiClient.get<GetAwardedLoadsResponse>(
     "/api/admin/plant/deliveries/awarded",
-    { params }
+    { params: queryParams }
   );
   return response.data;
 }

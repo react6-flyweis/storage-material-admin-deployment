@@ -51,12 +51,17 @@ export async function getBomStatsProvider(): Promise<BomStatsResponse> {
 
 export async function getBomProjectsProvider(
   page = 1,
-  limit = 20
+  limit = 20,
+  projectId?: string
 ): Promise<GetBomProjectsResponse> {
+  const params: Record<string, unknown> = { page, limit };
+  if (projectId && projectId !== "all" && projectId !== "all-projects") {
+    params.projectId = projectId;
+  }
   const response = await apiClient.get<GetBomProjectsResponse>(
     "/api/admin/plant/bom/projects",
     {
-      params: { page, limit },
+      params,
     }
   );
   return response.data;
@@ -276,6 +281,24 @@ export async function getProjectBomFilesProvider(leadId: string) {
   return response.data?.data || response.data;
 }
 
+export interface DrawingCommentUser {
+  _id?: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  [key: string]: unknown;
+}
+
+export interface DrawingComment {
+  _id: string;
+  text: string;
+  commentedBy?: string | DrawingCommentUser | null;
+  commentedByCustomer?: DrawingCommentUser | null;
+  authorName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ProjectDrawing {
   _id?: string;
   buildingId?: string;
@@ -286,6 +309,7 @@ export interface ProjectDrawing {
   versionNumber?: number;
   uploadedAt?: string;
   rejectionReason?: string;
+  comments?: DrawingComment[];
 }
 
 export interface BuildingWithDrawings {

@@ -35,11 +35,16 @@ export default function ShipperQuotation() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all_status");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Fetch Stats & Projects
   const { data: statsResponse, isLoading: isStatsLoading } = useShipperStatsQuery();
-  const { data: projectsResponse, isLoading: isProjectsLoading } = useShipperProjectsQuery(page, limit);
+  const { data: projectsResponse, isLoading: isProjectsLoading } = useShipperProjectsQuery(
+    page,
+    limit,
+    statusFilter !== "all_status" ? statusFilter : undefined
+  );
 
   const stats = statsResponse?.data || {
     totalFiles: 0,
@@ -61,16 +66,20 @@ export default function ShipperQuotation() {
     return parts.join(" • ") || "-";
   };
 
-  // Filter projects client-side based on search input
+  // Filter projects client-side based on search input and status filter
   const filteredProjects = projectsList.filter((project) => {
     const query = search.toLowerCase();
     const name = getProjectDisplayName(project);
-    return (
+    const matchesSearch =
       name.toLowerCase().includes(query) ||
       project.customerName.toLowerCase().includes(query) ||
       project.projectId.toLowerCase().includes(query) ||
-      project.location.toLowerCase().includes(query)
-    );
+      project.location.toLowerCase().includes(query);
+
+    const matchesStatus =
+      statusFilter === "all_status" || project.fileReceivedStatus === statusFilter;
+
+    return matchesSearch && matchesStatus;
   });
 
   const handleSelectAll = (checked: boolean) => {
@@ -179,20 +188,39 @@ export default function ShipperQuotation() {
 
       {/* Controls */}
       <div className="flex flex-col sm:flex-row justify-between gap-4 mt-8">
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input
               placeholder="Search"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               className="pl-9 w-[240px] h-10 bg-white border-0 shadow-sm rounded-lg"
             />
           </div>
-          <Button variant="outline" className="bg-white border-0 shadow-sm h-10 px-4 rounded-lg text-slate-700 gap-2">
-            <Filter className="w-4 h-4" />
-            Filter
-          </Button>
+          <Select
+            value={statusFilter}
+            onValueChange={(val) => {
+              setStatusFilter(val);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="w-[160px] h-10 bg-white border-0 shadow-sm rounded-lg text-slate-700 font-medium">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-slate-400" />
+                <SelectValue placeholder="All Statuses" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all_status">All Statuses</SelectItem>
+              <SelectItem value="all">All Received</SelectItem>
+              <SelectItem value="partial">Partial</SelectItem>
+              <SelectItem value="none">None</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <Select defaultValue="latest">
@@ -352,8 +380,8 @@ export default function ShipperQuotation() {
                   key={pageNum}
                   variant={page === pageNum ? "default" : "ghost"}
                   className={`w-8 h-8 p-0 rounded-full ${page === pageNum
-                      ? "bg-[#f59e0b] hover:bg-[#d97706] text-white"
-                      : "text-slate-600 hover:bg-slate-100"
+                    ? "bg-[#f59e0b] hover:bg-[#d97706] text-white"
+                    : "text-slate-600 hover:bg-slate-100"
                     }`}
                   onClick={() => setPage(pageNum)}
                 >

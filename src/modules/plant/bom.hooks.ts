@@ -34,10 +34,10 @@ export function useBomStatsQuery() {
   });
 }
 
-export function useBomProjectsQuery(page = 1, limit = 20) {
+export function useBomProjectsQuery(page = 1, limit = 20, projectId?: string) {
   return useQuery({
-    queryKey: ["plant", "bom", "projects", page, limit],
-    queryFn: () => getBomProjectsProvider(page, limit),
+    queryKey: ["plant", "bom", "projects", page, limit, projectId],
+    queryFn: () => getBomProjectsProvider(page, limit, projectId),
     staleTime: 60 * 1000,
   });
 }
