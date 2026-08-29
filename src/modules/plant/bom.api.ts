@@ -281,6 +281,24 @@ export async function getProjectBomFilesProvider(leadId: string) {
   return response.data?.data || response.data;
 }
 
+export interface DrawingCommentUser {
+  _id?: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  [key: string]: unknown;
+}
+
+export interface DrawingComment {
+  _id: string;
+  text: string;
+  commentedBy?: string | DrawingCommentUser | null;
+  commentedByCustomer?: DrawingCommentUser | null;
+  authorName?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ProjectDrawing {
   _id?: string;
   buildingId?: string;
@@ -291,6 +309,7 @@ export interface ProjectDrawing {
   versionNumber?: number;
   uploadedAt?: string;
   rejectionReason?: string;
+  comments?: DrawingComment[];
 }
 
 export interface BuildingWithDrawings {
