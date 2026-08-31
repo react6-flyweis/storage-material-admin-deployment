@@ -148,6 +148,7 @@ const EmployeePerformance = lazy(
   () => import("@/pages/employees/employee-performance"),
 );
 const EmployeeAuditLog = lazy(() => import("@/pages/employees/audit-log"));
+const Admins = lazy(() => import("@/pages/admins/admins"));
 
 // Payments section
 const Payments = lazy(() => import("@/pages/payments/payments"));
@@ -528,6 +529,12 @@ export const adminRoutes: RouteObject[] = [
               { path: "audit-log", element: <EmployeeAuditLog /> },
               { path: ":id", element: <EmployeeProfile /> },
             ],
+          },
+
+          // admins route
+          {
+            path: "admins",
+            element: <Admins />,
           },
 
           // global routes
