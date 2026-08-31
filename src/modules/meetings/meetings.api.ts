@@ -10,6 +10,9 @@ export type CreateMeetingPayload = {
   meetingLink: string;
   notes?: string;
   assignedTo?: string;
+  reminderMinutes?: number;
+  reminderSms?: boolean;
+  reminderEmail?: boolean;
 };
 
 export type UpdateMeetingPayload = {
@@ -23,6 +26,9 @@ export type UpdateMeetingPayload = {
   status?: "scheduled" | "cancelled" | "completed";
   customerId?: string;
   leadId?: string;
+  reminderMinutes?: number;
+  reminderSms?: boolean;
+  reminderEmail?: boolean;
 };
 
 export type CreateMeetingResponse = {
@@ -77,7 +83,7 @@ export type AdminMeeting = {
     | string
     | {
         _id: string;
-        [key: string]: any;
+        [key: string]: unknown;
       };
   title: string;
   createdBy: MeetingUserRef;
@@ -88,6 +94,10 @@ export type AdminMeeting = {
   meetingLink?: string;
   notes?: string;
   status: "scheduled" | "cancelled" | "completed" | string;
+  reminderMinutes?: number;
+  reminderSms?: boolean;
+  reminderEmail?: boolean;
+  reminderSentAt?: string | null;
   completedAt?: string | null;
   createdAt?: string;
   updatedAt?: string;
