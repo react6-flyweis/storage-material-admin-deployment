@@ -7,6 +7,7 @@ import { useSocket } from "@/utils/socketContextProvider";
 import { useChatHistoryQuery } from "@/modules/leads/leads.hooks";
 import { toast } from "sonner";
 import type { ChatMessage } from "@/modules/leads/leads.api";
+import ChatDropOffDialog from "@/components/leads/chat-dropoff-dialog";
 
 type Lead = {
   id: string;
@@ -39,6 +40,7 @@ export default function LeadChatTab({ lead }: Props) {
   const { socket, isConnected } = useSocket();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [isDropOffDialogOpen, setIsDropOffDialogOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isCustomerTyping, setIsCustomerTyping] = useState(false);
   const [isCustomerOnline, setIsCustomerOnline] = useState(true);
@@ -174,6 +176,15 @@ export default function LeadChatTab({ lead }: Props) {
               </div>
             </div>
           </div>
+
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs"
+            onClick={() => setIsDropOffDialogOpen(true)}
+          >
+            Follow-up
+          </Button>
         </div>
       </div>
 
@@ -187,7 +198,6 @@ export default function LeadChatTab({ lead }: Props) {
           <div className="space-y-4">
             {Array.isArray(messages) && messages.map((m) => {
               const isYou = m.senderType === "admin" || m.senderType === "sales";
-              const isCustomer = m.senderType === "customer";
               const isBot = m.senderType === "ai";
               
               return (
@@ -285,6 +295,13 @@ export default function LeadChatTab({ lead }: Props) {
           </Button>
         </div>
       </div>
+
+      <ChatDropOffDialog
+        open={isDropOffDialogOpen}
+        onOpenChange={setIsDropOffDialogOpen}
+        leadId={actualLeadId}
+        customerName={displayName}
+      />
     </div>
   );
 }
