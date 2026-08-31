@@ -46,6 +46,7 @@ export default function RescheduleMeeting() {
   const [mode, setMode] = useState<"online" | "in-person">("online");
   const [link, setLink] = useState("");
   const [notes, setNotes] = useState("");
+  const [reminderMinutes, setReminderMinutes] = useState("30");
 
   // Pre-fill form once meeting data loads
   useEffect(() => {
@@ -66,8 +67,9 @@ export default function RescheduleMeeting() {
       if (typeof meeting.leadId === "string") {
         setSelectedLead(meeting.leadId);
       } else {
-        setSelectedLead(meeting.leadId._id ?? "");
-        setLeadName(meeting.leadId.projectName || meeting.leadId.buildingType || `Lead ${meeting.leadId._id.substring(0,6)}`);
+        const leadObj = meeting.leadId as { _id?: string; projectName?: string; buildingType?: string };
+        setSelectedLead(leadObj._id ?? "");
+        setLeadName(leadObj.projectName || leadObj.buildingType || `Lead ${(leadObj._id || "").substring(0,6)}`);
       }
     }
 
@@ -77,6 +79,7 @@ export default function RescheduleMeeting() {
     if (meeting.mode) setMode(meeting.mode);
     if (meeting.meetingLink) setLink(meeting.meetingLink);
     if (meeting.notes) setNotes(meeting.notes);
+    if (meeting.reminderMinutes !== undefined) setReminderMinutes(String(meeting.reminderMinutes));
 
     // Parse meetingTime → date and time
     if (meeting.meetingTime) {
@@ -125,6 +128,7 @@ export default function RescheduleMeeting() {
           notes: notes.trim() || undefined,
           customerId: implicitCustomerId,
           leadId: selectedLead,
+          reminderMinutes: Number.parseInt(reminderMinutes, 10) || 30,
         },
       });
 
@@ -175,7 +179,6 @@ export default function RescheduleMeeting() {
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
-
             {/* Lead — uses the custom searchable LeadSelector from @/components/leads */}
             <div className="space-y-2">
               <Label>
@@ -263,6 +266,26 @@ export default function RescheduleMeeting() {
                   <span className="text-sm text-gray-700">In Person</span>
                 </label>
               </div>
+            </div>
+
+            {/* Reminder Timing */}
+            <div className="space-y-2">
+              <Label>Reminder Timing</Label>
+              <Select
+                value={reminderMinutes}
+                onValueChange={setReminderMinutes}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select reminder" />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectItem value="15">15 minutes before</SelectItem>
+                  <SelectItem value="30">30 minutes before</SelectItem>
+                  <SelectItem value="60">1 hour before</SelectItem>
+                  <SelectItem value="120">2 hours before</SelectItem>
+                  <SelectItem value="1440">1 day before</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
