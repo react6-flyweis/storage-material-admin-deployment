@@ -14,6 +14,7 @@ import { useSocket } from "@/utils/socketContextProvider";
 import { useChatHistoryQuery } from "@/modules/leads/leads.hooks";
 import { toast } from "sonner";
 import type { ChatMessage } from "@/modules/leads/leads.api";
+import ChatDropOffDialog from "@/components/leads/chat-dropoff-dialog";
 
 type Lead = {
   id: string;
@@ -47,17 +48,18 @@ export default function ChatDialog({
   const isDialogOpen = open ?? internalOpen;
 
   const actualLeadId = lead.backendId || lead._id || lead.id;
-  
+
   // Ensure we don't query with display ID, only valid Mongo ID
   const isValidMongoId = Boolean(actualLeadId && actualLeadId.length === 24);
-  
+
   const { data: historyRes, isLoading } = useChatHistoryQuery(
-    actualLeadId, 
-    isDialogOpen && isValidMongoId
+    actualLeadId,
+    isDialogOpen && isValidMongoId,
   );
   const { socket, isConnected } = useSocket();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [isDropOffDialogOpen, setIsDropOffDialogOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isCustomerTyping, setIsCustomerTyping] = useState(false);
   const [isCustomerOnline, setIsCustomerOnline] = useState(true);
@@ -66,9 +68,13 @@ export default function ChatDialog({
   useEffect(() => {
     if (historyRes?.data) {
       const resData = historyRes.data as any;
-      const msgs = Array.isArray(resData) 
-        ? resData 
-        : (resData.recentMessages || resData.messages || resData.data?.recentMessages || resData.data || []);
+      const msgs = Array.isArray(resData)
+        ? resData
+        : resData.recentMessages ||
+          resData.messages ||
+          resData.data?.recentMessages ||
+          resData.data ||
+          [];
       setMessages(msgs);
     }
   }, [historyRes]);
@@ -93,8 +99,15 @@ export default function ChatDialog({
       if (msg.leadId === actualLeadId) {
         setMessages((prev) => {
           if (prev.find((m) => m._id && m._id === msg._id)) return prev;
-          
-          const withoutTemp = prev.filter(m => !(m._id?.startsWith("temp-") && m.content === msg.content && m.senderType === msg.senderType));
+
+          const withoutTemp = prev.filter(
+            (m) =>
+              !(
+                m._id?.startsWith("temp-") &&
+                m.content === msg.content &&
+                m.senderType === msg.senderType
+              ),
+          );
           return [...withoutTemp, msg];
         });
         socket.emit("mark_messages_read", { leadId: actualLeadId });
@@ -111,7 +124,9 @@ export default function ChatDialog({
 
     const onChatStatus = (status: any) => {
       if (status.leadId === actualLeadId) {
-        setIsCustomerOnline(status.isCustomerOnline ?? status.leadIsOnline ?? true);
+        setIsCustomerOnline(
+          status.isCustomerOnline ?? status.leadIsOnline ?? true,
+        );
       }
     };
 
@@ -143,7 +158,7 @@ export default function ChatDialog({
 
     socket.emit("sales_typing_start", { leadId: actualLeadId });
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    
+
     typingTimeoutRef.current = setTimeout(() => {
       socket.emit("sales_typing_stop", { leadId: actualLeadId });
     }, 2000);
@@ -152,10 +167,14 @@ export default function ChatDialog({
   const sendMessage = () => {
     if (!input.trim() || !socket || !isConnected) return;
 
-    socket.emit("sales_message", { leadId: actualLeadId, content: input.trim(), senderType: "admin" });
-    
+    socket.emit("sales_message", {
+      leadId: actualLeadId,
+      content: input.trim(),
+      senderType: "admin",
+    });
+
     setInput("");
-    
+
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     socket.emit("sales_typing_stop", { leadId: actualLeadId });
   };
@@ -168,14 +187,17 @@ export default function ChatDialog({
   };
 
   const rawName = lead.assignedToName || lead.name;
-  const displayName = typeof rawName === 'object' && rawName !== null ? (rawName as any).name || "User" : String(rawName || "User");
+  const displayName =
+    typeof rawName === "object" && rawName !== null
+      ? (rawName as any).name || "User"
+      : String(rawName || "User");
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
 
       <DialogContent className="sm:max-w-3xl h-[600px] flex flex-col p-0 overflow-hidden">
-        <DialogHeader className="px-6 pt-6 pb-4 border-b">
+        <DialogHeader className="px-6 pt-6 pb-4 border-b pr-16">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10 bg-gray-100">
@@ -191,20 +213,32 @@ export default function ChatDialog({
                   <span>{lead.id}</span>
                   {isConnected && isCustomerOnline ? (
                     <span className="flex items-center gap-1 text-green-600">
-                      <span className="h-2 w-2 rounded-full bg-green-500"></span> Customer Online
+                      <span className="h-2 w-2 rounded-full bg-green-500"></span>{" "}
+                      Customer Online
                     </span>
                   ) : isConnected && !isCustomerOnline ? (
                     <span className="flex items-center gap-1 text-gray-500">
-                      <span className="h-2 w-2 rounded-full bg-gray-400"></span> Customer Offline
+                      <span className="h-2 w-2 rounded-full bg-gray-400"></span>{" "}
+                      Customer Offline
                     </span>
                   ) : (
                     <span className="flex items-center gap-1 text-red-500">
-                      <span className="h-2 w-2 rounded-full bg-red-500"></span> Disconnected
+                      <span className="h-2 w-2 rounded-full bg-red-500"></span>{" "}
+                      Disconnected
                     </span>
                   )}
                 </div>
               </div>
             </div>
+
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={() => setIsDropOffDialogOpen(true)}
+            >
+              Follow-up
+            </Button>
           </div>
         </DialogHeader>
 
@@ -216,49 +250,56 @@ export default function ChatDialog({
             </div>
           ) : (
             <div className="space-y-4">
-              {Array.isArray(messages) && messages.map((m) => {
-                const isYou = m.senderType === "admin" || m.senderType === "sales";
-                const isCustomer = m.senderType === "customer";
-                const isBot = m.senderType === "ai";
-                
-                return (
-                  <div
-                    key={m._id}
-                    className={`flex gap-2 ${
-                      isYou ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    {!isYou && (
-                      <Avatar className="h-8 w-8 bg-gray-100 flex-shrink-0">
-                        <AvatarFallback className="text-xs text-gray-600 uppercase">
-                          {isBot ? "AI" : String(lead.name || "UN").slice(0, 2)}
-                        </AvatarFallback>
-                      </Avatar>
-                    )}
-                    <div className="flex flex-col gap-1 max-w-[70%]">
-                      <div
-                        className={`p-3 rounded-lg text-sm ${
-                          isYou
-                            ? "bg-blue-600 text-white rounded-br-sm"
-                            : isBot 
-                              ? "bg-purple-100 text-purple-900 rounded-bl-sm border border-purple-200"
-                              : "bg-gray-100 text-gray-900 rounded-bl-sm"
-                        }`}
-                      >
-                        {m.content}
-                      </div>
-                      <div
-                        className={`text-xs text-gray-400 ${
-                          isYou ? "text-right" : "text-left"
-                        }`}
-                      >
-                        {isBot ? "Assistant • " : (isYou && m.senderName ? `${m.senderName} • ` : "")}
-                        {formatTime(m.createdAt)}
+              {Array.isArray(messages) &&
+                messages.map((m) => {
+                  const isYou =
+                    m.senderType === "admin" || m.senderType === "sales";
+                  const isBot = m.senderType === "ai";
+
+                  return (
+                    <div
+                      key={m._id}
+                      className={`flex gap-2 ${
+                        isYou ? "justify-end" : "justify-start"
+                      }`}
+                    >
+                      {!isYou && (
+                        <Avatar className="h-8 w-8 bg-gray-100 flex-shrink-0">
+                          <AvatarFallback className="text-xs text-gray-600 uppercase">
+                            {isBot
+                              ? "AI"
+                              : String(lead.name || "UN").slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                      <div className="flex flex-col gap-1 max-w-[70%]">
+                        <div
+                          className={`p-3 rounded-lg text-sm ${
+                            isYou
+                              ? "bg-blue-600 text-white rounded-br-sm"
+                              : isBot
+                                ? "bg-purple-100 text-purple-900 rounded-bl-sm border border-purple-200"
+                                : "bg-gray-100 text-gray-900 rounded-bl-sm"
+                          }`}
+                        >
+                          {m.content}
+                        </div>
+                        <div
+                          className={`text-xs text-gray-400 ${
+                            isYou ? "text-right" : "text-left"
+                          }`}
+                        >
+                          {isBot
+                            ? "Assistant • "
+                            : isYou && m.senderName
+                              ? `${m.senderName} • `
+                              : ""}
+                          {formatTime(m.createdAt)}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
               {isCustomerTyping && (
                 <div className="flex gap-2 justify-start">
                   <Avatar className="h-8 w-8 bg-gray-100 flex-shrink-0">
@@ -285,7 +326,9 @@ export default function ChatDialog({
               </span>
             </div>
           )}
-          <div className={`flex items-center gap-2 transition-all ${!isCustomerOnline ? 'opacity-40 pointer-events-none blur-[1px]' : ''}`}>
+          <div
+            className={`flex items-center gap-2 transition-all ${!isCustomerOnline ? "opacity-40 pointer-events-none blur-[1px]" : ""}`}
+          >
             <Button
               variant="ghost"
               size="icon"
@@ -302,7 +345,9 @@ export default function ChatDialog({
                   sendMessage();
                 }
               }}
-              placeholder={isConnected ? "Type a message..." : "Reconnecting..."}
+              placeholder={
+                isConnected ? "Type a message..." : "Reconnecting..."
+              }
               disabled={!isConnected}
               className="flex-1 bg-white"
             />
@@ -317,6 +362,13 @@ export default function ChatDialog({
           </div>
         </div>
       </DialogContent>
+
+      <ChatDropOffDialog
+        open={isDropOffDialogOpen}
+        onOpenChange={setIsDropOffDialogOpen}
+        leadId={actualLeadId}
+        customerName={displayName}
+      />
     </Dialog>
   );
 }
