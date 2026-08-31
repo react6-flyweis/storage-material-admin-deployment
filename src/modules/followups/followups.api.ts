@@ -19,15 +19,28 @@ export type UpcomingFollowUpApiItem = {
   notes?: string;
   priority?: string;
   status?: string;
-  modeOfContact?: string;
+  modeOfContact?: "call" | "email" | "chat" | "sms" | "meeting" | string;
+  reminderMinutes?: number;
+  notifyCustomer?: boolean;
+  sendSms?: boolean;
+  sendEmail?: boolean;
+  reminderSentAt?: string | null;
+  source?: "manual" | "cold_lead_auto" | "chat_dropoff_auto" | "invoice_auto" | string;
+  relatedInvoiceId?: string;
   customerId?: {
+    _id?: string;
     firstName?: string;
+    lastName?: string;
+    phone?: string;
+    email?: string;
   } | null;
   leadId?: {
+    _id?: string;
     buildingType?: string;
     location?: string;
     projectId?: string;
     projectName?: string;
+    jobId?: string;
   } | null;
 };
 
@@ -97,6 +110,11 @@ export type CreateFollowUpRequest = {
   followUpDate: string;
   notes: string;
   priority: string;
+  modeOfContact?: "call" | "email" | "chat" | "sms" | "meeting" | string;
+  reminderMinutes?: number;
+  notifyCustomer?: boolean;
+  sendSms?: boolean;
+  sendEmail?: boolean;
 };
 
 export type CreateFollowUpResponse = {
