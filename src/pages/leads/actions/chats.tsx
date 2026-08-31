@@ -10,6 +10,7 @@ import { getLeadDetailProvider } from "@/modules/leads/leads.api";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { ChatMessage } from "@/modules/leads/leads.api";
+import ChatDropOffDialog from "@/components/leads/chat-dropoff-dialog";
 
 const formatTime = (isoString: string) => {
   const d = new Date(isoString);
@@ -43,6 +44,7 @@ export default function LeadChats() {
   const { socket, isConnected } = useSocket();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
+  const [isDropOffDialogOpen, setIsDropOffDialogOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isCustomerTyping, setIsCustomerTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -128,15 +130,26 @@ export default function LeadChats() {
 
   return (
     <div className="flex-1 bg-[#f8fafc] min-h-screen p-6 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button 
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-          onClick={() => navigate(`/leads/${leadId}`)}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button 
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+            onClick={() => navigate(`/leads/${leadId}`)}
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <h1 className="text-2xl font-bold text-gray-900">Chats</h1>
+        </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 text-xs"
+          onClick={() => setIsDropOffDialogOpen(true)}
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
+          Follow-up
         </Button>
-        <h1 className="text-2xl font-bold text-gray-900">Chats</h1>
       </div>
 
       <div className="bg-white rounded-xl border shadow-sm max-w-4xl mx-auto flex flex-col h-[calc(100vh-140px)]">
@@ -145,16 +158,18 @@ export default function LeadChats() {
             <h2 className="text-lg font-bold text-gray-900">Chat with {customer?.firstName || 'Unknown'}</h2>
             <p className="text-sm text-gray-500 mt-1">{lead?.jobId || leadId} . {lead?.buildingType || 'Workshop'}</p>
           </div>
-          <div className="text-sm text-gray-500">
-            {isConnected ? (
-              <span className="flex items-center gap-1 text-green-600 font-medium">
-                <span className="h-2 w-2 rounded-full bg-green-500"></span> Live
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 text-red-500 font-medium">
-                <span className="h-2 w-2 rounded-full bg-red-500"></span> Disconnected
-              </span>
-            )}
+          <div className="flex items-center gap-3">
+            <div className="text-sm text-gray-500">
+              {isConnected ? (
+                <span className="flex items-center gap-1 text-green-600 font-medium">
+                  <span className="h-2 w-2 rounded-full bg-green-500"></span> Live
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-red-500 font-medium">
+                  <span className="h-2 w-2 rounded-full bg-red-500"></span> Disconnected
+                </span>
+              )}
+            </div>
           </div>
         </div>
         
@@ -171,7 +186,6 @@ export default function LeadChats() {
             <div className="space-y-4">
               {Array.isArray(messages) && messages.map((m) => {
                 const isYou = m.senderType === "admin" || m.senderType === "sales";
-                const isCustomer = m.senderType === "customer";
                 const isBot = m.senderType === "ai";
                 
                 return (
@@ -251,6 +265,13 @@ export default function LeadChats() {
           </div>
         </div>
       </div>
+
+      <ChatDropOffDialog
+        open={isDropOffDialogOpen}
+        onOpenChange={setIsDropOffDialogOpen}
+        leadId={actualLeadId!}
+        customerName={customer?.firstName || "this lead"}
+      />
     </div>
   );
 }
