@@ -31,9 +31,16 @@ export default function AdminsPage() {
     summary?.active ?? admins.filter((a) => a.isActive).length;
   const inactiveAdmins = totalAdmins - activeAdmins;
   const mainAdminId = summary?.mainAdminId;
-  const hasMainAdmin = Boolean(summary?.mainAdminId);
+  const hasMainAdmin = Boolean(mainAdminId);
 
-  const isMainAdmin = mainAdminId === currentUser?._id;
+  const isMainAdmin = Boolean(currentUser?._id && mainAdminId === currentUser._id);
+
+  // Only show banner once data is loaded and it is confirmed there is no main admin (mainAdminId is null / falsy)
+  const isNoMainAdminConfirmed =
+    !isLoading &&
+    !isError &&
+    summary !== undefined &&
+    (summary.mainAdminId === null || !summary.mainAdminId);
 
   const stats = {
     totalAdmins,
@@ -88,8 +95,8 @@ export default function AdminsPage() {
         </div>
       </div>
 
-      {/* Bootstrap Banner (Shown if current user is not main admin) */}
-      <BootstrapMainAdminBanner isMainAdmin={isMainAdmin} />
+      {/* Bootstrap Banner (Shown only when confirmed that there is no main admin) */}
+      {isNoMainAdminConfirmed && <BootstrapMainAdminBanner />}
 
       {/* Error state alert if query fails */}
       {isError && (
