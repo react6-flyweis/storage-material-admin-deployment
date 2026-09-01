@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -17,81 +18,22 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import DateRangeFilter from "@/components/ui/date-range-filter";
-import { useLeadScoringQuery, useUpdateLeadTemperatureMutation } from "@/modules/leads/leads.hooks";
-import { Loader2 } from "lucide-react";
+import {
+  useLeadScoringQuery,
+  useUpdateLeadTemperatureMutation,
+} from "@/modules/leads/leads.hooks";
+import { Loader2, Settings } from "lucide-react";
 import Pagination from "@/components/Pagination";
 import { format } from "date-fns";
 import { toast } from "sonner";
-
-interface LeadScore {
-  id: string;
-  name: string;
-  leadId: string;
-  location: string;
-  progress: number;
-  status: "Proposal sent" | "Quotation Sent";
-  quoteValue: number;
-  score: "Hot" | "Warm" | "Cold";
-  lastActivity: string;
-  lastActivityDate?: string; // ISO date string for filtering
-}
-
-const initialLeads: LeadScore[] = [
-  {
-    id: "1",
-    name: "John Doe",
-    leadId: "O-2025-1047",
-    location: "Workshop - Texas",
-    progress: 4,
-    status: "Proposal sent",
-    quoteValue: 12500,
-    score: "Hot",
-    lastActivity: "2 Days Ago",
-    lastActivityDate: "2026-01-11",
-  },
-  {
-    id: "2",
-    name: "John Doe",
-    leadId: "O-2025-1047",
-    location: "Workshop - Texas",
-    progress: 3,
-    status: "Quotation Sent",
-    quoteValue: 12500,
-    score: "Warm",
-    lastActivity: "2 Days Ago",
-    lastActivityDate: "2026-01-11",
-  },
-  {
-    id: "3",
-    name: "John Doe",
-    leadId: "O-2025-1047",
-    location: "Workshop - Texas",
-    progress: 3,
-    status: "Proposal sent",
-    quoteValue: 12500,
-    score: "Cold",
-    lastActivity: "2 Days Ago",
-    lastActivityDate: "2026-01-09",
-  },
-  {
-    id: "4",
-    name: "John Doe",
-    leadId: "O-2025-1047",
-    location: "Workshop - Texas",
-    progress: 3,
-    status: "Proposal sent",
-    quoteValue: 12500,
-    score: "Hot",
-    lastActivity: "2 Days Ago",
-    lastActivityDate: "2025-12-20",
-  },
-];
+import AutoFollowUpConfigDialog from "@/components/leads/auto-followup-config-dialog";
 
 export default function LeadScoring() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [status, setStatus] = useState("all");
   const [client, setClient] = useState("");
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -111,8 +53,11 @@ export default function LeadScoring() {
       { leadId: id, temperature: newScore.toLowerCase() },
       {
         onSuccess: () => toast.success("Lead status updated successfully!"),
-        onError: (err: any) => toast.error(err?.response?.data?.message || "Failed to update lead status"),
-      }
+        onError: (err: any) =>
+          toast.error(
+            err?.response?.data?.message || "Failed to update lead status",
+          ),
+      },
     );
   };
 
@@ -158,8 +103,17 @@ export default function LeadScoring() {
   return (
     <div className="">
       {/* Header */}
-      <div className="bg-teal-400  px-6 py-4 text-white">
-        <h1 className="text-xl font-semibold">Lead Scoring</h1>
+      <div className="bg-teal-400 px-6 py-4 text-white flex items-center justify-between">
+        <h1 className="text-xl font-semibold">Lead Scoring & Auto follow-up</h1>
+        <Button
+          onClick={() => setIsConfigOpen(true)}
+          variant="secondary"
+          size="sm"
+          className="bg-white text-teal-800 hover:bg-teal-50 border-0 shadow-sm font-medium flex items-center gap-1.5 cursor-pointer text-xs"
+        >
+          <Settings className="w-3.5 h-3.5" />
+          <span>Configure Auto Follow-Up</span>
+        </Button>
       </div>
 
       <div className="p-6 space-y-6">
@@ -241,27 +195,40 @@ export default function LeadScoring() {
                   <TableCell colSpan={6} className="h-24 text-center">
                     <div className="flex items-center justify-center">
                       <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                      <span className="ml-2 text-sm text-gray-500">Loading lead scoring...</span>
+                      <span className="ml-2 text-sm text-gray-500">
+                        Loading lead scoring...
+                      </span>
                     </div>
                   </TableCell>
                 </TableRow>
               ) : leads.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center text-gray-500">
+                  <TableCell
+                    colSpan={6}
+                    className="h-24 text-center text-gray-500"
+                  >
                     No leads found.
                   </TableCell>
                 </TableRow>
               ) : (
                 leads.map((lead) => {
                   // Determine progress (mock based on status or some logic)
-                  const progress = lead.status === "hot" ? 4 : lead.status === "warm" ? 3 : 2;
-                  
+                  const progress =
+                    lead.status === "hot" ? 4 : lead.status === "warm" ? 3 : 2;
+
                   // Use temperature if available, otherwise map API score (number) to Hot/Warm/Cold for display/dropdown
                   let displayScore = "Cold";
                   if (lead.temperature) {
-                    displayScore = lead.temperature.charAt(0).toUpperCase() + lead.temperature.slice(1).toLowerCase();
+                    displayScore =
+                      lead.temperature.charAt(0).toUpperCase() +
+                      lead.temperature.slice(1).toLowerCase();
                   } else {
-                    displayScore = lead.score >= 80 ? "Hot" : lead.score >= 50 ? "Warm" : "Cold";
+                    displayScore =
+                      lead.score >= 80
+                        ? "Hot"
+                        : lead.score >= 50
+                          ? "Warm"
+                          : "Cold";
                   }
 
                   return (
@@ -293,7 +260,11 @@ export default function LeadScoring() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={getStatusBadgeClass(lead.lifecycleStatus || lead.status)}>
+                        <Badge
+                          className={getStatusBadgeClass(
+                            lead.lifecycleStatus || lead.status,
+                          )}
+                        >
                           {lead.lifecycleStatus || lead.status}
                         </Badge>
                       </TableCell>
@@ -303,7 +274,9 @@ export default function LeadScoring() {
                       <TableCell>
                         <Select
                           value={displayScore}
-                          onValueChange={(val) => updateLeadScore(lead.leadId, val as any)}
+                          onValueChange={(val) =>
+                            updateLeadScore(lead.leadId, val as any)
+                          }
                         >
                           <SelectTrigger
                             className={`${getScoreBadgeClass(
@@ -320,7 +293,12 @@ export default function LeadScoring() {
                         </Select>
                       </TableCell>
                       <TableCell className="text-gray-600">
-                        {lead.updatedAt ? format(new Date(lead.updatedAt), "MM/dd/yyyy hh:mm a") : "-"}
+                        {lead.updatedAt
+                          ? format(
+                              new Date(lead.updatedAt),
+                              "MM/dd/yyyy hh:mm a",
+                            )
+                          : "-"}
                       </TableCell>
                     </TableRow>
                   );
@@ -343,6 +321,11 @@ export default function LeadScoring() {
           ) : null}
         </div>
       </div>
+
+      <AutoFollowUpConfigDialog
+        open={isConfigOpen}
+        onOpenChange={setIsConfigOpen}
+      />
     </div>
   );
 }
