@@ -10,7 +10,7 @@ interface BootstrapMainAdminBannerProps {
 
 export function BootstrapMainAdminBanner({
   isMainAdmin,
-}: BootstrapMainAdminBannerProps) {
+}: BootstrapMainAdminBannerProps = {}) {
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const setMainSelfMutation = useSetMainSelfMutation();
 
