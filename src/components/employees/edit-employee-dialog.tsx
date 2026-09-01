@@ -178,6 +178,7 @@ export function EditEmployeeDialog({
                 id="employee-email"
                 type="email"
                 placeholder="Enter email address"
+                disabled
                 {...register("email")}
               />
               {errors.email && (
@@ -193,7 +194,7 @@ export function EditEmployeeDialog({
                 name="role"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
