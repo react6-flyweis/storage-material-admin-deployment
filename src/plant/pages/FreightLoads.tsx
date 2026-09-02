@@ -54,7 +54,8 @@ export default function FreightLoads() {
   }, [searchInput]);
 
   // Fetch stats and filters dropdown data
-  const { data: statsResponse, isLoading: isStatsLoading } = useFreightStatsQuery();
+  const { data: statsResponse, isLoading: isStatsLoading } =
+    useFreightStatsQuery();
   const { data: filtersResponse } = useFreightFiltersQuery();
 
   // Fetch main freight loads data
@@ -64,13 +65,17 @@ export default function FreightLoads() {
   };
   if (search.trim()) freightLoadsParams.search = search.trim();
   if (status && status !== "all") freightLoadsParams.status = status;
-  if (projectId && projectId !== "all") freightLoadsParams.projectId = projectId;
-  if (customerId && customerId !== "all") freightLoadsParams.customerId = customerId;
-  if (carrierId && carrierId !== "all") freightLoadsParams.carrierId = carrierId;
+  if (projectId && projectId !== "all")
+    freightLoadsParams.projectId = projectId;
+  if (customerId && customerId !== "all")
+    freightLoadsParams.customerId = customerId;
+  if (carrierId && carrierId !== "all")
+    freightLoadsParams.carrierId = carrierId;
   if (fromDate.trim()) freightLoadsParams.fromDate = fromDate.trim();
   if (toDate.trim()) freightLoadsParams.toDate = toDate.trim();
 
-  const { data: loadsResponse, isLoading: isLoadsLoading } = useFreightLoadsQuery(freightLoadsParams);
+  const { data: loadsResponse, isLoading: isLoadsLoading } =
+    useFreightLoadsQuery(freightLoadsParams);
 
   const stats = statsResponse?.data;
   const loads = loadsResponse?.data?.requests || [];
@@ -106,26 +111,66 @@ export default function FreightLoads() {
     switch (statusStr?.toLowerCase()) {
       case "awarded":
       case "selected":
-        return <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full border border-green-200">Selected</span>;
+        return (
+          <span className="px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full border border-green-200">
+            Selected
+          </span>
+        );
       case "sent":
-        return <span className="px-3 py-1 bg-sky-100 text-sky-700 text-xs font-semibold rounded-full border border-sky-200">Sent</span>;
+        return (
+          <span className="px-3 py-1 bg-sky-100 text-sky-700 text-xs font-semibold rounded-full border border-sky-200">
+            Sent
+          </span>
+        );
       case "submitted":
       case "bids_received":
-        return <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">Submitted</span>;
+        return (
+          <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">
+            Submitted
+          </span>
+        );
       case "resubmit_requested":
-        return <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full border border-amber-200">Resubmit Requested</span>;
+        return (
+          <span className="px-3 py-1 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full border border-amber-200">
+            Resubmit Requested
+          </span>
+        );
       case "rejected":
-        return <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full border border-red-200">Rejected</span>;
+        return (
+          <span className="px-3 py-1 bg-red-100 text-red-700 text-xs font-semibold rounded-full border border-red-200">
+            Rejected
+          </span>
+        );
       case "expired":
-        return <span className="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-full border border-slate-200">Expired</span>;
+        return (
+          <span className="px-3 py-1 bg-slate-100 text-slate-700 text-xs font-semibold rounded-full border border-slate-200">
+            Expired
+          </span>
+        );
       case "requested":
-        return <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full border border-orange-200">Requested</span>;
+        return (
+          <span className="px-3 py-1 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full border border-orange-200">
+            Requested
+          </span>
+        );
       case "in_transit":
-        return <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full border border-indigo-200">In Transit</span>;
+        return (
+          <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full border border-indigo-200">
+            In Transit
+          </span>
+        );
       case "delivered":
-        return <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200">Delivered</span>;
+        return (
+          <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200">
+            Delivered
+          </span>
+        );
       default:
-        return <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-full uppercase">{(statusStr || "").replace(/_/g, " ")}</span>;
+        return (
+          <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-full uppercase">
+            {(statusStr || "").replace(/_/g, " ")}
+          </span>
+        );
     }
   };
 
@@ -135,21 +180,26 @@ export default function FreightLoads() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Freight Loads</h1>
-          <p className="text-gray-500 mt-1">Track and manage freight loads and logistics status</p>
+          <p className="text-gray-500 mt-1">
+            Track and manage freight loads and logistics status
+          </p>
         </div>
-
       </div>
 
       {/* Metric Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {/* Total Awarded */}
         <div className="bg-white rounded-xl p-5 border-2 border-green-500 shadow-sm flex flex-col justify-between h-28 relative overflow-hidden">
-          <p className="text-gray-500 text-sm font-medium z-10">Total Awarded</p>
+          <p className="text-gray-500 text-sm font-medium z-10">
+            Total Awarded
+          </p>
           <div className="flex justify-between items-end z-10">
             {isStatsLoading ? (
               <Skeleton className="h-9 w-16" />
             ) : (
-              <h2 className="text-3xl font-bold text-slate-900">{stats?.totalLoads ?? 0}</h2>
+              <h2 className="text-3xl font-bold text-slate-900">
+                {stats?.totalLoads ?? 0}
+              </h2>
             )}
             <Award className="w-8 h-8 text-green-500" />
           </div>
@@ -163,7 +213,9 @@ export default function FreightLoads() {
             {isStatsLoading ? (
               <Skeleton className="h-9 w-16" />
             ) : (
-              <h2 className="text-3xl font-bold text-slate-900">{stats?.inTransit ?? 0}</h2>
+              <h2 className="text-3xl font-bold text-slate-900">
+                {stats?.inTransit ?? 0}
+              </h2>
             )}
             <Truck className="w-8 h-8 text-orange-500" />
           </div>
@@ -177,7 +229,9 @@ export default function FreightLoads() {
             {isStatsLoading ? (
               <Skeleton className="h-9 w-16" />
             ) : (
-              <h2 className="text-3xl font-bold text-slate-900">{stats?.delivered ?? 0}</h2>
+              <h2 className="text-3xl font-bold text-slate-900">
+                {stats?.delivered ?? 0}
+              </h2>
             )}
             <CheckCircle2 className="w-8 h-8 text-emerald-400" />
           </div>
@@ -202,12 +256,16 @@ export default function FreightLoads() {
 
         {/* Requested Loads */}
         <div className="bg-white rounded-xl p-5 border-2 border-pink-500 shadow-sm flex flex-col justify-between h-28 relative overflow-hidden">
-          <p className="text-gray-500 text-sm font-medium z-10">Requested Loads</p>
+          <p className="text-gray-500 text-sm font-medium z-10">
+            Requested Loads
+          </p>
           <div className="flex justify-between items-end z-10">
             {isStatsLoading ? (
               <Skeleton className="h-9 w-16" />
             ) : (
-              <h2 className="text-3xl font-bold text-slate-900">{stats?.requestedLoads ?? 0}</h2>
+              <h2 className="text-3xl font-bold text-slate-900">
+                {stats?.requestedLoads ?? 0}
+              </h2>
             )}
             <Truck className="w-8 h-8 text-pink-500" />
           </div>
@@ -221,7 +279,9 @@ export default function FreightLoads() {
             {isStatsLoading ? (
               <Skeleton className="h-9 w-16" />
             ) : (
-              <h2 className="text-3xl font-bold text-slate-900">{stats?.bidsPending ?? 0}</h2>
+              <h2 className="text-3xl font-bold text-slate-900">
+                {stats?.bidsPending ?? 0}
+              </h2>
             )}
           </div>
           <div className="absolute top-0 right-0 w-20 h-20 bg-blue-50 rounded-bl-full -z-0 opacity-50" />
@@ -268,8 +328,16 @@ export default function FreightLoads() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 pt-4 border-t border-gray-100 animate-in fade-in slide-in-from-top-1 duration-200">
               {/* Status Select */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</label>
-                <Select value={status} onValueChange={(val) => { setStatus(val); setPage(1); }}>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Status
+                </label>
+                <Select
+                  value={status}
+                  onValueChange={(val) => {
+                    setStatus(val);
+                    setPage(1);
+                  }}
+                >
                   <SelectTrigger className="bg-white border-gray-200">
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
@@ -277,7 +345,9 @@ export default function FreightLoads() {
                     <SelectItem value="all">All Statuses</SelectItem>
                     {statusesList.map((st) => (
                       <SelectItem key={st} value={st}>
-                        {st.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                        {st
+                          .replace(/_/g, " ")
+                          .replace(/\b\w/g, (c) => c.toUpperCase())}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -286,8 +356,16 @@ export default function FreightLoads() {
 
               {/* Project Select */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Project</label>
-                <Select value={projectId} onValueChange={(val) => { setProjectId(val); setPage(1); }}>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Project
+                </label>
+                <Select
+                  value={projectId}
+                  onValueChange={(val) => {
+                    setProjectId(val);
+                    setPage(1);
+                  }}
+                >
                   <SelectTrigger className="bg-white border-gray-200">
                     <SelectValue placeholder="All Projects" />
                   </SelectTrigger>
@@ -295,7 +373,9 @@ export default function FreightLoads() {
                     <SelectItem value="all">All Projects</SelectItem>
                     {projectsList.map((p) => (
                       <SelectItem key={p._id} value={p._id}>
-                        {p.projectName ? `${p.projectName}${p.jobId ? ` (${p.jobId})` : ""}` : p.jobId || p._id}
+                        {p.projectName
+                          ? `${p.projectName}${p.jobId ? ` (${p.jobId})` : ""}`
+                          : p.jobId || p._id}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -304,8 +384,16 @@ export default function FreightLoads() {
 
               {/* Customer Select */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</label>
-                <Select value={customerId} onValueChange={(val) => { setCustomerId(val); setPage(1); }}>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Customer
+                </label>
+                <Select
+                  value={customerId}
+                  onValueChange={(val) => {
+                    setCustomerId(val);
+                    setPage(1);
+                  }}
+                >
                   <SelectTrigger className="bg-white border-gray-200">
                     <SelectValue placeholder="All Customers" />
                   </SelectTrigger>
@@ -322,8 +410,16 @@ export default function FreightLoads() {
 
               {/* Carrier Select */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Carrier</label>
-                <Select value={carrierId} onValueChange={(val) => { setCarrierId(val); setPage(1); }}>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Carrier
+                </label>
+                <Select
+                  value={carrierId}
+                  onValueChange={(val) => {
+                    setCarrierId(val);
+                    setPage(1);
+                  }}
+                >
                   <SelectTrigger className="bg-white border-gray-200">
                     <SelectValue placeholder="All Carriers" />
                   </SelectTrigger>
@@ -340,23 +436,33 @@ export default function FreightLoads() {
 
               {/* From Date */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">From Date</label>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  From Date
+                </label>
                 <Input
                   type="date"
                   className="bg-white border-gray-200 h-10 text-sm"
                   value={fromDate}
-                  onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
+                  onChange={(e) => {
+                    setFromDate(e.target.value);
+                    setPage(1);
+                  }}
                 />
               </div>
 
               {/* To Date */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">To Date</label>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  To Date
+                </label>
                 <Input
                   type="date"
                   className="bg-white border-gray-200 h-10 text-sm"
                   value={toDate}
-                  onChange={(e) => { setToDate(e.target.value); setPage(1); }}
+                  onChange={(e) => {
+                    setToDate(e.target.value);
+                    setPage(1);
+                  }}
                 />
               </div>
             </div>
@@ -383,19 +489,38 @@ export default function FreightLoads() {
                 // Table Skeletons
                 Array.from({ length: 5 }).map((_, idx) => (
                   <tr key={idx}>
-                    <td className="px-6 py-6"><Skeleton className="h-6 w-24" /></td>
-                    <td className="px-6 py-6"><Skeleton className="h-6 w-32" /></td>
-                    <td className="px-6 py-6"><Skeleton className="h-6 w-40" /></td>
-                    <td className="px-6 py-6"><Skeleton className="h-10 w-24" /></td>
-                    <td className="px-6 py-6"><Skeleton className="h-10 w-24" /></td>
-                    <td className="px-6 py-6"><Skeleton className="h-6 w-16" /></td>
-                    <td className="px-6 py-6"><Skeleton className="h-6 w-20" /></td>
-                    <td className="px-6 py-6"><Skeleton className="h-8 w-20" /></td>
+                    <td className="px-6 py-6">
+                      <Skeleton className="h-6 w-24" />
+                    </td>
+                    <td className="px-6 py-6">
+                      <Skeleton className="h-6 w-32" />
+                    </td>
+                    <td className="px-6 py-6">
+                      <Skeleton className="h-6 w-40" />
+                    </td>
+                    <td className="px-6 py-6">
+                      <Skeleton className="h-10 w-24" />
+                    </td>
+                    <td className="px-6 py-6">
+                      <Skeleton className="h-10 w-24" />
+                    </td>
+                    <td className="px-6 py-6">
+                      <Skeleton className="h-6 w-16" />
+                    </td>
+                    <td className="px-6 py-6">
+                      <Skeleton className="h-6 w-20" />
+                    </td>
+                    <td className="px-6 py-6">
+                      <Skeleton className="h-8 w-20" />
+                    </td>
                   </tr>
                 ))
               ) : loads.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500 font-medium">
+                  <td
+                    colSpan={8}
+                    className="px-6 py-12 text-center text-gray-500 font-medium"
+                  >
                     No freight loads found matching filters.
                   </td>
                 </tr>
@@ -403,10 +528,15 @@ export default function FreightLoads() {
                 loads.map((load) => (
                   <tr key={load._id} className="hover:bg-gray-50/50">
                     <td className="px-6 py-6 align-top">
-                      <p className="font-bold text-slate-900 text-sm mb-1">{load.deliveryNumber || "N/A"}</p>
+                      <p className="font-bold text-slate-900 text-sm mb-1">
+                        {load.deliveryNumber || "N/A"}
+                      </p>
                       <p className="text-xs text-gray-400">
-                        Requested:<br />
-                        {load.createdAt ? new Date(load.createdAt).toLocaleDateString() : "N/A"}
+                        Requested:
+                        <br />
+                        {load.createdAt
+                          ? new Date(load.createdAt).toLocaleDateString()
+                          : "N/A"}
                       </p>
                     </td>
                     <td className="px-6 py-6 align-top text-slate-900 font-medium">
@@ -420,17 +550,26 @@ export default function FreightLoads() {
                       </div>
                     </td>
                     <td className="px-6 py-6 align-top text-gray-500">
-                      <div className="max-w-[150px] line-clamp-2" title={load.description}>
+                      <div
+                        className="max-w-[150px] line-clamp-2"
+                        title={load.description}
+                      >
                         {load.description || "No description"}
                       </div>
                     </td>
                     <td className="px-6 py-6 align-top">
                       <div className="flex flex-col text-xs text-gray-500 space-y-1 max-w-[120px]">
-                        <span className="truncate font-medium text-slate-700" title={load.pickupLocation}>
+                        <span
+                          className="truncate font-medium text-slate-700"
+                          title={load.pickupLocation}
+                        >
                           {load.pickupLocation || "N/A"}
                         </span>
                         <span className="text-gray-300">↓</span>
-                        <span className="truncate font-medium text-slate-700" title={load.deliveryLocation}>
+                        <span
+                          className="truncate font-medium text-slate-700"
+                          title={load.deliveryLocation}
+                        >
                           {load.deliveryLocation || "N/A"}
                         </span>
                       </div>
@@ -438,21 +577,28 @@ export default function FreightLoads() {
                     <td className="px-6 py-6 align-top">
                       <div className="flex flex-col text-xs text-gray-500 space-y-1 max-w-[120px]">
                         <span>
-                          Pickup:<br />
+                          Pickup:
+                          <br />
                           <span className="font-medium text-slate-700">
-                            {load.pickupDate ? new Date(load.pickupDate).toLocaleDateString() : "N/A"}
+                            {load.pickupDate
+                              ? new Date(load.pickupDate).toLocaleDateString()
+                              : "N/A"}
                           </span>
                         </span>
                         <span className="mt-1">
-                          Delivery:<br />
+                          Delivery:
+                          <br />
                           <span className="font-medium text-slate-700">
-                            {load.deliveryDate ? new Date(load.deliveryDate).toLocaleDateString() : "N/A"}
+                            {load.deliveryDate
+                              ? new Date(load.deliveryDate).toLocaleDateString()
+                              : "N/A"}
                           </span>
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-6 align-top font-semibold text-slate-900">
-                      {load.awardedBidAmount !== undefined && load.awardedBidAmount !== null
+                      {load.awardedBidAmount !== undefined &&
+                      load.awardedBidAmount !== null
                         ? `$${load.awardedBidAmount.toLocaleString()}`
                         : "-"}
                     </td>
@@ -463,7 +609,11 @@ export default function FreightLoads() {
                       <Button
                         variant="outline"
                         className="bg-white border-gray-200 text-gray-700 h-9 px-4 rounded-md font-medium text-xs shadow-sm hover:bg-gray-50"
-                        onClick={() => navigate(`/plant/freight-request-details/${load._id || load.requestId}`)}
+                        onClick={() =>
+                          navigate(
+                            `/plant/freight-loads/details/${load._id || load.requestId}`,
+                          )
+                        }
                       >
                         <Eye className="w-4 h-4 mr-2" />
                         View
@@ -483,18 +633,12 @@ export default function FreightLoads() {
               <div>
                 <p className="text-sm text-gray-700">
                   Showing{" "}
-                  <span className="font-medium">
-                    {(page - 1) * limit + 1}
-                  </span>{" "}
+                  <span className="font-medium">{(page - 1) * limit + 1}</span>{" "}
                   to{" "}
                   <span className="font-medium">
                     {Math.min(page * limit, total)}
                   </span>{" "}
-                  of{" "}
-                  <span className="font-medium">
-                    {total}
-                  </span>{" "}
-                  results
+                  of <span className="font-medium">{total}</span> results
                 </p>
               </div>
               <div className="flex items-center space-x-2">
