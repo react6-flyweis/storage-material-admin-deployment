@@ -10,6 +10,10 @@ import {
   markInvoicePaidProvider,
   getAdminProjectInvoicesProvider,
   sendInvoiceProvider,
+  approveInvoiceProvider,
+  rejectInvoiceProvider,
+  submitInvoiceApprovalProvider,
+  getPendingApprovalInvoicesProvider,
   type CreateInvoicePayload,
   type UpdateInvoicePayload,
   type GetInvoicesParams,
@@ -75,6 +79,34 @@ export function useMarkInvoicePaidMutation() {
 export function useSendInvoiceMutation() {
   return useMutation({
     mutationFn: (invoiceId: string) => sendInvoiceProvider(invoiceId),
+  });
+}
+
+export function useApproveInvoiceMutation() {
+  return useMutation({
+    mutationFn: ({ invoiceId, note }: { invoiceId: string; note?: string }) =>
+      approveInvoiceProvider(invoiceId, { note }),
+  });
+}
+
+export function useRejectInvoiceMutation() {
+  return useMutation({
+    mutationFn: ({ invoiceId, reason }: { invoiceId: string; reason: string }) =>
+      rejectInvoiceProvider(invoiceId, { reason }),
+  });
+}
+
+export function useSubmitInvoiceApprovalMutation() {
+  return useMutation({
+    mutationFn: ({ invoiceId, note }: { invoiceId: string; note?: string }) =>
+      submitInvoiceApprovalProvider(invoiceId, { note }),
+  });
+}
+
+export function useGetPendingApprovalInvoicesQuery(params?: GetInvoicesParams) {
+  return useQuery({
+    queryKey: ["pendingApprovalInvoices", params],
+    queryFn: () => getPendingApprovalInvoicesProvider(params),
   });
 }
 
