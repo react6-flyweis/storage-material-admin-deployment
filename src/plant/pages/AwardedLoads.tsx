@@ -3,7 +3,19 @@ import { useNavigate } from "react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Filter, Download, Search, Ribbon, Truck, CheckCircle2, DollarSign, Phone, ChevronLeft, ChevronRight, X } from "lucide-react";
+import {
+  Filter,
+  Download,
+  Search,
+  Ribbon,
+  Truck,
+  CheckCircle2,
+  DollarSign,
+  Phone,
+  ChevronLeft,
+  ChevronRight,
+  X,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -51,13 +63,17 @@ export default function AwardedLoads() {
   };
   if (search.trim()) awardedLoadsParams.search = search.trim();
   if (status && status !== "all") awardedLoadsParams.status = status;
-  if (projectId && projectId !== "all") awardedLoadsParams.projectId = projectId;
-  if (customerId && customerId !== "all") awardedLoadsParams.customerId = customerId;
-  if (carrierId && carrierId !== "all") awardedLoadsParams.carrierId = carrierId;
+  if (projectId && projectId !== "all")
+    awardedLoadsParams.projectId = projectId;
+  if (customerId && customerId !== "all")
+    awardedLoadsParams.customerId = customerId;
+  if (carrierId && carrierId !== "all")
+    awardedLoadsParams.carrierId = carrierId;
   if (fromDate.trim()) awardedLoadsParams.fromDate = fromDate.trim();
   if (toDate.trim()) awardedLoadsParams.toDate = toDate.trim();
 
-  const { data: loadsResponse, isLoading: isLoadsLoading } = useAwardedLoadsQuery(awardedLoadsParams);
+  const { data: loadsResponse, isLoading: isLoadsLoading } =
+    useAwardedLoadsQuery(awardedLoadsParams);
 
   const stats = statsResponse?.data;
   const requests = loadsResponse?.data?.requests || [];
@@ -91,12 +107,15 @@ export default function AwardedLoads() {
 
   return (
     <div className="flex-1 space-y-6 p-6 bg-[#f9fafb] min-h-screen">
-
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Awarded Loads</h1>
-          <p className="text-sm text-slate-500 mt-1">Track all awarded freight loads</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+            Awarded Loads
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Track all awarded freight loads
+          </p>
         </div>
         {/* <div className="flex items-center gap-3">
           <Button 
@@ -123,8 +142,12 @@ export default function AwardedLoads() {
         <Card className="rounded-2xl border-[2px] border-green-500 shadow-sm bg-white overflow-hidden">
           <CardContent className="p-5 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-500">Total Awarded</p>
-              <h2 className="text-4xl font-bold text-slate-900 mt-1">{stats?.totalAwarded ?? 0}</h2>
+              <p className="text-sm font-medium text-slate-500">
+                Total Awarded
+              </p>
+              <h2 className="text-4xl font-bold text-slate-900 mt-1">
+                {stats?.totalAwarded ?? 0}
+              </h2>
             </div>
             <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center">
               <Ribbon className="w-6 h-6 text-green-500" />
@@ -137,7 +160,9 @@ export default function AwardedLoads() {
           <CardContent className="p-5 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500">In Transit</p>
-              <h2 className="text-4xl font-bold text-slate-900 mt-1">{stats?.inTransit ?? 0}</h2>
+              <h2 className="text-4xl font-bold text-slate-900 mt-1">
+                {stats?.inTransit ?? 0}
+              </h2>
             </div>
             <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center">
               <Truck className="w-6 h-6 text-orange-500" />
@@ -150,7 +175,9 @@ export default function AwardedLoads() {
           <CardContent className="p-5 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500">Delivered</p>
-              <h2 className="text-4xl font-bold text-slate-900 mt-1">{stats?.delivered ?? 0}</h2>
+              <h2 className="text-4xl font-bold text-slate-900 mt-1">
+                {stats?.delivered ?? 0}
+              </h2>
             </div>
             <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center">
               <CheckCircle2 className="w-6 h-6 text-green-500" />
@@ -164,7 +191,9 @@ export default function AwardedLoads() {
             <div>
               <p className="text-sm font-medium text-slate-500">Total Spent</p>
               <h2 className="text-4xl font-bold text-slate-900 mt-1">
-                {stats?.totalSpent ? `$${stats.totalSpent.toLocaleString()}` : "$0"}
+                {stats?.totalSpent
+                  ? `$${stats.totalSpent.toLocaleString()}`
+                  : "$0"}
               </h2>
             </div>
             <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center">
@@ -176,7 +205,6 @@ export default function AwardedLoads() {
 
       {/* Search and Table Area */}
       <div className="bg-white rounded-3xl p-6 shadow-sm">
-
         {/* Search Bar & Filter Controls */}
         <div className="flex flex-col space-y-4 mb-6">
           <div className="flex flex-col sm:flex-row justify-between gap-4">
@@ -215,8 +243,16 @@ export default function AwardedLoads() {
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-1 duration-200">
               {/* Status Select */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</label>
-                <Select value={status} onValueChange={(val) => { setStatus(val); setPage(1); }}>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Status
+                </label>
+                <Select
+                  value={status}
+                  onValueChange={(val) => {
+                    setStatus(val);
+                    setPage(1);
+                  }}
+                >
                   <SelectTrigger className="bg-white border-slate-200 rounded-xl">
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
@@ -224,7 +260,9 @@ export default function AwardedLoads() {
                     <SelectItem value="all">All Statuses</SelectItem>
                     {statusesList.map((st) => (
                       <SelectItem key={st} value={st}>
-                        {st.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                        {st
+                          .replace(/_/g, " ")
+                          .replace(/\b\w/g, (c) => c.toUpperCase())}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -233,8 +271,16 @@ export default function AwardedLoads() {
 
               {/* Project Select */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Project</label>
-                <Select value={projectId} onValueChange={(val) => { setProjectId(val); setPage(1); }}>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Project
+                </label>
+                <Select
+                  value={projectId}
+                  onValueChange={(val) => {
+                    setProjectId(val);
+                    setPage(1);
+                  }}
+                >
                   <SelectTrigger className="bg-white border-slate-200 rounded-xl">
                     <SelectValue placeholder="All Projects" />
                   </SelectTrigger>
@@ -242,7 +288,9 @@ export default function AwardedLoads() {
                     <SelectItem value="all">All Projects</SelectItem>
                     {projectsList.map((p) => (
                       <SelectItem key={p._id} value={p._id}>
-                        {p.projectName ? `${p.projectName}${p.jobId ? ` (${p.jobId})` : ""}` : p.jobId || p._id}
+                        {p.projectName
+                          ? `${p.projectName}${p.jobId ? ` (${p.jobId})` : ""}`
+                          : p.jobId || p._id}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -251,8 +299,16 @@ export default function AwardedLoads() {
 
               {/* Customer Select */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Customer</label>
-                <Select value={customerId} onValueChange={(val) => { setCustomerId(val); setPage(1); }}>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Customer
+                </label>
+                <Select
+                  value={customerId}
+                  onValueChange={(val) => {
+                    setCustomerId(val);
+                    setPage(1);
+                  }}
+                >
                   <SelectTrigger className="bg-white border-slate-200 rounded-xl">
                     <SelectValue placeholder="All Customers" />
                   </SelectTrigger>
@@ -269,8 +325,16 @@ export default function AwardedLoads() {
 
               {/* Carrier Select */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Carrier</label>
-                <Select value={carrierId} onValueChange={(val) => { setCarrierId(val); setPage(1); }}>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Carrier
+                </label>
+                <Select
+                  value={carrierId}
+                  onValueChange={(val) => {
+                    setCarrierId(val);
+                    setPage(1);
+                  }}
+                >
                   <SelectTrigger className="bg-white border-slate-200 rounded-xl">
                     <SelectValue placeholder="All Carriers" />
                   </SelectTrigger>
@@ -287,23 +351,33 @@ export default function AwardedLoads() {
 
               {/* From Date */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">From Date</label>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  From Date
+                </label>
                 <Input
                   type="date"
                   className="bg-white border-slate-200 h-10 text-sm rounded-xl"
                   value={fromDate}
-                  onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
+                  onChange={(e) => {
+                    setFromDate(e.target.value);
+                    setPage(1);
+                  }}
                 />
               </div>
 
               {/* To Date */}
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">To Date</label>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  To Date
+                </label>
                 <Input
                   type="date"
                   className="bg-white border-slate-200 h-10 text-sm rounded-xl"
                   value={toDate}
-                  onChange={(e) => { setToDate(e.target.value); setPage(1); }}
+                  onChange={(e) => {
+                    setToDate(e.target.value);
+                    setPage(1);
+                  }}
                 />
               </div>
             </div>
@@ -315,30 +389,66 @@ export default function AwardedLoads() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Request ID</th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Project</th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Description</th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pickup Location</th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Delivery Location</th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Dates</th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Carrier</th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Awarded Amount</th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Request ID
+                </th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Project
+                </th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Description
+                </th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Pickup Location
+                </th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Delivery Location
+                </th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Dates
+                </th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Carrier
+                </th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Awarded Amount
+                </th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Status
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {isLoadsLoading ? (
                 Array.from({ length: 5 }).map((_, index) => (
                   <tr key={index}>
-                    <td className="py-5"><Skeleton className="h-6 w-24" /></td>
-                    <td className="py-5"><Skeleton className="h-6 w-32" /></td>
-                    <td className="py-5"><Skeleton className="h-6 w-40" /></td>
-                    <td className="py-5"><Skeleton className="h-6 w-28" /></td>
-                    <td className="py-5"><Skeleton className="h-6 w-28" /></td>
-                    <td className="py-5"><Skeleton className="h-10 w-24" /></td>
-                    <td className="py-5"><Skeleton className="h-8 w-32" /></td>
-                    <td className="py-5"><Skeleton className="h-6 w-20" /></td>
-                    <td className="py-5"><Skeleton className="h-6 w-16" /></td>
+                    <td className="py-5">
+                      <Skeleton className="h-6 w-24" />
+                    </td>
+                    <td className="py-5">
+                      <Skeleton className="h-6 w-32" />
+                    </td>
+                    <td className="py-5">
+                      <Skeleton className="h-6 w-40" />
+                    </td>
+                    <td className="py-5">
+                      <Skeleton className="h-6 w-28" />
+                    </td>
+                    <td className="py-5">
+                      <Skeleton className="h-6 w-28" />
+                    </td>
+                    <td className="py-5">
+                      <Skeleton className="h-10 w-24" />
+                    </td>
+                    <td className="py-5">
+                      <Skeleton className="h-8 w-32" />
+                    </td>
+                    <td className="py-5">
+                      <Skeleton className="h-6 w-20" />
+                    </td>
+                    <td className="py-5">
+                      <Skeleton className="h-6 w-16" />
+                    </td>
                   </tr>
                 ))
               ) : requests.length === 0 ? (
@@ -352,12 +462,21 @@ export default function AwardedLoads() {
                   <tr
                     key={load._id || index}
                     className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
-                    onClick={() => navigate(`/plant/freight-request-details/${load._id || load.requestId}`)}
+                    onClick={() =>
+                      navigate(
+                        `/plant/freight-loads/details/${load._id || load.requestId}`,
+                      )
+                    }
                   >
                     <td className="py-5 align-top">
-                      <p className="font-bold text-slate-900 mb-1">{load.deliveryNumber}</p>
+                      <p className="font-bold text-slate-900 mb-1">
+                        {load.deliveryNumber}
+                      </p>
                       <p className="text-[11px] text-slate-500 mb-2">
-                        Requested: {load.createdAt ? new Date(load.createdAt).toLocaleDateString() : "-"}
+                        Requested:{" "}
+                        {load.createdAt
+                          ? new Date(load.createdAt).toLocaleDateString()
+                          : "-"}
                       </p>
                       <Badge
                         variant="outline"
@@ -370,24 +489,40 @@ export default function AwardedLoads() {
                     </td>
                     <td className="py-5 align-top">
                       <p className="text-sm font-medium text-slate-700">
-                        {load.project?.projectName || load.project?.jobId || "-"}
+                        {load.project?.projectName ||
+                          load.project?.jobId ||
+                          "-"}
                       </p>
                     </td>
                     <td className="py-5 align-top">
-                      <p className="text-sm text-slate-600 max-w-[150px]">{load.description}</p>
+                      <p className="text-sm text-slate-600 max-w-[150px]">
+                        {load.description}
+                      </p>
                     </td>
                     <td className="py-5 align-top">
-                      <p className="text-sm text-slate-600 w-20">{load.pickupLocation || "-"}</p>
+                      <p className="text-sm text-slate-600 w-20">
+                        {load.pickupLocation || "-"}
+                      </p>
                     </td>
                     <td className="py-5 align-top">
-                      <p className="text-sm text-slate-600 w-20">{load.deliveryLocation || "-"}</p>
+                      <p className="text-sm text-slate-600 w-20">
+                        {load.deliveryLocation || "-"}
+                      </p>
                     </td>
                     <td className="py-5 align-top">
                       <p className="text-[12px] text-slate-500 w-24">
-                        Pickup:<br />{load.pickupDate ? new Date(load.pickupDate).toLocaleDateString() : "-"}
+                        Pickup:
+                        <br />
+                        {load.pickupDate
+                          ? new Date(load.pickupDate).toLocaleDateString()
+                          : "-"}
                       </p>
                       <p className="text-[12px] text-slate-500 w-24 mt-1">
-                        Delivery:<br />{load.deliveryDate ? new Date(load.deliveryDate).toLocaleDateString() : "-"}
+                        Delivery:
+                        <br />
+                        {load.deliveryDate
+                          ? new Date(load.deliveryDate).toLocaleDateString()
+                          : "-"}
                       </p>
                     </td>
                     <td className="py-5 align-top">
@@ -407,7 +542,8 @@ export default function AwardedLoads() {
                     </td>
                     <td className="py-5 align-top">
                       <p className="text-sm font-bold text-slate-900 mb-1">
-                        {load.awardedBidAmount !== undefined && load.awardedBidAmount !== null
+                        {load.awardedBidAmount !== undefined &&
+                        load.awardedBidAmount !== null
                           ? `$${load.awardedBidAmount.toLocaleString()}`
                           : "-"}
                       </p>
@@ -431,18 +567,12 @@ export default function AwardedLoads() {
               <div>
                 <p className="text-sm text-gray-700">
                   Showing{" "}
-                  <span className="font-medium">
-                    {(page - 1) * limit + 1}
-                  </span>{" "}
+                  <span className="font-medium">{(page - 1) * limit + 1}</span>{" "}
                   to{" "}
                   <span className="font-medium">
                     {Math.min(page * limit, total)}
                   </span>{" "}
-                  of{" "}
-                  <span className="font-medium">
-                    {total}
-                  </span>{" "}
-                  results
+                  of <span className="font-medium">{total}</span> results
                 </p>
               </div>
               <div className="flex items-center space-x-2">
@@ -471,8 +601,6 @@ export default function AwardedLoads() {
           </div>
         )}
       </div>
-
     </div>
   );
 }
-
