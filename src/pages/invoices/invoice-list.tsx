@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/table";
 import Pagination from "@/components/Pagination";
 import { useGetInvoicesQuery, useGetInvoiceStatsQuery } from "@/modules/invoices/invoices.hooks";
+import InvoiceStatusBadge from "@/components/invoices/invoice-status-badge";
 
 
 
@@ -177,11 +178,14 @@ export default function InvoiceListPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="All">All</SelectItem>
-                  <SelectItem value="Draft">Draft</SelectItem>
-                  <SelectItem value="Sent">Sent</SelectItem>
-                  <SelectItem value="Paid">Paid</SelectItem>
-                  <SelectItem value="Overdue">Overdue</SelectItem>
-                  <SelectItem value="Cancelled">Cancelled</SelectItem>
+                  <SelectItem value="pending_approval">Pending Approval</SelectItem>
+                  <SelectItem value="approved">Approved</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="sent">Sent</SelectItem>
+                  <SelectItem value="paid">Paid</SelectItem>
+                  <SelectItem value="overdue">Overdue</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -271,16 +275,16 @@ export default function InvoiceListPage() {
                   </TableRow>
                 ) : (
                   invoices.map((inv) => {
-                    const isPaid = inv.status.toLowerCase() === "paid";
+                    const isPaid = (inv.status || "").toLowerCase() === "paid";
                     const paidAmount = isPaid ? inv.amount : 0;
                     return (
-                      <TableRow key={inv.invoice?.id || inv.invoiceNumber}>
+                      <TableRow key={inv.invoice?._id || inv.invoice?.id || inv.invoiceNumber}>
                         <TableCell className="text-left text-orange-500 font-medium px-6 py-4">
                           {inv.invoiceNumber}
                         </TableCell>
                         <TableCell className="text-left px-6 py-4">{cleanProjectName(inv.projectName)||'-'}</TableCell>
                         <TableCell className="text-left px-6 py-4">
-                          {new Date(inv.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {inv.dueDate ? new Date(inv.dueDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : "-"}
                         </TableCell>
                         <TableCell className="text-left px-6 py-4">{formatCurrency(inv.amount)}</TableCell>
                         <TableCell className="text-left px-6 py-4">{formatCurrency(paidAmount)}</TableCell>
@@ -288,23 +292,17 @@ export default function InvoiceListPage() {
                           {formatCurrency(inv.amount - paidAmount)}
                         </TableCell>
                         <TableCell className="text-left px-6 py-4">
-                          {isPaid ? (
-                            <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-500 px-2 py-0.5 text-xs font-semibold text-white">
-                              <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                              Paid
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-2 py-0.5 text-xs font-semibold text-white">
-                              <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                              {inv.status || "Unpaid"}
-                            </span>
-                          )}
+                          <InvoiceStatusBadge
+                            workflowStatus={inv.invoice?.workflowStatus}
+                            approvalStatus={inv.invoice?.approval?.status}
+                            financialStatus={inv.status}
+                          />
                         </TableCell>
                         <TableCell className="text-left px-6 py-4">
                           <button
                             onClick={() => navigate(`/invoice/preview`, { 
                               state: { 
-                                invoiceId: inv.invoice?._id,
+                                invoiceId: inv.invoice?._id || inv.invoice?.id,
                                 invoiceNumber: inv.invoiceNumber, 
                                 date: inv.dueDate, 
                                 total: inv.amount, 
@@ -313,6 +311,7 @@ export default function InvoiceListPage() {
                               } 
                             })}
                             className="text-black hover:text-gray-700"
+                            title="View Invoice Details"
                           >
                             <Eye className="w-5 h-5" />
                           </button>
