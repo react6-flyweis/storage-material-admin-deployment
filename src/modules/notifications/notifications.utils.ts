@@ -33,7 +33,7 @@ export function getNotificationRoute(
     case "freightbid":
     case "freightload":
     case "freight_load":
-      return refId ? `/plant/freight-request-details/${refId}` : "/plant/freight-loads";
+      return refId ? `/plant/freight-loads/details/${refId}` : "/plant/freight-loads";
     case "chat":
       return "/communication";
     case "followup":

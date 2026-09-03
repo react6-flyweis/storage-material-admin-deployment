@@ -20,7 +20,9 @@ import {
 } from "lucide-react";
 import LoadPlanningHeader from "./LoadPlanningHeader";
 import CarrierFilterModal from "@/plant/components/modals/CarrierFilterModal";
-import FreightReviewModal, { type FreightFormData } from "@/plant/components/modals/FreightReviewModal";
+import FreightReviewModal, {
+  type FreightFormData,
+} from "@/plant/components/modals/FreightReviewModal";
 import SuccessModal from "@/plant/components/common_component/SuccessModal";
 import Button from "@/plant/components/common_component/Button";
 import CommonDropdown from "@/plant/components/common_component/CommonDropdown";
@@ -36,7 +38,6 @@ import {
   useProjectDeliveryQuery,
 } from "@/modules/plant/freight.hooks";
 import type { ProjectDeliveryItem } from "@/modules/plant/freight.api";
-
 
 const parseDimensions = (input: string) => {
   const parts = input.replace(/['"]/g, "").split(/x/i);
@@ -73,8 +74,13 @@ const freightFormSchema = z
     description: z.string().default("Project outbound freight"),
     loadDescription: z.string().trim().min(1, "Load description is required"),
     weight: z.preprocess(
-      (val) => (val === "" || val === undefined || val === null ? undefined : Number(val)),
-      z.number({ message: "Weight must be a number" }).positive("Weight must be a positive number")
+      (val) =>
+        val === "" || val === undefined || val === null
+          ? undefined
+          : Number(val),
+      z
+        .number({ message: "Weight must be a number" })
+        .positive("Weight must be a positive number"),
     ),
     weightUnit: z.string().default("Lbs"),
     dimensionsInput: z
@@ -90,17 +96,23 @@ const freightFormSchema = z
             return !isNaN(num) && num > 0;
           });
         },
-        { message: "Dimensions must be in format: Length' x Width' x Height' (e.g. 51' x 8.5' x 8')" }
+        {
+          message:
+            "Dimensions must be in format: Length' x Width' x Height' (e.g. 51' x 8.5' x 8')",
+        },
       )
       .optional()
       .or(z.literal("")),
     metalType: z.string().trim().min(1, "Material type is required"),
     packageCount: z.preprocess(
-      (val) => (val === "" || val === undefined || val === null ? undefined : Number(val)),
+      (val) =>
+        val === "" || val === undefined || val === null
+          ? undefined
+          : Number(val),
       z
         .number({ message: "Package count must be a number" })
         .int("Package count must be an integer")
-        .positive("Package count must be a positive number")
+        .positive("Package count must be a positive number"),
     ),
     loadingEquipment: z.array(z.string()).default(["Crane"]),
     bidDeadline: z.string().min(1, "Bid deadline is required"),
@@ -125,7 +137,7 @@ const freightFormSchema = z
           const normalized = val.replace(/[\s()-]/g, "");
           return /^\+?\d{7,15}$/.test(normalized);
         },
-        { message: "Enter a valid phone number" }
+        { message: "Enter a valid phone number" },
       ),
     specialRequirements: z.string().optional().or(z.literal("")),
     additionalNotes: z.string().optional().or(z.literal("")),
@@ -138,7 +150,7 @@ const freightFormSchema = z
     {
       message: "Delivery date must be greater than or equal to pickup date",
       path: ["deliveryDate"],
-    }
+    },
   );
 
 type FreightFormValues = z.infer<typeof freightFormSchema>;
@@ -197,14 +209,18 @@ const FreightSelectionView: React.FC = () => {
 
   const { data: autofillRes, isLoading } = useGetFreightAutofillQuery(
     projectId || "",
-    { skip: !projectId }
+    { skip: !projectId },
   );
   const autofillData: FreightAutofillData | undefined = autofillRes;
 
-  const { data: carriersRes, isLoading: isLoadingCarriers } = usePlantCarriersQuery({ limit: 100 });
+  const { data: carriersRes, isLoading: isLoadingCarriers } =
+    usePlantCarriersQuery({ limit: 100 });
   const carriersList = carriersRes?.data?.carriers || [];
 
-  const { data: projectDeliveryRes } = useProjectDeliveryQuery(projectId || "", { enabled: !!projectId });
+  const { data: projectDeliveryRes } = useProjectDeliveryQuery(
+    projectId || "",
+    { enabled: !!projectId },
+  );
 
   const deliveriesList: DeliveryItem[] = (
     projectDeliveryRes?.requests ||
@@ -224,8 +240,10 @@ const FreightSelectionView: React.FC = () => {
     loadWeight: item.loadWeight,
   }));
 
-  const [createDelivery, { isLoading: isCreating }] = useCreatePlantDeliveryMutation();
-  const [sendFreightBids, { isLoading: isSendingBids }] = useSendFreightBidsMutation();
+  const [createDelivery, { isLoading: isCreating }] =
+    useCreatePlantDeliveryMutation();
+  const [sendFreightBids, { isLoading: isSendingBids }] =
+    useSendFreightBidsMutation();
 
   const isSubmitting = isCreating || isSendingBids;
 
@@ -234,40 +252,71 @@ const FreightSelectionView: React.FC = () => {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [selectedCarrierIds, setSelectedCarrierIds] = useState<string[]>([]);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<{ url: string; name: string }[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<
+    { url: string; name: string }[]
+  >([]);
   const [showForm, setShowForm] = useState(true);
-  const [selectedType, setSelectedType] = useState<"existing" | "new" | null>("new");
+  const [selectedType, setSelectedType] = useState<"existing" | "new" | null>(
+    "new",
+  );
   const [savedDeliveryId, setSavedDeliveryId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [stagedFormData, setStagedFormData] = useState<FreightFormData | null>(null);
+  const [stagedFormData, setStagedFormData] = useState<FreightFormData | null>(
+    null,
+  );
 
   const hasDeliveries = deliveriesList.length > 0;
   const activeFreightDeliveries = deliveriesList.filter((d) => {
     const norm = (d.status || "").toLowerCase().replace(/[\s_-]+/g, "");
-    return ["confirmed", "delivered", "intransit", "scheduled", "carrierselected", "biddingsent"].includes(norm);
+    return [
+      "confirmed",
+      "delivered",
+      "intransit",
+      "scheduled",
+      "carrierselected",
+      "biddingsent",
+    ].includes(norm);
   });
   const hasActiveFreight = activeFreightDeliveries.length > 0;
   const hasActiveDelivery = hasActiveFreight;
-  const getFreightFormDefaults = (data?: FreightAutofillData): FreightFormValues => ({
+  const getFreightFormDefaults = (
+    data?: FreightAutofillData,
+  ): FreightFormValues => ({
     description: "Project outbound freight",
-    loadDescription: data?.loadDescription || data?.summary?.loadDescription || "",
-    weight: data?.weight || data?.totalWeight || data?.summary?.totalWeight || undefined,
+    loadDescription:
+      data?.loadDescription || data?.summary?.loadDescription || "",
+    weight:
+      data?.weight ||
+      data?.totalWeight ||
+      data?.summary?.totalWeight ||
+      undefined,
     weightUnit: "Lbs",
     dimensionsInput: data?.dimensions
       ? `${data.dimensions.lengthFeet}' x ${data.dimensions.widthFeet}' x ${data.dimensions.heightFeet}'`
       : data?.summary?.dimensionsText || "",
-    metalType: data?.metalType || data?.materialType || data?.summary?.materialType || "",
-    packageCount: data?.packageCount || data?.totalBundles || data?.summary?.packageCount || undefined,
+    metalType:
+      data?.metalType ||
+      data?.materialType ||
+      data?.summary?.materialType ||
+      "",
+    packageCount:
+      data?.packageCount ||
+      data?.totalBundles ||
+      data?.summary?.packageCount ||
+      undefined,
     loadingEquipment: ["Crane"],
     bidDeadline: "",
-    pickupLocation: data?.pickupLocation || data?.summary?.suggestedPickupLocation || "",
-    deliveryLocation: data?.deliveryLocation || data?.summary?.suggestedDeliveryLocation || "",
+    pickupLocation:
+      data?.pickupLocation || data?.summary?.suggestedPickupLocation || "",
+    deliveryLocation:
+      data?.deliveryLocation || data?.summary?.suggestedDeliveryLocation || "",
     pickupDate: "",
     pickupTime: "",
     deliveryDate: "",
     deliveryTime: "",
     receivingPoc: data?.receivingPoc || data?.summary?.receivingPoc || "",
-    pickupContactPhone: data?.pickupContactPhone || data?.summary?.pickupContactPhone || "",
+    pickupContactPhone:
+      data?.pickupContactPhone || data?.summary?.pickupContactPhone || "",
     specialRequirements: "",
     additionalNotes: "",
   });
@@ -325,8 +374,13 @@ const FreightSelectionView: React.FC = () => {
       dimensionsStr = `${delivery.loadSize.dimensions.lengthFeet || 0}' x ${delivery.loadSize.dimensions.widthFeet || 0}' x ${delivery.loadSize.dimensions.heightFeet || 0}'`;
     }
 
-    const weightVal = delivery.weight || delivery.loadWeight || delivery.loadSize?.weight || undefined;
-    const pkgCount = delivery.packageCount || delivery.loadSize?.packageCount || undefined;
+    const weightVal =
+      delivery.weight ||
+      delivery.loadWeight ||
+      delivery.loadSize?.weight ||
+      undefined;
+    const pkgCount =
+      delivery.packageCount || delivery.loadSize?.packageCount || undefined;
 
     reset({
       description: delivery.description || "Project outbound freight",
@@ -336,22 +390,35 @@ const FreightSelectionView: React.FC = () => {
       dimensionsInput: dimensionsStr,
       metalType: delivery.metalType || delivery.materialType || "",
       packageCount: pkgCount,
-      loadingEquipment: delivery.loadingEquipment || delivery.equipment || ["Crane"],
-      bidDeadline: delivery.bidDeadline ? new Date(delivery.bidDeadline).toISOString().slice(0, 16) : "",
+      loadingEquipment: delivery.loadingEquipment ||
+        delivery.equipment || ["Crane"],
+      bidDeadline: delivery.bidDeadline
+        ? new Date(delivery.bidDeadline).toISOString().slice(0, 16)
+        : "",
       pickupLocation: delivery.pickupLocation || "",
       deliveryLocation: delivery.deliveryLocation || "",
-      pickupDate: delivery.pickupDate ? new Date(delivery.pickupDate).toISOString().split("T")[0] : "",
+      pickupDate: delivery.pickupDate
+        ? new Date(delivery.pickupDate).toISOString().split("T")[0]
+        : "",
       pickupTime: delivery.pickupTime || "",
-      deliveryDate: delivery.deliveryDate ? new Date(delivery.deliveryDate).toISOString().split("T")[0] : "",
+      deliveryDate: delivery.deliveryDate
+        ? new Date(delivery.deliveryDate).toISOString().split("T")[0]
+        : "",
       deliveryTime: delivery.deliveryTime || "",
       receivingPoc: delivery.receivingPoc || delivery.poc?.receivingPoc || "",
-      pickupContactPhone: delivery.pickupContactPhone || delivery.poc?.pickupContactPhone || "",
+      pickupContactPhone:
+        delivery.pickupContactPhone || delivery.poc?.pickupContactPhone || "",
       specialRequirements: delivery.specialRequirements || "",
       additionalNotes: delivery.additionalNotes || delivery.remarks || "",
     });
 
     if (delivery.documentUrl) {
-      setUploadedFiles([{ url: delivery.documentUrl, name: delivery.documentUrl.split("/").pop() || "document.pdf" }]);
+      setUploadedFiles([
+        {
+          url: delivery.documentUrl,
+          name: delivery.documentUrl.split("/").pop() || "document.pdf",
+        },
+      ]);
     } else {
       setUploadedFiles([]);
     }
@@ -361,8 +428,14 @@ const FreightSelectionView: React.FC = () => {
     { label: "Steel & Metal", value: "Steel & Metal" },
     ...(autofillData?.metalType && autofillData.metalType !== "Steel & Metal"
       ? [{ label: autofillData.metalType, value: autofillData.metalType }]
-      : autofillData?.materialType && autofillData.materialType !== "Steel & Metal"
-        ? [{ label: autofillData.materialType, value: autofillData.materialType }]
+      : autofillData?.materialType &&
+          autofillData.materialType !== "Steel & Metal"
+        ? [
+            {
+              label: autofillData.materialType,
+              value: autofillData.materialType,
+            },
+          ]
         : []),
   ];
 
@@ -372,14 +445,20 @@ const FreightSelectionView: React.FC = () => {
     return now.toISOString().slice(0, 16);
   };
 
-  const handleSendBidsDirectly = async (deliveryId: string, bidDeadline?: string) => {
+  const handleSendBidsDirectly = async (
+    deliveryId: string,
+    bidDeadline?: string,
+  ) => {
     setSubmitError(null);
     try {
-      const carrierIds = selectedCarrierIds.length > 0
-        ? selectedCarrierIds
-        : carriersList.map((c) => c._id);
+      const carrierIds =
+        selectedCarrierIds.length > 0
+          ? selectedCarrierIds
+          : carriersList.map((c) => c._id);
 
-      const formattedDeadline = bidDeadline ? new Date(bidDeadline).toISOString() : undefined;
+      const formattedDeadline = bidDeadline
+        ? new Date(bidDeadline).toISOString()
+        : undefined;
 
       await sendFreightBids({
         deliveryId,
@@ -387,10 +466,13 @@ const FreightSelectionView: React.FC = () => {
         bidDeadline: formattedDeadline,
       }).unwrap();
 
-      navigate(`/plant/freight-request-details/${deliveryId}`);
+      navigate(`/plant/freight-loads/details/${deliveryId}`);
     } catch (err: any) {
       console.error("Failed to send freight bids:", err);
-      const errMsg = err?.data?.message || err?.message || "Failed to send freight request. Please try again.";
+      const errMsg =
+        err?.data?.message ||
+        err?.message ||
+        "Failed to send freight request. Please try again.";
       setSubmitError(errMsg);
     }
   };
@@ -430,7 +512,9 @@ const FreightSelectionView: React.FC = () => {
       let deliveryId = savedDeliveryId;
 
       if (!deliveryId) {
-        const dimensions = parseDimensions(stagedFormData.dimensionsInput || "");
+        const dimensions = parseDimensions(
+          stagedFormData.dimensionsInput || "",
+        );
         const deliveryPayload = {
           leadId: projectId,
           loadDescription: stagedFormData.loadDescription,
@@ -439,12 +523,18 @@ const FreightSelectionView: React.FC = () => {
           metalType: stagedFormData.metalType,
           packageCount: Number(stagedFormData.packageCount),
           loadingEquipment: stagedFormData.loadingEquipment,
-          bidDeadline: stagedFormData.bidDeadline ? new Date(stagedFormData.bidDeadline).toISOString() : undefined,
+          bidDeadline: stagedFormData.bidDeadline
+            ? new Date(stagedFormData.bidDeadline).toISOString()
+            : undefined,
           pickupLocation: stagedFormData.pickupLocation,
           deliveryLocation: stagedFormData.deliveryLocation,
-          pickupDate: stagedFormData.pickupDate ? new Date(stagedFormData.pickupDate).toISOString() : undefined,
+          pickupDate: stagedFormData.pickupDate
+            ? new Date(stagedFormData.pickupDate).toISOString()
+            : undefined,
           pickupTime: stagedFormData.pickupTime,
-          deliveryDate: stagedFormData.deliveryDate ? new Date(stagedFormData.deliveryDate).toISOString() : undefined,
+          deliveryDate: stagedFormData.deliveryDate
+            ? new Date(stagedFormData.deliveryDate).toISOString()
+            : undefined,
           deliveryTime: stagedFormData.deliveryTime,
           receivingPoc: stagedFormData.receivingPoc,
           pickupContactPhone: stagedFormData.pickupContactPhone,
@@ -458,9 +548,10 @@ const FreightSelectionView: React.FC = () => {
       }
 
       if (deliveryId) {
-        const carrierIds = selectedCarrierIds.length > 0
-          ? selectedCarrierIds
-          : carriersList.map((c) => c._id);
+        const carrierIds =
+          selectedCarrierIds.length > 0
+            ? selectedCarrierIds
+            : carriersList.map((c) => c._id);
 
         const formattedDeadline = stagedFormData.bidDeadline
           ? new Date(stagedFormData.bidDeadline).toISOString()
@@ -475,13 +566,16 @@ const FreightSelectionView: React.FC = () => {
 
       setIsReviewModalOpen(false);
       if (deliveryId) {
-        navigate(`/plant/freight-request-details/${deliveryId}`);
+        navigate(`/plant/freight-loads/details/${deliveryId}`);
       } else {
         setIsSuccessModalOpen(true);
       }
     } catch (err: any) {
       console.error("Failed to submit freight request:", err);
-      const errMsg = err?.data?.message || err?.message || "Failed to submit freight request. Please try again.";
+      const errMsg =
+        err?.data?.message ||
+        err?.message ||
+        "Failed to submit freight request. Please try again.";
       setSubmitError(errMsg);
     }
   };
@@ -524,7 +618,10 @@ const FreightSelectionView: React.FC = () => {
         actions={[]}
       />
 
-      <form onSubmit={handleSubmit(onFormSubmitValid)} className="md:p-6 p-3 pt-0">
+      <form
+        onSubmit={handleSubmit(onFormSubmitValid)}
+        className="md:p-6 p-3 pt-0"
+      >
         {hasActiveFreight ? (
           <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-6 mb-8">
             <div className="flex items-center justify-between flex-wrap gap-4">
@@ -537,7 +634,8 @@ const FreightSelectionView: React.FC = () => {
                     Freight Request In Progress
                   </h3>
                   <p className="text-xs text-[#637381]">
-                    An active freight bid request has already been initiated for this project.
+                    An active freight bid request has already been initiated for
+                    this project.
                   </p>
                 </div>
               </div>
@@ -546,8 +644,11 @@ const FreightSelectionView: React.FC = () => {
                 type="button"
                 onClick={() => {
                   const activeDelivery = activeFreightDeliveries[0];
-                  const navId = activeDelivery?.requestId || activeDelivery?._id || projectId;
-                  navigate(`/plant/freight-request-details/${navId}`);
+                  const navId =
+                    activeDelivery?.requestId ||
+                    activeDelivery?._id ||
+                    projectId;
+                  navigate(`/plant/freight-loads/details/${navId}`);
                 }}
                 className="px-4 py-2 bg-[#1E51A4] hover:bg-[#123E84] text-white font-semibold rounded-md transition-all text-sm cursor-pointer flex items-center gap-2"
               >
@@ -566,8 +667,10 @@ const FreightSelectionView: React.FC = () => {
                 {activeFreightDeliveries.map((delivery) => {
                   const statusColors: Record<string, string> = {
                     draft: "text-[#D08700] bg-[#FFF9E6] border-[#FFEAA6]",
-                    bidding_sent: "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
-                    carrier_selected: "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
+                    bidding_sent:
+                      "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
+                    carrier_selected:
+                      "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
                     scheduled: "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
                     confirmed: "text-[#00C853] bg-[#E6FFEF] border-[#A3F3B8]",
                     in_transit: "text-[#4A5565] bg-[#F4F6F8] border-[#E2E4E6]",
@@ -575,15 +678,20 @@ const FreightSelectionView: React.FC = () => {
                     delayed: "text-[#FF4842] bg-[#FFE9E9] border-[#FFD1D1]",
                     cancelled: "text-[#FF4842] bg-[#FFE9E9] border-[#FFD1D1]",
                   };
-                  const statusKey = (delivery.status || "").toLowerCase().replace(/[\s-]+/g, "_");
-                  const statusColor = statusColors[statusKey] || "text-[#4A5565] bg-[#F4F6F8] border-[#E2E4E6]";
+                  const statusKey = (delivery.status || "")
+                    .toLowerCase()
+                    .replace(/[\s-]+/g, "_");
+                  const statusColor =
+                    statusColors[statusKey] ||
+                    "text-[#4A5565] bg-[#F4F6F8] border-[#E2E4E6]";
 
                   return (
                     <div
                       key={delivery._id}
                       onClick={() => {
-                        const navId = delivery.requestId || delivery._id || projectId;
-                        navigate(`/plant/freight-request-details/${navId}`);
+                        const navId =
+                          delivery.requestId || delivery._id || projectId;
+                        navigate(`/plant/freight-loads/details/${navId}`);
                       }}
                       className="min-w-[280px] max-w-[320px] p-4 rounded-xl border border-gray-100 bg-white flex flex-col justify-between cursor-pointer hover:border-gray-300 transition-all"
                     >
@@ -592,29 +700,47 @@ const FreightSelectionView: React.FC = () => {
                           <span className="font-semibold text-sm text-[#212B36] truncate">
                             {delivery.deliveryNumber || ""}
                           </span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}
+                          >
                             {formatStatusText(delivery.status).toUpperCase()}
                           </span>
                         </div>
                         <div className="text-xs text-[#637381] space-y-1">
                           <p className="truncate">
-                            <strong>From:</strong> {delivery.pickupLocation || "-"}
+                            <strong>From:</strong>{" "}
+                            {delivery.pickupLocation || "-"}
                           </p>
                           <p className="truncate">
-                            <strong>To:</strong> {delivery.deliveryLocation || "-"}
+                            <strong>To:</strong>{" "}
+                            {delivery.deliveryLocation || "-"}
                           </p>
                           <p>
-                            <strong>Pickup:</strong> {delivery.pickupDate ? new Date(delivery.pickupDate).toLocaleDateString() : "-"}
+                            <strong>Pickup:</strong>{" "}
+                            {delivery.pickupDate
+                              ? new Date(
+                                  delivery.pickupDate,
+                                ).toLocaleDateString()
+                              : "-"}
                           </p>
                           <p>
-                            <strong>Delivery:</strong> {delivery.deliveryDate ? new Date(delivery.deliveryDate).toLocaleDateString() : "-"}
+                            <strong>Delivery:</strong>{" "}
+                            {delivery.deliveryDate
+                              ? new Date(
+                                  delivery.deliveryDate,
+                                ).toLocaleDateString()
+                              : "-"}
                           </p>
                         </div>
                       </div>
 
                       <div className="mt-3 flex items-center justify-between">
                         <span className="text-xs font-semibold text-[#1E51A4]">
-                          {delivery.loadSize?.weight || delivery.weight || delivery.loadWeight || 0} Lbs
+                          {delivery.loadSize?.weight ||
+                            delivery.weight ||
+                            delivery.loadWeight ||
+                            0}{" "}
+                          Lbs
                         </span>
                       </div>
                     </div>
@@ -638,7 +764,8 @@ const FreightSelectionView: React.FC = () => {
                         Available Deliveries to Send
                       </h3>
                       <p className="text-xs text-[#637381]">
-                        Select an existing delivery load to pre-fill details, or create a new one
+                        Select an existing delivery load to pre-fill details, or
+                        create a new one
                       </p>
                     </div>
                   </div>
@@ -648,10 +775,11 @@ const FreightSelectionView: React.FC = () => {
                     {!hasActiveDelivery && (
                       <div
                         onClick={handleCreateNewDelivery}
-                        className={`min-w-[280px] max-w-[320px] p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-center items-center gap-2 text-center ${selectedType === "new"
-                          ? "border-[#1E51A4] bg-[#F4F8FF]"
-                          : "border-dashed border-gray-300 bg-white hover:border-gray-400"
-                          }`}
+                        className={`min-w-[280px] max-w-[320px] p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-center items-center gap-2 text-center ${
+                          selectedType === "new"
+                            ? "border-[#1E51A4] bg-[#F4F8FF]"
+                            : "border-dashed border-gray-300 bg-white hover:border-gray-400"
+                        }`}
                       >
                         <div className="w-10 h-10 bg-[#E8F1FF] rounded-full flex items-center justify-center text-[#1E51A4]">
                           <Plus size={20} />
@@ -661,7 +789,8 @@ const FreightSelectionView: React.FC = () => {
                             Create New Delivery
                           </span>
                           <p className="text-xs text-[#637381] mt-1">
-                            Start with a blank form or autofilled project defaults
+                            Start with a blank form or autofilled project
+                            defaults
                           </p>
                         </div>
                         {selectedType === "new" && (
@@ -673,20 +802,33 @@ const FreightSelectionView: React.FC = () => {
                     )}
 
                     {deliveriesList.map((delivery: DeliveryItem) => {
-                      const isSelected = selectedType === "existing" && savedDeliveryId === delivery._id;
+                      const isSelected =
+                        selectedType === "existing" &&
+                        savedDeliveryId === delivery._id;
                       const statusColors: Record<string, string> = {
                         draft: "text-[#D08700] bg-[#FFF9E6] border-[#FFEAA6]",
-                        bidding_sent: "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
-                        carrier_selected: "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
-                        scheduled: "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
-                        confirmed: "text-[#00C853] bg-[#E6FFEF] border-[#A3F3B8]",
-                        in_transit: "text-[#4A5565] bg-[#F4F6F8] border-[#E2E4E6]",
-                        delivered: "text-[#00C853] bg-[#E6FFEF] border-[#A3F3B8]",
+                        bidding_sent:
+                          "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
+                        carrier_selected:
+                          "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
+                        scheduled:
+                          "text-[#155DFC] bg-[#E6F0FF] border-[#B8D2FF]",
+                        confirmed:
+                          "text-[#00C853] bg-[#E6FFEF] border-[#A3F3B8]",
+                        in_transit:
+                          "text-[#4A5565] bg-[#F4F6F8] border-[#E2E4E6]",
+                        delivered:
+                          "text-[#00C853] bg-[#E6FFEF] border-[#A3F3B8]",
                         delayed: "text-[#FF4842] bg-[#FFE9E9] border-[#FFD1D1]",
-                        cancelled: "text-[#FF4842] bg-[#FFE9E9] border-[#FFD1D1]",
+                        cancelled:
+                          "text-[#FF4842] bg-[#FFE9E9] border-[#FFD1D1]",
                       };
-                      const statusKey = (delivery.status || "").toLowerCase().replace(/[\s-]+/g, "_");
-                      const statusColor = statusColors[statusKey] || "text-[#4A5565] bg-[#F4F6F8] border-[#E2E4E6]";
+                      const statusKey = (delivery.status || "")
+                        .toLowerCase()
+                        .replace(/[\s-]+/g, "_");
+                      const statusColor =
+                        statusColors[statusKey] ||
+                        "text-[#4A5565] bg-[#F4F6F8] border-[#E2E4E6]";
 
                       return (
                         <div
@@ -700,39 +842,60 @@ const FreightSelectionView: React.FC = () => {
                               handleSelectDelivery(delivery);
                             }
                           }}
-                          className={`min-w-[280px] max-w-[320px] p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${isSelected
-                            ? "border-[#1E51A4] bg-[#F4F8FF]"
-                            : "border-gray-100 bg-white hover:border-gray-200"
-                            }`}
+                          className={`min-w-[280px] max-w-[320px] p-4 rounded-xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                            isSelected
+                              ? "border-[#1E51A4] bg-[#F4F8FF]"
+                              : "border-gray-100 bg-white hover:border-gray-200"
+                          }`}
                         >
                           <div className="space-y-2">
                             <div className="flex justify-between items-start">
                               <span className="font-semibold text-sm text-[#212B36] truncate">
                                 {delivery.deliveryNumber || ""}
                               </span>
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}>
-                                {formatStatusText(delivery.status).toUpperCase()}
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusColor}`}
+                              >
+                                {formatStatusText(
+                                  delivery.status,
+                                ).toUpperCase()}
                               </span>
                             </div>
                             <div className="text-xs text-[#637381] space-y-1">
                               <p className="truncate">
-                                <strong>From:</strong> {delivery.pickupLocation || "-"}
+                                <strong>From:</strong>{" "}
+                                {delivery.pickupLocation || "-"}
                               </p>
                               <p className="truncate">
-                                <strong>To:</strong> {delivery.deliveryLocation || "-"}
+                                <strong>To:</strong>{" "}
+                                {delivery.deliveryLocation || "-"}
                               </p>
                               <p>
-                                <strong>Pickup:</strong> {delivery.pickupDate ? new Date(delivery.pickupDate).toLocaleDateString() : "-"}
+                                <strong>Pickup:</strong>{" "}
+                                {delivery.pickupDate
+                                  ? new Date(
+                                      delivery.pickupDate,
+                                    ).toLocaleDateString()
+                                  : "-"}
                               </p>
                               <p>
-                                <strong>Delivery:</strong> {delivery.deliveryDate ? new Date(delivery.deliveryDate).toLocaleDateString() : "-"}
+                                <strong>Delivery:</strong>{" "}
+                                {delivery.deliveryDate
+                                  ? new Date(
+                                      delivery.deliveryDate,
+                                    ).toLocaleDateString()
+                                  : "-"}
                               </p>
                             </div>
                           </div>
 
                           <div className="mt-3 flex items-center justify-between">
                             <span className="text-xs font-semibold text-[#1E51A4]">
-                              {delivery.loadSize?.weight || delivery.weight || delivery.loadWeight || 0} Lbs
+                              {delivery.loadSize?.weight ||
+                                delivery.weight ||
+                                delivery.loadWeight ||
+                                0}{" "}
+                              Lbs
                             </span>
                             {isSelected && (
                               <div className="w-5 h-5 bg-[#1E51A4] rounded-full flex items-center justify-center text-white">
@@ -756,7 +919,8 @@ const FreightSelectionView: React.FC = () => {
                         Selected Delivery Ready
                       </h4>
                       <p className="text-xs text-[#637381]">
-                        Send freight bid request directly to selected carriers for this delivery.
+                        Send freight bid request directly to selected carriers
+                        for this delivery.
                       </p>
                     </div>
                     <Button
@@ -764,7 +928,12 @@ const FreightSelectionView: React.FC = () => {
                       variant="gradient"
                       size="lg"
                       disabled={isSubmitting}
-                      onClick={() => handleSendBidsDirectly(savedDeliveryId, watch("bidDeadline"))}
+                      onClick={() =>
+                        handleSendBidsDirectly(
+                          savedDeliveryId,
+                          watch("bidDeadline"),
+                        )
+                      }
                       className="px-6 font-bold cursor-pointer"
                     >
                       {isSubmitting ? "Sending Bids..." : "Send Freight Bid"}
@@ -795,7 +964,8 @@ const FreightSelectionView: React.FC = () => {
                         render={({ field }) => (
                           <div className="space-y-2">
                             <label className="text-sm font-inter font-semibold text-[#212B36]">
-                              Load Description <span className="text-red-500">*</span>
+                              Load Description{" "}
+                              <span className="text-red-500">*</span>
                             </label>
                             <input
                               type="text"
@@ -803,7 +973,9 @@ const FreightSelectionView: React.FC = () => {
                               className="w-full px-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
                             />
                             {errors.loadDescription?.message && (
-                              <p className="text-xs text-red-500 mt-1">{errors.loadDescription.message}</p>
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.loadDescription.message}
+                              </p>
                             )}
                           </div>
                         )}
@@ -826,7 +998,9 @@ const FreightSelectionView: React.FC = () => {
                                   <input
                                     type="number"
                                     {...field}
-                                    value={(field.value as string | number) ?? ""}
+                                    value={
+                                      (field.value as string | number) ?? ""
+                                    }
                                     className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-xl text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
                                   />
                                 )}
@@ -851,7 +1025,9 @@ const FreightSelectionView: React.FC = () => {
                             </div>
                           </div>
                           {errors.weight?.message && (
-                            <p className="text-xs text-red-500 mt-1">{errors.weight.message}</p>
+                            <p className="text-xs text-red-500 mt-1">
+                              {errors.weight.message}
+                            </p>
                           )}
                         </div>
 
@@ -874,7 +1050,9 @@ const FreightSelectionView: React.FC = () => {
                                 />
                               </div>
                               {errors.dimensionsInput?.message && (
-                                <p className="text-xs text-red-500 mt-1">{errors.dimensionsInput.message}</p>
+                                <p className="text-xs text-red-500 mt-1">
+                                  {errors.dimensionsInput.message}
+                                </p>
                               )}
                             </div>
                           )}
@@ -896,7 +1074,9 @@ const FreightSelectionView: React.FC = () => {
                               className="rounded-xl"
                             />
                             {errors.metalType?.message && (
-                              <p className="text-xs text-red-500 mt-1">{errors.metalType.message}</p>
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.metalType.message}
+                              </p>
                             )}
                           </div>
                         )}
@@ -918,7 +1098,9 @@ const FreightSelectionView: React.FC = () => {
                               className="w-full px-4 py-3 bg-white border border-[#E2E4E6] rounded-md text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
                             />
                             {errors.packageCount?.message && (
-                              <p className="text-xs text-red-500 mt-1">{errors.packageCount.message}</p>
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.packageCount.message}
+                              </p>
                             )}
                           </div>
                         )}
@@ -942,7 +1124,9 @@ const FreightSelectionView: React.FC = () => {
                               className="rounded-xl"
                             />
                             {errors.loadingEquipment?.message && (
-                              <p className="text-xs text-red-500 mt-1">{errors.loadingEquipment.message}</p>
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.loadingEquipment.message}
+                              </p>
                             )}
                           </div>
                         )}
@@ -955,7 +1139,8 @@ const FreightSelectionView: React.FC = () => {
                           render={({ field }) => (
                             <div className="space-y-2">
                               <label className="text-sm font-inter font-semibold text-[#212B36]">
-                                Bid Deadline <span className="text-red-500">*</span>
+                                Bid Deadline{" "}
+                                <span className="text-red-500">*</span>
                               </label>
                               <div className="relative mt-2">
                                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
@@ -969,7 +1154,9 @@ const FreightSelectionView: React.FC = () => {
                                 />
                               </div>
                               {errors.bidDeadline?.message && (
-                                <p className="text-xs text-red-500 mt-1">{errors.bidDeadline.message}</p>
+                                <p className="text-xs text-red-500 mt-1">
+                                  {errors.bidDeadline.message}
+                                </p>
                               )}
                             </div>
                           )}
@@ -998,13 +1185,20 @@ const FreightSelectionView: React.FC = () => {
                           ) : (
                             <div className="mt-2 space-y-1">
                               {uploadedFiles.map((file, idx) => (
-                                <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 border border-gray-100 rounded-lg text-sm font-inter">
-                                  <span className="text-[#212B36] truncate max-w-[80%] font-medium">{file.name}</span>
+                                <div
+                                  key={idx}
+                                  className="flex items-center justify-between p-3 bg-gray-50 border border-gray-100 rounded-lg text-sm font-inter"
+                                >
+                                  <span className="text-[#212B36] truncate max-w-[80%] font-medium">
+                                    {file.name}
+                                  </span>
                                   <button
                                     type="button"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setUploadedFiles((prev) => prev.filter((_, i) => i !== idx));
+                                      setUploadedFiles((prev) =>
+                                        prev.filter((_, i) => i !== idx),
+                                      );
                                     }}
                                     className="text-red-500 hover:text-red-700 font-semibold text-xs"
                                   >
@@ -1022,7 +1216,10 @@ const FreightSelectionView: React.FC = () => {
                             subtitle="Upload documents (PDF, Excel, text files, etc.) for this freight request."
                             folder="freight-documents"
                             onUpload={(file, fileUrl) => {
-                              setUploadedFiles((prev) => [...prev, { name: file.name, url: fileUrl }]);
+                              setUploadedFiles((prev) => [
+                                ...prev,
+                                { name: file.name, url: fileUrl },
+                              ]);
                             }}
                           />
                         </div>
@@ -1090,7 +1287,8 @@ const FreightSelectionView: React.FC = () => {
                         render={({ field }) => (
                           <div className="space-y-2">
                             <label className="text-sm font-inter font-bold text-[#212B36]">
-                              Pickup Date <span className="text-red-500">*</span>
+                              Pickup Date{" "}
+                              <span className="text-red-500">*</span>
                             </label>
                             <div className="relative">
                               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
@@ -1104,7 +1302,9 @@ const FreightSelectionView: React.FC = () => {
                               />
                             </div>
                             {errors.pickupDate?.message && (
-                              <p className="text-xs text-red-500 mt-1">{errors.pickupDate.message}</p>
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.pickupDate.message}
+                              </p>
                             )}
                           </div>
                         )}
@@ -1129,7 +1329,9 @@ const FreightSelectionView: React.FC = () => {
                               />
                             </div>
                             {errors.pickupTime?.message && (
-                              <p className="text-xs text-red-500 mt-1">{errors.pickupTime.message}</p>
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.pickupTime.message}
+                              </p>
                             )}
                           </div>
                         )}
@@ -1141,7 +1343,8 @@ const FreightSelectionView: React.FC = () => {
                         render={({ field }) => (
                           <div className="space-y-2">
                             <label className="text-sm font-inter font-bold text-[#212B36]">
-                              Delivery Date <span className="text-red-500">*</span>
+                              Delivery Date{" "}
+                              <span className="text-red-500">*</span>
                             </label>
                             <div className="relative">
                               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
@@ -1155,7 +1358,9 @@ const FreightSelectionView: React.FC = () => {
                               />
                             </div>
                             {errors.deliveryDate?.message && (
-                              <p className="text-xs text-red-500 mt-1">{errors.deliveryDate.message}</p>
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.deliveryDate.message}
+                              </p>
                             )}
                           </div>
                         )}
@@ -1180,7 +1385,9 @@ const FreightSelectionView: React.FC = () => {
                               />
                             </div>
                             {errors.deliveryTime?.message && (
-                              <p className="text-xs text-red-500 mt-1">{errors.deliveryTime.message}</p>
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.deliveryTime.message}
+                              </p>
                             )}
                           </div>
                         )}
@@ -1205,7 +1412,8 @@ const FreightSelectionView: React.FC = () => {
                         render={({ field }) => (
                           <div className="space-y-2">
                             <label className="text-sm font-inter font-bold text-[#212B36]">
-                              Receiving POC <span className="text-red-500">*</span>
+                              Receiving POC{" "}
+                              <span className="text-red-500">*</span>
                             </label>
                             <div className="relative mt-2">
                               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#919EAB]">
@@ -1219,7 +1427,9 @@ const FreightSelectionView: React.FC = () => {
                               />
                             </div>
                             {errors.receivingPoc?.message && (
-                              <p className="text-xs text-red-500 mt-1">{errors.receivingPoc.message}</p>
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.receivingPoc.message}
+                              </p>
                             )}
                           </div>
                         )}
@@ -1231,7 +1441,8 @@ const FreightSelectionView: React.FC = () => {
                         render={({ field }) => (
                           <div className="space-y-2">
                             <label className="text-sm font-inter font-bold text-[#212B36]">
-                              Pickup Contact Phone <span className="text-red-500">*</span>
+                              Pickup Contact Phone{" "}
+                              <span className="text-red-500">*</span>
                             </label>
                             <div className="relative mt-2">
                               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#919EAB]">
@@ -1245,7 +1456,9 @@ const FreightSelectionView: React.FC = () => {
                               />
                             </div>
                             {errors.pickupContactPhone?.message && (
-                              <p className="text-xs text-red-500 mt-1">{errors.pickupContactPhone.message}</p>
+                              <p className="text-xs text-red-500 mt-1">
+                                {errors.pickupContactPhone.message}
+                              </p>
                             )}
                           </div>
                         )}
@@ -1313,8 +1526,12 @@ const FreightSelectionView: React.FC = () => {
                       <Truck size={16} className="md:size-5" />
                     </div>
                     <div>
-                      <h3 className="text-sm md:text-lg font-inter font-semibold text-[#212B36]">Select Carriers</h3>
-                      <p className="text-xs text-[#637381]">Send bid request to carriers</p>
+                      <h3 className="text-sm md:text-lg font-inter font-semibold text-[#212B36]">
+                        Select Carriers
+                      </h3>
+                      <p className="text-xs text-[#637381]">
+                        Send bid request to carriers
+                      </p>
                     </div>
                   </div>
                   <button
@@ -1329,13 +1546,18 @@ const FreightSelectionView: React.FC = () => {
                 {isLoadingCarriers ? (
                   <div className="space-y-4 animate-pulse">
                     {[1, 2, 3].map((n) => (
-                      <div key={n} className="h-24 bg-gray-100 rounded-md"></div>
+                      <div
+                        key={n}
+                        className="h-24 bg-gray-100 rounded-md"
+                      ></div>
                     ))}
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {carriersList.map((carrier: any) => {
-                      const isChecked = selectedCarrierIds.includes(carrier._id);
+                      const isChecked = selectedCarrierIds.includes(
+                        carrier._id,
+                      );
                       return (
                         <div
                           key={carrier._id}
@@ -1343,18 +1565,30 @@ const FreightSelectionView: React.FC = () => {
                             setSelectedCarrierIds((prev) =>
                               prev.includes(carrier._id)
                                 ? prev.filter((id) => id !== carrier._id)
-                                : [...prev, carrier._id]
+                                : [...prev, carrier._id],
                             );
                           }}
-                          className={`p-2 md:p-4 rounded-md border transition-all cursor-pointer font-inter text-sm ${isChecked ? "border-[#E2E4E6] bg-white" : "border-gray-50 bg-white opacity-70 hover:opacity-100"
-                            }`}
+                          className={`p-2 md:p-4 rounded-md border transition-all cursor-pointer font-inter text-sm ${
+                            isChecked
+                              ? "border-[#E2E4E6] bg-white"
+                              : "border-gray-50 bg-white opacity-70 hover:opacity-100"
+                          }`}
                         >
                           <div className="flex items-start gap-4">
                             <div
-                              className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${isChecked ? "bg-white border-[#22C55E]" : "bg-white border-gray-200"
-                                }`}
+                              className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                                isChecked
+                                  ? "bg-white border-[#22C55E]"
+                                  : "bg-white border-gray-200"
+                              }`}
                             >
-                              {isChecked && <Check size={12} className="text-[#22C55E]" strokeWidth={4} />}
+                              {isChecked && (
+                                <Check
+                                  size={12}
+                                  className="text-[#22C55E]"
+                                  strokeWidth={4}
+                                />
+                              )}
                             </div>
                             <div className="flex-1 space-y-1">
                               <div className="flex justify-between items-start">
@@ -1364,15 +1598,22 @@ const FreightSelectionView: React.FC = () => {
                               </div>
                               <div className="flex items-center gap-2 text-xs">
                                 <span className="text-[#FFAB00] font-bold">
-                                  ★ {(4.0 + (carrier.bidWinRate || 50) * 0.01).toFixed(1)}
+                                  ★{" "}
+                                  {(
+                                    4.0 +
+                                    (carrier.bidWinRate || 50) * 0.01
+                                  ).toFixed(1)}
                                 </span>
                                 <span className="text-gray-300">•</span>
                                 <span className="text-[#637381]">
-                                  Last: ${carrier.avgBid?.toLocaleString() || "2,500"}
+                                  Last: $
+                                  {carrier.avgBid?.toLocaleString() || "2,500"}
                                 </span>
                               </div>
                               <p className="text-xs text-[#637381] font-medium leading-relaxed">
-                                {carrier.equipmentTypes?.join(", ") || carrier.serviceType || "Flatbed, Step Deck"}
+                                {carrier.equipmentTypes?.join(", ") ||
+                                  carrier.serviceType ||
+                                  "Flatbed, Step Deck"}
                                 <br />
                                 On-time rate: 94%
                                 <br />
@@ -1384,7 +1625,9 @@ const FreightSelectionView: React.FC = () => {
                       );
                     })}
                     {carriersList.length === 0 && (
-                      <p className="text-sm text-gray-500 text-center py-4">No carriers found.</p>
+                      <p className="text-sm text-gray-500 text-center py-4">
+                        No carriers found.
+                      </p>
                     )}
                   </div>
                 )}
@@ -1395,8 +1638,12 @@ const FreightSelectionView: React.FC = () => {
                     <DollarSign size={20} />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-[#1D4ED8]">{selectedCarrierIds.length} Carriers Selected</p>
-                    <p className="text-xs text-[#1D4ED8]/70">Select carriers to request freight quotes</p>
+                    <p className="text-sm font-bold text-[#1D4ED8]">
+                      {selectedCarrierIds.length} Carriers Selected
+                    </p>
+                    <p className="text-xs text-[#1D4ED8]/70">
+                      Select carriers to request freight quotes
+                    </p>
                   </div>
                 </div>
               </div>

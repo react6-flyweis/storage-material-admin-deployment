@@ -46,8 +46,9 @@ export interface SmdtItem {
 
 export interface GetSmdtParams {
   category?: string;
-  isFrameType?: boolean | string;
-  isActive?: "true" | "false" | "all";
+  sort?: string;
+  frameType?: "frame" | "non_frame";
+  status?: "active" | "inactive" | "all";
   search?: string;
   page?: number;
   limit?: number;
@@ -66,16 +67,32 @@ export interface GetSmdtResponse {
   };
 }
 
+export interface SmdtCategoriesResponse {
+  success: boolean;
+  message?: string;
+  data: string[];
+}
+
 export async function getSmdtStatsProvider(): Promise<SmdtStatsResponse> {
-  const response = await apiClient.get<SmdtStatsResponse>("/api/admin/plant/smdt/stats");
+  const response = await apiClient.get<SmdtStatsResponse>("/api/admin/plant/costing/stats");
   return response.data;
+}
+
+export async function getSmdtCategoriesProvider(): Promise<string[]> {
+  const response = await apiClient.get<SmdtCategoriesResponse | string[]>(
+    "/api/admin/plant/costing/categories"
+  );
+  if (Array.isArray(response.data)) {
+    return response.data;
+  }
+  return response.data?.data || [];
 }
 
 export async function getSmdtItemsProvider(
   params?: GetSmdtParams
 ): Promise<GetSmdtResponse> {
   const response = await apiClient.get<GetSmdtResponse>(
-    "/api/admin/plant/smdt",
+    "/api/admin/plant/costing",
     {
       params,
     }
@@ -132,7 +149,7 @@ export async function createSmdtItemProvider(
   payload: CreateSmdtItemRequest
 ): Promise<CreateSmdtItemResponse> {
   const response = await apiClient.post<CreateSmdtItemResponse>(
-    "/api/admin/plant/smdt",
+    "/api/admin/plant/costing",
     payload
   );
   return response.data;
@@ -143,7 +160,7 @@ export async function updateSmdtItemProvider(
   payload: UpdateSmdtItemRequest
 ): Promise<UpdateSmdtItemResponse> {
   const response = await apiClient.put<UpdateSmdtItemResponse>(
-    `/api/admin/plant/smdt/${encodeURIComponent(itemId)}`,
+    `/api/admin/plant/costing/${encodeURIComponent(itemId)}`,
     payload
   );
   return response.data;
@@ -153,7 +170,7 @@ export async function exportSmdtExcelProvider(
   params?: Omit<GetSmdtParams, "page" | "limit">
 ): Promise<Blob> {
   const response = await apiClient.get(
-    "/api/admin/plant/smdt/export/excel",
+    "/api/admin/plant/costing/export",
     {
       params,
       responseType: "blob",
@@ -161,5 +178,6 @@ export async function exportSmdtExcelProvider(
   );
   return response.data;
 }
+
 
 

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   getSmdtStatsProvider,
+  getSmdtCategoriesProvider,
   getSmdtItemsProvider,
   createSmdtItemProvider,
   updateSmdtItemProvider,
@@ -12,15 +13,23 @@ import {
 
 export function useSmdtStatsQuery() {
   return useQuery({
-    queryKey: ["plant", "smdt", "stats"],
+    queryKey: ["plant", "costing", "stats"],
     queryFn: () => getSmdtStatsProvider(),
     staleTime: 60 * 1000,
   });
 }
 
+export function useSmdtCategoriesQuery() {
+  return useQuery({
+    queryKey: ["plant", "costing", "categories"],
+    queryFn: () => getSmdtCategoriesProvider(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useSmdtItemsQuery(params?: GetSmdtParams) {
   return useQuery({
-    queryKey: ["plant", "smdt", "items", params],
+    queryKey: ["plant", "costing", "items", params],
     queryFn: () => getSmdtItemsProvider(params),
     staleTime: 60 * 1000,
   });
