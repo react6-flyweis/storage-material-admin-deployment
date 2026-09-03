@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  //   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -37,39 +36,53 @@ type Props = {
   disabledLeadId?: boolean;
 };
 
-export default function AddFollowUpDialog({ open, onOpenChange, defaultLeadId, defaultEmployeeId, disabledLeadId }: Props) {
+export default function AddFollowUpDialog({
+  open,
+  onOpenChange,
+  defaultLeadId,
+  defaultEmployeeId,
+  disabledLeadId,
+}: Props) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [formData, setFormData] = useState({
     leadId: defaultLeadId || "",
     employee: defaultEmployeeId || "",
-    type: "call",
+    modeOfContact: "call",
     date: "",
     time: "",
     notes: "",
     priority: "medium",
+    reminderMinutes: "30",
   });
 
-  // Reset form when dialog opens
-  useEffect(() => {
-    if (open) {
-      setFormData({
-        leadId: defaultLeadId || "",
-        employee: defaultEmployeeId || "",
-        type: "call",
-        date: "",
-        time: "",
-        notes: "",
-        priority: "medium",
-      });
-      setErrors({});
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen) {
+      resetForm();
     }
-  }, [open, defaultLeadId, defaultEmployeeId]);
+    onOpenChange(newOpen);
+  };
 
-  const { data: employeesResponse, isLoading: isLoadingEmployees } = useAdminEmployeesQuery({ role: "sales" });
+  const { data: employeesResponse, isLoading: isLoadingEmployees } =
+    useAdminEmployeesQuery({ role: "sales" });
   const employees = employeesResponse?.data?.employees || [];
 
-  const { mutate: createFollowUp, isPending: isCreating } = useCreateFollowUpMutation();
+  const { mutate: createFollowUp, isPending: isCreating } =
+    useCreateFollowUpMutation();
+
+  const resetForm = () => {
+    setErrors({});
+    setFormData({
+      leadId: defaultLeadId || "",
+      employee: defaultEmployeeId || "",
+      modeOfContact: "call",
+      date: "",
+      time: "",
+      notes: "",
+      priority: "medium",
+      reminderMinutes: "30",
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,47 +101,48 @@ export default function AddFollowUpDialog({ open, onOpenChange, defaultLeadId, d
 
     setErrors({});
 
-    const followUpDate = new Date(`${formData.date}T${formData.time}:00.000Z`).toISOString();
+    const followUpDate = new Date(
+      `${formData.date}T${formData.time}:00.000Z`,
+    ).toISOString();
 
-    createFollowUp({
-      leadId: formData.leadId,
-      assignedTo: formData.employee,
-      followUpDate,
-      notes: formData.notes,
-      priority: formData.priority,
-    }, {
-      onSuccess: () => {
-        onOpenChange(false);
-        setErrors({});
-        setFormData({
-          leadId: "",
-          employee: "",
-          type: "call",
-          date: "",
-          time: "",
-          notes: "",
-          priority: "medium",
-        });
-        setShowSuccess(true);
-        toast.success("Follow-up added successfully!");
+    createFollowUp(
+      {
+        leadId: formData.leadId,
+        assignedTo: formData.employee,
+        followUpDate,
+        notes: formData.notes,
+        priority: formData.priority,
+        modeOfContact: formData.modeOfContact,
+        reminderMinutes: Number(formData.reminderMinutes) || 30,
       },
-      onError: (error: any) => {
-        toast.error(error?.response?.data?.message || "Failed to add follow-up");
-      }
-    });
+      {
+        onSuccess: () => {
+          onOpenChange(false);
+          resetForm();
+          setShowSuccess(true);
+          toast.success("Follow-up added successfully!");
+        },
+        onError: (error: unknown) => {
+          const err = error as { response?: { data?: { message?: string } } };
+          toast.error(
+            err?.response?.data?.message || "Failed to add follow-up",
+          );
+        },
+      },
+    );
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="p-0 gap-0 max-w-md"
+        className="p-0 gap-0 max-w-md max-h-[90vh] overflow-y-auto"
         onInteractOutside={(e) => {
           const target = e.target as HTMLElement;
           if (
-            target.closest('.MuiPopover-root') ||
-            target.closest('.MuiPickersPopper-root') ||
-            target.closest('.MuiModal-root') ||
-            target.closest('.MuiDialog-root') ||
+            target.closest(".MuiPopover-root") ||
+            target.closest(".MuiPickersPopper-root") ||
+            target.closest(".MuiModal-root") ||
+            target.closest(".MuiDialog-root") ||
             target.closest('[data-slot="combobox-content"]') ||
             target.closest('[data-slot="combobox-item"]')
           ) {
@@ -143,7 +157,9 @@ export default function AddFollowUpDialog({ open, onOpenChange, defaultLeadId, d
         <form onSubmit={handleSubmit} noValidate>
           <div className="p-4 space-y-4">
             <div className="space-y-1">
-              <Label>Lead <span className="text-red-500">*</span></Label>
+              <Label>
+                Lead <span className="text-red-500">*</span>
+              </Label>
               <LeadSelector
                 value={formData.leadId}
                 onValueChange={(v) => {
@@ -156,7 +172,9 @@ export default function AddFollowUpDialog({ open, onOpenChange, defaultLeadId, d
             </div>
 
             <div className="space-y-1">
-              <Label>Assigned Employee <span className="text-red-500">*</span></Label>
+              <Label>
+                Assigned Employee <span className="text-red-500">*</span>
+              </Label>
               <Select
                 value={formData.employee}
                 onValueChange={(v) => {
@@ -165,8 +183,23 @@ export default function AddFollowUpDialog({ open, onOpenChange, defaultLeadId, d
                 }}
                 disabled={!!defaultEmployeeId}
               >
-                <SelectTrigger className={cn("w-full", errors.employee ? "border-red-500 ring-1 ring-red-500 focus:ring-red-500" : "", defaultEmployeeId ? "bg-gray-100 opacity-100" : "")} aria-invalid={errors.employee}>
-                  <SelectValue placeholder={isLoadingEmployees ? "Loading employees..." : "Select an employee"} />
+                <SelectTrigger
+                  className={cn(
+                    "w-full",
+                    errors.employee
+                      ? "border-red-500 ring-1 ring-red-500 focus:ring-red-500"
+                      : "",
+                    defaultEmployeeId ? "bg-gray-100 opacity-100" : "",
+                  )}
+                  aria-invalid={errors.employee}
+                >
+                  <SelectValue
+                    placeholder={
+                      isLoadingEmployees
+                        ? "Loading employees..."
+                        : "Select an employee"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent position="popper">
                   {employees.map((emp) => (
@@ -179,10 +212,16 @@ export default function AddFollowUpDialog({ open, onOpenChange, defaultLeadId, d
             </div>
 
             <div className="space-y-1">
-              <Label>Follow-up Date <span className="text-red-500">*</span></Label>
+              <Label>
+                Follow-up Date <span className="text-red-500">*</span>
+              </Label>
               <Input
                 type="date"
-                className={errors.date ? "border-red-500 ring-1 ring-red-500 focus-visible:ring-red-500" : ""}
+                className={
+                  errors.date
+                    ? "border-red-500 ring-1 ring-red-500 focus-visible:ring-red-500"
+                    : ""
+                }
                 value={formData.date}
                 onChange={(e) => {
                   setFormData({ ...formData, date: e.target.value });
@@ -194,10 +233,14 @@ export default function AddFollowUpDialog({ open, onOpenChange, defaultLeadId, d
             </div>
 
             <div className="space-y-1 flex flex-col">
-              <Label>Follow-up Time <span className="text-red-500">*</span></Label>
+              <Label>
+                Follow-up Time <span className="text-red-500">*</span>
+              </Label>
               <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <TimePicker
-                  value={formData.time ? dayjs(`2024-01-01T${formData.time}`) : null}
+                  value={
+                    formData.time ? dayjs(`2024-01-01T${formData.time}`) : null
+                  }
                   onChange={(newValue) => {
                     const timeString = newValue ? newValue.format("HH:mm") : "";
                     setFormData({ ...formData, time: timeString });
@@ -232,12 +275,33 @@ export default function AddFollowUpDialog({ open, onOpenChange, defaultLeadId, d
                           padding: "0 12px",
                           height: "100%",
                           boxSizing: "border-box",
-                        }
-                      }
-                    }
+                        },
+                      },
+                    },
                   }}
                 />
               </LocalizationProvider>
+            </div>
+
+            <div className="space-y-1">
+              <Label>Mode of Contact</Label>
+              <Select
+                value={formData.modeOfContact}
+                onValueChange={(v) =>
+                  setFormData({ ...formData, modeOfContact: v })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectItem value="call">Phone Call</SelectItem>
+                  <SelectItem value="sms">SMS</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                  <SelectItem value="chat">Chat / WhatsApp</SelectItem>
+                  <SelectItem value="meeting">Meeting</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-1">
@@ -258,17 +322,38 @@ export default function AddFollowUpDialog({ open, onOpenChange, defaultLeadId, d
             </div>
 
             <div className="space-y-1">
+              <Label>Reminder Timing</Label>
+              <Select
+                value={formData.reminderMinutes}
+                onValueChange={(v) =>
+                  setFormData({ ...formData, reminderMinutes: v })
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectItem value="15">15 minutes before</SelectItem>
+                  <SelectItem value="30">30 minutes before</SelectItem>
+                  <SelectItem value="60">1 hour before</SelectItem>
+                  <SelectItem value="120">2 hours before</SelectItem>
+                  <SelectItem value="1440">1 day before</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
               <Label>Notes</Label>
               <Textarea
                 value={formData.notes}
                 onChange={(e) =>
                   setFormData({ ...formData, notes: e.target.value })
                 }
-                rows={4}
+                rows={3}
                 maxLength={500}
                 placeholder="Add any additional notes or context..."
               />
-              <div className="text-sm text-gray-500 mt-1">
+              <div className="text-xs text-gray-500 mt-1">
                 {formData.notes.length}/500 characters
               </div>
             </div>

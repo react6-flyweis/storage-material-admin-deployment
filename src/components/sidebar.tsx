@@ -452,6 +452,7 @@ const navigationGroups: NavigationGroup[] = [
         icon: salesPerformanceIcon,
       },
       { path: "/employees/audit-log", label: "Audit Log", icon: auditLogIcon },
+      { path: "/admins", label: "Admin Management", icon: employeesIcon },
     ],
   },
   {

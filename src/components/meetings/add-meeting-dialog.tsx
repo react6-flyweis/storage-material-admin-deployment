@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -19,11 +19,9 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import LeadSelector from "@/components/leads/lead-selector";
-import { useAdminEmployeesQuery } from "@/modules/employees/employees.hooks";
 import { useCreateMeetingMutation } from "@/modules/meetings/meetings.hooks";
 import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -40,8 +38,6 @@ type Props = {
 export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, defaultEmployeeId, disabledLeadId }: Props) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
-  
-
 
   const [formData, setFormData] = useState({
     leadId: defaultLeadId || "",
@@ -53,34 +49,40 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
     duration: "30",
     meetingLink: "",
     notes: "",
+    reminderMinutes: "30",
   });
 
   const { data: leadDetailResponse } = useLeadDetailQuery(formData.leadId || "");
-  const customerId = leadDetailResponse?.data?.customer?._id || 
-    (typeof leadDetailResponse?.data?.lead?.customerId === 'object' 
-      ? leadDetailResponse?.data?.lead?.customerId?._id 
-      : leadDetailResponse?.data?.lead?.customerId);
+  const leadDataObj = leadDetailResponse?.data as Record<string, unknown> | undefined;
+  const leadCustomer = leadDataObj?.customer as { _id?: string } | undefined;
+  const leadObj = leadDataObj?.lead as { customerId?: string | { _id?: string } } | undefined;
+  const customerId = leadCustomer?._id || 
+    (typeof leadObj?.customerId === 'object' 
+      ? leadObj?.customerId?._id 
+      : leadObj?.customerId);
 
-  // Reset form when dialog opens
-  useEffect(() => {
-    if (open) {
-      setFormData({
-        leadId: defaultLeadId || "",
-        title: "",
-        employee: defaultEmployeeId || "",
-        mode: "online",
-        date: "",
-        time: "",
-        duration: "30",
-        meetingLink: "",
-        notes: "",
-      });
-      setErrors({});
+  const resetForm = () => {
+    setErrors({});
+    setFormData({
+      leadId: defaultLeadId || "",
+      title: "",
+      employee: defaultEmployeeId || "",
+      mode: "online",
+      date: "",
+      time: "",
+      duration: "30",
+      meetingLink: "",
+      notes: "",
+      reminderMinutes: "30",
+    });
+  };
+
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen) {
+      resetForm();
     }
-  }, [open, defaultLeadId, defaultEmployeeId]);
-
-  const { data: employeesResponse, isLoading: isLoadingEmployees } = useAdminEmployeesQuery({ role: "sales" });
-  const employees = employeesResponse?.data?.employees || [];
+    onOpenChange(newOpen);
+  };
 
   const { mutate: createMeeting, isPending: isCreating } = useCreateMeetingMutation();
 
@@ -100,7 +102,7 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
       } else {
         try {
           new URL(formData.meetingLink);
-        } catch (_) {
+        } catch {
           newErrors.meetingLink = true;
           toast.error("Please enter a valid URL for the meeting link");
           setErrors(newErrors);
@@ -134,21 +136,23 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
       mode: formData.mode as "online" | "in-person",
       meetingLink: formData.meetingLink,
       notes: formData.notes,
+      reminderMinutes: Number(formData.reminderMinutes) || 30,
     }, {
       onSuccess: () => {
         onOpenChange(false);
-        setErrors({});
+        resetForm();
         setShowSuccess(true);
         toast.success("Meeting scheduled successfully!");
       },
-      onError: (error: any) => {
-        toast.error(error?.response?.data?.message || "Failed to schedule meeting");
+      onError: (error: unknown) => {
+        const err = error as { response?: { data?: { message?: string } } };
+        toast.error(err?.response?.data?.message || "Failed to schedule meeting");
       }
     });
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className="p-0 gap-0 max-w-md"
         onInteractOutside={(e) => {
@@ -297,6 +301,26 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
                 />
               </div>
             )}
+
+            {/* Reminder settings */}
+            <div className="space-y-1">
+              <Label>Reminder Timing</Label>
+              <Select
+                value={formData.reminderMinutes}
+                onValueChange={(v) => setFormData({ ...formData, reminderMinutes: v })}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectItem value="15">15 minutes before</SelectItem>
+                  <SelectItem value="30">30 minutes before</SelectItem>
+                  <SelectItem value="60">1 hour before</SelectItem>
+                  <SelectItem value="120">2 hours before</SelectItem>
+                  <SelectItem value="1440">1 day before</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             <div className="space-y-1">
               <Label>Notes</Label>

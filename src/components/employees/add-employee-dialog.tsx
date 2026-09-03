@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 // import { FieldGroup, FieldLegend, FieldSeparator } from "@/components/ui/field";
-import { Plus } from "lucide-react";
+import { Eye, EyeOff, Plus } from "lucide-react";
 
 const permissionItem = z.object({
   main: z.boolean().optional(),
@@ -106,6 +106,8 @@ export function AddEmployeeDialog({
   const isControlled = controlledOpen !== undefined;
   const [openState, setOpenState] = useState<boolean>(controlledOpen ?? false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const open = isControlled ? (controlledOpen as boolean) : openState;
 
   const {
@@ -281,13 +283,26 @@ export function AddEmployeeDialog({
 
             <div className="space-y-2">
               <Label htmlFor="password" className={errors.password ? "text-red-500" : ""}>Create Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Enter password"
-                {...register("password")}
-                className={errors.password ? "border-red-500 focus-visible:ring-red-500" : ""}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter password"
+                  {...register("password")}
+                  className={`pr-10 ${errors.password ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
               {errors.password && (
                 <p className="text-destructive text-sm">
                   {errors.password.message}
@@ -296,13 +311,26 @@ export function AddEmployeeDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword" className={errors.confirmPassword ? "text-red-500" : ""}>Confirm Password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="Confirm password"
-                {...register("confirmPassword")}
-                className={errors.confirmPassword ? "border-red-500 focus-visible:ring-red-500" : ""}
-              />
+              <div className="relative">
+                <Input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Confirm password"
+                  {...register("confirmPassword")}
+                  className={`pr-10 ${errors.confirmPassword ? "border-red-500 focus-visible:ring-red-500" : ""}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
               {errors.confirmPassword && (
                 <p className="text-destructive text-sm">
                   {errors.confirmPassword.message}
