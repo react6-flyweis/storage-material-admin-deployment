@@ -1,8 +1,15 @@
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+import type { StageWiseItem } from "@/modules/payments/payments.api";
 
-const stageData = [
+interface StageWisePaymentProgressProps {
+  className?: string;
+  data?: StageWiseItem[];
+  isLoading?: boolean;
+}
+
+const DEFAULT_STAGES = [
   {
     title: "Initial Payment",
     completed: 80,
@@ -18,6 +25,13 @@ const stageData = [
     color: "#155EEF",
   },
 ];
+
+const STAGE_CONFIG: Record<string, { title: string; color: string }> = {
+  paid: { title: "Paid Stage", color: "#22c55e" },
+  sent: { title: "Sent Stage", color: "#155EEF" },
+  initial: { title: "Initial Payment", color: "#22c55e" },
+  final: { title: "Final Payment", color: "#155EEF" },
+};
 
 function StageCircle({
   completed,
@@ -61,9 +75,9 @@ function StageCircle({
         </div>
       </div>
       <h3 className="text-sm font-semibold text-gray-900 mt-4">{title}</h3>
-      <div className="">
-        <p className="text-xs text-gray-600 mt-1">{clients} clients</p>
-        <p className="text-xs  text-gray-600 ">${amount.toLocaleString()}</p>
+      <div className="text-center">
+        <p className="text-xs text-gray-600 mt-1">{clients} count</p>
+        <p className="text-xs text-gray-600">${amount.toLocaleString()}</p>
       </div>
     </div>
   );
@@ -71,27 +85,56 @@ function StageCircle({
 
 export default function StageWisePaymentProgress({
   className,
-}: {
-  className?: string;
-}) {
+  data,
+  isLoading,
+}: StageWisePaymentProgressProps) {
+  let displayStages = DEFAULT_STAGES;
+
+  if (data && data.length > 0) {
+    const totalCount = data.reduce((sum, item) => sum + item.count, 0);
+
+    displayStages = data.map((item) => {
+      const config = STAGE_CONFIG[item._id.toLowerCase()] || {
+        title: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+        color: "#8b5cf6",
+      };
+      const completed = totalCount > 0 ? Math.round((item.count / totalCount) * 100) : 0;
+
+      return {
+        title: config.title,
+        completed,
+        clients: item.count,
+        amount: item.amount,
+        color: config.color,
+      };
+    });
+  }
+
   return (
     <Card className={cn("w-full p-6 rounded-sm", className)}>
       <h2 className="text-lg font-semibold text-gray-900 mb-6">
         Stage wise payment progress
       </h2>
 
-      <div className="grid grid-cols-2 gap-8">
-        {stageData.map((stage) => (
-          <StageCircle
-            key={stage.title}
-            completed={stage.completed}
-            title={stage.title}
-            clients={stage.clients}
-            amount={stage.amount}
-            color={stage.color}
-          />
-        ))}
-      </div>
+      {isLoading ? (
+        <div className="h-48 flex items-center justify-center text-sm text-gray-500">
+          Loading...
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-8">
+          {displayStages.map((stage) => (
+            <StageCircle
+              key={stage.title}
+              completed={stage.completed}
+              title={stage.title}
+              clients={stage.clients}
+              amount={stage.amount}
+              color={stage.color}
+            />
+          ))}
+        </div>
+      )}
     </Card>
   );
 }
+

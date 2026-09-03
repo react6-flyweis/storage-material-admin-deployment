@@ -39,6 +39,17 @@ import supportIcon from "@/assets/icons/sidebar/support.svg";
 import taxFilingIcon from "@/assets/icons/sidebar/tax-filing.svg";
 import terminatedProjectsIcon from "@/assets/icons/sidebar/terminated-projects.svg";
 import vendorInvoicesIcon from "@/assets/icons/sidebar/vendor-invoices.svg";
+import { useChatUnreadCountQuery } from "@/modules/team-chat/team-chat.hooks";
+import { useNotificationUnreadCountQuery } from "@/modules/notifications/notifications.hooks";
+
+// construction icon
+// project-calendar,drawings,delivery,tasks,material-requests,reports
+import projectCalendarIcon from "@/assets/icons/sidebar/project-calendar.svg"
+import drawingsIcon from "@/assets/icons/sidebar/drawings.svg"
+import deliveryIcon from "@/assets/icons/sidebar/delivery.svg"
+import tasksIcon from "@/assets/icons/sidebar/tasks.svg"
+import materialRequestsIcon from "@/assets/icons/sidebar/material-requests.svg"
+import constructionReportsIcon from "@/assets/icons/sidebar/construction-reports.svg"
 
 // Finance icons
 import WipProfitsIcon from "@/assets/icons/sidebar/wip-profit.svg";
@@ -47,6 +58,23 @@ import ProfitLossIcon from "@/assets/icons/sidebar/profit-loss.svg";
 import FreightCostIcon from "@/assets/icons/sidebar/freight-cost-tracking.svg";
 import MarginAnalysisIcon from "@/assets/icons/sidebar/margin-analysis.svg";
 import BudgetVsActualIcon from "@/assets/icons/sidebar/budget-actual.svg";
+
+
+// Plant section icons
+import bomIcon from "@/assets/icons/sidebar/BOM.svg";
+import quotationIcon from "@/assets/icons/sidebar/quotation.svg";
+import loadPlanningIcon from "@/assets/icons/sidebar/load-planning.svg";
+import packingListIcon from "@/assets/icons/sidebar/packing-list.svg";
+import qrLabelsIcon from "@/assets/icons/sidebar/qr-labels.svg";
+import shippersIcon from "@/assets/icons/sidebar/shippers.svg";
+import freightCarriersIcon from "@/assets/icons/sidebar/freight-carriers.svg";
+import costingSavingIcon from "@/assets/icons/sidebar/costing-saving.svg";
+import freightLoadIcon from "@/assets/icons/sidebar/freight-load.svg";
+import awardedIcon from "@/assets/icons/sidebar/awarded.svg";
+import deliveryCalendarIcon from "@/assets/icons/sidebar/delivery-calendar.svg";
+import allDeliveriesIcon from "@/assets/icons/sidebar/all-deliveries.svg";
+import notificationDetailsIcon from "@/assets/icons/sidebar/notification-details.svg";
+
 
 import { Button } from "./ui/button";
 import activeBgImage from "@/assets/images/active-bg.png";
@@ -231,19 +259,21 @@ const navigationGroups: NavigationGroup[] = [
     color: "#0ea5e9",
     link: "/plant",
     items: [
-      { path: "/plant/uploaded-bom-files", label: "Uploaded BOM Files" },
-      { path: "/plant/shipper-quotation", label: "Shipper Quotation" },
-      { path: "/plant/load-planning", label: "Load Planning" },
-      { path: "/plant/packing-list", label: "Packing List" },
-      { path: "/plant/qr-labels", label: "QR Labels" },
-      { path: "/plant/shippers", label: "Shippers" },
-      { path: "/plant/freight-carriers", label: "Freight Carriers" },
-      { path: "/plant/costing", label: "Costing" },
-      { path: "/plant/freight-loads", label: "Freight Loads" },
-      { path: "/plant/awarded-loads", label: "Awarded Loads" },
-      { path: "/plant/delivery-calendar", label: "Deliveries Calendar" },
-      { path: "/plant/all-deliveries", label: "All Deliveries" },
-      { path: "/plant/notification-history", label: "Notification History" },
+      { path: "/plant/projects", label: "Projects", icon: productLibraryIcon },
+      { path: "/plant/uploaded-bom-files", label: "Uploaded BOM Files", icon: bomIcon },
+      { path: "/plant/shipper-quotation", label: "Shipper Quotation", icon: quotationIcon },
+      { path: "/plant/load-planning", label: "Load Planning", icon: loadPlanningIcon },
+      { path: "/plant/packing-list", label: "Packing List", icon: packingListIcon },
+      { path: "/plant/qr-labels", label: "QR Labels", icon: qrLabelsIcon },
+      { path: "/plant/shippers", label: "Shippers", icon: shippersIcon },
+      { path: "/plant/freight-carriers", label: "Freight Carriers", icon: freightCarriersIcon },
+      { path: "/plant/costing", label: "Costing", icon: costingSavingIcon },
+      { path: "/plant/savings", label: "Savings", icon: costingSavingIcon },
+      { path: "/plant/freight-loads", label: "Freight Loads", icon: freightLoadIcon },
+      { path: "/plant/awarded-loads", label: "Awarded Loads", icon: awardedIcon },
+      { path: "/plant/delivery-calendar", label: "Deliveries Calendar", icon: deliveryCalendarIcon },
+      { path: "/plant/all-deliveries", label: "All Deliveries", icon: allDeliveriesIcon },
+      { path: "/plant/notification-history", label: "Notification History", icon: notificationDetailsIcon },
       /*
       { path: "/plant/equipment_management", label: "Equipment" },
       {
@@ -364,10 +394,12 @@ const navigationGroups: NavigationGroup[] = [
     color: "#dc2626",
     link: "/construction",
     items: [
-      { path: "/construction/projects", label: "Project & Calendar" },
-      { path: "/construction/tasks", label: "Tasks & Progress" },
-      { path: "/construction/materials", label: "Material Request" },
-      { path: "/construction/reports", label: "Construction Reports" },
+      { path: "/construction/projects", label: "Project & Calendar", icon: projectCalendarIcon },
+      { path: "/construction/drawing-attachment", label: "Drawing & Attachment", icon: drawingsIcon },
+      { path: "/construction/all-deliveries", label: "All Deliveries", icon: deliveryIcon },
+      { path: "/construction/tasks", label: "Tasks & Progress", icon: tasksIcon },
+      { path: "/construction/materials", label: "Material Request", icon: materialRequestsIcon },
+      { path: "/construction/reports", label: "Construction Reports", icon: constructionReportsIcon },
     ],
   },
   {
@@ -512,6 +544,11 @@ export function Sidebar({
   const location = useLocation();
   const navigate = useNavigate();
   const employeeCounts = useEmployeeCountsStore();
+  const { data: unreadData } = useChatUnreadCountQuery();
+  const unreadCount = unreadData?.count ?? unreadData?.total ?? 0;
+  const { data: notificationUnreadCount = 0 } = useNotificationUnreadCountQuery({
+    refetchInterval: 30000,
+  });
   const iconSidebarScrollRef = useRef<HTMLDivElement | null>(null);
   const [hoveredGroup, setHoveredGroup] = useState<{
     label: string;
@@ -692,7 +729,7 @@ export function Sidebar({
   // Determine final padding: use calculated padding if content fits, otherwise use 5
   const menuPaddingTop =
     activeGroupItemsHeight + calculatedPadding + topSectionHeight + 20 <
-    window.innerHeight
+      window.innerHeight
       ? calculatedPadding
       : 10;
 
@@ -749,9 +786,8 @@ export function Sidebar({
       )}
 
       <div
-        className={`flex fixed inset-y-0 left-0 lg:left-0 lg:top-0 z-50 transition-transform duration-300 lg:translate-x-0 h-screen ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`flex fixed inset-y-0 left-0 lg:left-0 lg:top-0 z-50 transition-transform duration-300 lg:translate-x-0 h-screen ${isOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         {/* Icon Sidebar */}
         <aside className="sidebar relative z-40 w-18 h-screen bg-sidebar overflow-visible">
@@ -764,6 +800,8 @@ export function Sidebar({
               <nav className="flex flex-col gap-5">
                 {navigationGroups.map((group) => {
                   const iconSrc = group.icon as string;
+                  const isCommunication = group.id === "messages";
+                  const showBadge = isCommunication && unreadCount > 0;
 
                   return (
                     <button
@@ -793,6 +831,11 @@ export function Sidebar({
                           alt={group.label}
                           className="max-w-5 max-h-5 object-contain"
                         />
+                        {showBadge && (
+                          <span className="absolute -top-1 -right-1 z-60 bg-red-500 text-white text-[10px] font-bold rounded-full h-4.5 min-w-4.5 px-1 flex items-center justify-center shadow-xs">
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </span>
+                        )}
                       </div>
                     </button>
                   );
@@ -895,8 +938,13 @@ export function Sidebar({
                 }}
                 className="block px-4 py-2 rounded-md transition-colors text-sm w-[95%] text-white"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <span>{activeGroup.label}</span>
+                  {activeGroup.id === "messages" && unreadCount > 0 && (
+                    <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-xs">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </div>
               </NavLink>
 
@@ -1023,15 +1071,29 @@ export function Sidebar({
                           },
                         )}
                       >
-                        <div className="flex items-center gap-2">
-                          <SidebarItemIcon
-                            src={item.icon}
-                            alt={item.label}
-                            className={cn({
-                              "brightness-0 invert": isActive,
-                            })}
-                          />
-                          <span>{item.label}</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <SidebarItemIcon
+                              src={item.icon}
+                              alt={item.label}
+                              className={cn({
+                                "brightness-0 invert": isActive,
+                              })}
+                            />
+                            <span>{item.label}</span>
+                          </div>
+                          {item.path === "/plant/notification-history" && notificationUnreadCount > 0 && (
+                            <span
+                              className={cn(
+                                "text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-xs",
+                                isActive
+                                  ? "bg-white text-blue-600"
+                                  : "bg-red-500 text-white"
+                              )}
+                            >
+                              {notificationUnreadCount > 99 ? "99+" : notificationUnreadCount}
+                            </span>
+                          )}
                         </div>
                       </div>
                     )}

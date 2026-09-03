@@ -1,28 +1,76 @@
-import React from "react";
+
 import { Link, useParams } from "react-router";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { usePackingListPlanQuery, usePackingListDetailsQuery } from "@/modules/plant/packing-list.hooks";
 
-const packingListData = [
-  { id: 1, loadId: "LOAD-001", truck: "TX-2141", bundles: 3, weight: "36000 IBS", destination: "Riverside Site A", status: "Ready" },
-  { id: 2, loadId: "LOAD-002", truck: "TX-4712", bundles: 2, weight: "45500 IBS", destination: "Riverside Site A", status: "Ready" },
-];
-
-const bundleListData = [
-  { id: 1, bundleId: "BND-001", profile: "Beam", items: "STL-B12 × 30", length: "20 ft", weight: "3600 IBS" },
-  { id: 2, bundleId: "BND-002", profile: "Angle", items: "STL-B12 × 30", length: "12 ft", weight: "2400 IBS" },
-  { id: 3, bundleId: "BND-003", profile: "Channel", items: "STL-B12 × 30", length: "15 ft", weight: "4500 IBS" },
-  { id: 4, bundleId: "BND-004", profile: "Beam", items: "STL-B12 × 30", length: "20 ft", weight: "2700 IBS" },
-];
+const formatDecimal = (val: number | undefined | null) => {
+  return (val ?? 0).toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
 
 export default function PackingListDetails() {
-  const { projectId } = useParams();
+  const { projectId, packingId } = useParams();
+
+  // Load general plan and project info
+  const { data: planData, isLoading: isPlanLoading } = usePackingListPlanQuery(projectId || "");
+
+  // Load specific packing list details
+  const { data: detailsData, isLoading: isDetailsLoading, error: detailsError } = usePackingListDetailsQuery(packingId || "");
+
+  const project = planData?.data?.project;
+  const packingLists = planData?.data?.packingLists || [];
+
+  const packingList = detailsData?.data?.packingList;
+  const truckInfo = detailsData?.data?.truckInfo;
+  const bundles = detailsData?.data?.bundles || [];
+
+  const isLoading = isPlanLoading || isDetailsLoading;
+
+  if (isLoading) {
+    return (
+      <div className="flex-1 space-y-6 p-6 bg-[#fafafa] min-h-screen font-sans">
+        <div className="flex items-center gap-4 mb-2">
+          <Skeleton className="h-6 w-32" />
+        </div>
+        <Skeleton className="h-4 w-96 mb-6" />
+
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 space-y-8">
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <Skeleton className="h-40 w-80 rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  if (detailsError || !packingList) {
+    return (
+      <div className="flex-1 space-y-6 p-6 bg-[#fafafa] min-h-screen font-sans">
+        <div className="flex items-center gap-4 mb-2">
+          <Link
+            to={`/plant/packing-list/${projectId || "PRJ-001"}`}
+            className="inline-flex items-center text-lg font-bold text-gray-900 hover:underline"
+          >
+            <ArrowLeft className="w-5 h-5 mr-2" />
+            Packing List
+          </Link>
+        </div>
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center text-red-500 font-medium">
+          Failed to load packing list details. Please try again.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 space-y-6 p-6 bg-[#fafafa] min-h-screen font-sans">
       <div className="flex items-center gap-4 mb-2">
-        <Link 
-          to={`/plant/packing-list/${projectId || 'PRJ-001'}`} 
+        <Link
+          to={`/plant/packing-list/${projectId || "PRJ-001"}`}
           className="inline-flex items-center text-lg font-bold text-gray-900 hover:underline"
         >
           <ArrowLeft className="w-5 h-5 mr-2" />
@@ -34,46 +82,48 @@ export default function PackingListDetails() {
       </p>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
-        
+
         {/* Title Block */}
         <div className="bg-[#f8fafc] rounded-xl p-6 border border-gray-100 mb-10">
           <h2 className="text-2xl font-bold text-[#0f172a] mb-4">
-            Project: Riverside Complex | Truckloads: 2
+            Packing List: {packingList?.packingListNo} | Truck: {packingList?.truckNo}
           </h2>
           <div className="flex flex-col gap-2 text-sm font-bold text-gray-800">
-            <span>Project: Riverside Complex</span>
-            <span>Upload ID: UPL-001</span>
-            <span>Bundles Created: 5</span>
-            <span>Total Weight: 18500 IBS</span>
+            <span>Project: {project?.projectName || "Riverside Complex"}</span>
+            <span>Job ID: {project?.jobId || "N/A"}</span>
           </div>
         </div>
 
         {/* Optimization Summary Card */}
-        <div className="mb-10 max-w-sm">
-          <h3 className="font-bold text-lg text-gray-900 mb-4">Optimization Summary Card</h3>
+        <div className="mb-10 max-w-sm bg-[#f8fafc] rounded-xl p-6 border border-gray-100">
+          <h3 className="font-bold text-lg text-gray-900 mb-4 border-b pb-2">Optimization Summary Card</h3>
           <div className="space-y-4">
             <div className="flex justify-between items-center text-sm">
-              <span className="font-bold text-gray-800">Truck Loads</span>
-              <span className="font-bold text-gray-900">2</span>
+              <span className="font-bold text-gray-800">Truck Type</span>
+              <span className="font-bold text-gray-900">{truckInfo?.truckLabel || truckInfo?.truckType || "N/A"}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="font-bold text-gray-800">Total Bundles</span>
-              <span className="font-bold text-gray-900">4</span>
+              <span className="font-bold text-gray-900">{packingList?.totalBundles || 0}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="font-bold text-gray-800">Total Weight</span>
-              <span className="font-bold text-gray-900">18500 IBS</span>
+              <span className="font-bold text-gray-900">{formatDecimal(packingList?.totalWeight)} lbs</span>
             </div>
             <div className="flex justify-between items-center text-sm">
-              <span className="font-bold text-gray-800">Packing List Geneated</span>
-              <span className="font-bold text-gray-900">2</span>
+              <span className="font-bold text-gray-800">Max Weight Capacity</span>
+              <span className="font-bold text-gray-900">{formatDecimal(truckInfo?.maxTruckWeight)} lbs</span>
+            </div>
+            <div className="flex justify-between items-center text-sm">
+              <span className="font-bold text-gray-800">Max Length Capacity</span>
+              <span className="font-bold text-gray-900">{formatDecimal(truckInfo?.maxTruckLengthFeet)} ft</span>
             </div>
           </div>
         </div>
 
         {/* Packing List Table */}
         <div className="mb-10">
-          <h3 className="font-bold text-lg text-gray-900 mb-4">Packing List</h3>
+          <h3 className="font-bold text-lg text-gray-900 mb-4">Packing List Detail</h3>
           <div className="border border-gray-200 rounded-lg overflow-hidden">
             <table className="w-full text-sm text-left">
               <thead className="bg-[#2a2a2a] text-white">
@@ -89,24 +139,51 @@ export default function PackingListDetails() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {packingListData.map((row) => (
-                  <tr key={row.id}>
-                    <td className="px-6 py-5 text-gray-500">{row.id}</td>
-                    <td className="px-6 py-5 font-medium text-gray-700">{row.loadId}</td>
-                    <td className="px-6 py-5 font-bold text-gray-900">{row.truck}</td>
-                    <td className="px-6 py-5 text-gray-600">{row.bundles}</td>
-                    <td className="px-6 py-5 text-gray-500 w-32">
-                      <div className="w-min leading-tight">{row.weight.replace(' ', '\n')}</div>
-                    </td>
-                    <td className="px-6 py-5 text-gray-500">{row.destination}</td>
-                    <td className="px-6 py-5 text-gray-500">{row.status}</td>
-                    <td className="px-6 py-5">
-                      <Button variant="outline" size="icon" className="w-10 h-10 bg-gray-400 border-none text-white hover:bg-gray-500 hover:text-white rounded">
-                        <Download className="w-5 h-5" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
+                {packingLists
+                  .filter((row) => row._id === packingId)
+                  .map((row) => {
+                    const originalIndex = packingLists.findIndex((p) => p._id === row._id);
+                    return (
+                      <tr
+                        key={row._id}
+                        className="hover:bg-gray-50 transition-colors"
+                      >
+                        <td className="px-6 py-5 text-gray-500">{(originalIndex !== -1 ? originalIndex : 0) + 1}</td>
+                        <td className="px-6 py-5 font-medium text-gray-700">{row.packingListNo}</td>
+                        <td className="px-6 py-5 font-bold text-gray-900">{row.truckNo} - {row.truckLabel}</td>
+                        <td className="px-6 py-5 text-gray-600">{row.totalBundles}</td>
+                        <td className="px-6 py-5 text-gray-500 w-32">
+                          <div className="w-min leading-tight">{formatDecimal(row.totalWeight)} lbs</div>
+                        </td>
+                        <td className="px-6 py-5 text-gray-500">{project?.location || "N/A"}</td>
+                        <td className="px-6 py-5">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-xs font-semibold ${row.status?.toLowerCase() === "dispatched" || row.status?.toLowerCase() === "completed"
+                            ? "border-green-200 text-green-700 bg-green-50"
+                            : row.status?.toLowerCase() === "ready" || row.status?.toLowerCase() === "generated"
+                              ? "border-blue-200 text-blue-700 bg-blue-50"
+                              : "border-yellow-200 text-yellow-700 bg-yellow-50"
+                            }`}>
+                            {row.status ? row.status.charAt(0).toUpperCase() + row.status.slice(1) : "Draft"}
+                          </span>
+                        </td>
+                        {/* <td className="px-6 py-5 flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            asChild
+                            className="hover:bg-gray-100 text-gray-700"
+                          >
+                            <Link to={`/plant/packing-list/${projectId}/details/${row._id}`}>
+                              <Eye className="w-5 h-5" />
+                            </Link>
+                          </Button>
+                          <Button variant="outline" size="icon" className="w-10 h-10 bg-gray-400 border-none text-white hover:bg-gray-500 hover:text-white rounded">
+                            <Download className="w-5 h-5" />
+                          </Button>
+                        </td> */}
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>
@@ -114,7 +191,9 @@ export default function PackingListDetails() {
 
         {/* Bundle List Table */}
         <div>
-          <h3 className="font-bold text-lg text-gray-900 mb-4">Bundle List</h3>
+          <h3 className="font-bold text-lg text-gray-900 mb-4">
+            Bundle List for {packingList.packingListNo} ({packingList.truckNo})
+          </h3>
           <div className="border border-gray-200 rounded-lg overflow-hidden flex flex-col">
             <table className="w-full text-sm text-left">
               <thead className="bg-[#2a2a2a] text-white">
@@ -128,28 +207,28 @@ export default function PackingListDetails() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {bundleListData.map((row) => (
-                  <tr key={row.id}>
-                    <td className="px-6 py-5 text-gray-500">{row.id}</td>
-                    <td className="px-6 py-5 font-medium text-gray-900">{row.bundleId}</td>
-                    <td className="px-6 py-5 text-gray-500">{row.profile}</td>
-                    <td className="px-6 py-5 text-gray-500">{row.items}</td>
-                    <td className="px-6 py-5 text-gray-500">{row.length}</td>
+                {bundles.map((row, index) => (
+                  <tr key={row._id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-5 text-gray-500">{index + 1}</td>
+                    <td className="px-6 py-5 font-medium text-gray-900">{row.bundleNo}</td>
+                    <td className="px-6 py-5 text-gray-500 capitalize">{row.bundleType}</td>
+                    <td className="px-6 py-5 text-gray-500">{row.title} ({row.totalQty} items)</td>
+                    <td className="px-6 py-5 text-gray-500">{formatDecimal(row.maxLengthFeet)} ft</td>
                     <td className="px-6 py-5 text-gray-500 w-32">
-                      <div className="w-min leading-tight">{row.weight.replace(' ', '\n')}</div>
+                      <div className="w-min leading-tight">{formatDecimal(row.totalWeight)} lbs</div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            
+
             {/* Footer Summary Row */}
             <div className="bg-[#2a2a2a] p-4 flex items-center justify-between text-white">
               <div className="flex items-center">
                 <span className="font-bold px-6">Summary</span>
                 <div className="flex flex-col ml-8">
-                  <span className="font-bold text-sm">Total Bundles: 3</span>
-                  <span className="font-bold text-sm">Total Weight: 36,000 lbs</span>
+                  <span className="font-bold text-sm">Total Bundles: {packingList.totalBundles}</span>
+                  <span className="font-bold text-sm">Total Weight: {formatDecimal(packingList.totalWeight)} lbs</span>
                 </div>
               </div>
               <div className="flex gap-4 pr-2">
@@ -168,3 +247,4 @@ export default function PackingListDetails() {
     </div>
   );
 }
+
