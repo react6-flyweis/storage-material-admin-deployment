@@ -21,8 +21,8 @@ const Dashboard = lazy(() => import("@/pages/dashboard/dashboard"));
 const SalesTaxReportingLegacy = lazy(
   () => import("@/pages/dashboard/sales-tax-reporting"),
 );
-const SalesTaxFiling = lazy(() => import("@/pages/dashboard/sales-tax-filing"));
-const StateWiseTax = lazy(() => import("@/pages/dashboard/state-wise-tax"));
+const SalesTaxFiling = lazy(() => import("@/pages/payments/sales-tax-filing"));
+const StateWiseTax = lazy(() => import("@/pages/payments/state-wise-tax"));
 const PipelineStages = lazy(() => import("@/pages/dashboard/pipeline-stages"));
 
 // customers section
@@ -51,14 +51,23 @@ const ProjectDetails = lazy(
 const ProjectInvoices = lazy(
   () => import("@/pages/customers/customer-detail/project-invoices"),
 );
+const MaterialDeliveryList = lazy(
+  () => import("@/pages/customers/customer-detail/material-delivery-list"),
+);
 const MaterialDelivery = lazy(
   () => import("@/pages/customers/customer-detail/material-delivery"),
 );
 const ProjectPayments = lazy(
   () => import("@/pages/customers/customer-detail/project-payments"),
 );
-const ProjectBomFiles = lazy(
-  () => import("@/pages/customers/customer-detail/project-bom-files"),
+const ProjectBomFileView = lazy(
+  () => import("@/pages/customers/customer-detail/project-bom-file"),
+);
+const CustomerGenerateShipperOrder = lazy(
+  () => import("@/pages/customers/customer-detail/generate-shipper-order"),
+);
+const ProjectBomList = lazy(
+  () => import("@/pages/customers/customer-detail/project-bom-list"),
 );
 const ProjectDrawings = lazy(
   () => import("@/pages/customers/customer-detail/project-drawings"),
@@ -94,7 +103,9 @@ const Leads = lazy(() => import("@/pages/leads/leads"));
 const LeadDetails = lazy(() => import("@/pages/leads/lead-details"));
 const AssignPerson = lazy(() => import("@/pages/leads/actions/assign-person"));
 const CallHistory = lazy(() => import("@/pages/leads/actions/call-history"));
-const OrderLifecycle = lazy(() => import("@/pages/leads/actions/order-lifecycle"));
+const OrderLifecycle = lazy(
+  () => import("@/pages/leads/actions/order-lifecycle"),
+);
 const LeadDocuments = lazy(() => import("@/pages/leads/actions/documents"));
 const LeadChats = lazy(() => import("@/pages/leads/actions/chats"));
 const AddNewLead = lazy(() => import("@/pages/leads/add-new-lead"));
@@ -162,7 +173,7 @@ const DetailedTaxReportPage = lazy(
 );
 const PaymentTaxationPage = lazy(() => import("@/pages/payments/taxation"));
 const ProjectWiseTaxPage = lazy(
-  () => import("@/pages/dashboard/project-wise-tax"),
+  () => import("@/pages/payments/project-wise-tax"),
 );
 const CustomerPaymentProfile = lazy(
   () => import("@/pages/payments/customer-payment-profile"),
@@ -191,6 +202,9 @@ const MarginAnalysisPage = lazy(
   () => import("@/pages/finance/margin-analysis"),
 );
 const BudgetActualPage = lazy(() => import("@/pages/finance/budget-actual"));
+const BudgetActualProjectPage = lazy(
+  () => import("@/pages/finance/budget-actual-project"),
+);
 
 // Invoice section
 const InvoiceForm = lazy(() => import("@/pages/invoices/invoice-form"));
@@ -199,6 +213,12 @@ const InvoiceList = lazy(() => import("@/pages/invoices/invoice-list"));
 // const SalesGrowth = lazy(() => import("@/pages/invoices/sales-growth"));
 const InvoicePreviewPage = lazy(
   () => import("@/pages/invoices/invoice-preview"),
+);
+const VendorInvoicePreviewPage = lazy(
+  () => import("@/pages/invoices/vendor-invoice-preview"),
+);
+const CarrierInvoicePreviewPage = lazy(
+  () => import("@/pages/invoices/carrier-invoice-preview"),
 );
 const InvoicesManagementPage = lazy(
   () => import("@/pages/invoices/invoices-management"),
@@ -243,36 +263,94 @@ const UsageTrackingView = lazy(
 const PlantOverview = lazy(() => import("@/plant/pages/PlantOverview"));
 const AllDeliveries = lazy(() => import("@/plant/pages/AllDeliveries"));
 const LoadPlanning = lazy(() => import("@/plant/pages/LoadPlanning"));
-const LoadPlanningProject = lazy(() => import("@/plant/pages/LoadPlanningProject"));
+// const LoadPlanningProject = lazy(() => import("@/plant/pages/LoadPlanningProject"));
 const LoadPlanDetails = lazy(() => import("@/plant/pages/LoadPlanDetails"));
 const ShipperQuotation = lazy(() => import("@/plant/pages/ShipperQuotation"));
-const ShipperQuotationProject = lazy(() => import("@/plant/pages/ShipperQuotationProject"));
-const ShipperFileDetails = lazy(() => import("@/plant/pages/ShipperFileDetails"));
+const ShipperQuotationProject = lazy(
+  () => import("@/plant/pages/ShipperQuotationProject"),
+);
+const ShipperFileDetails = lazy(
+  () => import("@/plant/pages/ShipperFileDetails"),
+);
 const OrderVerification = lazy(() => import("@/plant/pages/OrderVerification"));
 const PackingList = lazy(() => import("@/plant/pages/PackingList"));
-const PackingListProject = lazy(() => import("@/plant/pages/PackingListProject"));
-const PackingListDetails = lazy(() => import("@/plant/pages/PackingListDetails"));
+const PackingListProject = lazy(
+  () => import("@/plant/pages/PackingListProject"),
+);
+const PackingListDetails = lazy(
+  () => import("@/plant/pages/PackingListDetails"),
+);
 const QrLabels = lazy(() => import("@/plant/pages/QrLabels"));
 const QrLabelsProject = lazy(() => import("@/plant/pages/QrLabelsProject"));
 const ShippersList = lazy(() => import("@/plant/pages/ShippersList"));
 const AddShipper = lazy(() => import("@/plant/pages/AddShipper"));
 const ShipperDetails = lazy(() => import("@/plant/pages/ShipperDetails"));
-const FreightCarriersList = lazy(() => import("@/plant/pages/FreightCarriersList"));
+const EditShipper = lazy(() => import("@/plant/pages/EditShipper"));
+const FreightCarriersList = lazy(
+  () => import("@/plant/pages/FreightCarriersList"),
+);
 const AddFreightCarrier = lazy(() => import("@/plant/pages/AddFreightCarrier"));
-const FreightCarrierDetails = lazy(() => import("@/plant/pages/FreightCarrierDetails"));
+const EditFreightCarrier = lazy(
+  () => import("@/plant/pages/EditFreightCarrier"),
+);
+const FreightCarrierDetails = lazy(
+  () => import("@/plant/pages/FreightCarrierDetails"),
+);
 const PlantDashboard = lazy(() => import("@/plant/pages/PlantPage"));
 const ItemCostList = lazy(() => import("@/plant/pages/ItemCostList"));
+const Savings = lazy(() => import("@/plant/pages/Savings"));
 const BOMFileDetails = lazy(() => import("@/plant/pages/BOMFileDetails"));
 const FreightLoads = lazy(() => import("@/plant/pages/FreightLoads"));
-const FreightRequestDetails = lazy(() => import("@/plant/pages/FreightRequestDetails"));
-const CreateFreightRequest = lazy(() => import("@/plant/pages/CreateFreightRequest"));
-const NotificationHistory = lazy(() => import("@/plant/pages/NotificationHistory"));
+const FreightRequestDetails = lazy(
+  () => import("@/plant/pages/FreightRequestDetails"),
+);
+const CreateFreightRequest = lazy(
+  () => import("@/plant/pages/CreateFreightRequest"),
+);
+const NotificationHistory = lazy(
+  () => import("@/plant/pages/NotificationHistory"),
+);
 const DeliveryCalendar = lazy(() => import("@/plant/pages/DeliveryCalendar"));
 const DeliveryDetails = lazy(() => import("@/plant/pages/DeliveryDetails"));
 const AwardedLoads = lazy(() => import("@/plant/pages/AwardedLoads"));
+const PlantProjects = lazy(() => import("@/plant/pages/PlantProjects"));
 const UploadedBomFiles = lazy(() => import("@/plant/pages/UploadedBomFiles"));
 const BomFileDetails = lazy(() => import("@/plant/pages/BOMFileDetails"));
-const GenerateShipperOrder = lazy(() => import("@/plant/pages/GenerateShipperOrder"));
+const GenerateShipperOrder = lazy(
+  () => import("@/plant/pages/GenerateShipperOrder"),
+);
+const ComparisonResultView = lazy(
+  () => import("@/plant/pages/ComparisonResultView"),
+);
+
+// Multi-step Load Planning views
+const ProjectLoadPlanningView = lazy(
+  () => import("@/plant/pages/ProjectLoadPlanningView"),
+);
+const ItemAnalysisView = lazy(
+  () => import("@/plant/pages/load_planning_pages/ItemAnalysisView"),
+);
+const BundlePlannerView = lazy(
+  () => import("@/plant/pages/load_planning_pages/BundlePlannerView"),
+);
+const EditBundleView = lazy(
+  () => import("@/plant/pages/load_planning_pages/EditBundleView"),
+);
+const TruckOptimizerView = lazy(
+  () => import("@/plant/pages/load_planning_pages/TruckOptimizerView"),
+);
+const PackingListViewPage = lazy(
+  () => import("@/plant/pages/load_planning_pages/PackingListViewPage"),
+);
+const QRLabelView = lazy(
+  () => import("@/plant/pages/load_planning_pages/QRLabelView"),
+);
+const LoadPlanReviewView = lazy(
+  () => import("@/plant/pages/load_planning_pages/LoadPlanReviewView"),
+);
+const FreightSelectionView = lazy(
+  () => import("@/plant/pages/load_planning_pages/FreightSelectionView"),
+);
 
 // Financial Accounts section
 
@@ -292,6 +370,9 @@ const ProjectViewPage = lazy(
 );
 const DrawingAttachment = lazy(
   () => import("@/modules/construction/pages/DrawingAttachment"),
+);
+const ConstructionAllDeliveries = lazy(
+  () => import("@/modules/construction/pages/AllDeliveries"),
 );
 
 export const adminRoutes: RouteObject[] = [
@@ -463,11 +544,30 @@ export const adminRoutes: RouteObject[] = [
                   { path: "order", element: <CustomerOrder /> },
                   { path: "projects", element: <CustomerProjects /> },
                   { path: "project-details", element: <ProjectDetails /> },
-                  { path: "project-details/:projectId", element: <ProjectDetails /> },
+                  {
+                    path: "project-details/:projectId",
+                    element: <ProjectDetails />,
+                  },
                   { path: "project-invoices", element: <ProjectInvoices /> },
-                  { path: "project-invoices/:projectId", element: <ProjectInvoices /> },
+                  {
+                    path: "project-invoices/:projectId",
+                    element: <ProjectInvoices />,
+                  },
+                  {
+                    path: "material-delivery-list",
+                    element: <MaterialDeliveryList />,
+                  },
+                  {
+                    path: "material-delivery-list/:projectId",
+                    element: <MaterialDeliveryList />,
+                  },
                   { path: "material-delivery", element: <MaterialDelivery /> },
-                  { path: "material-delivery/:projectId", element: <MaterialDelivery /> },
+                  // { path: "material-delivery/:deliveryId", element: <MaterialDelivery /> },
+                  // { path: "material-delivery/:projectId/:deliveryId", element: <MaterialDelivery /> },
+                  {
+                    path: "material-delivery/:projectId",
+                    element: <MaterialDelivery />,
+                  },
                   {
                     path: "project-shipper-files",
                     element: <ProjectShipperFiles />,
@@ -477,15 +577,38 @@ export const adminRoutes: RouteObject[] = [
                     element: <ProjectShipperFiles />,
                   },
                   { path: "project-quotation", element: <ProjectQuotation /> },
-                  { path: "project-quotation/:projectId", element: <ProjectQuotation /> },
+                  {
+                    path: "project-quotation/:projectId",
+                    element: <ProjectQuotation />,
+                  },
                   { path: "project-payments", element: <ProjectPayments /> },
-                  { path: "project-payments/:projectId", element: <ProjectPayments /> },
-                  { path: "project-bom", element: <ProjectBomFiles /> },
-                  { path: "project-bom/:projectId", element: <ProjectBomFiles /> },
+                  {
+                    path: "project-payments/:projectId",
+                    element: <ProjectPayments />,
+                  },
+                  {
+                    path: "project-bom/:projectId",
+                    element: <ProjectBomFileView />,
+                  },
+                  {
+                    path: "project-bom/:projectId/generate-shipper-order",
+                    element: <CustomerGenerateShipperOrder />,
+                  },
+                  { path: "project-bom-list", element: <ProjectBomList /> },
+                  {
+                    path: "project-bom-list/:projectId",
+                    element: <ProjectBomList />,
+                  },
                   { path: "project-drawings", element: <ProjectDrawings /> },
-                  { path: "project-drawings/:projectId", element: <ProjectDrawings /> },
+                  {
+                    path: "project-drawings/:projectId",
+                    element: <ProjectDrawings />,
+                  },
                   { path: "budget-planning", element: <BudgetPlanning /> },
-                  { path: "budget-planning/:projectId", element: <BudgetPlanning /> },
+                  {
+                    path: "budget-planning/:projectId",
+                    element: <BudgetPlanning />,
+                  },
                 ],
               },
               { path: ":id/edit", element: <EditCustomerDetailsPage /> },
@@ -544,11 +667,15 @@ export const adminRoutes: RouteObject[] = [
             element: <ItemCostList />,
           },
           {
+            path: "plant/savings",
+            element: <Savings />,
+          },
+          {
             path: "plant/freight-loads",
             element: <FreightLoads />,
           },
           {
-            path: "plant/freight-request-details/:id",
+            path: "plant/freight-loads/details/:id",
             element: <FreightRequestDetails />,
           },
           {
@@ -591,6 +718,16 @@ export const adminRoutes: RouteObject[] = [
               { index: true, element: <InvoiceForm /> },
               { path: "list", element: <InvoiceList /> },
               { path: "preview", element: <InvoicePreviewPage /> },
+              // { path: "vendor-preview", element: <VendorInvoicePreviewPage /> },
+              {
+                path: "vendor-preview/:invoiceId",
+                element: <VendorInvoicePreviewPage />,
+              },
+              {
+                path: "carrier-preview/:invoiceId",
+                element: <CarrierInvoicePreviewPage />,
+              },
+
               {
                 path: "invoices-management",
                 element: <InvoicesManagementPage />,
@@ -611,32 +748,93 @@ export const adminRoutes: RouteObject[] = [
             path: "plant",
             children: [
               { index: true, element: <PlantOverview /> },
+              { path: "projects", element: <PlantProjects /> },
+              { path: "projects/:projectId", element: <ProjectDetails /> },
               { path: "all-deliveries", element: <AllDeliveries /> },
               { path: "load-planning", element: <LoadPlanning /> },
-              { path: "load-planning/:projectId", element: <LoadPlanningProject /> },
-              { path: "load-planning/:projectId/details/:loadId", element: <LoadPlanDetails /> },
+              {
+                path: "load-planning/:projectId",
+                element: <ProjectLoadPlanningView />,
+                children: [
+                  { path: "item-analysis", element: <ItemAnalysisView /> },
+                  { path: "bundle-planner", element: <BundlePlannerView /> },
+                  {
+                    path: "bundle-planner/:bundleId",
+                    element: <EditBundleView />,
+                  },
+                  { path: "truck-optimizer", element: <TruckOptimizerView /> },
+                  { path: "packing-list", element: <PackingListViewPage /> },
+                  { path: "qr-label", element: <QRLabelView /> },
+                  { path: "load-plan-review", element: <LoadPlanReviewView /> },
+                  {
+                    path: "freight-selection",
+                    element: <FreightSelectionView />,
+                  },
+                ],
+              },
+              {
+                path: "load-planning/:projectId/details/:loadId",
+                element: <LoadPlanDetails />,
+              },
+              {
+                path: "load-planning/:requestId/comparison-result",
+                element: <ComparisonResultView />,
+              },
+              {
+                path: "load_planning/:requestId/comparison-result",
+                element: <ComparisonResultView />,
+              },
               { path: "shipper-quotation", element: <ShipperQuotation /> },
-              { path: "shipper-quotation/:projectId", element: <ShipperQuotationProject /> },
-              { path: "shipper-quotation/:projectId/file/:fileId", element: <ShipperFileDetails /> },
-              { path: "order-verification", element: <OrderVerification /> },
+              {
+                path: "shipper-quotation/:projectId",
+                element: <ShipperQuotationProject />,
+              },
+              {
+                path: "shipper-quotation/:projectId/file/:fileId",
+                element: <ShipperFileDetails />,
+              },
+              {
+                path: "order-verification/:requestId",
+                element: <OrderVerification />,
+              },
               { path: "packing-list", element: <PackingList /> },
-              { path: "packing-list/:projectId", element: <PackingListProject /> },
-              { path: "packing-list/:projectId/details/:packingId", element: <PackingListDetails /> },
+              {
+                path: "packing-list/:projectId",
+                element: <PackingListProject />,
+              },
+              {
+                path: "packing-list/:projectId/details/:packingId",
+                element: <PackingListDetails />,
+              },
               { path: "qr-labels", element: <QrLabels /> },
               { path: "qr-labels/:projectId", element: <QrLabelsProject /> },
               { path: "shippers", element: <ShippersList /> },
               { path: "shippers/add", element: <AddShipper /> },
               { path: "shippers/:id", element: <ShipperDetails /> },
+              { path: "shippers/:id/edit", element: <EditShipper /> },
               { path: "freight-carriers", element: <FreightCarriersList /> },
               { path: "freight-carriers/add", element: <AddFreightCarrier /> },
-              { path: "freight-carriers/:id", element: <FreightCarrierDetails /> },
-              { path: "notification-history", element: <NotificationHistory /> },
+              {
+                path: "freight-carriers/:id",
+                element: <FreightCarrierDetails />,
+              },
+              {
+                path: "freight-carriers/:id/edit",
+                element: <EditFreightCarrier />,
+              },
+              {
+                path: "notification-history",
+                element: <NotificationHistory />,
+              },
               { path: "delivery-calendar", element: <DeliveryCalendar /> },
               { path: "delivery-details/:id", element: <DeliveryDetails /> },
               { path: "awarded-loads", element: <AwardedLoads /> },
               { path: "uploaded-bom-files", element: <UploadedBomFiles /> },
               { path: "uploaded-bom-files/:id", element: <BomFileDetails /> },
-              { path: "uploaded-bom-files/:id/generate-shipper-order", element: <GenerateShipperOrder /> },
+              {
+                path: "uploaded-bom-files/:id/generate-shipper-order",
+                element: <GenerateShipperOrder />,
+              },
               { path: "old-dashboard", element: <PlantDashboard /> },
               { path: "equipment_management", element: <EquipmentView /> },
               {
@@ -684,6 +882,10 @@ export const adminRoutes: RouteObject[] = [
             children: [
               { index: true, element: <FinancialOverview /> },
               { path: "budget-actual", element: <BudgetActualPage /> },
+              {
+                path: "budget-actual/:projectId",
+                element: <BudgetActualProjectPage />,
+              },
               { path: "wip-profits", element: <WipProfitsPage /> },
               { path: "profit-loss", element: <ProfitLossPage /> },
               { path: "expenses", element: <ExpensesManagement /> },
@@ -706,6 +908,10 @@ export const adminRoutes: RouteObject[] = [
               { path: "projects", element: <Projects /> },
               { path: "project-view-page", element: <ProjectViewPage /> },
               { path: "drawing-attachment", element: <DrawingAttachment /> },
+              {
+                path: "all-deliveries",
+                element: <ConstructionAllDeliveries />,
+              },
               { path: "tasks", element: <Tasks /> },
               { path: "materials", element: <Materials /> },
               { path: "material-view-page", element: <MaterialsViewPage /> },

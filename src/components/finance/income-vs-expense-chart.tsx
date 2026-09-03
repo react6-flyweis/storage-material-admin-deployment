@@ -15,19 +15,36 @@ import {
   CardContent,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "lucide-react";
+import { Calendar, Loader2 } from "lucide-react";
+import type { FinancialOverviewIncomeVsExpenseTrendItem } from "@/modules/financials/financials.api";
 
-const incomeVsExpenseData = [
-  { month: "Jan", income: 560, expense: 260 },
-  { month: "Feb", income: 730, expense: 380 },
-  { month: "Mar", income: 980, expense: 620 },
-  { month: "Apr", income: 890, expense: 690 },
-  { month: "May", income: 1010, expense: 460 },
-  { month: "Jun", income: 760, expense: 540 },
-  { month: "Jul", income: 1030, expense: 700 },
+const MONTH_NAMES = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
-export function IncomeVsExpenseChart() {
+type IncomeVsExpenseChartProps = {
+  data?: FinancialOverviewIncomeVsExpenseTrendItem[];
+  isLoading?: boolean;
+};
+
+export function IncomeVsExpenseChart({ data = [], isLoading = false }: IncomeVsExpenseChartProps) {
+  const chartData = data.map((item) => ({
+    month: `${MONTH_NAMES[(item.month - 1) % 12]} ${item.year}`,
+    income: item.income,
+    expense: item.expense,
+  }));
+
   return (
     <Card className="rounded">
       <CardHeader className="border-b">
@@ -49,29 +66,38 @@ export function IncomeVsExpenseChart() {
           </span>
         </div>
 
-        <div className="h-[270px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={incomeVsExpenseData} barGap={4}>
-              <CartesianGrid stroke="#e2e8f0" vertical={false} />
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} />
-              <YAxis hide />
-              <Tooltip />
-              <Bar
-                dataKey="income"
-                fill="#ede9fe"
-                radius={[6, 6, 0, 0]}
-                maxBarSize={18}
-              />
-              <Bar
-                dataKey="expense"
-                fill="#6d28d9"
-                radius={[6, 6, 0, 0]}
-                maxBarSize={18}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        {isLoading ? (
+          <div className="flex h-[270px] items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          </div>
+        ) : (
+          <div className="h-[270px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} barGap={4}>
+                <CartesianGrid stroke="#e2e8f0" vertical={false} />
+                <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} />
+                <YAxis hide />
+                <Tooltip
+                  formatter={(value: number) => `$${value.toLocaleString()}`}
+                />
+                <Bar
+                  dataKey="income"
+                  fill="#ede9fe"
+                  radius={[6, 6, 0, 0]}
+                  maxBarSize={18}
+                />
+                <Bar
+                  dataKey="expense"
+                  fill="#6d28d9"
+                  radius={[6, 6, 0, 0]}
+                  maxBarSize={18}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
 }
+

@@ -1,6 +1,10 @@
 import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
-import { useGetProjectInvoiceStatsQuery, useGetAdminProjectInvoicesQuery, useMarkInvoicePaidMutation } from "@/modules/invoices/invoices.hooks";
+import {
+  useGetProjectInvoiceStatsQuery,
+  useGetAdminProjectInvoicesQuery,
+  useMarkInvoicePaidMutation,
+} from "@/modules/invoices/invoices.hooks";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
 import {
@@ -27,59 +31,34 @@ import Pagination from "@/components/Pagination";
 import { Card } from "@/components/ui/card";
 import StatCard from "@/components/ui/stat-card";
 import InvoiceStatusBadge from "@/components/invoices/invoice-status-badge";
-
-const dummy = "Remove the hardcoded array";
-const invoiceStats = [
-  {
-    title: "Total Invoices",
-    value: "6 Invoices",
-    bg: "bg-[#1D51A4]",
-    icon: CheckCircle2,
-    iconColor: "text-[#1D51A4]",
-  },
-  {
-    title: "Paid Amount",
-    value: "$100,000",
-    bg: "bg-[#22C55E]",
-    icon: CheckCircle2,
-    iconColor: "text-[#22C55E]",
-  },
-  {
-    title: "Pending Amount",
-    value: "$20,000",
-    bg: "bg-[#EAB308]",
-    icon: DollarSign,
-    iconColor: "text-[#EAB308]",
-  },
-  {
-    title: "Overdue Amount",
-    value: "$8,000",
-    bg: "bg-[#FB923C]",
-    icon: AlertTriangle,
-    iconColor: "text-[#FB923C]",
-  },
-];
+import { Skeleton } from "@/components/ui/skeleton";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 export default function ProjectInvoicesPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { id, projectId } = useParams<{ id: string, projectId: string }>();
+  const { id, projectId } = useParams<{ id: string; projectId: string }>();
   // Use projectId if available, otherwise fallback to id (for backwards compatibility if needed)
   const leadId = projectId || id || "";
 
-  const { data: leadData } = useLeadDetailQuery(leadId);
-  const customerId = leadData?.data?.lead?.customerId?._id || leadData?.data?.lead?.customerId || id || "";
+  const { data: leadData, isLoading: isLeadLoading } =
+    useLeadDetailQuery(leadId);
+  const customerId = leadData?.data?.lead?.customerId || "";
 
-  const { data: statsData } = useGetProjectInvoiceStatsQuery(customerId, leadId);
+  const { data: statsData, isLoading: isStatsLoading } =
+    useGetProjectInvoiceStatsQuery(customerId, leadId);
   const stats = statsData?.data || {};
 
-  const { data: invoicesResponse } = useGetAdminProjectInvoicesQuery(customerId, leadId);
+  const { data: invoicesResponse, isLoading: isInvoicesLoading } =
+    useGetAdminProjectInvoicesQuery(customerId, leadId);
   const invoicesData = invoicesResponse?.data?.payments || [];
   const pagination = {
     total: invoicesResponse?.data?.total || 0,
     page: 1,
     limit: 10,
   };
+
+  const isLoading = isLeadLoading || isStatsLoading || isInvoicesLoading;
 
   const markAsPaidMutation = useMarkInvoicePaidMutation();
 
@@ -89,15 +68,23 @@ export default function ProjectInvoicesPage() {
       await markAsPaidMutation.mutateAsync(invoiceId);
       toast.success("Invoice marked as paid successfully!");
       // Invalidate queries to refresh the list and stats
-      queryClient.invalidateQueries({ queryKey: ["adminProjectInvoices", customerId, leadId] });
-      queryClient.invalidateQueries({ queryKey: ["projectInvoiceStats", customerId, leadId] });
-    } catch (error: any) {
-      console.error("Failed to mark invoice as paid", error);
-      toast.error(error?.response?.data?.message || "Failed to mark invoice as paid");
+      queryClient.invalidateQueries({
+        queryKey: ["adminProjectInvoices", customerId, leadId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["projectInvoiceStats", customerId, leadId],
+      });
+    } catch (error) {
+      const errorMessage = getApiErrorMessage(
+        error,
+        "Failed to mark invoice as paid",
+      );
+      toast.error(errorMessage);
     }
   };
 
-  const calculatedTotalAmount = (stats.totalPaymentsReceived || 0) + (stats.pendingAmount || 0);
+  const calculatedTotalAmount =
+    (stats.totalPaymentsReceived || 0) + (stats.pendingAmount || 0);
 
   const dynamicInvoiceStats = [
     {
@@ -136,14 +123,23 @@ export default function ProjectInvoicesPage() {
       <div className="flex items-center gap-4">
         <Button
           variant="default"
-          onClick={() => navigate('/customers')}
+          onClick={() =>
+            navigate(`/customers/${customerId}/project-details/${leadId}`)
+          }
           className="px-4 bg-[#3B82F6] hover:bg-[#2563EB] text-white"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>
-        <h1 className="text-3xl font-bold text-[#1E293B]">
-          Project {leadData?.data?.lead?.projectName ? `- ${leadData.data.lead.projectName}` : ""} Invoices
+        <h1 className="text-3xl font-bold text-[#1E293B] flex items-center gap-2">
+          {isLeadLoading ? (
+            <>
+              Project <Skeleton className="h-8 w-48 rounded inline-block" />{" "}
+              Invoices
+            </>
+          ) : (
+            `Project ${leadData?.data?.lead?.projectName ? `- ${leadData.data.lead.projectName}` : ""} Invoices`
+          )}
         </h1>
       </div>
 
@@ -157,6 +153,7 @@ export default function ProjectInvoicesPage() {
             color={stat.bg}
             icon={<stat.icon className={`h-5 w-5 ${stat.iconColor}`} />}
             valueClassName="text-3xl font-semibold"
+            loading={isStatsLoading || isLeadLoading}
           />
         ))}
       </div>
@@ -180,7 +177,7 @@ export default function ProjectInvoicesPage() {
       </div>
 
       {/* Table Section */}
-      <Card className="p-4">
+      <Card className="p-0">
         <Table>
           <TableHeader>
             <TableRow className="bg-[#F8FAFC] hover:bg-[#F8FAFC]">
@@ -242,55 +239,107 @@ export default function ProjectInvoicesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {invoicesData.map((invoice: any, index: number) => {
-              const status = invoice.invoiceStatus === "paid" ? "Paid" :
-                invoice.invoiceStatus === "overdue" ? "Overdue" :
-                  invoice.invoiceStatus === "draft" ? "Draft" : "Pending";
-              return (
+            {isLoading ? (
+              Array.from({ length: 5 }).map((_, index) => (
                 <TableRow key={index} className="hover:bg-slate-50/50">
                   <TableCell className="text-center py-4">
-                    <Checkbox className="border-slate-300" />
+                    <Skeleton className="h-4 w-4 mx-auto rounded" />
                   </TableCell>
-                  <TableCell className="font-medium text-slate-700">
-                    {invoice.invoiceNumber || invoice.invoiceId || `INV-${index}`}
+                  <TableCell className="py-4">
+                    <Skeleton className="h-4 w-28 rounded" />
                   </TableCell>
-                  <TableCell className="text-slate-600">
-                    ${(invoice.amount || 0).toLocaleString()}
+                  <TableCell className="py-4">
+                    <Skeleton className="h-4 w-20 rounded" />
                   </TableCell>
-                  <TableCell className="text-slate-600">{invoice.date ? new Date(invoice.date).toLocaleDateString() : "N/A"}</TableCell>
-                  <TableCell className="text-slate-600">
-                    {invoice.invoice?.lineItems?.length || 1}
+                  <TableCell className="py-4">
+                    <Skeleton className="h-4 w-24 rounded" />
                   </TableCell>
-                  <TableCell>
-                    <InvoiceStatusBadge
-                      workflowStatus={invoice.invoice?.workflowStatus}
-                      approvalStatus={invoice.invoice?.approval?.status}
-                      financialStatus={invoice.invoiceStatus || invoice.status}
-                    />
+                  <TableCell className="py-4">
+                    <Skeleton className="h-4 w-12 rounded" />
                   </TableCell>
-                  <TableCell>
-                    {status === "Pending" && (
-                      <Button
-                        size="sm"
-                        className="bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-md px-4 h-8"
-                        onClick={() => handleMarkAsPaid(invoice.invoiceId || invoice._id)}
-                        disabled={markAsPaidMutation.isPending}
-                      >
-                        {markAsPaidMutation.isPending ? "Marking..." : "Mark as Paid"}
-                      </Button>
-                    )}
-                    {status === "Overdue" && (
-                      <Button
-                        size="sm"
-                        className="bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-md px-4 h-8"
-                      >
-                        Follow up
-                      </Button>
-                    )}
+                  <TableCell className="py-4">
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                  </TableCell>
+                  <TableCell className="py-4">
+                    <Skeleton className="h-8 w-28 rounded-md" />
                   </TableCell>
                 </TableRow>
-              )
-            })}
+              ))
+            ) : invoicesData.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="h-32 text-center text-slate-500"
+                >
+                  No invoices found.
+                </TableCell>
+              </TableRow>
+            ) : (
+              invoicesData.map((invoice, index: number) => {
+                const status =
+                  invoice.invoiceStatus === "paid"
+                    ? "Paid"
+                    : invoice.invoiceStatus === "overdue"
+                      ? "Overdue"
+                      : invoice.invoiceStatus === "draft"
+                        ? "Draft"
+                        : "Pending";
+                return (
+                  <TableRow key={index} className="hover:bg-slate-50/50">
+                    <TableCell className="text-center py-4">
+                      <Checkbox className="border-slate-300" />
+                    </TableCell>
+                    <TableCell className="font-medium text-slate-700">
+                      {invoice.invoiceNumber ||
+                        invoice.invoiceId ||
+                        `INV-${index}`}
+                    </TableCell>
+                    <TableCell className="text-slate-600">
+                      ${(invoice.amount || 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-slate-600">
+                      {invoice.date
+                        ? new Date(invoice.date).toLocaleDateString()
+                        : "N/A"}
+                    </TableCell>
+                    <TableCell className="text-slate-600">
+                      {invoice.invoice?.lineItems?.length || 1}
+                    </TableCell>
+                    <TableCell>
+                      <InvoiceStatusBadge
+                        workflowStatus={invoice.invoice?.workflowStatus}
+                        approvalStatus={invoice.invoice?.approval?.status}
+                        financialStatus={
+                          invoice.invoiceStatus || invoice.status
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {status === "Pending" && (
+                        <Button
+                          size="sm"
+                          className="bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-md px-4 h-8"
+                          onClick={() => handleMarkAsPaid(invoice.invoiceId)}
+                          disabled={markAsPaidMutation.isPending}
+                        >
+                          {markAsPaidMutation.isPending
+                            ? "Marking..."
+                            : "Mark as Paid"}
+                        </Button>
+                      )}
+                      {status === "Overdue" && (
+                        <Button
+                          size="sm"
+                          className="bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-md px-4 h-8"
+                        >
+                          Follow up
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
           </TableBody>
         </Table>
       </Card>
@@ -298,7 +347,7 @@ export default function ProjectInvoicesPage() {
         <Pagination
           totalItems={pagination.total}
           currentPage={pagination.page}
-          onPageChange={() => { }}
+          onPageChange={() => {}}
           onRowsPerPageChange={(row) => {
             console.log("Rows per page changed to:", row);
           }}

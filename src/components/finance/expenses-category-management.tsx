@@ -8,95 +8,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Edit } from "lucide-react";
-import {
-  AddExpenseCategoryDialog,
-  type AddExpenseCategoryFormValues,
-} from "./add-expense-category-dialog";
-
-interface ExpenseCategory {
-  id: string;
-  name: string;
-  description: string;
-  type: string;
-  default: string;
-  status: string;
-}
-
-const expenseCategoriesData: ExpenseCategory[] = [
-  {
-    id: "1",
-    name: "Vendor/Freight",
-    description: "All vendors payment",
-    type: "System",
-    default: "Yes",
-    status: "Active",
-  },
-  {
-    id: "2",
-    name: "Operations (Manually)",
-    description: "Manually Added Operational",
-    type: "System",
-    default: "Yes",
-    status: "Active",
-  },
-  {
-    id: "3",
-    name: "Miscellaneous",
-    description: "Other Miscellaneous",
-    type: "System",
-    default: "Yes",
-    status: "Active",
-  },
-  {
-    id: "4",
-    name: "Salaries",
-    description: "Employee salaries",
-    type: "System",
-    default: "Yes",
-    status: "Active",
-  },
-  {
-    id: "5",
-    name: "Marketing",
-    description: "Marketing Promotional",
-    type: "System",
-    default: "Yes",
-    status: "Active",
-  },
-  {
-    id: "6",
-    name: "Professional Fees",
-    description: "Legal Consultancy professional fees",
-    type: "System",
-    default: "Yes",
-    status: "Active",
-  },
-  {
-    id: "7",
-    name: "Equipment Maintenance",
-    description: "Repair & Maintenance",
-    type: "System",
-    default: "Yes",
-    status: "Active",
-  },
-];
+import { Plus, Edit, Loader2 } from "lucide-react";
+import { AddExpenseCategoryDialog } from "./add-expense-category-dialog";
+import { useExpenseCategoriesQuery } from "@/modules/financials/financials.hooks";
+import type { ExpenseCategoryApiItem } from "@/modules/financials/financials.api";
 
 export function ExpensesCategoryManagement() {
   const [openDialog, setOpenDialog] = useState(false);
-  const [categories, setCategories] = useState(expenseCategoriesData);
 
-  const handleAddCategory = (data: AddExpenseCategoryFormValues) => {
-    const newCategory: ExpenseCategory = {
-      id: String(categories.length + 1),
-      name: data.name,
-      description: data.description,
-      type: data.type,
-      default: data.default,
-      status: data.status,
-    };
-    setCategories([...categories, newCategory]);
-  };
+  const { data: categoriesRes, isLoading, isError } = useExpenseCategoriesQuery();
+  const apiCategories: ExpenseCategoryApiItem[] = categoriesRes?.data?.categories || [];
 
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
@@ -126,39 +47,72 @@ export function ExpensesCategoryManagement() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {categories.map((category, index) => (
-              <TableRow
-                key={category.id}
-                className={index % 2 === 0 ? "bg-white" : "bg-slate-50"}
-              >
-                <TableCell className="font-medium text-slate-900">
-                  {category.name}
-                </TableCell>
-                <TableCell className="text-sm text-slate-600">
-                  {category.description}
-                </TableCell>
-                <TableCell>
-                  <span className="text-sm text-slate-600">
-                    {category.type}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span className="text-sm text-slate-600">
-                    {category.default}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-700">
-                    {category.status}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <button className="text-sm font-medium text-blue-600 hover:text-blue-700">
-                    <Edit className="h-4 w-4" />
-                  </button>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-32 text-center text-slate-500">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin text-violet-600" />
+                    <span>Loading categories...</span>
+                  </div>
                 </TableCell>
               </TableRow>
-            ))}
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-32 text-center text-red-500">
+                  Failed to load expense categories.
+                </TableCell>
+              </TableRow>
+            ) : apiCategories.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-32 text-center text-slate-500">
+                  No expense categories found.
+                </TableCell>
+              </TableRow>
+            ) : (
+              apiCategories.map((category, index) => {
+                const status = category.isActive ? "Active" : "Inactive";
+
+                return (
+                  <TableRow
+                    key={category._id}
+                    className={index % 2 === 0 ? "bg-white" : "bg-slate-50"}
+                  >
+                    <TableCell className="font-medium text-slate-900">
+                      {category.name}
+                    </TableCell>
+                    <TableCell className="text-sm text-slate-600">
+                      -
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-slate-600">
+                        -
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-sm text-slate-600">
+                        -
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${
+                          category.isActive
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
+                        {status}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <button className="text-sm font-medium text-blue-600 hover:text-blue-700">
+                        <Edit className="h-4 w-4" />
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
           </TableBody>
         </Table>
       </div>
@@ -166,8 +120,10 @@ export function ExpensesCategoryManagement() {
       <AddExpenseCategoryDialog
         open={openDialog}
         onClose={() => setOpenDialog(false)}
-        onSuccess={handleAddCategory}
       />
     </div>
   );
 }
+
+
+

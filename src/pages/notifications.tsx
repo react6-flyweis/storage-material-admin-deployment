@@ -1,213 +1,261 @@
 import { useState } from "react";
 import StatCard from "@/components/ui/stat-card";
 import {
-  UserPlus,
-  RefreshCw,
-  Clock,
-  AlertTriangle,
-  Calendar,
   Bell,
   BellRing,
   BellOff,
+  Clock,
+  UserCheck,
+  CheckSquare,
+  Calendar,
+  AlertTriangle,
+  CreditCard,
+  FileText,
+  Truck,
+  Package,
+  FileSpreadsheet,
+  Receipt,
+  MessageSquare,
+  CheckCheck,
+  Trash2,
+  Check,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Pagination from "@/components/Pagination";
 import { cn } from "@/lib/utils";
+import { useNavigate } from "react-router";
+import { toast } from "sonner";
+import { formatDistanceToNow, isValid, format } from "date-fns";
+import {
+  useNotificationsQuery,
+  useMarkNotificationAsReadMutation,
+  useMarkAllNotificationsAsReadMutation,
+  useDeleteNotificationMutation,
+} from "@/modules/notifications/notifications.hooks";
+import { getNotificationRoute } from "@/modules/notifications/notifications.utils";
+import type {
+  AppNotification,
+  NotificationType,
+  NotificationPriority,
+} from "@/modules/notifications/notifications.types";
 
-interface Notification {
-  id: string;
-  type: "update" | "reminder" | "alert" | "schedule" | "new";
-  title: string;
-  description: string;
-  time: string;
-  category: "Equipment" | "Finance" | "Meetings" | "General";
-  isUnread: boolean;
+function formatNotificationTime(dateString?: string): { relative: string; full: string } {
+  if (!dateString) return { relative: "", full: "" };
+  const d = new Date(dateString);
+  if (!isValid(d)) return { relative: "", full: "" };
+  try {
+    return {
+      relative: formatDistanceToNow(d, { addSuffix: true }),
+      full: format(d, "MMM dd, yyyy · hh:mm a"),
+    };
+  } catch {
+    return { relative: "", full: "" };
+  }
 }
 
-const equipmentStats = [
-  {
-    title: "Total",
-    value: "12",
-    icon: <Bell className="w-5 h-5 text-[#1D51A4]" />,
-    color: "bg-[#1D51A4]",
-  },
-  {
-    title: "Unread",
-    value: "42",
-    icon: <BellRing className="w-5 h-5 text-[#3AB449]" />,
-    color: "bg-[#3AB449]",
-  },
-  {
-    title: "High Priority",
-    value: "74",
-    icon: <BellOff className="w-5 h-5 text-[#F59E0B]" />,
-    color: "bg-[#F59E0B]",
-  },
-  {
-    title: "Today",
-    value: "12",
-    icon: <Bell className="w-5 h-5 text-[#FD8D5B]" />,
-    color: "bg-[#FD8D5B]",
-  },
-];
-
-const mockNotifications: Notification[] = [
-  {
-    id: "1",
-    type: "new",
-    title: "New Equipment Updated",
-    description:
-      "Alice Johnson from The Steel Company has been Updated a Equipment.",
-    time: "2 minutes ago",
-    category: "Equipment",
-    isUnread: true,
-  },
-  {
-    id: "2",
-    type: "reminder",
-    title: "Task Reminder",
-    description: "Follow up with Bob Smith is due in 30 minutes",
-    time: "30 minutes ago",
-    category: "General",
-    isUnread: true,
-  },
-  {
-    id: "3",
-    type: "alert",
-    title: "AI Equipment Service Overdue",
-    description: "Service Overdue, Pay before 17 April",
-    time: "1 hour ago",
-    category: "Equipment",
-    isUnread: true,
-  },
-  {
-    id: "4",
-    type: "schedule",
-    title: "Meeting scheduled",
-    description: "Meeting with Design studio confirmed for tomorrow at 2 pm",
-    time: "2 hours ago",
-    category: "Meetings",
-    isUnread: false,
-  },
-  {
-    id: "5",
-    type: "update",
-    title: "Invoice Approved",
-    description: "Finance team approved the invoice #INV-2024-001",
-    time: "5 hours ago",
-    category: "Finance",
-    isUnread: false,
-  },
-  {
-    id: "6",
-    type: "schedule",
-    title: "Project Review",
-    description: "Weekly project review meeting starting in 15 minutes",
-    time: "Yesterday",
-    category: "Meetings",
-    isUnread: false,
-  },
-  {
-    id: "7",
-    type: "new",
-    title: "New User Added",
-    description: "John Doe has been added to the team.",
-    time: "2 days ago",
-    category: "General",
-    isUnread: false,
-  },
-];
-
-const iconMap = {
-  new: UserPlus,
-  update: RefreshCw,
-  reminder: Clock,
-  alert: AlertTriangle,
-  schedule: Calendar,
+const typeIconMap: Record<string, typeof Bell> = {
+  lead: UserCheck,
+  task: CheckSquare,
+  meeting: Calendar,
+  escalation: AlertTriangle,
+  payment: CreditCard,
+  system: Bell,
+  drawing: FileText,
+  delivery: Truck,
+  followup: Clock,
+  material_request: Package,
+  quotation: FileSpreadsheet,
+  invoice: Receipt,
+  freight_bid: Truck,
+  chat: MessageSquare,
 };
 
-export default function Notifications() {
-  const [activeFilter, setActiveFilter] = useState("All");
+const typeColorMap: Record<string, { bg: string; text: string }> = {
+  lead: { bg: "bg-blue-100", text: "text-blue-600" },
+  task: { bg: "bg-emerald-100", text: "text-emerald-600" },
+  meeting: { bg: "bg-purple-100", text: "text-purple-600" },
+  escalation: { bg: "bg-rose-100", text: "text-rose-600" },
+  payment: { bg: "bg-green-100", text: "text-green-600" },
+  system: { bg: "bg-slate-100", text: "text-slate-600" },
+  drawing: { bg: "bg-indigo-100", text: "text-indigo-600" },
+  delivery: { bg: "bg-amber-100", text: "text-amber-600" },
+  followup: { bg: "bg-cyan-100", text: "text-cyan-600" },
+  material_request: { bg: "bg-orange-100", text: "text-orange-600" },
+  quotation: { bg: "bg-teal-100", text: "text-teal-600" },
+  invoice: { bg: "bg-violet-100", text: "text-violet-600" },
+  freight_bid: { bg: "bg-sky-100", text: "text-sky-600" },
+  chat: { bg: "bg-blue-100", text: "text-blue-600" },
+};
 
-  const filters = [
-    { label: "All", value: "All" },
-    { label: "Unread(3)", value: "Unread" },
-    { label: "Leads(2)", value: "Leads" },
-    { label: "Tasks(2)", value: "Tasks" },
-    { label: "Meetings(2)", value: "Meetings" },
-    { label: "Excalation", value: "Excalation" },
+const filterTabs: { label: string; value: string; type?: NotificationType; isUnread?: boolean }[] = [
+  { label: "Unread", value: "unread", isUnread: true },
+  { label: "All", value: "all" },
+  { label: "Leads", value: "lead", type: "lead" },
+  { label: "Tasks", value: "task", type: "task" },
+  { label: "Meetings", value: "meeting", type: "meeting" },
+  { label: "Escalations", value: "escalation", type: "escalation" },
+  { label: "Payments", value: "payment", type: "payment" },
+  { label: "Deliveries", value: "delivery", type: "delivery" },
+  { label: "Quotations", value: "quotation", type: "quotation" },
+  { label: "Invoices", value: "invoice", type: "invoice" },
+  { label: "Materials", value: "material_request", type: "material_request" },
+  { label: "Chat", value: "chat", type: "chat" },
+];
+
+export default function Notifications() {
+  const navigate = useNavigate();
+
+  const [activeTab, setActiveTab] = useState<string>("unread");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [rowsPerPage, setRowsPerPage] = useState<number>(20);
+
+  const isUnreadTab = activeTab === "unread";
+  const selectedType = isUnreadTab || activeTab === "all" ? undefined : (activeTab as NotificationType);
+  const readParam: "true" | "false" | "" = isUnreadTab ? "false" : "";
+
+  const { data, isLoading, isFetching, refetch } = useNotificationsQuery({
+    page: currentPage,
+    limit: rowsPerPage,
+    type: selectedType,
+    read: readParam,
+  });
+
+  const markAsReadMutation = useMarkNotificationAsReadMutation();
+  const markAllMutation = useMarkAllNotificationsAsReadMutation();
+  const deleteMutation = useDeleteNotificationMutation();
+
+  const notifications = data?.notifications ?? [];
+  const totalItems = data?.total ?? 0;
+  const stats = data?.stats ?? { total: 0, unread: 0, highPriority: 0, today: 0 };
+
+  const statCardsData = [
+    {
+      title: "Total Notifications",
+      value: stats.total.toString(),
+      icon: <Bell className="w-5 h-5 text-[#1D51A4]" />,
+      color: "bg-[#1D51A4]",
+    },
+    {
+      title: "Unread",
+      value: stats.unread.toString(),
+      icon: <BellRing className="w-5 h-5 text-[#3AB449]" />,
+      color: "bg-[#3AB449]",
+    },
+    {
+      title: "High Priority",
+      value: stats.highPriority.toString(),
+      icon: <BellOff className="w-5 h-5 text-[#F59E0B]" />,
+      color: "bg-[#F59E0B]",
+    },
+    {
+      title: "Today",
+      value: stats.today.toString(),
+      icon: <Clock className="w-5 h-5 text-[#FD8D5B]" />,
+      color: "bg-[#FD8D5B]",
+    },
   ];
 
-  const getFilteredNotifications = () => {
-    if (activeFilter === "All") return mockNotifications;
-    if (activeFilter === "Unread")
-      return mockNotifications.filter((n) => n.isUnread);
-    const categoryMap: { [key: string]: string } = {
-      "Meetings(2)": "Meetings",
-    };
-    const category = categoryMap[activeFilter] || activeFilter;
-    return mockNotifications.filter((n) => n.category === category);
+  const handleNotificationClick = (notification: AppNotification) => {
+    if (!notification.isRead) {
+      markAsReadMutation.mutate(notification._id);
+    }
+    const targetRoute = getNotificationRoute(
+      notification.refModel,
+      notification.refId,
+      notification.type
+    );
+    navigate(targetRoute);
   };
 
-  const filteredData = getFilteredNotifications();
+  const handleMarkAllRead = () => {
+    markAllMutation.mutate(undefined, {
+      onSuccess: () => {
+        toast.success("All notifications marked as read");
+      },
+      onError: () => {
+        toast.error("Failed to mark all as read");
+      },
+    });
+  };
 
-  const getIconStyles = (type: string) => {
-    switch (type) {
-      case "update":
-        return { bg: "bg-blue-100", text: "text-blue-600" };
-      case "reminder":
-        return { bg: "bg-yellow-100", text: "text-yellow-600" };
-      case "alert":
-        return { bg: "bg-red-100", text: "text-red-600" };
-      case "schedule":
-        return { bg: "bg-cyan-100", text: "text-cyan-600" };
-      case "new":
-        return { bg: "bg-[#DBEAFE]", text: "text-[#1D51A4]" };
-      default:
-        return { bg: "bg-gray-100", text: "text-gray-600" };
-    }
+  const handleMarkSingleRead = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    markAsReadMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success("Notification marked as read");
+      },
+    });
+  };
+
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        toast.success("Notification deleted");
+      },
+      onError: () => {
+        toast.error("Failed to delete notification");
+      },
+    });
   };
 
   const renderIcon = (type: string) => {
-    const styles = getIconStyles(type);
-    const IconComponent = iconMap[type as keyof typeof iconMap];
+    const color = typeColorMap[type] || { bg: "bg-gray-100", text: "text-gray-600" };
+    const IconComponent = typeIconMap[type] || Bell;
 
     return (
       <div
-        className={`w-10 h-10 rounded-md flex items-center justify-center shrink-0 ${styles.bg} ${styles.text}`}
-      >
-        {IconComponent ? (
-          <IconComponent className="w-5 h-5" />
-        ) : (
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1.5}
-            stroke="currentColor"
-            className="w-5 h-5"
-          />
+        className={cn(
+          "w-11 h-11 rounded-xl flex items-center justify-center shrink-0 shadow-xs",
+          color.bg,
+          color.text
         )}
+      >
+        <IconComponent className="w-5 h-5" />
       </div>
     );
   };
 
   return (
-    <div className="xl:px-5 px-2 md:pt-5 pb-10 space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 mt-2">
-        <div className="flex items-start gap-1 flex-col">
-          <h1
-            className={`xl:text-3xl text-xl font-bold text-gray-800 md:mb-2 mb-1 `}
-          >
-            Notifications
-          </h1>
-          <p className={`text-[#4B5563]) md:text-base font-normal text-sm `}>
-            Stay updated with project changes, approvals, drawings, dispatches,
-            billings, and communication.
+    <div className="xl:px-8 px-4 md:pt-6 pb-12 space-y-6">
+      {/* Header Title & Actions */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Notifications</h1>
+          <p className="text-gray-500 text-sm md:text-base mt-1">
+            Stay updated with project updates, approvals, drawings, deliveries, and communication.
           </p>
         </div>
+
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="flex items-center gap-1.5 text-xs text-gray-700 bg-white"
+          >
+            <RotateCcw className={cn("size-3.5", isFetching && "animate-spin")} />
+            Refresh
+          </Button>
+
+          {stats.unread > 0 && (
+            <Button
+              onClick={handleMarkAllRead}
+              disabled={markAllMutation.isPending}
+              className="bg-blue-600 hover:bg-blue-700 text-white text-xs flex items-center gap-1.5"
+            >
+              <CheckCheck className="size-4" />
+              Mark all as read
+            </Button>
+          )}
+        </div>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-        {equipmentStats.map((stat, index) => (
+
+      {/* Summary Stat Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {statCardsData.map((stat, index) => (
           <StatCard
             key={index}
             title={stat.title}
@@ -217,60 +265,171 @@ export default function Notifications() {
           />
         ))}
       </div>
-      {/* Filters Header */}
-      <div className="bg-white rounded-xl shadow-sm p-4 mb-6 flex flex-col md:flex-row items-start md:items-center gap-4">
-        <span className="text-gray-700 font-medium md:text-lg text-xs mr-2">
-          Filter by:
-        </span>
-        <div className="flex flex-wrap gap-2">
-          {filters.map((filter) => (
-            <Button
-              key={filter.value}
-              onClick={() => setActiveFilter(filter.value)}
-              className={cn(
-                "px-6 py-2 rounded-lg md:text-sm text-xs font-medium transition-colors",
-                {
-                  "bg-gray-100 text-gray-600": filter.value !== activeFilter,
-                }
-              )}
-            >
-              {filter.label}
-            </Button>
-          ))}
+
+      {/* Filter Tabs Section */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 md:p-4">
+        <div className="flex items-center gap-2 overflow-x-auto text-sm scrollbar-none">
+          {filterTabs.map((tab) => {
+            const isActive = activeTab === tab.value;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => {
+                  setActiveTab(tab.value);
+                  setCurrentPage(1);
+                }}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-xs font-medium transition whitespace-nowrap flex items-center gap-1.5",
+                  isActive
+                    ? "bg-blue-600 text-white shadow-xs font-semibold"
+                    : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                )}
+              >
+                <span>{tab.label}</span>
+                {tab.isUnread && stats.unread > 0 && (
+                  <span
+                    className={cn(
+                      "text-[10px] px-1.5 py-0.2 rounded-full font-bold",
+                      isActive
+                        ? "bg-white text-blue-600"
+                        : "bg-blue-600 text-white"
+                    )}
+                  >
+                    {stats.unread}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Notifications List */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        {filteredData.length > 0 ? (
+      {/* Notifications List Container */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        {isLoading ? (
+          <div className="py-20 text-center text-sm text-gray-400">
+            Loading notifications...
+          </div>
+        ) : notifications.length > 0 ? (
           <div className="divide-y divide-gray-100">
-            {filteredData.map((notification) => (
-              <div
-                key={notification.id}
-                className="p-6 flex flex-col md:flex-row gap-4 hover:bg-gray-50 transition-colors cursor-pointer group"
-              >
-                {/* Icon */}
-                {renderIcon(notification.type)}
+            {notifications.map((notification) => {
+              const { relative, full } = formatNotificationTime(notification.createdAt);
+              const priority = notification.priority;
 
-                {/* Content */}
-                <div className="flex-1">
-                  <h3 className="text-gray-900 font-semibold text-base mb-1 group-hover:text-blue-600 transition-colors">
-                    {notification.title}
-                  </h3>
-                  <p className="text-gray-500 text-sm leading-relaxed mb-2">
-                    {notification.description}
-                  </p>
-                  <span className="text-gray-400 text-xs font-medium">
-                    {notification.time}
-                  </span>
+              return (
+                <div
+                  key={notification._id}
+                  onClick={() => handleNotificationClick(notification)}
+                  className={cn(
+                    "p-5 md:p-6 flex flex-col md:flex-row md:items-start gap-4 transition cursor-pointer group hover:bg-gray-50/80",
+                    !notification.isRead && "bg-blue-50/30"
+                  )}
+                >
+                  {/* Left Icon */}
+                  {renderIcon(notification.type)}
+
+                  {/* Body Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <h3
+                        className={cn(
+                          "text-sm md:text-base font-semibold group-hover:text-blue-600 transition",
+                          notification.isRead ? "text-gray-800" : "text-gray-900"
+                        )}
+                      >
+                        {notification.title}
+                      </h3>
+
+                      {!notification.isRead && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">
+                          New
+                        </span>
+                      )}
+
+                      {priority && (
+                        <span
+                          className={cn(
+                            "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium capitalize",
+                            priority === "high"
+                              ? "bg-red-100 text-red-700"
+                              : priority === "medium"
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-blue-100 text-blue-700"
+                          )}
+                        >
+                          {priority} priority
+                        </span>
+                      )}
+
+                      {notification.type && (
+                        <span className="text-[11px] text-gray-400 capitalize">
+                          • {notification.type.replace("_", " ")}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-gray-600 text-xs md:text-sm leading-relaxed mb-2">
+                      {notification.body}
+                    </p>
+
+                    <div className="flex items-center gap-2 text-[11px] text-gray-400">
+                      <Clock className="size-3" />
+                      <span>{relative}</span>
+                      {full && <span className="text-gray-300">({full})</span>}
+                    </div>
+                  </div>
+
+                  {/* Row Actions */}
+                  <div className="flex items-center gap-2 md:self-center shrink-0">
+                    {!notification.isRead && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Mark as read"
+                        onClick={(e) => handleMarkSingleRead(e, notification._id)}
+                        className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 h-8 w-8 p-0"
+                      >
+                        <Check className="size-4" />
+                      </Button>
+                    )}
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title="Delete notification"
+                      onClick={(e) => handleDelete(e, notification._id)}
+                      className="text-gray-400 hover:text-red-600 hover:bg-red-50 h-8 w-8 p-0"
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
-          <div className="p-12 text-center text-gray-500">
-            No notifications found in this category.
+          <div className="py-20 text-center flex flex-col items-center justify-center gap-2">
+            <Bell className="w-10 h-10 text-gray-300 mb-1" />
+            <p className="text-base font-semibold text-gray-700">No notifications found</p>
+            <p className="text-xs text-gray-400">
+              There are no notifications matching your current filters.
+            </p>
           </div>
+        )}
+
+        {/* Pagination */}
+        {totalItems > 0 && (
+          <Pagination
+            totalItems={totalItems}
+            currentPage={currentPage}
+            rowsPerPage={rowsPerPage}
+            rowsPerPageOptions={[10, 20, 50, 100]}
+            onPageChange={(page) => setCurrentPage(page)}
+            onRowsPerPageChange={(rows) => {
+              setRowsPerPage(rows);
+              setCurrentPage(1);
+            }}
+          />
         )}
       </div>
     </div>

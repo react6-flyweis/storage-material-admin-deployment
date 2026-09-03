@@ -14,9 +14,17 @@ import {
   rejectInvoiceProvider,
   submitInvoiceApprovalProvider,
   getPendingApprovalInvoicesProvider,
+  getVendorInvoicesProvider,
+  exportVendorInvoicesProvider,
+  getAdminVendorInvoiceDetailProvider,
+  getAdminInvoiceDetailProvider,
+  getCarrierInvoicesProvider,
+  exportCarrierInvoicesProvider,
   type CreateInvoicePayload,
   type UpdateInvoicePayload,
   type GetInvoicesParams,
+  type GetVendorInvoicesParams,
+  type GetCarrierInvoicesParams,
 } from "./invoices.api";
 
 import {
@@ -140,3 +148,49 @@ export function useGetAdminProjectInvoicesQuery(customerId: string, leadId: stri
     enabled: Boolean(customerId && leadId),
   });
 }
+
+export function useGetVendorInvoicesQuery(params?: GetVendorInvoicesParams) {
+  return useQuery({
+    queryKey: ["vendorInvoices", params],
+    queryFn: () => getVendorInvoicesProvider(params),
+  });
+}
+
+export function useExportVendorInvoicesMutation() {
+  return useMutation({
+    mutationFn: (params?: GetVendorInvoicesParams) => exportVendorInvoicesProvider(params),
+  });
+}
+
+export function useGetAdminVendorInvoiceDetailQuery(invoiceId: string) {
+  return useQuery({
+    queryKey: ["adminVendorInvoiceDetail", invoiceId],
+    queryFn: () => getAdminVendorInvoiceDetailProvider(invoiceId),
+    enabled: Boolean(invoiceId),
+  });
+}
+
+export function useGetAdminInvoiceDetailQuery(invoiceId: string) {
+  return useQuery({
+    queryKey: ["adminInvoiceDetail", invoiceId],
+    queryFn: () => getAdminInvoiceDetailProvider(invoiceId),
+    enabled: Boolean(invoiceId),
+  });
+}
+
+export function useGetCarrierInvoicesQuery(params?: GetCarrierInvoicesParams) {
+  return useQuery({
+    queryKey: ["carrierInvoices", params],
+    queryFn: () => getCarrierInvoicesProvider(params),
+  });
+}
+
+export function useExportCarrierInvoicesMutation() {
+  return useMutation({
+    mutationFn: (params?: GetCarrierInvoicesParams) => exportCarrierInvoicesProvider(params),
+  });
+}
+
+
+
+

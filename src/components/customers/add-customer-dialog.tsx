@@ -48,7 +48,7 @@ export default function AddCustomerDialog({
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
   const setOpen = isControlled ? controlledOnOpenChange! : setInternalOpen;
-  
+
   const [showSuccess, setShowSuccess] = React.useState(false);
 
   // Fetch sales employees and create customer mutation
@@ -83,35 +83,35 @@ export default function AddCustomerDialog({
     },
     resolver: async (values) => {
       const errors: any = {};
-      
+
       if (!values.firstName?.trim()) {
         errors.firstName = { type: "required", message: "Customer name is required" };
       }
-      
+
       if (!values.email?.trim()) {
         errors.email = { type: "required", message: "Email is required" };
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
         errors.email = { type: "pattern", message: "Please enter a valid email" };
       }
-      
+
       if (!values.phone?.trim()) {
         errors.phone = { type: "required", message: "Phone number is required" };
       } else if (!/^\d{10}$/.test(values.phone.replace(/\D/g, ""))) {
         errors.phone = { type: "pattern", message: "Phone must be 10 digits" };
       }
-      
+
       if (!values.buildingType?.trim()) {
         errors.buildingType = { type: "required", message: "Building type is required" };
       }
-      
+
       if (!values.location?.trim()) {
         errors.location = { type: "required", message: "Location is required" };
       }
-      
+
       if (!values.projectName?.trim()) {
         errors.projectName = { type: "required", message: "Project name is required" };
       }
-      
+
       return {
         values: Object.keys(errors).length === 0 ? values : {},
         errors,
@@ -163,7 +163,7 @@ export default function AddCustomerDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
-      <DialogContent className="p-0">
+      <DialogContent className="p-0 max-h-[85vh] overflow-y-scroll">
         <DialogHeader className="border-b p-5">
           <DialogTitle>Add New Customer</DialogTitle>
         </DialogHeader>
