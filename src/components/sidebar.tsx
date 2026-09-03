@@ -223,12 +223,11 @@ const navigationGroups: NavigationGroup[] = [
         label: "All Purchase Orders",
         icon: purchaseOrdersIcon,
       },
-      // new quotation list
-      // {
-      //   path: "/leads/quotation-list",
-      //   label: "New Quotation List",
-      //   icon: invoiceListIcon,
-      // },
+      {
+        path: "/leads/quotation-list",
+        label: "Quotations",
+        icon: quotationIcon,
+      },
     ],
   },
   {

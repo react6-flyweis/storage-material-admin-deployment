@@ -54,6 +54,7 @@ import { useState } from "react";
 // import LeadRfqTab from "./lead-rfq-tab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LeadFollowUpsTab from "./lead-follow-ups-tab";
+import LeadQuotationsTab from "./lead-quotations-tab";
 import AddFollowUpDialog from "@/components/follow-up/add-follow-up-dialog";
 import AddMeetingDialog from "@/components/meetings/add-meeting-dialog";
 import LeadPaymentsTab from "./lead-payments-tab";
@@ -61,6 +62,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 const LEAD_DETAILS_TABS = [
   { value: "basic_info", label: "Basic info" },
+  { value: "quotations", label: "Quotations" },
   { value: "open_chat", label: "Open Chat" },
   { value: "lifecycle", label: "Lifecycle" },
   { value: "documents", label: "Documents" },
@@ -624,6 +626,10 @@ export default function LeadDetails() {
 
             <TabsContent value="call_history" className="mt-6">
               <LeadCallHistoryTab lead={{ id: lead?.jobId || leadId || '', name: customer?.firstName || lead?.name || 'Unknown' }} />
+            </TabsContent>
+
+            <TabsContent value="quotations" className="mt-6">
+              <LeadQuotationsTab leadId={leadId!} customerName={customer?.firstName} />
             </TabsContent>
 
             <TabsContent value="lifecycle" className="mt-6">

@@ -3,6 +3,10 @@ import {
   createQuotationProvider,
   getQuotationProvider,
   updateQuotationProvider,
+  submitQuotationApprovalProvider,
+  approveQuotationProvider,
+  rejectQuotationProvider,
+  getPendingApprovalsProvider,
   sendQuotationProvider,
   getQuotationSummaryProvider,
   getLeadQuotationsProvider,
@@ -18,6 +22,7 @@ export function useCreateQuotationMutation() {
     mutationFn: (payload: CreateQuotationPayload) => createQuotationProvider(payload),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["quotations", "lead", variables.leadId] });
+      queryClient.invalidateQueries({ queryKey: ["quotations", "pending"] });
     },
   });
 }
@@ -38,7 +43,54 @@ export function useUpdateQuotationMutation() {
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["quotation", variables.quotationId] });
       queryClient.invalidateQueries({ queryKey: ["quotations", "lead", data.data.quotation.leadId] });
+      queryClient.invalidateQueries({ queryKey: ["quotations", "pending"] });
     },
+  });
+}
+
+export function useSubmitQuotationApprovalMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ quotationId, note }: { quotationId: string; note?: string }) =>
+      submitQuotationApprovalProvider(quotationId, note),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["quotation", variables.quotationId] });
+      queryClient.invalidateQueries({ queryKey: ["quotations", "lead", data.data.quotation.leadId] });
+      queryClient.invalidateQueries({ queryKey: ["quotations", "pending"] });
+    },
+  });
+}
+
+export function useApproveQuotationMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ quotationId, note }: { quotationId: string; note?: string }) =>
+      approveQuotationProvider(quotationId, note),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["quotation", variables.quotationId] });
+      queryClient.invalidateQueries({ queryKey: ["quotations", "lead", data.data.quotation.leadId] });
+      queryClient.invalidateQueries({ queryKey: ["quotations", "pending"] });
+    },
+  });
+}
+
+export function useRejectQuotationMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ quotationId, reason }: { quotationId: string; reason: string }) =>
+      rejectQuotationProvider(quotationId, reason),
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["quotation", variables.quotationId] });
+      queryClient.invalidateQueries({ queryKey: ["quotations", "lead", data.data.quotation.leadId] });
+      queryClient.invalidateQueries({ queryKey: ["quotations", "pending"] });
+    },
+  });
+}
+
+export function usePendingApprovalsQuery(params?: { leadId?: string }) {
+  return useQuery({
+    queryKey: ["quotations", "pending", params],
+    queryFn: () => getPendingApprovalsProvider(params),
   });
 }
 
@@ -49,6 +101,7 @@ export function useSendQuotationMutation() {
     onSuccess: (data, quotationId) => {
       queryClient.invalidateQueries({ queryKey: ["quotation", quotationId] });
       queryClient.invalidateQueries({ queryKey: ["quotations", "lead", data.data.quotation.leadId] });
+      queryClient.invalidateQueries({ queryKey: ["quotations", "pending"] });
       // Also invalidate leads summary
       queryClient.invalidateQueries({ queryKey: ["leads"] });
     },
@@ -71,3 +124,4 @@ export function useLeadQuotationsQuery(leadId: string | undefined, params?: { st
     enabled: !!leadId,
   });
 }
+

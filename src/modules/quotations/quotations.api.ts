@@ -26,12 +26,34 @@ export type OptionalAddOn = {
   price?: number;
 };
 
+export type ApprovalHistoryItem = {
+  status: "not_submitted" | "pending_approval" | "approved" | "rejected";
+  note?: string;
+  by?: unknown;
+  at?: string;
+};
+
+export type QuotationApproval = {
+  status: "not_submitted" | "pending_approval" | "approved" | "rejected";
+  submittedBy?: unknown;
+  submittedAt?: string;
+  reviewedBy?: unknown;
+  reviewedAt?: string;
+  rejectionReason?: string;
+  approvedVersionNumber?: number;
+  history?: ApprovalHistoryItem[];
+};
+
+export type WorkflowStatus = "draft" | "pending_approval" | "approved" | "rejected" | "sent";
+
 export type Quotation = {
   _id: string;
   leadId: string;
   customerId?: string;
   quoteNumber: string;
   status: "draft" | "sent" | "accepted" | "rejected";
+  workflowStatus?: WorkflowStatus;
+  approval?: QuotationApproval;
   versionNumber: number;
   
   proposalDate?: string;
@@ -117,6 +139,7 @@ export type QuotationResponse = {
   message: string;
   data: {
     quotation: Quotation;
+    emailProvider?: "sendgrid" | "smtp_fallback";
   };
 };
 
@@ -154,6 +177,26 @@ export async function updateQuotationProvider(quotationId: string, payload: Upda
   return response.data;
 }
 
+export async function submitQuotationApprovalProvider(quotationId: string, note?: string) {
+  const response = await apiClient.post<QuotationResponse>(`/api/quotations/${quotationId}/submit-approval`, { note });
+  return response.data;
+}
+
+export async function approveQuotationProvider(quotationId: string, note?: string) {
+  const response = await apiClient.put<QuotationResponse>(`/api/quotations/${quotationId}/approve`, { note });
+  return response.data;
+}
+
+export async function rejectQuotationProvider(quotationId: string, reason: string) {
+  const response = await apiClient.put<QuotationResponse>(`/api/quotations/${quotationId}/reject`, { reason });
+  return response.data;
+}
+
+export async function getPendingApprovalsProvider(params?: { leadId?: string }) {
+  const response = await apiClient.get<ListQuotationsResponse>("/api/quotations/approval/pending", { params });
+  return response.data;
+}
+
 export async function sendQuotationProvider(quotationId: string) {
   const response = await apiClient.post<QuotationResponse>(`/api/quotations/${quotationId}/send`);
   return response.data;
@@ -168,3 +211,4 @@ export async function getLeadQuotationsProvider(leadId: string, params?: { start
   const response = await apiClient.get<ListQuotationsResponse>(`/api/leads/${leadId}/quotations`, { params });
   return response.data;
 }
+
