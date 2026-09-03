@@ -71,6 +71,50 @@ export async function sendInvoiceProvider(invoiceId: string) {
   return response.data;
 }
 
+export type ApprovalStatus = "not_submitted" | "pending_approval" | "approved" | "rejected";
+export type WorkflowStatus =
+  | "draft"
+  | "pending_approval"
+  | "approved"
+  | "rejected"
+  | "sent"
+  | "paid"
+  | "overdue"
+  | "cancelled";
+
+export type ApprovalHistoryItem = {
+  status: ApprovalStatus;
+  note?: string;
+  by?: { _id?: string; name?: string; email?: string } | string;
+  at: string;
+};
+
+export type InvoiceApproval = {
+  status: ApprovalStatus;
+  submittedBy?: { _id?: string; name?: string; email?: string } | string;
+  submittedAt?: string;
+  reviewedBy?: { _id?: string; name?: string; email?: string } | string;
+  reviewedAt?: string;
+  rejectionReason?: string;
+  approvedRevision?: number;
+  history?: ApprovalHistoryItem[];
+};
+
+export async function approveInvoiceProvider(invoiceId: string, payload?: { note?: string }) {
+  const response = await apiClient.put(`/api/invoices/${invoiceId}/approve`, payload || {});
+  return response.data;
+}
+
+export async function rejectInvoiceProvider(invoiceId: string, payload: { reason: string }) {
+  const response = await apiClient.put(`/api/invoices/${invoiceId}/reject`, payload);
+  return response.data;
+}
+
+export async function submitInvoiceApprovalProvider(invoiceId: string, payload?: { note?: string }) {
+  const response = await apiClient.post(`/api/invoices/${invoiceId}/submit-approval`, payload || {});
+  return response.data;
+}
+
 export type GetInvoicesParams = {
   startDate?: string;
   endDate?: string;
@@ -79,6 +123,13 @@ export type GetInvoicesParams = {
   search?: string;
   page?: number;
   limit?: number;
+};
+
+export async function getPendingApprovalInvoicesProvider(params?: GetInvoicesParams) {
+  const response = await apiClient.get<GetInvoicesResponse>("/api/invoices/approval/pending", {
+    params,
+  });
+  return response.data;
 };
 
 export type InvoiceListItem = {
