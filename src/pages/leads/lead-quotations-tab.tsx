@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import CreateQuotationDialog from "@/components/leads/create-quotation-dialog";
+import QuotationDetailsDialog from "@/components/leads/quotation-details-dialog";
 import {
   useLeadQuotationsQuery,
   useSubmitQuotationApprovalMutation,
@@ -86,6 +87,8 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
 
   const [submitDialogQuote, setSubmitDialogQuote] = useState<Quotation | null>(null);
   const [submitNote, setSubmitNote] = useState("");
+
+  const [viewDialogQuote, setViewDialogQuote] = useState<Quotation | null>(null);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -290,13 +293,14 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
                                 <Send className="w-3 h-3" /> Send
                               </Button>
                             )}
-                            <Link
-                              to={`/leads/quotation-details/${q._id}`}
-                              className="text-purple-600 hover:text-purple-800 inline-block p-1"
-                              title="View Quotation"
+                            <button
+                              type="button"
+                              onClick={() => setViewDialogQuote(q)}
+                              className="text-purple-600 hover:text-purple-800 inline-block p-1 cursor-pointer"
+                              title="View Quotation Details"
                             >
                               <Eye className="w-4 h-4" />
-                            </Link>
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -424,6 +428,24 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Details Modal */}
+      <QuotationDetailsDialog
+        open={!!viewDialogQuote}
+        onOpenChange={(o) => !o && setViewDialogQuote(null)}
+        quotation={viewDialogQuote}
+        onApprove={(q) => {
+          setViewDialogQuote(null);
+          setApproveDialogQuote(q);
+        }}
+        onReject={(q) => {
+          setViewDialogQuote(null);
+          setRejectDialogQuote(q);
+        }}
+        onSend={(q) => {
+          handleSend(q);
+        }}
+      />
     </div>
   );
 }

@@ -1,17 +1,16 @@
 import { useState, useMemo } from "react";
-import { Link } from "react-router";
 import {
   Eye,
-  Download,
-  Upload,
-  FileText,
-  CheckCircle2,
-  Clock,
-  XCircle,
+  // Download,
+  // Upload,
+  // FileText,
+  // CheckCircle2,
+  // Clock,
+  // XCircle,
   Send,
 } from "lucide-react";
 import TitleSubtitle from "@/components/TitleSubtitle";
-import StatCard from "@/components/ui/stat-card";
+// import StatCard from "@/components/ui/stat-card";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -39,6 +38,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Pagination from "@/components/Pagination";
+import QuotationDetailsDialog from "@/components/leads/quotation-details-dialog";
 import {
   usePendingApprovalsQuery,
   useApproveQuotationMutation,
@@ -49,7 +49,11 @@ import type { Quotation } from "@/modules/quotations/quotations.api";
 import { toast } from "sonner";
 
 function getStatusBadge(quotation: Quotation) {
-  const status = quotation.workflowStatus || quotation.approval?.status || quotation.status || "draft";
+  const status =
+    quotation.workflowStatus ||
+    quotation.approval?.status ||
+    quotation.status ||
+    "draft";
 
   switch (status) {
     case "approved":
@@ -106,6 +110,7 @@ export default function QuotationListPage() {
 
   const quotations: Quotation[] = pendingData?.data?.quotations || [];
 
+  const [viewQuote, setViewQuote] = useState<Quotation | null>(null);
   const [approveQuote, setApproveQuote] = useState<Quotation | null>(null);
   const [approveNote, setApproveNote] = useState("");
 
@@ -123,7 +128,10 @@ export default function QuotationListPage() {
   const handleApprove = async () => {
     if (!approveQuote) return;
     try {
-      await approveMutation.mutateAsync({ quotationId: approveQuote._id, note: approveNote });
+      await approveMutation.mutateAsync({
+        quotationId: approveQuote._id,
+        note: approveNote,
+      });
       toast.success(`Quotation ${approveQuote.quoteNumber} approved!`);
       setApproveQuote(null);
       setApproveNote("");
@@ -138,7 +146,10 @@ export default function QuotationListPage() {
       return;
     }
     try {
-      await rejectMutation.mutateAsync({ quotationId: rejectQuote._id, reason: rejectionReason });
+      await rejectMutation.mutateAsync({
+        quotationId: rejectQuote._id,
+        reason: rejectionReason,
+      });
       toast.success(`Quotation ${rejectQuote.quoteNumber} rejected.`);
       setRejectQuote(null);
       setRejectionReason("");
@@ -150,11 +161,14 @@ export default function QuotationListPage() {
   const handleSend = async (q: Quotation) => {
     try {
       const res = await sendMutation.mutateAsync(q._id);
-      const provider = res.data?.emailProvider ? ` via ${res.data.emailProvider}` : "";
+      const provider = res.data?.emailProvider
+        ? ` via ${res.data.emailProvider}`
+        : "";
       toast.success(`Quotation sent to customer successfully${provider}!`);
     } catch (err: unknown) {
       const errorObj = err as { response?: { data?: { message?: string } } };
-      const msg = errorObj?.response?.data?.message || "Failed to send quotation.";
+      const msg =
+        errorObj?.response?.data?.message || "Failed to send quotation.";
       toast.error(msg);
     }
   };
@@ -162,11 +176,18 @@ export default function QuotationListPage() {
   // Filter logic
   const filteredQuotations = useMemo(() => {
     return quotations.filter((q) => {
-      if (selectedFilters.buildingType !== "all" && q.buildingType !== selectedFilters.buildingType) {
+      if (
+        selectedFilters.buildingType !== "all" &&
+        q.buildingType !== selectedFilters.buildingType
+      ) {
         return false;
       }
-      const effectiveStatus = q.workflowStatus || q.approval?.status || q.status;
-      if (selectedFilters.status !== "all" && effectiveStatus !== selectedFilters.status) {
+      const effectiveStatus =
+        q.workflowStatus || q.approval?.status || q.status;
+      if (
+        selectedFilters.status !== "all" &&
+        effectiveStatus !== selectedFilters.status
+      ) {
         return false;
       }
       return true;
@@ -174,16 +195,16 @@ export default function QuotationListPage() {
   }, [quotations, selectedFilters]);
 
   // Stats computation
-  const totalQuotations = quotations.length;
-  const approvedCount = quotations.filter(
-    (q) => (q.workflowStatus || q.approval?.status) === "approved"
-  ).length;
-  const pendingCount = quotations.filter(
-    (q) => (q.workflowStatus || q.approval?.status) === "pending_approval"
-  ).length;
-  const rejectedCount = quotations.filter(
-    (q) => (q.workflowStatus || q.approval?.status) === "rejected"
-  ).length;
+  // const totalQuotations = quotations.length;
+  // const approvedCount = quotations.filter(
+  //   (q) => (q.workflowStatus || q.approval?.status) === "approved",
+  // ).length;
+  // const pendingCount = quotations.filter(
+  //   (q) => (q.workflowStatus || q.approval?.status) === "pending_approval",
+  // ).length;
+  // const rejectedCount = quotations.filter(
+  //   (q) => (q.workflowStatus || q.approval?.status) === "rejected",
+  // ).length;
 
   const paginatedQuotations = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
@@ -206,20 +227,23 @@ export default function QuotationListPage() {
     }
   };
 
-  const allSelected = paginatedQuotations.length > 0 && selectedIds.length === paginatedQuotations.length;
+  const allSelected =
+    paginatedQuotations.length > 0 &&
+    selectedIds.length === paginatedQuotations.length;
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <TitleSubtitle
-          title="Quotation/New Inquiry List"
-          subtitle="Manage your assigned leads and track their progress."
+          title="Pending Quotations"
+          subtitle=""
+          // subtitle="Manage your assigned leads and track their progress."
         />
       </div>
 
       {/* Stats Cards using the standard StatCard component */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Total Quotation"
           value={totalQuotations}
@@ -244,7 +268,7 @@ export default function QuotationListPage() {
           color="bg-orange-400"
           icon={<XCircle className="h-5 w-5 text-orange-600" />}
         />
-      </div>
+      </div> */}
 
       {/* Action Buttons and Filters */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -341,28 +365,41 @@ export default function QuotationListPage() {
             <TableBody className="divide-y divide-gray-200">
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="px-6 py-8 text-center text-sm text-gray-500">
+                  <TableCell
+                    colSpan={8}
+                    className="px-6 py-8 text-center text-sm text-gray-500"
+                  >
                     Loading quotations...
                   </TableCell>
                 </TableRow>
               ) : isError ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="px-6 py-8 text-center text-sm text-red-500">
+                  <TableCell
+                    colSpan={8}
+                    className="px-6 py-8 text-center text-sm text-red-500"
+                  >
                     Failed to load quotations.
                   </TableCell>
                 </TableRow>
               ) : paginatedQuotations.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="px-6 py-8 text-center text-sm text-gray-500">
+                  <TableCell
+                    colSpan={8}
+                    className="px-6 py-8 text-center text-sm text-gray-500"
+                  >
                     No quotations found.
                   </TableCell>
                 </TableRow>
               ) : (
                 paginatedQuotations.map((quotation) => {
-                  const effectiveStatus = quotation.workflowStatus || quotation.approval?.status || quotation.status;
+                  const effectiveStatus =
+                    quotation.workflowStatus ||
+                    quotation.approval?.status ||
+                    quotation.status;
                   const isPending = effectiveStatus === "pending_approval";
                   const isApproved = effectiveStatus === "approved";
-                  const price = quotation.finalPrice || quotation.basePrice || 0;
+                  const price =
+                    quotation.finalPrice || quotation.basePrice || 0;
 
                   return (
                     <TableRow key={quotation._id} className="hover:bg-gray-50">
@@ -371,11 +408,19 @@ export default function QuotationListPage() {
                           type="checkbox"
                           className="rounded border-gray-300"
                           checked={selectedIds.includes(quotation._id)}
-                          onChange={(e) => handleSelectOne(quotation._id, e.target.checked)}
+                          onChange={(e) =>
+                            handleSelectOne(quotation._id, e.target.checked)
+                          }
                         />
                       </TableCell>
                       <TableCell className="px-6 py-4 text-sm text-gray-900 font-medium">
-                        {quotation.quoteNumber}
+                        <button
+                          type="button"
+                          onClick={() => setViewQuote(quotation)}
+                          className="hover:text-blue-600 hover:underline text-left cursor-pointer font-medium"
+                        >
+                          {quotation.quoteNumber}
+                        </button>
                       </TableCell>
                       <TableCell className="px-6 py-4 text-sm text-gray-900 capitalize">
                         {quotation.buildingType || "—"}
@@ -422,13 +467,14 @@ export default function QuotationListPage() {
                               <Send className="w-3 h-3" /> Send
                             </Button>
                           )}
-                          <Link
-                            to={`/leads/quotation-details/${quotation._id}`}
-                            className="text-purple-500 hover:text-purple-700 inline-block p-1"
-                            title="View Quotation"
+                          <button
+                            type="button"
+                            onClick={() => setViewQuote(quotation)}
+                            className="text-purple-500 hover:text-purple-700 inline-block p-1 cursor-pointer"
+                            title="View Details"
                           >
                             <Eye className="size-4" />
-                          </Link>
+                          </button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -455,17 +501,25 @@ export default function QuotationListPage() {
       </div>
 
       {/* Approve Modal */}
-      <Dialog open={!!approveQuote} onOpenChange={(o) => !o && setApproveQuote(null)}>
+      <Dialog
+        open={!!approveQuote}
+        onOpenChange={(o) => !o && setApproveQuote(null)}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-semibold">Approve Quotation</DialogTitle>
+            <DialogTitle className="text-base font-semibold">
+              Approve Quotation
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-sm text-gray-600">
-              Approve Quotation <strong>{approveQuote?.quoteNumber}</strong> (v{approveQuote?.versionNumber}) for customer dispatch?
+              Approve Quotation <strong>{approveQuote?.quoteNumber}</strong> (v
+              {approveQuote?.versionNumber}) for customer dispatch?
             </p>
             <div className="space-y-1.5">
-              <Label className="text-xs text-gray-600">Approval Note (optional)</Label>
+              <Label className="text-xs text-gray-600">
+                Approval Note (optional)
+              </Label>
               <Input
                 value={approveNote}
                 onChange={(e) => setApproveNote(e.target.value)}
@@ -475,7 +529,11 @@ export default function QuotationListPage() {
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" size="sm" onClick={() => setApproveQuote(null)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setApproveQuote(null)}
+            >
               Cancel
             </Button>
             <Button
@@ -491,14 +549,20 @@ export default function QuotationListPage() {
       </Dialog>
 
       {/* Reject Modal */}
-      <Dialog open={!!rejectQuote} onOpenChange={(o) => !o && setRejectQuote(null)}>
+      <Dialog
+        open={!!rejectQuote}
+        onOpenChange={(o) => !o && setRejectQuote(null)}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-semibold">Reject Quotation</DialogTitle>
+            <DialogTitle className="text-base font-semibold">
+              Reject Quotation
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-sm text-gray-600">
-              Rejecting Quotation <strong>{rejectQuote?.quoteNumber}</strong> (v{rejectQuote?.versionNumber}).
+              Rejecting Quotation <strong>{rejectQuote?.quoteNumber}</strong> (v
+              {rejectQuote?.versionNumber}).
             </p>
             <div className="space-y-1.5">
               <Label className="text-xs text-gray-600">
@@ -513,7 +577,11 @@ export default function QuotationListPage() {
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" size="sm" onClick={() => setRejectQuote(null)}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRejectQuote(null)}
+            >
               Cancel
             </Button>
             <Button
@@ -527,6 +595,24 @@ export default function QuotationListPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Details Modal */}
+      <QuotationDetailsDialog
+        open={!!viewQuote}
+        onOpenChange={(o) => !o && setViewQuote(null)}
+        quotation={viewQuote}
+        onApprove={(q) => {
+          setViewQuote(null);
+          setApproveQuote(q);
+        }}
+        onReject={(q) => {
+          setViewQuote(null);
+          setRejectQuote(q);
+        }}
+        onSend={(q) => {
+          handleSend(q);
+        }}
+      />
     </div>
   );
 }
