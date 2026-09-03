@@ -202,7 +202,7 @@ export default function QuotationDetailsPage() {
           size="sm"
           variant="outline"
           className="bg-white hover:bg-gray-50 border-gray-200 text-gray-600 h-9 px-4 text-sm font-normal rounded-md flex items-center gap-2"
-          onClick={() => navigate("/leads")}
+          onClick={() => navigate(-1)}
         >
           <ArrowLeft className="h-4 w-4" />
           Back

@@ -41,15 +41,16 @@ import terminatedProjectsIcon from "@/assets/icons/sidebar/terminated-projects.s
 import vendorInvoicesIcon from "@/assets/icons/sidebar/vendor-invoices.svg";
 import { useChatUnreadCountQuery } from "@/modules/team-chat/team-chat.hooks";
 import { useNotificationUnreadCountQuery } from "@/modules/notifications/notifications.hooks";
+import { useAdminsQuery } from "@/modules/admins/admins.hooks";
 
 // construction icon
 // project-calendar,drawings,delivery,tasks,material-requests,reports
-import projectCalendarIcon from "@/assets/icons/sidebar/project-calendar.svg"
-import drawingsIcon from "@/assets/icons/sidebar/drawings.svg"
-import deliveryIcon from "@/assets/icons/sidebar/delivery.svg"
-import tasksIcon from "@/assets/icons/sidebar/tasks.svg"
-import materialRequestsIcon from "@/assets/icons/sidebar/material-requests.svg"
-import constructionReportsIcon from "@/assets/icons/sidebar/construction-reports.svg"
+import projectCalendarIcon from "@/assets/icons/sidebar/project-calendar.svg";
+import drawingsIcon from "@/assets/icons/sidebar/drawings.svg";
+import deliveryIcon from "@/assets/icons/sidebar/delivery.svg";
+import tasksIcon from "@/assets/icons/sidebar/tasks.svg";
+import materialRequestsIcon from "@/assets/icons/sidebar/material-requests.svg";
+import constructionReportsIcon from "@/assets/icons/sidebar/construction-reports.svg";
 
 // Finance icons
 import WipProfitsIcon from "@/assets/icons/sidebar/wip-profit.svg";
@@ -58,7 +59,6 @@ import ProfitLossIcon from "@/assets/icons/sidebar/profit-loss.svg";
 import FreightCostIcon from "@/assets/icons/sidebar/freight-cost-tracking.svg";
 import MarginAnalysisIcon from "@/assets/icons/sidebar/margin-analysis.svg";
 import BudgetVsActualIcon from "@/assets/icons/sidebar/budget-actual.svg";
-
 
 // Plant section icons
 import bomIcon from "@/assets/icons/sidebar/BOM.svg";
@@ -74,7 +74,6 @@ import awardedIcon from "@/assets/icons/sidebar/awarded.svg";
 import deliveryCalendarIcon from "@/assets/icons/sidebar/delivery-calendar.svg";
 import allDeliveriesIcon from "@/assets/icons/sidebar/all-deliveries.svg";
 import notificationDetailsIcon from "@/assets/icons/sidebar/notification-details.svg";
-
 
 import { Button } from "./ui/button";
 import activeBgImage from "@/assets/images/active-bg.png";
@@ -259,20 +258,60 @@ const navigationGroups: NavigationGroup[] = [
     link: "/plant",
     items: [
       { path: "/plant/projects", label: "Projects", icon: productLibraryIcon },
-      { path: "/plant/uploaded-bom-files", label: "Uploaded BOM Files", icon: bomIcon },
-      { path: "/plant/shipper-quotation", label: "Shipper Quotation", icon: quotationIcon },
-      { path: "/plant/load-planning", label: "Load Planning", icon: loadPlanningIcon },
-      { path: "/plant/packing-list", label: "Packing List", icon: packingListIcon },
+      {
+        path: "/plant/uploaded-bom-files",
+        label: "Uploaded BOM Files",
+        icon: bomIcon,
+      },
+      {
+        path: "/plant/shipper-quotation",
+        label: "Shipper Quotation",
+        icon: quotationIcon,
+      },
+      {
+        path: "/plant/load-planning",
+        label: "Load Planning",
+        icon: loadPlanningIcon,
+      },
+      {
+        path: "/plant/packing-list",
+        label: "Packing List",
+        icon: packingListIcon,
+      },
       { path: "/plant/qr-labels", label: "QR Labels", icon: qrLabelsIcon },
       { path: "/plant/shippers", label: "Shippers", icon: shippersIcon },
-      { path: "/plant/freight-carriers", label: "Freight Carriers", icon: freightCarriersIcon },
+      {
+        path: "/plant/freight-carriers",
+        label: "Freight Carriers",
+        icon: freightCarriersIcon,
+      },
       { path: "/plant/costing", label: "Costing", icon: costingSavingIcon },
       { path: "/plant/savings", label: "Savings", icon: costingSavingIcon },
-      { path: "/plant/freight-loads", label: "Freight Loads", icon: freightLoadIcon },
-      { path: "/plant/awarded-loads", label: "Awarded Loads", icon: awardedIcon },
-      { path: "/plant/delivery-calendar", label: "Deliveries Calendar", icon: deliveryCalendarIcon },
-      { path: "/plant/all-deliveries", label: "All Deliveries", icon: allDeliveriesIcon },
-      { path: "/plant/notification-history", label: "Notification History", icon: notificationDetailsIcon },
+      {
+        path: "/plant/freight-loads",
+        label: "Freight Loads",
+        icon: freightLoadIcon,
+      },
+      {
+        path: "/plant/awarded-loads",
+        label: "Awarded Loads",
+        icon: awardedIcon,
+      },
+      {
+        path: "/plant/delivery-calendar",
+        label: "Deliveries Calendar",
+        icon: deliveryCalendarIcon,
+      },
+      {
+        path: "/plant/all-deliveries",
+        label: "All Deliveries",
+        icon: allDeliveriesIcon,
+      },
+      {
+        path: "/plant/notification-history",
+        label: "Notification History",
+        icon: notificationDetailsIcon,
+      },
       /*
       { path: "/plant/equipment_management", label: "Equipment" },
       {
@@ -393,12 +432,36 @@ const navigationGroups: NavigationGroup[] = [
     color: "#dc2626",
     link: "/construction",
     items: [
-      { path: "/construction/projects", label: "Project & Calendar", icon: projectCalendarIcon },
-      { path: "/construction/drawing-attachment", label: "Drawing & Attachment", icon: drawingsIcon },
-      { path: "/construction/all-deliveries", label: "All Deliveries", icon: deliveryIcon },
-      { path: "/construction/tasks", label: "Tasks & Progress", icon: tasksIcon },
-      { path: "/construction/materials", label: "Material Request", icon: materialRequestsIcon },
-      { path: "/construction/reports", label: "Construction Reports", icon: constructionReportsIcon },
+      {
+        path: "/construction/projects",
+        label: "Project & Calendar",
+        icon: projectCalendarIcon,
+      },
+      {
+        path: "/construction/drawing-attachment",
+        label: "Drawing & Attachment",
+        icon: drawingsIcon,
+      },
+      {
+        path: "/construction/all-deliveries",
+        label: "All Deliveries",
+        icon: deliveryIcon,
+      },
+      {
+        path: "/construction/tasks",
+        label: "Tasks & Progress",
+        icon: tasksIcon,
+      },
+      {
+        path: "/construction/materials",
+        label: "Material Request",
+        icon: materialRequestsIcon,
+      },
+      {
+        path: "/construction/reports",
+        label: "Construction Reports",
+        icon: constructionReportsIcon,
+      },
     ],
   },
   {
@@ -443,6 +506,12 @@ const navigationGroups: NavigationGroup[] = [
             badge: 1,
             icon: supportIcon,
           },
+          {
+            path: "/admins",
+            label: "Admin Management",
+            icon: employeesIcon,
+            badge: 0,
+          },
         ],
       },
       {
@@ -451,7 +520,6 @@ const navigationGroups: NavigationGroup[] = [
         icon: salesPerformanceIcon,
       },
       { path: "/employees/audit-log", label: "Audit Log", icon: auditLogIcon },
-      { path: "/admins", label: "Admin Management", icon: employeesIcon },
     ],
   },
   {
@@ -545,9 +613,16 @@ export function Sidebar({
   const employeeCounts = useEmployeeCountsStore();
   const { data: unreadData } = useChatUnreadCountQuery();
   const unreadCount = unreadData?.count ?? unreadData?.total ?? 0;
-  const { data: notificationUnreadCount = 0 } = useNotificationUnreadCountQuery({
-    refetchInterval: 30000,
-  });
+  const { data: notificationUnreadCount = 0 } = useNotificationUnreadCountQuery(
+    {
+      refetchInterval: 30000,
+    },
+  );
+  const { data: adminsResponse } = useAdminsQuery();
+  const adminsCount =
+    adminsResponse?.data?.summary?.total ??
+    adminsResponse?.data?.admins?.length ??
+    0;
   const iconSidebarScrollRef = useRef<HTMLDivElement | null>(null);
   const [hoveredGroup, setHoveredGroup] = useState<{
     label: string;
@@ -574,6 +649,10 @@ export function Sidebar({
   const getEmployeeBadge = (path: string, fallbackBadge?: number) => {
     if (path === "/employees") {
       return employeeCounts.total;
+    }
+
+    if (path === "/admins") {
+      return adminsCount;
     }
 
     const teamParam = new URLSearchParams(path.split("?")[1] ?? "").get("team");
@@ -606,7 +685,9 @@ export function Sidebar({
         });
       }
       // For groups without sub-items (like Dashboard)
-      return group.link === "/" ? currentPath === "/" : currentPath.startsWith(group.link);
+      return group.link === "/"
+        ? currentPath === "/"
+        : currentPath.startsWith(group.link);
     }) || navigationGroups[0];
 
   useEffect(() => {
@@ -621,12 +702,18 @@ export function Sidebar({
 
       if (buttonRect.top - padding < containerRect.top) {
         scrollContainer.scrollTo({
-          top: scrollContainer.scrollTop + (buttonRect.top - containerRect.top) - padding,
+          top:
+            scrollContainer.scrollTop +
+            (buttonRect.top - containerRect.top) -
+            padding,
           behavior: "smooth",
         });
       } else if (buttonRect.bottom + padding > containerRect.bottom) {
         scrollContainer.scrollTo({
-          top: scrollContainer.scrollTop + (buttonRect.bottom - containerRect.bottom) + padding,
+          top:
+            scrollContainer.scrollTop +
+            (buttonRect.bottom - containerRect.bottom) +
+            padding,
           behavior: "smooth",
         });
       }
@@ -728,7 +815,7 @@ export function Sidebar({
   // Determine final padding: use calculated padding if content fits, otherwise use 5
   const menuPaddingTop =
     activeGroupItemsHeight + calculatedPadding + topSectionHeight + 20 <
-      window.innerHeight
+    window.innerHeight
       ? calculatedPadding
       : 10;
 
@@ -785,8 +872,9 @@ export function Sidebar({
       )}
 
       <div
-        className={`flex fixed inset-y-0 left-0 lg:left-0 lg:top-0 z-50 transition-transform duration-300 lg:translate-x-0 h-screen ${isOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
+        className={`flex fixed inset-y-0 left-0 lg:left-0 lg:top-0 z-50 transition-transform duration-300 lg:translate-x-0 h-screen ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
         {/* Icon Sidebar */}
         <aside className="sidebar relative z-40 w-18 h-screen bg-sidebar overflow-visible">
@@ -1081,18 +1169,21 @@ export function Sidebar({
                             />
                             <span>{item.label}</span>
                           </div>
-                          {item.path === "/plant/notification-history" && notificationUnreadCount > 0 && (
-                            <span
-                              className={cn(
-                                "text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-xs",
-                                isActive
-                                  ? "bg-white text-blue-600"
-                                  : "bg-red-500 text-white"
-                              )}
-                            >
-                              {notificationUnreadCount > 99 ? "99+" : notificationUnreadCount}
-                            </span>
-                          )}
+                          {item.path === "/plant/notification-history" &&
+                            notificationUnreadCount > 0 && (
+                              <span
+                                className={cn(
+                                  "text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-xs",
+                                  isActive
+                                    ? "bg-white text-blue-600"
+                                    : "bg-red-500 text-white",
+                                )}
+                              >
+                                {notificationUnreadCount > 99
+                                  ? "99+"
+                                  : notificationUnreadCount}
+                              </span>
+                            )}
                         </div>
                       </div>
                     )}
