@@ -258,6 +258,7 @@ const navigationGroups: NavigationGroup[] = [
     color: "#0ea5e9",
     link: "/plant",
     items: [
+      { path: "/plant/projects", label: "Projects", icon: productLibraryIcon },
       { path: "/plant/uploaded-bom-files", label: "Uploaded BOM Files", icon: bomIcon },
       { path: "/plant/shipper-quotation", label: "Shipper Quotation", icon: quotationIcon },
       { path: "/plant/load-planning", label: "Load Planning", icon: loadPlanningIcon },

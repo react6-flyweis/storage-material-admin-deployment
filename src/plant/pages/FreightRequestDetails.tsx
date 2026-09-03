@@ -1,11 +1,5 @@
 import React, { useState } from "react";
-import {
-  ArrowLeft,
-  Truck,
-  TrendingDown,
-  BarChart3,
-  Zap,
-} from "lucide-react";
+import { ArrowLeft, Truck, TrendingDown, BarChart3, Zap } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import {
   AwardLoadModal,
@@ -47,7 +41,9 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
 }) => {
   return (
     <div className="flex items-center gap-2 text-sm">
-      <span className="text-gray-500 font-medium whitespace-nowrap">{label}</span>
+      <span className="text-gray-500 font-medium whitespace-nowrap">
+        {label}
+      </span>
       <select
         value={activeTab}
         onChange={(e) => onTabChange(e.target.value)}
@@ -66,20 +62,26 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
 // --- Main Component ---
 const FreightRequestDetailsView: React.FC = () => {
   const navigate = useNavigate();
-  const { id } = useParams(); // 'id' from route matching plant/freight-request-details/:id
+  const { id } = useParams(); // 'id' from route matching plant/freight-loads/details/:id
   const [activeTab, setActiveTab] = useState("Bid Comparison");
   const [isAwardModalOpen, setIsAwardModalOpen] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [isRevisionModalOpen, setIsRevisionModalOpen] = useState(false);
   const [isRevisionSuccessOpen, setIsRevisionSuccessOpen] = useState(false);
-  const [selectedCarrier, setSelectedCarrier] = useState<FreightBidItem | null>(null);
-  const [revisionData, setRevisionData] = useState<RevisionData>({ targetAmount: "", message: "" });
+  const [selectedCarrier, setSelectedCarrier] = useState<FreightBidItem | null>(
+    null,
+  );
+  const [revisionData, setRevisionData] = useState<RevisionData>({
+    targetAmount: "",
+    message: "",
+  });
   const [sortBy, setSortBy] = useState("low");
   const [awardedDeliveryId, setAwardedDeliveryId] = useState<string>("");
   const [selectError, setSelectError] = useState<string>("");
   const [revisionError, setRevisionError] = useState<string>("");
 
-  const { data: projectDeliveryData, isLoading: isDeliveryLoading } = useDeliveryDetailQuery(id || "", { enabled: !!id });
+  const { data: projectDeliveryData, isLoading: isDeliveryLoading } =
+    useDeliveryDetailQuery(id || "", { enabled: !!id });
   const delivery = projectDeliveryData?.data?.delivery;
 
   const formatDate = (dateStr?: string) => {
@@ -95,24 +97,38 @@ const FreightRequestDetailsView: React.FC = () => {
     }
   };
 
-  const deliveryDateFormatted = delivery?.deliverySchedule?.deliveryDate || delivery?.formDetails?.deliveryDate
-    ? `${formatDate(delivery.deliverySchedule?.deliveryDate || delivery.formDetails?.deliveryDate)}${delivery.formDetails?.deliveryTime || delivery.deliverySchedule?.timeWindow ? ` (${delivery.formDetails?.deliveryTime || delivery.deliverySchedule?.timeWindow})` : ""}`
-    : "—";
+  const deliveryDateFormatted =
+    delivery?.deliverySchedule?.deliveryDate ||
+    delivery?.formDetails?.deliveryDate
+      ? `${formatDate(delivery.deliverySchedule?.deliveryDate || delivery.formDetails?.deliveryDate)}${delivery.formDetails?.deliveryTime || delivery.deliverySchedule?.timeWindow ? ` (${delivery.formDetails?.deliveryTime || delivery.deliverySchedule?.timeWindow})` : ""}`
+      : "—";
 
-  const deliveryPoc = delivery?.receivingPocDetails?.receivingPoc || delivery?.formDetails?.receivingPoc || "—";
-  const deliveryLocation = delivery?.formDetails?.deliveryLocation || delivery?.deliverySchedule?.dropoffAddress || "—";
+  const deliveryPoc =
+    delivery?.receivingPocDetails?.receivingPoc ||
+    delivery?.formDetails?.receivingPoc ||
+    "—";
+  const deliveryLocation =
+    delivery?.formDetails?.deliveryLocation ||
+    delivery?.deliverySchedule?.dropoffAddress ||
+    "—";
 
-  const { mutateAsync: selectFreightBid, isPending: isSelectingBid } = useSelectFreightBidMutation();
-  const { mutateAsync: requestFreightBidRevision, isPending: isRevisingBid } = useRequestFreightBidRevisionMutation();
+  const { mutateAsync: selectFreightBid, isPending: isSelectingBid } =
+    useSelectFreightBidMutation();
+  const { mutateAsync: requestFreightBidRevision, isPending: isRevisingBid } =
+    useRequestFreightBidRevisionMutation();
 
   const sortParam = sortBy === "low" ? "low_to_high" : "high_to_low";
-  const { data: bidsResponse, isLoading: isBidsLoading, error, refetch } = useDeliveryFreightBidsQuery(
-    delivery?.deliveryId ?? "",
-    sortParam,
-    { enabled: !!delivery?.deliveryId }
-  );
+  const {
+    data: bidsResponse,
+    isLoading: isBidsLoading,
+    error,
+    refetch,
+  } = useDeliveryFreightBidsQuery(delivery?.deliveryId ?? "", sortParam, {
+    enabled: !!delivery?.deliveryId,
+  });
 
-  const isLoading = isDeliveryLoading || (delivery?.deliveryId ? isBidsLoading : false);
+  const isLoading =
+    isDeliveryLoading || (delivery?.deliveryId ? isBidsLoading : false);
 
   const handleAwardClick = (bidId: string) => {
     const bid = bidsResponse?.data?.bids?.find((bid) => bid.bidId === bidId);
@@ -143,7 +159,10 @@ const FreightRequestDetailsView: React.FC = () => {
       setIsSuccessModalOpen(true);
     } catch (err) {
       const errorObj = err as { data?: { message?: string }; message?: string };
-      const errMsg = errorObj?.data?.message || errorObj?.message || "Failed to award bid. Please try again.";
+      const errMsg =
+        errorObj?.data?.message ||
+        errorObj?.message ||
+        "Failed to award bid. Please try again.";
       setSelectError(errMsg);
     }
   };
@@ -157,7 +176,10 @@ const FreightRequestDetailsView: React.FC = () => {
     try {
       const cleanAmount = data.targetAmount.replace(/[^0-9.]/g, "");
       const parsedAmount = cleanAmount ? Number(cleanAmount) : undefined;
-      const bidAmount = (parsedAmount !== undefined && !isNaN(parsedAmount)) ? parsedAmount : undefined;
+      const bidAmount =
+        parsedAmount !== undefined && !isNaN(parsedAmount)
+          ? parsedAmount
+          : undefined;
 
       await requestFreightBidRevision({
         bidId: selectedCarrier.bidId,
@@ -172,7 +194,10 @@ const FreightRequestDetailsView: React.FC = () => {
       refetch();
     } catch (err) {
       const errorObj = err as { data?: { message?: string }; message?: string };
-      const errMsg = errorObj?.data?.message || errorObj?.message || "Failed to request revision. Please try again.";
+      const errMsg =
+        errorObj?.data?.message ||
+        errorObj?.message ||
+        "Failed to request revision. Please try again.";
       setRevisionError(errMsg);
     }
   };
@@ -201,7 +226,9 @@ const FreightRequestDetailsView: React.FC = () => {
             <ArrowLeft size={16} strokeWidth={3} />
           </button>
           <div>
-            <h1 className="text-lg md:text-[25px] font-semibold text-[#212B36] tracking-tight">Freight Request Details</h1>
+            <h1 className="text-lg md:text-[25px] font-semibold text-[#212B36] tracking-tight">
+              Freight Request Details
+            </h1>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-[#637381] font-normal text-sm">
                 {bidsResponse?.data?.projectName || "N/A"}
@@ -232,21 +259,34 @@ const FreightRequestDetailsView: React.FC = () => {
             />
             <FreightStatCard
               title="Awarded Bid"
-              value={bidsResponse?.data?.stats?.awardedBid ? `$${bidsResponse.data.stats.awardedBid.toLocaleString()}` : "N/A"}
+              value={
+                bidsResponse?.data?.stats?.awardedBid
+                  ? `$${bidsResponse.data.stats.awardedBid.toLocaleString()}`
+                  : "N/A"
+              }
               subtitle="Best available rate"
               icon={TrendingDown}
               gradient="linear-gradient(135deg, #22C55E 0%, #16A34A 100%)"
             />
             <FreightStatCard
               title="Average Bid"
-              value={bidsResponse?.data?.stats?.averageBid ? `$${Math.round(bidsResponse.data.stats.averageBid).toLocaleString()}` : "N/A"}
+              value={
+                bidsResponse?.data?.stats?.averageBid
+                  ? `$${Math.round(bidsResponse.data.stats.averageBid).toLocaleString()}`
+                  : "N/A"
+              }
               subtitle="Market average"
               icon={BarChart3}
               gradient="linear-gradient(135deg, #FF6900 0%, #F54900 100%)"
             />
             <FreightStatCard
               title="Potential Savings"
-              value={bidsResponse?.data?.stats?.potentialSavings !== null && bidsResponse?.data?.stats?.potentialSavings !== undefined ? `$${bidsResponse?.data.stats.potentialSavings.toLocaleString()}` : "-"}
+              value={
+                bidsResponse?.data?.stats?.potentialSavings !== null &&
+                bidsResponse?.data?.stats?.potentialSavings !== undefined
+                  ? `$${bidsResponse?.data.stats.potentialSavings.toLocaleString()}`
+                  : "-"
+              }
               subtitle="vs highest bid"
               icon={Zap}
               gradient="linear-gradient(135deg, #AD46FF 0%, #9810FA 100%)"
@@ -260,10 +300,11 @@ const FreightRequestDetailsView: React.FC = () => {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`pb-4 text-sm font-bold transition-all relative ${activeTab.includes(tab.split(" (")[0])
-                    ? "text-[#1E51A4] after:absolute after:bottom-0 after:left-0 after:w-full after:h-[2px] after:bg-[#1E51A4]"
-                    : "text-[#637381] hover:text-[#212B36]"
-                    }`}
+                  className={`pb-4 text-sm font-bold transition-all relative ${
+                    activeTab.includes(tab.split(" (")[0])
+                      ? "text-[#1E51A4] after:absolute after:bottom-0 after:left-0 after:w-full after:h-[2px] after:bg-[#1E51A4]"
+                      : "text-[#637381] hover:text-[#212B36]"
+                  }`}
                 >
                   {tab}
                 </button>
@@ -277,7 +318,9 @@ const FreightRequestDetailsView: React.FC = () => {
               <div className="space-y-6">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-bold text-[#212B36]">All Bids</h2>
+                    <h2 className="text-xl font-bold text-[#212B36]">
+                      All Bids
+                    </h2>
                     <div className="h-6 w-px bg-gray-200 mx-1"></div>
                     <div className="flex items-center gap-2">
                       <FilterDropdown
@@ -293,11 +336,15 @@ const FreightRequestDetailsView: React.FC = () => {
                   </div>
                   <div className="text-sm">
                     <span className="text-[#22C55E] font-bold">
-                      {bidsResponse?.data?.bidRange?.lowestBid?.amount ? `$${bidsResponse.data.bidRange.lowestBid.amount.toLocaleString()}` : "—"}
+                      {bidsResponse?.data?.bidRange?.lowestBid?.amount
+                        ? `$${bidsResponse.data.bidRange.lowestBid.amount.toLocaleString()}`
+                        : "—"}
                     </span>
                     <span className="text-[#637381] mx-2">-</span>
                     <span className="text-[#FF5630] font-bold">
-                      {bidsResponse?.data?.bidRange?.highestBid?.amount ? `$${bidsResponse.data.bidRange.highestBid.amount.toLocaleString()}` : "—"}
+                      {bidsResponse?.data?.bidRange?.highestBid?.amount
+                        ? `$${bidsResponse.data.bidRange.highestBid.amount.toLocaleString()}`
+                        : "—"}
                     </span>
                   </div>
                 </div>
@@ -317,9 +364,12 @@ const FreightRequestDetailsView: React.FC = () => {
               </div>
             )}
 
-            {activeTab === "Request Details" && bidsResponse?.data?.requestId && (
-              <FreightRequestDetailsTab deliveryId={bidsResponse.data.requestId} />
-            )}
+            {activeTab === "Request Details" &&
+              bidsResponse?.data?.requestId && (
+                <FreightRequestDetailsTab
+                  deliveryId={bidsResponse.data.requestId}
+                />
+              )}
           </div>
         </>
       )}

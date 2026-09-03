@@ -8,18 +8,30 @@ import {
   Plus,
   Search,
   Filter,
-  ChevronDown,
   ArrowUpDown,
-  Loader2
+  Loader2,
+  X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import AddEditPartCostModal from "./modals/AddEditPartCostModal";
 import Pagination from "../components/Pagination";
 import ItemCostFilterModal, { type ItemCostFilterValues } from "./ItemCostFilterModal";
-import { useSmdtStatsQuery, useSmdtItemsQuery, useExportSmdtExcelMutation } from "@/modules/plant/smdt.hooks";
+import {
+  useSmdtStatsQuery,
+  useSmdtCategoriesQuery,
+  useSmdtItemsQuery,
+  useExportSmdtExcelMutation,
+} from "@/modules/plant/smdt.hooks";
 import { toast } from "sonner";
 import type { SmdtItem } from "@/modules/plant/smdt.api";
 
@@ -41,39 +53,59 @@ function useDebounce<T>(value: T, delay: number): T {
 
 export default function ItemCostList() {
   const [isAddEditOpen, setIsAddEditOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<any>(null);
+  const [editingItem, setEditingItem] = useState<SmdtItem | null>(null);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
 
   // Search & Filter State
   const [searchInput, setSearchInput] = useState("");
   const debouncedSearch = useDebounce(searchInput, 500);
+  const [sortBy, setSortBy] = useState("latest");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage] = useState(50);
   const [appliedFilters, setAppliedFilters] = useState<ItemCostFilterValues>({
     category: "",
-    isFrameType: "all",
-    isActive: "true",
+    frameType: "all",
+    status: "active",
   });
+
+  const hasActiveFilters = Boolean(
+    appliedFilters.category ||
+    appliedFilters.frameType !== "all" ||
+    appliedFilters.status !== "active" ||
+    searchInput.trim()
+  );
+
+  const handleClearFilters = () => {
+    setAppliedFilters({
+      category: "",
+      frameType: "all",
+      status: "active",
+    });
+    setSearchInput("");
+    setCurrentPage(1);
+  };
 
   const queryParams = useMemo(() => {
     return {
       search: debouncedSearch.trim() || undefined,
       category: appliedFilters.category || undefined,
-      isFrameType: appliedFilters.isFrameType === "all" ? undefined : appliedFilters.isFrameType === "true",
-      isActive: appliedFilters.isActive,
+      sort: sortBy || undefined,
+      frameType: appliedFilters.frameType === "all" ? undefined : appliedFilters.frameType,
+      status: appliedFilters.status,
       page: currentPage,
       limit: rowsPerPage,
     };
-  }, [debouncedSearch, appliedFilters, currentPage, rowsPerPage]);
+  }, [debouncedSearch, appliedFilters, sortBy, currentPage, rowsPerPage]);
 
   const exportMutation = useExportSmdtExcelMutation();
 
   const { data: statsResponse, isLoading: isStatsLoading } = useSmdtStatsQuery();
+  const { data: fetchedCategories = [] } = useSmdtCategoriesQuery();
   const { data: itemsResponse, isLoading: isItemsLoading, isFetching: isItemsFetching } = useSmdtItemsQuery(queryParams);
 
   const stats = statsResponse?.data;
   const items = itemsResponse?.data?.items ?? [];
-  const categories = itemsResponse?.data?.categories ?? [];
+  const categories = fetchedCategories.length > 0 ? fetchedCategories : (itemsResponse?.data?.categories ?? []);
   const totalItems = itemsResponse?.data?.total ?? 0;
 
   const loading = isItemsLoading || isItemsFetching;
@@ -83,8 +115,9 @@ export default function ItemCostList() {
       const filters = {
         search: debouncedSearch.trim() || undefined,
         category: appliedFilters.category || undefined,
-        isFrameType: appliedFilters.isFrameType === "all" ? undefined : appliedFilters.isFrameType === "true",
-        isActive: appliedFilters.isActive,
+        sort: sortBy || undefined,
+        frameType: appliedFilters.frameType === "all" ? undefined : appliedFilters.frameType,
+        status: appliedFilters.status,
       };
 
       toast.info("Generating Excel export...");
@@ -100,21 +133,22 @@ export default function ItemCostList() {
       window.URL.revokeObjectURL(url);
 
       toast.success("Excel exported successfully!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to export SMDT excel:", error);
       let errorMsg = "Failed to export SMDT Excel file";
-      if (error?.response?.data instanceof Blob) {
+      const err = error as { response?: { data?: unknown }; message?: string };
+      if (err?.response?.data instanceof Blob) {
         try {
-          const text = await error.response.data.text();
+          const text = await err.response.data.text();
           const parsed = JSON.parse(text);
           errorMsg = parsed.message || errorMsg;
         } catch {
           // ignore
         }
-      } else if (error?.response?.data?.message) {
-        errorMsg = error.response.data.message;
-      } else if (error?.message) {
-        errorMsg = error.message;
+      } else if (err?.response?.data && typeof (err.response.data as { message?: string }).message === "string") {
+        errorMsg = (err.response.data as { message: string }).message;
+      } else if (err?.message) {
+        errorMsg = err.message;
       }
       toast.error(errorMsg);
     }
@@ -251,7 +285,7 @@ export default function ItemCostList() {
           </div>
           <Button
             variant="outline"
-            className={`bg-white border-gray-200 h-10 px-4 ${appliedFilters.category || appliedFilters.isFrameType !== "all" || appliedFilters.isActive !== "true"
+            className={`bg-white border-gray-200 h-10 px-4 ${appliedFilters.category || appliedFilters.frameType !== "all" || appliedFilters.status !== "active"
               ? "border-blue-500 text-blue-600 bg-blue-50/50 hover:bg-blue-50"
               : ""
               }`}
@@ -260,13 +294,36 @@ export default function ItemCostList() {
             <Filter className="w-4 h-4 mr-2" />
             Filter
           </Button>
+          {hasActiveFilters && (
+            <Button
+              variant="ghost"
+              onClick={handleClearFilters}
+              className="h-10 px-3 text-xs font-medium text-slate-600 hover:text-slate-900 bg-white border border-gray-200 shadow-sm rounded-lg hover:bg-gray-50 flex items-center"
+            >
+              <X className="w-3.5 h-3.5 mr-1" />
+              Clear Filter
+            </Button>
+          )}
         </div>
         <div className="flex items-center">
-          <Button variant="outline" className="bg-white border-gray-200 h-10 text-gray-700 font-normal">
-            <Filter className="w-4 h-4 mr-2 text-gray-400" />
-            Sort by : Latest
-            <ChevronDown className="w-4 h-4 ml-2 text-gray-400" />
-          </Button>
+          <Select
+            value={sortBy}
+            onValueChange={(val) => {
+              setSortBy(val);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-[180px] bg-white border-gray-200 h-10 text-gray-700 font-normal shadow-none">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-gray-400" />
+                <SelectValue placeholder="Sort by : Latest" />
+              </div>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="latest">Sort by : Latest</SelectItem>
+              <SelectItem value="oldest">Sort by : Oldest</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

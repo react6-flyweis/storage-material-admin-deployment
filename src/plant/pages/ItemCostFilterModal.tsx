@@ -14,16 +14,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { CATEGORY_OPTIONS } from "../constants/costing";
+
 export interface ItemCostFilterValues {
   category: string;
-  isFrameType: string; // "all" | "true" | "false"
-  isActive: "true" | "false" | "all";
+  frameType: "all" | "frame" | "non_frame";
+  status: "active" | "inactive" | "all";
 }
 
 interface ItemCostFilterModalProps {
   isOpen: boolean;
   onClose: () => void;
-  categories: string[];
+  categories?: string[];
   initialFilters: ItemCostFilterValues;
   onApply: (filters: ItemCostFilterValues) => void;
 }
@@ -36,33 +38,40 @@ export default function ItemCostFilterModal({
   onApply,
 }: ItemCostFilterModalProps) {
   const [category, setCategory] = useState(initialFilters.category || "all");
-  const [isFrameType, setIsFrameType] = useState(initialFilters.isFrameType || "all");
-  const [isActive, setIsActive] = useState(initialFilters.isActive || "true");
+  const [frameType, setFrameType] = useState<"all" | "frame" | "non_frame">(initialFilters.frameType || "all");
+  const [status, setStatus] = useState<"active" | "inactive" | "all">(initialFilters.status || "active");
+
+  const availableCategories = categories.length > 0 ? categories : CATEGORY_OPTIONS.map((c) => c.value);
+
+  const getCategoryLabel = (cat: string) => {
+    const option = CATEGORY_OPTIONS.find((c) => c.value === cat);
+    return option ? option.label : cat;
+  };
 
   React.useEffect(() => {
     if (isOpen) {
       setCategory(initialFilters.category || "all");
-      setIsFrameType(initialFilters.isFrameType || "all");
-      setIsActive(initialFilters.isActive || "true");
+      setFrameType(initialFilters.frameType || "all");
+      setStatus(initialFilters.status || "active");
     }
   }, [isOpen, initialFilters]);
 
   const handleApply = () => {
     onApply({
       category: category === "all" ? "" : category,
-      isFrameType: isFrameType,
-      isActive: isActive,
+      frameType: frameType,
+      status: status,
     });
   };
 
   const handleReset = () => {
     setCategory("all");
-    setIsFrameType("all");
-    setIsActive("true");
+    setFrameType("all");
+    setStatus("active");
     onApply({
       category: "",
-      isFrameType: "all",
-      isActive: "true",
+      frameType: "all",
+      status: "active",
     });
   };
 
@@ -87,9 +96,9 @@ export default function ItemCostFilterModal({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {categories.map((cat) => (
+                {availableCategories.map((cat) => (
                   <SelectItem key={cat} value={cat}>
-                    {cat}
+                    {getCategoryLabel(cat)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -101,14 +110,14 @@ export default function ItemCostFilterModal({
             <label className="text-sm font-semibold text-gray-700">
               Frame Type
             </label>
-            <Select value={isFrameType} onValueChange={setIsFrameType}>
+            <Select value={frameType} onValueChange={(val: "all" | "frame" | "non_frame") => setFrameType(val)}>
               <SelectTrigger className="w-full bg-[#FAFAFA] border-gray-200">
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="true">Frame Type Only</SelectItem>
-                <SelectItem value="false">Non-Frame Type Only</SelectItem>
+                <SelectItem value="frame">Frame Type Only</SelectItem>
+                <SelectItem value="non_frame">Non-Frame Type Only</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -118,14 +127,14 @@ export default function ItemCostFilterModal({
             <label className="text-sm font-semibold text-gray-700">
               Status
             </label>
-            <Select value={isActive} onValueChange={(val) => setIsActive(val as any)}>
+            <Select value={status} onValueChange={(val: "active" | "inactive" | "all") => setStatus(val)}>
               <SelectTrigger className="w-full bg-[#FAFAFA] border-gray-200">
                 <SelectValue placeholder="Active Only" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Items</SelectItem>
-                <SelectItem value="true">Active Only</SelectItem>
-                <SelectItem value="false">Inactive Only</SelectItem>
+                <SelectItem value="active">Active Only</SelectItem>
+                <SelectItem value="inactive">Inactive Only</SelectItem>
               </SelectContent>
             </Select>
           </div>
