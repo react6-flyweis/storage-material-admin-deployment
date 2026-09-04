@@ -12,6 +12,7 @@ interface AuthState {
   isHydrated: boolean;
   setLoginData: (payload: LoginResponse["data"]) => void;
   setAccessToken: (accessToken: string) => void;
+  updateUser: (userUpdates: Partial<AuthUser>) => void;
   logout: () => void;
   setHydrated: (value: boolean) => void;
 }
@@ -34,6 +35,12 @@ export const useAuthStore = create<AuthState>()(
       },
       setAccessToken: (accessToken) => {
         set({ accessToken });
+      },
+      updateUser: (userUpdates) => {
+        set((state) => ({
+          role: userUpdates.role ?? state.role,
+          user: state.user ? { ...state.user, ...userUpdates } : null,
+        }));
       },
       logout: () => {
         set({ accessToken: null, refreshToken: null, role: null, user: null });
