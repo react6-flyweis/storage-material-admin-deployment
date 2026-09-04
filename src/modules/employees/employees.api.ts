@@ -207,7 +207,7 @@ export type CreateEmployeeData = {
   phone?: string;
   role?: string;
   team?: string;
-  status?: string;
+  isActive?: boolean;
   permissions?: any;
 };
 

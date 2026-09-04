@@ -154,7 +154,7 @@ export function AddEmployeeDialog({
         password: data.password,
         phone: data.phone,
         role: data.role.toLowerCase(), // The API might expect lower case role
-        status: data.status,
+        isActive: data.status ? data.status === "active" : true,
         permissions: data.permissions,
       },
       {
@@ -295,14 +295,20 @@ export function AddEmployeeDialog({
               )}
             </div>
 
-            {/* <div className="space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Controller
                 control={control}
                 name="status"
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger className={errors.status ? "w-full border-red-500 focus:ring-red-500" : "w-full"}>
+                    <SelectTrigger
+                      className={
+                        errors.status
+                          ? "w-full border-red-500 focus:ring-red-500"
+                          : "w-full"
+                      }
+                    >
                       <SelectValue placeholder="Select status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -312,7 +318,12 @@ export function AddEmployeeDialog({
                   </Select>
                 )}
               />
-            </div> */}
+              {errors.status && (
+                <p className="text-destructive text-sm">
+                  {errors.status.message}
+                </p>
+              )}
+            </div>
 
             <div className="space-y-2">
               <Label
