@@ -9,15 +9,18 @@ import {
   XCircle,
   AlertTriangle,
   Clock,
-  ExternalLink,
+  Download,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
 import {
   useQuotationQuery,
   useApproveQuotationMutation,
   useRejectQuotationMutation,
   useSendQuotationMutation,
+  useDownloadQuotationPdfMutation,
+  useQuotationHtmlPreviewQuery,
 } from "@/modules/quotations/quotations.hooks";
-import { API_BASE_URL } from "@/modules/auth/auth.api";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -35,9 +38,17 @@ export default function QuotationDetailsPage() {
   const { id } = useParams<{ id: string }>();
 
   const { data, isLoading, isError } = useQuotationQuery(id);
+  const {
+    data: htmlPreviewData,
+    isLoading: isHtmlLoading,
+    isError: isHtmlError,
+    refetch: refetchHtmlPreview,
+  } = useQuotationHtmlPreviewQuery(id);
+
   const sendMutation = useSendQuotationMutation();
   const approveMutation = useApproveQuotationMutation();
   const rejectMutation = useRejectQuotationMutation();
+  const downloadPdfMutation = useDownloadQuotationPdfMutation();
 
   const [isApproveOpen, setIsApproveOpen] = useState(false);
   const [approveNote, setApproveNote] = useState("");
@@ -126,11 +137,26 @@ export default function QuotationDetailsPage() {
     effectiveStatus === "pending" || effectiveStatus === "pending_approval";
   const isRejected = effectiveStatus === "rejected";
 
-  const fullPdfUrl = q.pdfLink
-    ? q.pdfLink.startsWith("http")
-      ? q.pdfLink
-      : `${API_BASE_URL.replace(/\/+$/, "")}${q.pdfLink.startsWith("/") ? "" : "/"}${q.pdfLink}`
-    : null;
+  const handleDownloadPdf = async () => {
+    if (!id) return;
+    try {
+      const blob = await downloadPdfMutation.mutateAsync(id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `Quotation-${q.quoteNumber || id}-v${q.versionNumber || 1}.pdf`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("PDF downloaded successfully!");
+    } catch {
+      toast.error("Failed to download PDF document.");
+    }
+  };
 
   return (
     <div className="p-4 sm:p-6 space-y-6 ">
@@ -146,6 +172,23 @@ export default function QuotationDetailsPage() {
           Back
         </Button>
         <div className="flex items-center gap-3">
+          {/* Download PDF button */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="bg-white hover:bg-gray-50 border-gray-300 text-gray-700 h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5"
+            onClick={handleDownloadPdf}
+            disabled={downloadPdfMutation.isPending}
+            title="Download PDF"
+          >
+            {downloadPdfMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 text-gray-600" />
+            )}
+            <span>{downloadPdfMutation.isPending ? "Downloading..." : "Download PDF"}</span>
+          </Button>
+
           {/* Admin Approve & Reject Actions */}
           {isPending && (
             <>
@@ -193,7 +236,7 @@ export default function QuotationDetailsPage() {
               Pending Admin Approval
             </h4>
             <p className="text-xs text-amber-700">
-              This quotation is waiting for administrative review. You can review the PDF below and approve or reject it.
+              This quotation is waiting for administrative review. You can review the preview below and approve or reject it.
             </p>
           </div>
         </div>
@@ -274,40 +317,40 @@ export default function QuotationDetailsPage() {
         </div>
       )}
 
-      {/* PDF Preview Card */}
+      {/* Quotation HTML Preview Card */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full flex flex-col">
-        {fullPdfUrl ? (
-          <div className="w-full flex flex-col">
-            <div className="bg-gray-50 border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-gray-700 font-medium">
-                <FileText className="h-4 w-4 text-blue-600" />
-                <span>Quotation PDF Document</span>
-              </div>
-              <a
-                href={fullPdfUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-medium px-3 py-1.5 rounded-md hover:bg-blue-50 transition-colors"
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                Open PDF in new tab
-              </a>
-            </div>
-            <iframe
-              src={`${fullPdfUrl}#toolbar=1`}
-              title={`Quotation ${q.quoteNumber}`}
-              className="w-full h-[calc(100vh-220px)] min-h-[750px] border-0 bg-white"
-            />
+        {isHtmlLoading ? (
+          <div className="flex flex-col items-center justify-center py-24 text-gray-400 gap-3 min-h-100">
+            <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+            <p className="text-sm font-medium text-gray-600">
+              Loading quotation preview...
+            </p>
           </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-24 text-gray-400 gap-3">
+        ) : isHtmlError || !htmlPreviewData ? (
+          <div className="flex flex-col items-center justify-center py-24 text-gray-400 gap-3 min-h-100">
             <FileText className="w-12 h-12 text-gray-300" />
             <p className="text-base font-semibold text-gray-600">
-              PDF Preview not available
+              Preview not available
             </p>
             <p className="text-xs text-gray-400 max-w-sm text-center">
-              This quotation does not have a linked PDF document yet.
+              Unable to load quotation preview HTML directly.
             </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2 text-xs flex items-center gap-1.5"
+              onClick={() => refetchHtmlPreview()}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Retry Preview
+            </Button>
+          </div>
+        ) : (
+          <div className="w-full bg-white p-4 sm:p-8">
+            <div
+              className="quotation-direct-preview w-full"
+              dangerouslySetInnerHTML={{ __html: htmlPreviewData }}
+            />
           </div>
         )}
       </div>

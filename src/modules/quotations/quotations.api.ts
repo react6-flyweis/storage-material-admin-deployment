@@ -127,6 +127,12 @@ export type Quotation = {
   psf?: number;
   
   pdfLink?: string;
+  htmlPreviewLink?: string;
+  documentMeta?: {
+    previewEndpoint?: string;
+    pdfEndpoint?: string;
+    [key: string]: unknown;
+  };
   createdBy?: unknown;
   sentAt?: string | null;
   createdAt: string;
@@ -234,4 +240,22 @@ export async function getLeadQuotationsProvider(leadId: string, params?: { start
   const response = await apiClient.get<ListQuotationsResponse>(`/api/leads/${leadId}/quotations`, { params });
   return response.data;
 }
+
+export async function downloadQuotationPdfProvider(quotationId: string): Promise<Blob> {
+  const response = await apiClient.get(`/api/quotations/${quotationId}/pdf`, {
+    params: { format: "pdf" },
+    responseType: "blob",
+  });
+  return response.data;
+}
+
+export async function getQuotationHtmlPreviewProvider(quotationId: string): Promise<string> {
+  const response = await apiClient.get<string>(`/api/quotations/${quotationId}/pdf`, {
+    params: { format: "html" },
+    responseType: "text",
+  });
+  return response.data;
+}
+
+
 
