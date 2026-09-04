@@ -22,6 +22,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { getApiErrorMessage } from "@/lib/api-error";
+import SuccessDialog from "@/components/success-dialog";
 
 const editEmployeeSchema = z.object({
   name: z.string().min(1, "Full name is required"),
@@ -61,9 +63,10 @@ export function EditEmployeeDialog({
   onSave,
 }: EditEmployeeDialogProps) {
   const [resetPassOpen, setResetPassOpen] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  
+
   const updateMutation = useUpdateAdminEmployeeMutation();
 
   const {
@@ -72,6 +75,7 @@ export function EditEmployeeDialog({
     handleSubmit,
     reset,
     formState: { errors },
+    setError,
   } = useForm<EditEmployeeForm>({
     resolver: zodResolver(editEmployeeSchema),
     defaultValues: {
@@ -131,19 +135,26 @@ export function EditEmployeeDialog({
     updateMutation.mutate(
       {
         employeeId: employee.id,
-        data: { password: newPassword }
+        data: { password: newPassword },
       },
       {
         onSuccess: () => {
-          toast.success("Password reset successfully");
           setResetPassOpen(false);
           setNewPassword("");
           setConfirmPassword("");
+          setShowSuccess(true);
         },
-        onError: (err: any) => {
-          toast.error(err?.response?.data?.message || "Failed to reset password");
-        }
-      }
+        onError: (err) => {
+          const errorMessage = getApiErrorMessage(
+            err,
+            "Failed to reset password",
+          );
+          setError("root", {
+            type: "server",
+            message: errorMessage,
+          });
+        },
+      },
     );
   };
 
@@ -194,7 +205,11 @@ export function EditEmployeeDialog({
                 name="role"
                 control={control}
                 render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value} disabled>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
@@ -304,7 +319,7 @@ export function EditEmployeeDialog({
             <Button variant="outline" onClick={() => setResetPassOpen(false)}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={submitResetPassword}
               disabled={updateMutation.isPending}
             >
@@ -313,6 +328,11 @@ export function EditEmployeeDialog({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <SuccessDialog
+        open={showSuccess}
+        onClose={() => setShowSuccess(false)}
+        title="Password Reset Successfully!"
+      />
     </Dialog>
   );
 }
