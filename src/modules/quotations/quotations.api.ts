@@ -51,7 +51,8 @@ export type Quotation = {
   leadId: string;
   customerId?: string;
   quoteNumber: string;
-  status: "draft" | "sent" | "accepted" | "rejected";
+  status: "draft" | "pending" | "pending_approval" | "approved" | "rejected" | "sent" | "accepted";
+  approvalStatus?: "not_submitted" | "pending_approval" | "approved" | "rejected" | string;
   workflowStatus?: WorkflowStatus;
   approval?: QuotationApproval;
   versionNumber: number;
@@ -125,7 +126,8 @@ export type Quotation = {
   finalPrice?: number;
   psf?: number;
   
-  createdBy?: any;
+  pdfLink?: string;
+  createdBy?: unknown;
   sentAt?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -155,10 +157,31 @@ export type QuotationSummaryResponse = {
   }
 };
 
+export type GetQuotationsParams = {
+  status?: string;
+  approvalStatus?: string;
+  sort?: "latest" | "oldest" | string;
+  leadId?: string;
+  search?: string;
+  buildingType?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+};
+
 export type ListQuotationsResponse = {
   success: boolean;
   data: {
     quotations: Quotation[];
+    pagination?: {
+      total?: number;
+      page?: number;
+      limit?: number;
+      pages?: number;
+      totalPages?: number;
+    };
+    filters?: Record<string, unknown>;
   }
 };
 
@@ -192,7 +215,7 @@ export async function rejectQuotationProvider(quotationId: string, reason: strin
   return response.data;
 }
 
-export async function getPendingApprovalsProvider(params?: { leadId?: string }) {
+export async function getPendingApprovalsProvider(params?: GetQuotationsParams) {
   const response = await apiClient.get<ListQuotationsResponse>("/api/quotations/approval/pending", { params });
   return response.data;
 }
