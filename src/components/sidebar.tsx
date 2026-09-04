@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate } from "react-router";
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import dashboardIcon from "@/assets/icons/sidebar/dashboard.svg";
 import activityLogIcon from "@/assets/icons/sidebar/activity-log.svg";
 import aiScriptIcon from "@/assets/icons/sidebar/ai-script.svg";
@@ -42,6 +42,7 @@ import vendorInvoicesIcon from "@/assets/icons/sidebar/vendor-invoices.svg";
 import { useChatUnreadCountQuery } from "@/modules/team-chat/team-chat.hooks";
 import { useNotificationUnreadCountQuery } from "@/modules/notifications/notifications.hooks";
 import { useAdminsQuery } from "@/modules/admins/admins.hooks";
+import { useAuthStore } from "@/modules/auth/auth.store";
 
 // construction icon
 // project-calendar,drawings,delivery,tasks,material-requests,reports
@@ -103,17 +104,21 @@ type NavGroup =
   | "construction"
   | "ai-marketing";
 
+interface NavigationSubItem {
+  path: string;
+  label: string;
+  badge?: number;
+  icon?: string;
+  mainAdminOnly?: boolean;
+}
+
 interface NavigationItem {
   path: string;
   label: string;
   collapsible?: boolean;
   icon?: string;
-  subItems?: {
-    path: string;
-    label: string;
-    badge?: number;
-    icon?: string;
-  }[];
+  mainAdminOnly?: boolean;
+  subItems?: NavigationSubItem[];
 }
 
 interface NavigationGroup {
@@ -123,6 +128,7 @@ interface NavigationGroup {
   color: string; //hex string
   link: string;
   items: NavigationItem[];
+  mainAdminOnly?: boolean;
 }
 
 function SidebarItemIcon({
@@ -195,7 +201,7 @@ const navigationGroups: NavigationGroup[] = [
           },
           {
             path: "/leads/follow-up/scoring",
-            label: "Lead Scoring",
+            label: "Lead Scoring & Auto followup",
             icon: leadScoringIcon,
           },
           // {
@@ -511,6 +517,7 @@ const navigationGroups: NavigationGroup[] = [
             label: "Admin Management",
             icon: employeesIcon,
             badge: 0,
+            mainAdminOnly: true,
           },
         ],
       },
@@ -618,11 +625,34 @@ export function Sidebar({
       refetchInterval: 30000,
     },
   );
-  const { data: adminsResponse } = useAdminsQuery();
-  const adminsCount =
-    adminsResponse?.data?.summary?.total ??
-    adminsResponse?.data?.admins?.length ??
-    0;
+  const currentUser = useAuthStore((state) => state.user);
+  const isMainAdmin = Boolean(currentUser?.isMainAdmin);
+
+  const { data: adminsResponse } = useAdminsQuery({ enabled: isMainAdmin });
+  const adminsCount = isMainAdmin
+    ? (adminsResponse?.data?.summary?.total ??
+      adminsResponse?.data?.admins?.length ??
+      0)
+    : 0;
+
+  const filteredNavigationGroups = useMemo(() => {
+    if (isMainAdmin) {
+      return navigationGroups;
+    }
+
+    return navigationGroups
+      .filter((group) => !group.mainAdminOnly)
+      .map((group) => ({
+        ...group,
+        items: group.items
+          .filter((item) => !item.mainAdminOnly)
+          .map((item) => ({
+            ...item,
+            subItems: item.subItems?.filter((subItem) => !subItem.mainAdminOnly),
+          })),
+      }));
+  }, [isMainAdmin]);
+
   const iconSidebarScrollRef = useRef<HTMLDivElement | null>(null);
   const [hoveredGroup, setHoveredGroup] = useState<{
     label: string;
@@ -652,7 +682,7 @@ export function Sidebar({
     }
 
     if (path === "/admins") {
-      return adminsCount;
+      return isMainAdmin ? adminsCount : undefined;
     }
 
     const teamParam = new URLSearchParams(path.split("?")[1] ?? "").get("team");
@@ -666,7 +696,7 @@ export function Sidebar({
 
   // Determine active group based on current path
   const activeGroup =
-    navigationGroups.find((group) => {
+    filteredNavigationGroups.find((group) => {
       // If group has sub-items, check if current path matches group link or any sub-item path
       if (group.items.length > 0) {
         if (group.link !== "/" && currentPath.startsWith(group.link)) {
@@ -688,7 +718,7 @@ export function Sidebar({
       return group.link === "/"
         ? currentPath === "/"
         : currentPath.startsWith(group.link);
-    }) || navigationGroups[0];
+    }) || filteredNavigationGroups[0];
 
   useEffect(() => {
     const scrollContainer = iconSidebarScrollRef.current;
@@ -786,7 +816,7 @@ export function Sidebar({
   };
 
   // Get the index of the active group
-  const activeGroupIndex = navigationGroups.findIndex(
+  const activeGroupIndex = filteredNavigationGroups.findIndex(
     (group) => group.id === activeGroup.id,
   );
 
@@ -819,7 +849,7 @@ export function Sidebar({
       ? calculatedPadding
       : 10;
 
-  const handleGroupChange = (group: (typeof navigationGroups)[0]) => {
+  const handleGroupChange = (group: NavigationGroup) => {
     navigate(group.link);
     setIsMainCollapsed(false);
     // Close sidebar on mobile after navigation
@@ -885,7 +915,7 @@ export function Sidebar({
           >
             <div style={{ direction: "ltr" }}>
               <nav className="flex flex-col gap-5">
-                {navigationGroups.map((group) => {
+                {filteredNavigationGroups.map((group) => {
                   const iconSrc = group.icon as string;
                   const isCommunication = group.id === "messages";
                   const showBadge = isCommunication && unreadCount > 0;
@@ -981,7 +1011,9 @@ export function Sidebar({
                   <h2 className="text-lg font-bold text-gray-800">
                     Admin Panel
                   </h2>
-                  <p className="text-xs text-gray-500">admin@steelpro.com</p>
+                  <p className="text-xs text-gray-500">
+                    {currentUser?.email ?? "admin@steelpro.com"}
+                  </p>
                 </div>
               </div>
               <Button
