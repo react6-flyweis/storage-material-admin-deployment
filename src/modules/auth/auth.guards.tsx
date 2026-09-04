@@ -9,13 +9,14 @@ interface RouteGuardProps {
 export function ProtectedRoute({ redirectTo = "/sign-in" }: RouteGuardProps) {
   const location = useLocation();
   const accessToken = useAuthStore((state) => state.accessToken);
+  const role = useAuthStore((state) => state.role);
   const isHydrated = useAuthStore((state) => state.isHydrated);
 
   if (!isHydrated) {
     return <Loading />;
   }
 
-  if (!accessToken) {
+  if (!accessToken || role?.toLowerCase() !== "admin") {
     return <Navigate to={redirectTo} replace state={{ from: location }} />;
   }
 
