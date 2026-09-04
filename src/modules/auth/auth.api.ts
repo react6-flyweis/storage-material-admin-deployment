@@ -15,17 +15,17 @@ import type {
   ResetPasswordResponse,
 } from "./auth.types";
 
-const FALLBACK_BASE_URL = import.meta.env.VITE_API_BASE_URL || ""
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 export const apiClient = axios.create({
-  baseURL: FALLBACK_BASE_URL,
+  baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
 const refreshClient = axios.create({
-  baseURL: FALLBACK_BASE_URL,
+  baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
@@ -124,6 +124,14 @@ apiClient.interceptors.response.use(
 
       const nextAccessToken = refreshResponse.data.data.accessToken;
       useAuthStore.getState().setAccessToken(nextAccessToken);
+
+      if (refreshResponse.data.data.user) {
+        useAuthStore.getState().updateUser(refreshResponse.data.data.user);
+      } else if (typeof refreshResponse.data.data.isMainAdmin === "boolean") {
+        useAuthStore.getState().updateUser({
+          isMainAdmin: refreshResponse.data.data.isMainAdmin,
+        });
+      }
 
       originalRequest.headers = {
         ...originalRequest.headers,

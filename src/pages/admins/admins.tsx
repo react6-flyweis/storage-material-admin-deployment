@@ -33,7 +33,10 @@ export default function AdminsPage() {
   const mainAdminId = summary?.mainAdminId;
   const hasMainAdmin = Boolean(mainAdminId);
 
-  const isMainAdmin = Boolean(currentUser?._id && mainAdminId === currentUser._id);
+  const isMainAdmin = Boolean(
+    currentUser?.isMainAdmin ??
+      (currentUser?._id && mainAdminId === currentUser._id),
+  );
 
   // Only show banner once data is loaded and it is confirmed there is no main admin (mainAdminId is null / falsy)
   const isNoMainAdminConfirmed =

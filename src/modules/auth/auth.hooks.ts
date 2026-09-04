@@ -18,7 +18,14 @@ export function useLoginMutation() {
   const setLoginData = useAuthStore((state) => state.setLoginData);
 
   return useMutation({
-    mutationFn: (payload: LoginRequest) => loginProvider(payload),
+    mutationFn: async (payload: LoginRequest) => {
+      const response = await loginProvider(payload);
+      const userRole = response.data?.role || response.data?.user?.role;
+      if (userRole?.toLowerCase() !== "admin") {
+        throw new Error("Access denied. Only admin users can log in.");
+      }
+      return response;
+    },
     onSuccess: (response) => {
       if (response.success) {
         setLoginData(response.data);

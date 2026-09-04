@@ -10,6 +10,7 @@ import {
   getTemperatureTransitionsListProvider,
 } from "./followups.api";
 import type {
+  FollowUpActivityDetailOptions,
   FollowUpActivityFilters,
   FollowUpKind,
   TemperatureTransitionsQueryParams,
@@ -74,11 +75,31 @@ export function useFollowUpActivityDetailQuery(
   kind: FollowUpKind = "manual",
   page = 1,
   limit = 20,
-  enabled = true
+  optionsOrEnabled?: FollowUpActivityDetailOptions | boolean,
+  enabledParam?: boolean
 ) {
+  const options =
+    typeof optionsOrEnabled === "object" ? optionsOrEnabled : undefined;
+  const enabled =
+    typeof optionsOrEnabled === "boolean"
+      ? optionsOrEnabled
+      : (enabledParam ?? true);
+
   return useQuery({
-    queryKey: ["followups", "activity", "detail", leadId, kind, page, limit],
-    queryFn: () => getFollowUpActivityDetailProvider(leadId, kind, page, limit),
+    queryKey: [
+      "followups",
+      "activity",
+      "detail",
+      leadId,
+      kind,
+      page,
+      limit,
+      options?.startDate,
+      options?.endDate,
+      options?.transitionState,
+    ],
+    queryFn: () =>
+      getFollowUpActivityDetailProvider(leadId, kind, page, limit, options),
     enabled: Boolean(leadId) && enabled,
     staleTime: 30 * 1000,
   });

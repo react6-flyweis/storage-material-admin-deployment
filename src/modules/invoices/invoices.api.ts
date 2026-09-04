@@ -119,6 +119,8 @@ export type GetInvoicesParams = {
   startDate?: string;
   endDate?: string;
   status?: string;
+  approvalStatus?: string;
+  pending?: boolean | string;
   leadId?: string;
   search?: string;
   page?: number;

@@ -14,6 +14,7 @@ import {
 import type {
   CreateQuotationPayload,
   UpdateQuotationPayload,
+  GetQuotationsParams,
 } from "./quotations.api";
 
 export function useCreateQuotationMutation() {
@@ -87,7 +88,7 @@ export function useRejectQuotationMutation() {
   });
 }
 
-export function usePendingApprovalsQuery(params?: { leadId?: string }) {
+export function usePendingApprovalsQuery(params?: GetQuotationsParams) {
   return useQuery({
     queryKey: ["quotations", "pending", params],
     queryFn: () => getPendingApprovalsProvider(params),

@@ -133,16 +133,20 @@ export default function DateRangeFilter({
   future = true,
 }: Props) {
   const [open, setOpen] = React.useState(false);
+  const [internalValue, setInternalValue] = React.useState<RDateRange | undefined>(value);
+  const committedValue = value !== undefined ? value : internalValue;
+
   const [draftRange, setDraftRange] = React.useState<RDateRange | undefined>(
-    value,
+    committedValue,
   );
   const [activePreset, setActivePreset] = React.useState<PresetKey | undefined>(
-    findPresetKey(value),
+    findPresetKey(committedValue),
   );
 
   const isDialog = asModal || mode === "dialog";
 
   React.useEffect(() => {
+    setInternalValue(value);
     setDraftRange(value);
     setActivePreset(findPresetKey(value));
   }, [value]);
@@ -150,36 +154,38 @@ export default function DateRangeFilter({
   const handleSelect = (selection: RDateRange | undefined) => {
     setDraftRange(selection);
     setActivePreset(findPresetKey(selection));
-    onChange?.(selection);
   };
 
   const handlePreset = (preset: (typeof presetOptions)[number]) => {
     const selection = preset.compute();
     setDraftRange(selection);
     setActivePreset(preset.key);
-    onChange?.(selection);
   };
 
   const handleApply = () => {
+    setInternalValue(draftRange);
     onChange?.(draftRange);
     setOpen(false);
   };
 
   const handleCancel = () => {
-    setDraftRange(value);
-    setActivePreset(findPresetKey(value));
+    setDraftRange(committedValue);
+    setActivePreset(findPresetKey(committedValue));
     setOpen(false);
   };
 
+  const handleClear = () => {
+    setDraftRange(undefined);
+    setActivePreset(undefined);
+  };
+
   const handleOpenChange = (isOpen: boolean) => {
-    if (!isOpen) {
-      setDraftRange(value);
-      setActivePreset(findPresetKey(value));
-    }
+    setDraftRange(committedValue);
+    setActivePreset(findPresetKey(committedValue));
     setOpen(isOpen);
   };
 
-  const displayValue = formatRangeValue(value !== undefined ? value : draftRange);
+  const displayValue = formatRangeValue(committedValue);
 
   // Disable dates based on past/future constraints
   const isDateDisabled = React.useCallback(
@@ -249,12 +255,7 @@ export default function DateRangeFilter({
         <div className="flex items-center justify-between mt-4 gap-2">
           <button
             type="button"
-            onClick={() => {
-              setDraftRange(undefined);
-              setActivePreset(undefined);
-              onChange?.(undefined);
-              setOpen(false);
-            }}
+            onClick={handleClear}
             className="text-[13px] font-medium text-red-600 hover:text-red-700 transition cursor-pointer"
           >
             Clear
@@ -295,7 +296,26 @@ export default function DateRangeFilter({
               placeholder="Select date range"
               className={cn("min-w-40 w-full pr-9 placeholder:text-gray-400 cursor-pointer")}
             />
-            <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 size-4 pointer-events-none" />
+            {committedValue?.from || committedValue?.to ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDraftRange(undefined);
+                  setActivePreset(undefined);
+                  setInternalValue(undefined);
+                  onChange?.(undefined);
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+              >
+                <CalendarIcon className="hidden" />
+                <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            ) : (
+              <CalendarIcon className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 size-4 pointer-events-none" />
+            )}
           </div>
         </DialogTrigger>
         <DialogContent className="sm:max-w-md p-6 rounded-2xl bg-white border border-gray-100 shadow-xl">
@@ -324,20 +344,21 @@ export default function DateRangeFilter({
             placeholder="Select date range"
             className={cn("min-w-40 w-full pr-9 placeholder:text-gray-400 cursor-pointer")}
           />
-          {value?.from || value?.to ? (
+          {committedValue?.from || committedValue?.to ? (
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 setDraftRange(undefined);
                 setActivePreset(undefined);
+                setInternalValue(undefined);
                 onChange?.(undefined);
               }}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
             >
               <CalendarIcon className="hidden" />
               <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="6 18L18 6M6 6l12 12" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           ) : (

@@ -1,16 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router";
 import {
   Eye,
-  // Download,
-  // Upload,
-  // FileText,
-  // CheckCircle2,
-  // Clock,
-  // XCircle,
   Send,
+  Search,
 } from "lucide-react";
 import TitleSubtitle from "@/components/TitleSubtitle";
-// import StatCard from "@/components/ui/stat-card";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -38,7 +33,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Pagination from "@/components/Pagination";
-import QuotationDetailsDialog from "@/components/leads/quotation-details-dialog";
+import BuildingTypeSelector from "@/components/leads/building-type-selector";
 import {
   usePendingApprovalsQuery,
   useApproveQuotationMutation,
@@ -50,6 +45,7 @@ import { toast } from "sonner";
 
 function getStatusBadge(quotation: Quotation) {
   const status =
+    quotation.approvalStatus ||
     quotation.workflowStatus ||
     quotation.approval?.status ||
     quotation.status ||
@@ -62,6 +58,7 @@ function getStatusBadge(quotation: Quotation) {
           Approved
         </span>
       );
+    case "pending":
     case "pending_approval":
       return (
         <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
@@ -80,6 +77,12 @@ function getStatusBadge(quotation: Quotation) {
           Quote sent
         </span>
       );
+    case "accepted":
+      return (
+        <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+          Accepted
+        </span>
+      );
     case "draft":
     case "not_submitted":
     default:
@@ -92,25 +95,69 @@ function getStatusBadge(quotation: Quotation) {
 }
 
 export default function QuotationListPage() {
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedFilters, setSelectedFilters] = useState({
     buildingType: "all",
-    projectValue: "all",
     status: "all",
+    sort: "latest",
   });
 
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
+  // Debounce search query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Query Params
+  const queryParams = useMemo(() => {
+    const params: {
+      page: number;
+      limit: number;
+      sort: string;
+      search?: string;
+      buildingType?: string;
+      status?: string;
+    } = {
+      page: currentPage,
+      limit: rowsPerPage,
+      sort: selectedFilters.sort || "latest",
+    };
+
+    if (debouncedSearch.trim()) {
+      params.search = debouncedSearch.trim();
+    }
+    if (selectedFilters.buildingType !== "all") {
+      params.buildingType = selectedFilters.buildingType;
+    }
+    if (selectedFilters.status !== "all") {
+      params.status = selectedFilters.status;
+    }
+
+    return params;
+  }, [currentPage, rowsPerPage, debouncedSearch, selectedFilters]);
+
   // API Hooks
-  const { data: pendingData, isLoading, isError } = usePendingApprovalsQuery();
+  const { data: pendingData, isLoading, isError } = usePendingApprovalsQuery(queryParams);
   const approveMutation = useApproveQuotationMutation();
   const rejectMutation = useRejectQuotationMutation();
   const sendMutation = useSendQuotationMutation();
 
-  const quotations: Quotation[] = pendingData?.data?.quotations || [];
+  const quotations: Quotation[] = useMemo(
+    () => pendingData?.data?.quotations || [],
+    [pendingData?.data?.quotations],
+  );
+  const pagination = pendingData?.data?.pagination;
+  const totalItems = pagination?.total ?? quotations.length;
 
-  const [viewQuote, setViewQuote] = useState<Quotation | null>(null);
   const [approveQuote, setApproveQuote] = useState<Quotation | null>(null);
   const [approveNote, setApproveNote] = useState("");
 
@@ -173,47 +220,9 @@ export default function QuotationListPage() {
     }
   };
 
-  // Filter logic
-  const filteredQuotations = useMemo(() => {
-    return quotations.filter((q) => {
-      if (
-        selectedFilters.buildingType !== "all" &&
-        q.buildingType !== selectedFilters.buildingType
-      ) {
-        return false;
-      }
-      const effectiveStatus =
-        q.workflowStatus || q.approval?.status || q.status;
-      if (
-        selectedFilters.status !== "all" &&
-        effectiveStatus !== selectedFilters.status
-      ) {
-        return false;
-      }
-      return true;
-    });
-  }, [quotations, selectedFilters]);
-
-  // Stats computation
-  // const totalQuotations = quotations.length;
-  // const approvedCount = quotations.filter(
-  //   (q) => (q.workflowStatus || q.approval?.status) === "approved",
-  // ).length;
-  // const pendingCount = quotations.filter(
-  //   (q) => (q.workflowStatus || q.approval?.status) === "pending_approval",
-  // ).length;
-  // const rejectedCount = quotations.filter(
-  //   (q) => (q.workflowStatus || q.approval?.status) === "rejected",
-  // ).length;
-
-  const paginatedQuotations = useMemo(() => {
-    const start = (currentPage - 1) * rowsPerPage;
-    return filteredQuotations.slice(start, start + rowsPerPage);
-  }, [filteredQuotations, currentPage, rowsPerPage]);
-
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIds(paginatedQuotations.map((q) => q._id));
+      setSelectedIds(quotations.map((q) => q._id));
     } else {
       setSelectedIds([]);
     }
@@ -228,98 +237,74 @@ export default function QuotationListPage() {
   };
 
   const allSelected =
-    paginatedQuotations.length > 0 &&
-    selectedIds.length === paginatedQuotations.length;
+    quotations.length > 0 &&
+    selectedIds.length === quotations.length;
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <TitleSubtitle
-          title="Pending Quotations"
-          subtitle=""
-          // subtitle="Manage your assigned leads and track their progress."
+          title="All Quotations"
+          subtitle="Manage your Quotations."
         />
       </div>
 
-      {/* Stats Cards using the standard StatCard component */}
-      {/* <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Total Quotation"
-          value={totalQuotations}
-          color="bg-blue-600"
-          icon={<FileText className="h-5 w-5 text-blue-600" />}
-        />
-        <StatCard
-          title="Approved Quotation"
-          value={approvedCount}
-          color="bg-green-500"
-          icon={<CheckCircle2 className="h-5 w-5 text-green-600" />}
-        />
-        <StatCard
-          title="Pending Approval"
-          value={pendingCount}
-          color="bg-yellow-400"
-          icon={<Clock className="h-5 w-5 text-yellow-600" />}
-        />
-        <StatCard
-          title="Rejected Quotation"
-          value={rejectedCount}
-          color="bg-orange-400"
-          icon={<XCircle className="h-5 w-5 text-orange-600" />}
-        />
-      </div> */}
-
       {/* Action Buttons and Filters */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        {/* <div className="flex gap-3 flex-wrap">
-          <Button
-            className="bg-white text-gray-800 border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
-            size="sm"
-          >
-            <Upload className="w-4 h-4" />
-            Import CSV
-          </Button>
-          <Button
-            className="bg-white text-gray-800 border border-gray-300 hover:bg-gray-50 flex items-center gap-2"
-            size="sm"
-          >
-            <Download className="w-4 h-4" />
-            Export Data
-          </Button>
-        </div> */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        {/* Search input */}
+        <div className="relative w-full sm:w-64">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input
+            placeholder="Search quotations..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 w-full bg-white text-xs h-9"
+          />
+        </div>
 
-        <div className="flex gap-3 flex-wrap ml-auto">
-          {/* <Select
+        <div className="flex gap-2.5 flex-wrap items-center w-full lg:w-auto lg:ml-auto">
+          {/* Building Type Selector */}
+          <BuildingTypeSelector
             value={selectedFilters.buildingType}
-            onValueChange={(v) => handleFilterChange("buildingType", v)}
-          >
-            <SelectTrigger className="w-44 bg-white text-xs">
-              <SelectValue placeholder="Building Types" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Building Types</SelectItem>
-              <SelectItem value="warehouses">Warehouse</SelectItem>
-              <SelectItem value="commercial">Commercial</SelectItem>
-              <SelectItem value="residential">Residential</SelectItem>
-              <SelectItem value="workshops">Workshops</SelectItem>
-              <SelectItem value="agricultural">Agricultural</SelectItem>
-            </SelectContent>
-          </Select> */}
+            onChange={(val) => handleFilterChange("buildingType", val)}
+            includeAll
+            allLabel="All Building Types"
+            triggerClassName="w-full sm:w-44 bg-white text-xs h-9"
+            placeholder="Building Types"
+          />
 
+          {/* Status Filter */}
           <Select
             value={selectedFilters.status}
             onValueChange={(v) => handleFilterChange("status", v)}
           >
-            <SelectTrigger className="w-44 bg-white text-xs">
+            <SelectTrigger className="w-full sm:w-40 bg-white text-xs h-9">
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="draft">Draft</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
               <SelectItem value="pending_approval">Pending Approval</SelectItem>
               <SelectItem value="approved">Approved</SelectItem>
               <SelectItem value="rejected">Rejected</SelectItem>
-              <SelectItem value="sent">Quote sent</SelectItem>
+              <SelectItem value="sent">Sent</SelectItem>
+              <SelectItem value="accepted">Accepted</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Sort Filter */}
+          <Select
+            value={selectedFilters.sort}
+            onValueChange={(v) => handleFilterChange("sort", v)}
+          >
+            <SelectTrigger className="w-full sm:w-32 bg-white text-xs h-9">
+              <SelectValue placeholder="Sort" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="latest">Latest</SelectItem>
+              <SelectItem value="oldest">Oldest</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -357,7 +342,7 @@ export default function QuotationListPage() {
                 <TableHead className="text-gray-600 text-xs font-semibold">
                   DATE
                 </TableHead>
-                <TableHead className="text-gray-600 text-xs font-semibold text-center">
+                <TableHead className="text-gray-600 text-xs font-semibold text-right pr-6">
                   ACTIONS
                 </TableHead>
               </TableRow>
@@ -381,7 +366,7 @@ export default function QuotationListPage() {
                     Failed to load quotations.
                   </TableCell>
                 </TableRow>
-              ) : paginatedQuotations.length === 0 ? (
+              ) : quotations.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={8}
@@ -391,12 +376,15 @@ export default function QuotationListPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedQuotations.map((quotation) => {
+                quotations.map((quotation) => {
                   const effectiveStatus =
+                    quotation.approvalStatus ||
                     quotation.workflowStatus ||
                     quotation.approval?.status ||
                     quotation.status;
-                  const isPending = effectiveStatus === "pending_approval";
+                  const isPending =
+                    effectiveStatus === "pending_approval" ||
+                    effectiveStatus === "pending";
                   const isApproved = effectiveStatus === "approved";
                   const price =
                     quotation.finalPrice || quotation.basePrice || 0;
@@ -416,7 +404,7 @@ export default function QuotationListPage() {
                       <TableCell className="px-6 py-4 text-sm text-gray-900 font-medium">
                         <button
                           type="button"
-                          onClick={() => setViewQuote(quotation)}
+                          onClick={() => navigate(`/leads/quotation-details/${quotation._id}`)}
                           className="hover:text-blue-600 hover:underline text-left cursor-pointer font-medium"
                         >
                           {quotation.quoteNumber}
@@ -437,8 +425,8 @@ export default function QuotationListPage() {
                       <TableCell className="px-6 py-4 text-sm text-gray-500">
                         {new Date(quotation.createdAt).toLocaleDateString()}
                       </TableCell>
-                      <TableCell className="px-6 py-4 text-sm text-center">
-                        <div className="flex items-center justify-center gap-2">
+                      <TableCell className="px-6 py-4 text-sm text-right pr-6">
+                        <div className="flex items-center justify-end gap-2">
                           {isPending && (
                             <>
                               <Button
@@ -469,7 +457,7 @@ export default function QuotationListPage() {
                           )}
                           <button
                             type="button"
-                            onClick={() => setViewQuote(quotation)}
+                            onClick={() => navigate(`/leads/quotation-details/${quotation._id}`)}
                             className="text-purple-500 hover:text-purple-700 inline-block p-1 cursor-pointer"
                             title="View Details"
                           >
@@ -489,7 +477,7 @@ export default function QuotationListPage() {
       {/* Pagination */}
       <div className="bg-white">
         <Pagination
-          totalItems={filteredQuotations.length}
+          totalItems={totalItems}
           currentPage={currentPage}
           rowsPerPage={rowsPerPage}
           onPageChange={(p) => setCurrentPage(p)}
@@ -595,24 +583,6 @@ export default function QuotationListPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Details Modal */}
-      <QuotationDetailsDialog
-        open={!!viewQuote}
-        onOpenChange={(o) => !o && setViewQuote(null)}
-        quotation={viewQuote}
-        onApprove={(q) => {
-          setViewQuote(null);
-          setApproveQuote(q);
-        }}
-        onReject={(q) => {
-          setViewQuote(null);
-          setRejectQuote(q);
-        }}
-        onSend={(q) => {
-          handleSend(q);
-        }}
-      />
     </div>
   );
 }
