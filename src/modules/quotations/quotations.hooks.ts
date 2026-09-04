@@ -10,6 +10,8 @@ import {
   sendQuotationProvider,
   getQuotationSummaryProvider,
   getLeadQuotationsProvider,
+  downloadQuotationPdfProvider,
+  getQuotationHtmlPreviewProvider,
 } from "./quotations.api";
 import type {
   CreateQuotationPayload,
@@ -125,4 +127,20 @@ export function useLeadQuotationsQuery(leadId: string | undefined, params?: { st
     enabled: !!leadId,
   });
 }
+
+export function useDownloadQuotationPdfMutation() {
+  return useMutation({
+    mutationFn: (quotationId: string) => downloadQuotationPdfProvider(quotationId),
+  });
+}
+
+export function useQuotationHtmlPreviewQuery(quotationId: string | undefined) {
+  return useQuery({
+    queryKey: ["quotation", "html-preview", quotationId],
+    queryFn: () => getQuotationHtmlPreviewProvider(quotationId!),
+    enabled: !!quotationId,
+  });
+}
+
+
 
