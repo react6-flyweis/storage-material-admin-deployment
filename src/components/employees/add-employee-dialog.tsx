@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 // import { FieldGroup, FieldLegend, FieldSeparator } from "@/components/ui/field";
 import { Eye, EyeOff, Plus } from "lucide-react";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 const permissionItem = z.object({
   main: z.boolean().optional(),
@@ -63,19 +64,21 @@ const permissionsSchema = z.object({
 //   { key: "generate_report", label: "Generate Report" },
 // ];
 
-const addEmployeeSchema = z.object({
-  name: z.string().min(1, "Full name is required"),
-  email: z.string().email("Invalid email address"),
-  phone: z.string().optional(),
-  role: z.string().min(1, "Role is required"),
-  status: z.enum(["active", "inactive"]).optional(),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(6, "Confirm password is required"),
-  permissions: permissionsSchema.optional(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+const addEmployeeSchema = z
+  .object({
+    name: z.string().min(1, "Full name is required"),
+    email: z.string().email("Invalid email address"),
+    phone: z.string().optional(),
+    role: z.string().min(1, "Role is required"),
+    status: z.enum(["active", "inactive"]).optional(),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string().min(6, "Confirm password is required"),
+    permissions: permissionsSchema.optional(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
 type AddEmployeeForm = z.infer<typeof addEmployeeSchema>;
 
@@ -160,10 +163,14 @@ export function AddEmployeeDialog({
           setOpen(false);
           setShowSuccess(true);
         },
-        onError: (err: any) => {
-          toast.error(err?.response?.data?.message || "Failed to add employee");
+        onError: (err) => {
+          const errorMessage = getApiErrorMessage(
+            err,
+            "Failed to add employee",
+          );
+          toast.error(errorMessage);
         },
-      }
+      },
     );
   };
 
@@ -200,7 +207,9 @@ export function AddEmployeeDialog({
                 id="name"
                 placeholder="Enter full name"
                 {...register("name")}
-                className={errors.name ? "border-red-500 focus-visible:ring-red-500" : ""}
+                className={
+                  errors.name ? "border-red-500 focus-visible:ring-red-500" : ""
+                }
               />
               {errors.name && (
                 <p className="text-destructive text-sm">
@@ -210,13 +219,22 @@ export function AddEmployeeDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email" className={errors.email ? "text-red-500" : ""}>Email Address *</Label>
+              <Label
+                htmlFor="email"
+                className={errors.email ? "text-red-500" : ""}
+              >
+                Email Address *
+              </Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="Enter email address"
                 {...register("email")}
-                className={errors.email ? "border-red-500 focus-visible:ring-red-500" : ""}
+                className={
+                  errors.email
+                    ? "border-red-500 focus-visible:ring-red-500"
+                    : ""
+                }
               />
               {errors.email && (
                 <p className="text-destructive text-sm">
@@ -231,22 +249,37 @@ export function AddEmployeeDialog({
                 id="phone"
                 placeholder="Enter phone number"
                 {...register("phone")}
-                className={errors.phone ? "border-red-500 focus-visible:ring-red-500" : ""}
+                className={
+                  errors.phone
+                    ? "border-red-500 focus-visible:ring-red-500"
+                    : ""
+                }
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="role" className={errors.role ? "text-red-500" : ""}>Role</Label>
+              <Label
+                htmlFor="role"
+                className={errors.role ? "text-red-500" : ""}
+              >
+                Role
+              </Label>
               <Controller
                 control={control}
                 name="role"
                 render={({ field }) => (
                   <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger className={errors.role ? "w-full border-red-500 focus:ring-red-500" : "w-full"}>
+                    <SelectTrigger
+                      className={
+                        errors.role
+                          ? "w-full border-red-500 focus:ring-red-500"
+                          : "w-full"
+                      }
+                    >
                       <SelectValue placeholder="Select role" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="admin">Admin</SelectItem>
+                      {/* <SelectItem value="admin">Admin</SelectItem> */}
                       <SelectItem value="sales">Sales</SelectItem>
                       <SelectItem value="construction">Construction</SelectItem>
                       <SelectItem value="plant">Plant</SelectItem>
@@ -262,7 +295,7 @@ export function AddEmployeeDialog({
               )}
             </div>
 
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
               <Controller
                 control={control}
@@ -279,10 +312,15 @@ export function AddEmployeeDialog({
                   </Select>
                 )}
               />
-            </div>
+            </div> */}
 
             <div className="space-y-2">
-              <Label htmlFor="password" className={errors.password ? "text-red-500" : ""}>Create Password</Label>
+              <Label
+                htmlFor="password"
+                className={errors.password ? "text-red-500" : ""}
+              >
+                Create Password
+              </Label>
               <div className="relative">
                 <Input
                   id="password"
@@ -310,7 +348,12 @@ export function AddEmployeeDialog({
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className={errors.confirmPassword ? "text-red-500" : ""}>Confirm Password</Label>
+              <Label
+                htmlFor="confirmPassword"
+                className={errors.confirmPassword ? "text-red-500" : ""}
+              >
+                Confirm Password
+              </Label>
               <div className="relative">
                 <Input
                   id="confirmPassword"
@@ -339,8 +382,6 @@ export function AddEmployeeDialog({
             </div>
           </div>
 
-
-
           <div className="flex justify-end gap-3 pt-2">
             <Button
               type="button"
@@ -357,9 +398,11 @@ export function AddEmployeeDialog({
               className="bg-[#3b82f6] hover:bg-[#2563eb]"
               disabled={isSubmitting || createEmployeeMutation.isPending}
             >
-              {createEmployeeMutation.isPending ? "Saving..." : (initialValues && Object.keys(initialValues).length > 0
-                ? "Save Changes"
-                : "Add Employee")}
+              {createEmployeeMutation.isPending
+                ? "Saving..."
+                : initialValues && Object.keys(initialValues).length > 0
+                  ? "Save Changes"
+                  : "Add Employee"}
             </Button>
           </div>
         </form>
