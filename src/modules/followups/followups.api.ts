@@ -225,20 +225,39 @@ export type FollowUpActivitySummaryResponse = {
   };
 };
 
+export type FollowUpDeliveryChannel = {
+  enabled: boolean;
+  status: "sent" | "failed" | "pending" | "disabled" | string;
+  sentAt?: string | null;
+  error?: string;
+};
+
+export type FollowUpDeliveryTarget = {
+  sms?: FollowUpDeliveryChannel;
+  email?: FollowUpDeliveryChannel;
+};
+
+export type FollowUpDeliveryStatus = {
+  customer?: FollowUpDeliveryTarget;
+  salesEmployee?: FollowUpDeliveryTarget;
+};
+
 export type FollowUpHistoryItem = {
   _id: string;
   followUpDate: string;
   status: "pending" | "completed";
   computedStatus: FollowUpStatus;
-  modeOfContact: FollowUpModeOfContact;
+  modeOfContact?: FollowUpModeOfContact;
   source: string;
   assignedTo?: {
     _id?: string;
     name?: string;
+    email?: string;
   } | null;
   createdBy?: {
     _id?: string;
     name?: string;
+    email?: string;
   } | null;
   reminderMinutes?: number;
   notifyCustomer?: boolean;
@@ -247,6 +266,7 @@ export type FollowUpHistoryItem = {
   notes?: string;
   createdAt: string;
   completedAt?: string | null;
+  deliveryStatus?: FollowUpDeliveryStatus;
 };
 
 export type FollowUpActivityDetailResponse = {
