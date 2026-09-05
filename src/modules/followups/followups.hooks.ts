@@ -8,12 +8,19 @@ import {
   getFollowUpActivityDetailProvider,
   getTemperatureTransitionSummaryProvider,
   getTemperatureTransitionsListProvider,
+  getFollowUpTemplatesProvider,
+  createFollowUpTemplateProvider,
+  updateFollowUpTemplateProvider,
+  deleteFollowUpTemplateProvider,
 } from "./followups.api";
 import type {
   FollowUpActivityDetailOptions,
   FollowUpActivityFilters,
   FollowUpKind,
   TemperatureTransitionsQueryParams,
+  GetFollowUpTemplatesParams,
+  CreateFollowUpTemplatePayload,
+  UpdateFollowUpTemplatePayload,
 } from "./followups.api";
 
 export function useFollowUpStatsQuery() {
@@ -72,7 +79,7 @@ export function useFollowUpActivitySummaryQuery(
 
 export function useFollowUpActivityDetailQuery(
   leadId: string,
-  kind: FollowUpKind = "manual",
+  kind?: FollowUpKind,
   page = 1,
   limit = 20,
   optionsOrEnabled?: FollowUpActivityDetailOptions | boolean,
@@ -129,6 +136,59 @@ export function useTemperatureTransitionsQuery(
     enabled: enabled && Boolean(params.from && params.to),
     staleTime: 60 * 1000,
     retry: 1,
+  });
+}
+
+export function useFollowUpTemplatesQuery(
+  params: GetFollowUpTemplatesParams = { isActive: true, limit: 50 },
+  enabled = true
+) {
+  return useQuery({
+    queryKey: ["followups", "templates", params],
+    queryFn: () => getFollowUpTemplatesProvider(params),
+    staleTime: 60 * 1000,
+    enabled,
+  });
+}
+
+export function useCreateFollowUpTemplateMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreateFollowUpTemplatePayload) =>
+      createFollowUpTemplateProvider(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["followups", "templates"] });
+    },
+  });
+}
+
+export function useUpdateFollowUpTemplateMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      templateId,
+      payload,
+    }: {
+      templateId: string;
+      payload: UpdateFollowUpTemplatePayload;
+    }) => updateFollowUpTemplateProvider(templateId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["followups", "templates"] });
+    },
+  });
+}
+
+export function useDeleteFollowUpTemplateMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (templateId: string) =>
+      deleteFollowUpTemplateProvider(templateId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["followups", "templates"] });
+    },
   });
 }
 

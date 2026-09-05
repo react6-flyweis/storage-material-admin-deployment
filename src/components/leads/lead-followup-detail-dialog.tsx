@@ -49,7 +49,7 @@ export default function LeadFollowUpDetailDialog({
   onOpenChange,
   leadId,
   leadName,
-  kind = "automatic",
+  kind,
 }: LeadFollowUpDetailDialogProps) {
   const [page, setPage] = useState(1);
   const limit = 10;

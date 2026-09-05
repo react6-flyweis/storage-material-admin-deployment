@@ -148,6 +148,19 @@ function parseNumberArray(str: string): number[] {
     .filter((n) => !isNaN(n) && n > 0);
 }
 
+function limitIntervalsInput(val: string, maxAttempts: number): string {
+  // Disallow letters and any special characters; allow only numbers, commas, and spaces
+  let sanitized = val.replace(/[^0-9,\s]/g, "");
+
+  if (maxAttempts <= 0) return sanitized;
+  const parts = sanitized.split(",");
+  // If maxAttempts is N, only allow at most N-1 commas (which means at most N parts)
+  if (parts.length > maxAttempts) {
+    sanitized = parts.slice(0, maxAttempts).join(",");
+  }
+  return sanitized;
+}
+
 function matchArray(a: number[], b: number[]): boolean {
   if (a.length !== b.length) return false;
   return a.every((val, idx) => val === b[idx]);
@@ -369,26 +382,58 @@ export default function AutoFollowUpConfigDialog({
     }
   };
 
+  // Live validation calculations
+  const chatIntervalsCountError =
+    chatDropOff.enabled &&
+    chatDropOff.preset === "custom" &&
+    parsedChatIntervals.length !== chatDropOff.maxAttempts
+      ? `Number of intervals (${parsedChatIntervals.length}) must equal Max Attempts (${chatDropOff.maxAttempts}). Max ${chatDropOff.maxAttempts - 1} ${chatDropOff.maxAttempts - 1 === 1 ? "comma" : "commas"} allowed.`
+      : null;
+
+  const chatEmptyIntervalsError =
+    chatDropOff.enabled && parsedChatIntervals.length === 0
+      ? "Please enter at least one valid interval in minutes."
+      : null;
+
+  const chatTabHasError = Boolean(chatIntervalsCountError || chatEmptyIntervalsError);
+
+  const warmIntervalsCountError =
+    warmLead.preset === "custom" &&
+    parsedWarmIntervals.length !== warmLead.maxAttempts
+      ? `Number of intervals (${parsedWarmIntervals.length}) must equal Max Attempts (${warmLead.maxAttempts}). Max ${warmLead.maxAttempts - 1} ${warmLead.maxAttempts - 1 === 1 ? "comma" : "commas"} allowed.`
+      : null;
+
+  const warmEmptyIntervalsError =
+    parsedWarmIntervals.length === 0
+      ? "Please enter at least one valid interval in days."
+      : null;
+
+  const coldIntervalsCountError =
+    coldLead.enabled &&
+    coldLead.preset === "custom" &&
+    parsedColdIntervals.length !== coldLead.maxAttempts
+      ? `Number of intervals (${parsedColdIntervals.length}) must equal Max Attempts (${coldLead.maxAttempts}). Max ${coldLead.maxAttempts - 1} ${coldLead.maxAttempts - 1 === 1 ? "comma" : "commas"} allowed.`
+      : null;
+
+  const coldEmptyIntervalsError =
+    coldLead.enabled && parsedColdIntervals.length === 0
+      ? "Please enter at least one valid interval in days."
+      : null;
+
+  const leadTabHasError = Boolean(
+    warmIntervalsCountError ||
+      warmEmptyIntervalsError ||
+      coldIntervalsCountError ||
+      coldEmptyIntervalsError
+  );
+
   const handleSave = () => {
-    // Validate intervals
-    if (chatDropOff.enabled && parsedChatIntervals.length === 0) {
-      toast.error(
-        "Please enter at least one valid interval for Chat Drop-Off (in minutes).",
-      );
+    // Check validation errors directly on form
+    if (chatTabHasError) {
       setActiveTab("chatDropOff");
       return;
     }
-    if (parsedWarmIntervals.length === 0) {
-      toast.error(
-        "Please enter at least one valid interval for Warm Leads (in days).",
-      );
-      setActiveTab("leadFrequency");
-      return;
-    }
-    if (coldLead.enabled && parsedColdIntervals.length === 0) {
-      toast.error(
-        "Please enter at least one valid interval for Cold Lead follow-ups (in days).",
-      );
+    if (leadTabHasError) {
       setActiveTab("leadFrequency");
       return;
     }
@@ -534,15 +579,21 @@ export default function AutoFollowUpConfigDialog({
                   </TabsTrigger>
                   <TabsTrigger
                     value="chatDropOff"
-                    className="text-xs py-2 data-active:bg-white data-active:text-gray-900 data-active:shadow-xs font-medium cursor-pointer"
+                    className="text-xs py-2 data-active:bg-white data-active:text-gray-900 data-active:shadow-xs font-medium cursor-pointer relative"
                   >
-                    Chat Drop-Off
+                    <span>Chat Drop-Off</span>
+                    {chatTabHasError && (
+                      <span className="ml-1.5 inline-flex items-center justify-center w-2 h-2 rounded-full bg-red-500" />
+                    )}
                   </TabsTrigger>
                   <TabsTrigger
                     value="leadFrequency"
-                    className="text-xs py-2 data-active:bg-white data-active:text-gray-900 data-active:shadow-xs font-medium cursor-pointer"
+                    className="text-xs py-2 data-active:bg-white data-active:text-gray-900 data-active:shadow-xs font-medium cursor-pointer relative"
                   >
-                    Lead Cadence (Warm & Cold)
+                    <span>Lead Cadence</span>
+                    {leadTabHasError && (
+                      <span className="ml-1.5 inline-flex items-center justify-center w-2 h-2 rounded-full bg-red-500" />
+                    )}
                   </TabsTrigger>
                 </TabsList>
 
@@ -829,15 +880,20 @@ export default function AutoFollowUpConfigDialog({
                                 min={1}
                                 max={6}
                                 value={chatDropOff.maxAttempts}
-                                onChange={(e) =>
+                                onChange={(e) => {
+                                  const newMax = Math.max(
+                                    1,
+                                    Number(e.target.value) || 1,
+                                  );
                                   setChatDropOff((prev) => ({
                                     ...prev,
-                                    maxAttempts: Math.max(
-                                      1,
-                                      Number(e.target.value) || 1,
+                                    maxAttempts: newMax,
+                                    attemptIntervalsStr: limitIntervalsInput(
+                                      prev.attemptIntervalsStr,
+                                      newMax,
                                     ),
-                                  }))
-                                }
+                                  }));
+                                }}
                                 className="text-xs bg-white"
                                 placeholder="e.g. 3"
                               />
@@ -851,7 +907,10 @@ export default function AutoFollowUpConfigDialog({
                                 type="text"
                                 value={chatDropOff.attemptIntervalsStr}
                                 onChange={(e) => {
-                                  const val = e.target.value;
+                                  const val = limitIntervalsInput(
+                                    e.target.value,
+                                    chatDropOff.maxAttempts,
+                                  );
                                   const nums = parseNumberArray(val);
                                   setChatDropOff((prev) => ({
                                     ...prev,
@@ -860,10 +919,21 @@ export default function AutoFollowUpConfigDialog({
                                   }));
                                 }}
                                 placeholder="e.g. 30, 180, 1440"
-                                className="text-xs bg-white font-mono"
+                                className={`text-xs bg-white font-mono ${
+                                  chatTabHasError
+                                    ? "border-red-500 focus-visible:ring-red-500"
+                                    : ""
+                                }`}
                               />
                             </div>
                           </div>
+
+                          {chatIntervalsCountError && (
+                            <p className="text-[11px] text-red-600 font-medium flex items-center gap-1">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                              {chatIntervalsCountError}
+                            </p>
+                          )}
 
                           <div className="flex flex-wrap gap-1.5 pt-1">
                             {parsedChatIntervals.map((mins, idx) => (
@@ -875,9 +945,10 @@ export default function AutoFollowUpConfigDialog({
                                 Attempt #{idx + 1}: {formatMinutes(mins)} ({mins}m)
                               </Badge>
                             ))}
-                            {parsedChatIntervals.length === 0 && (
-                              <span className="text-[11px] text-red-500">
-                                Please specify at least one interval in minutes.
+                            {chatEmptyIntervalsError && (
+                              <span className="text-[11px] text-red-600 font-medium flex items-center gap-1">
+                                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                {chatEmptyIntervalsError}
                               </span>
                             )}
                           </div>
@@ -971,15 +1042,20 @@ export default function AutoFollowUpConfigDialog({
                                 min={1}
                                 max={6}
                                 value={warmLead.maxAttempts}
-                                onChange={(e) =>
+                                onChange={(e) => {
+                                  const newMax = Math.max(
+                                    1,
+                                    Number(e.target.value) || 1,
+                                  );
                                   setWarmLead((prev) => ({
                                     ...prev,
-                                    maxAttempts: Math.max(
-                                      1,
-                                      Number(e.target.value) || 1,
+                                    maxAttempts: newMax,
+                                    intervalsDaysStr: limitIntervalsInput(
+                                      prev.intervalsDaysStr,
+                                      newMax,
                                     ),
-                                  }))
-                                }
+                                  }));
+                                }}
                                 className="text-xs bg-white"
                                 placeholder="e.g. 4"
                               />
@@ -993,7 +1069,10 @@ export default function AutoFollowUpConfigDialog({
                                 type="text"
                                 value={warmLead.intervalsDaysStr}
                                 onChange={(e) => {
-                                  const val = e.target.value;
+                                  const val = limitIntervalsInput(
+                                    e.target.value,
+                                    warmLead.maxAttempts,
+                                  );
                                   const nums = parseNumberArray(val);
                                   setWarmLead((prev) => ({
                                     ...prev,
@@ -1002,10 +1081,21 @@ export default function AutoFollowUpConfigDialog({
                                   }));
                                 }}
                                 placeholder="e.g. 3, 7, 10, 14"
-                                className="text-xs bg-white font-mono"
+                                className={`text-xs bg-white font-mono ${
+                                  warmIntervalsCountError || warmEmptyIntervalsError
+                                    ? "border-red-500 focus-visible:ring-red-500"
+                                    : ""
+                                }`}
                               />
                             </div>
                           </div>
+
+                          {warmIntervalsCountError && (
+                            <p className="text-[11px] text-red-600 font-medium flex items-center gap-1">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                              {warmIntervalsCountError}
+                            </p>
+                          )}
 
                           <div className="flex flex-wrap gap-1.5 pt-1">
                             {parsedWarmIntervals.map((days, idx) => (
@@ -1017,9 +1107,10 @@ export default function AutoFollowUpConfigDialog({
                                 Attempt #{idx + 1}: Day {days}
                               </Badge>
                             ))}
-                            {parsedWarmIntervals.length === 0 && (
-                              <span className="text-[11px] text-red-500">
-                                Please specify at least one interval in days.
+                            {warmEmptyIntervalsError && (
+                              <span className="text-[11px] text-red-600 font-medium flex items-center gap-1">
+                                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                {warmEmptyIntervalsError}
                               </span>
                             )}
                           </div>
@@ -1115,15 +1206,20 @@ export default function AutoFollowUpConfigDialog({
                                 min={1}
                                 max={6}
                                 value={coldLead.maxAttempts}
-                                onChange={(e) =>
+                                onChange={(e) => {
+                                  const newMax = Math.max(
+                                    1,
+                                    Number(e.target.value) || 1,
+                                  );
                                   setColdLead((prev) => ({
                                     ...prev,
-                                    maxAttempts: Math.max(
-                                      1,
-                                      Number(e.target.value) || 1,
+                                    maxAttempts: newMax,
+                                    intervalsDaysStr: limitIntervalsInput(
+                                      prev.intervalsDaysStr,
+                                      newMax,
                                     ),
-                                  }))
-                                }
+                                  }));
+                                }}
                                 className="text-xs bg-white"
                                 placeholder="e.g. 4"
                               />
@@ -1137,7 +1233,10 @@ export default function AutoFollowUpConfigDialog({
                                 type="text"
                                 value={coldLead.intervalsDaysStr}
                                 onChange={(e) => {
-                                  const val = e.target.value;
+                                  const val = limitIntervalsInput(
+                                    e.target.value,
+                                    coldLead.maxAttempts,
+                                  );
                                   const nums = parseNumberArray(val);
                                   setColdLead((prev) => ({
                                     ...prev,
@@ -1146,10 +1245,21 @@ export default function AutoFollowUpConfigDialog({
                                   }));
                                 }}
                                 placeholder="e.g. 7, 15, 30"
-                                className="text-xs bg-white font-mono"
+                                className={`text-xs bg-white font-mono ${
+                                  coldIntervalsCountError || coldEmptyIntervalsError
+                                    ? "border-red-500 focus-visible:ring-red-500"
+                                    : ""
+                                }`}
                               />
                             </div>
                           </div>
+
+                          {coldIntervalsCountError && (
+                            <p className="text-[11px] text-red-600 font-medium flex items-center gap-1">
+                              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                              {coldIntervalsCountError}
+                            </p>
+                          )}
 
                           <div className="flex flex-wrap gap-1.5 pt-1">
                             {parsedColdIntervals.map((days, idx) => (
@@ -1161,9 +1271,10 @@ export default function AutoFollowUpConfigDialog({
                                 Attempt #{idx + 1}: Day {days}
                               </Badge>
                             ))}
-                            {parsedColdIntervals.length === 0 && (
-                              <span className="text-[11px] text-red-500">
-                                Please specify at least one interval in days.
+                            {coldEmptyIntervalsError && (
+                              <span className="text-[11px] text-red-600 font-medium flex items-center gap-1">
+                                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                {coldEmptyIntervalsError}
                               </span>
                             )}
                           </div>
@@ -1219,8 +1330,8 @@ export default function AutoFollowUpConfigDialog({
                 type="button"
                 size="sm"
                 onClick={handleSave}
-                disabled={isLoading || updateMutation.isPending || !isAdmin}
-                className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 cursor-pointer"
+                disabled={isLoading || updateMutation.isPending || !isAdmin || chatTabHasError || leadTabHasError}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {updateMutation.isPending ? (
                   <>

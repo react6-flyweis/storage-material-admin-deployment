@@ -252,7 +252,7 @@ export type FollowUpHistoryItem = {
 export type FollowUpActivityDetailResponse = {
   success: boolean;
   data: {
-    kind: FollowUpKind;
+    kind?: FollowUpKind;
     view: "detail";
     lead: {
       _id: string;
@@ -327,18 +327,21 @@ export type FollowUpActivityDetailOptions = {
 
 export async function getFollowUpActivityDetailProvider(
   leadId: string,
-  kind: FollowUpKind = "manual",
+  kind?: FollowUpKind,
   page = 1,
   limit = 20,
   options?: FollowUpActivityDetailOptions
 ) {
   const params: Record<string, string | number> = {
     view: "detail",
-    kind,
     leadId,
     page,
     limit,
   };
+
+  if (kind) {
+    params.kind = kind;
+  }
 
   if (options?.startDate) params.startDate = options.startDate;
   if (options?.endDate) params.endDate = options.endDate;
@@ -448,6 +451,91 @@ export async function getTemperatureTransitionsListProvider(
     { params }
   );
 
+  return response.data;
+}
+
+export type FollowUpTemplateItem = {
+  _id: string;
+  title: string;
+  message: string;
+  category?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+  isDeleted?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type FollowUpTemplatesResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    templates: FollowUpTemplateItem[];
+    pagination?: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  };
+};
+
+export type GetFollowUpTemplatesParams = {
+  search?: string;
+  isActive?: boolean;
+  includeDeleted?: boolean;
+  page?: number;
+  limit?: number;
+};
+
+export async function getFollowUpTemplatesProvider(
+  params: GetFollowUpTemplatesParams = { isActive: true, limit: 50 }
+) {
+  const response = await apiClient.get<FollowUpTemplatesResponse>(
+    "/api/followups/templates",
+    { params }
+  );
+  return response.data;
+}
+
+export type CreateFollowUpTemplatePayload = {
+  title: string;
+  message: string;
+  category?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+};
+
+export type UpdateFollowUpTemplatePayload = Partial<CreateFollowUpTemplatePayload>;
+
+export async function createFollowUpTemplateProvider(
+  payload: CreateFollowUpTemplatePayload
+) {
+  const response = await apiClient.post<{
+    success: boolean;
+    message: string;
+    data: FollowUpTemplateItem;
+  }>("/api/followups/templates", payload);
+  return response.data;
+}
+
+export async function updateFollowUpTemplateProvider(
+  templateId: string,
+  payload: UpdateFollowUpTemplatePayload
+) {
+  const response = await apiClient.put<{
+    success: boolean;
+    message: string;
+    data: FollowUpTemplateItem;
+  }>(`/api/followups/templates/${templateId}`, payload);
+  return response.data;
+}
+
+export async function deleteFollowUpTemplateProvider(templateId: string) {
+  const response = await apiClient.delete<{
+    success: boolean;
+    message: string;
+  }>(`/api/followups/templates/${templateId}`);
   return response.data;
 }
 

@@ -362,7 +362,7 @@ export function AdminTable({
                             )}
 
                             {/* Transfer Main Admin (Only to active regular admins) */}
-                            {!isMain && admin.isActive && (
+                            {/* {!isMain && admin.isActive && (
                               <DropdownMenuItem
                                 onClick={() => setTransferAdmin(admin)}
                                 className="text-xs gap-2 cursor-pointer text-amber-700 hover:bg-amber-50"
@@ -370,7 +370,7 @@ export function AdminTable({
                                 <ArrowRightLeft className="w-3.5 h-3.5 text-amber-600" />
                                 Transfer Main Admin
                               </DropdownMenuItem>
-                            )}
+                            )} */}
 
                             {/* Delete Admin (Cannot delete main admin or self) */}
                             {!isMain && !isSelf && (

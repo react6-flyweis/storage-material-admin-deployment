@@ -384,19 +384,21 @@ export default function LeadScoring() {
             <h1 className="text-xl font-bold text-gray-900">
               Lead Scoring & Auto Follow-up
             </h1>
-            {isDateRangeSelected && (
-              <span className="text-gray-600 font-semibold text-sm sm:text-base flex items-center gap-2">
-                Total Leads - {totalLeadsCount}
-                {isDataLoading && (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" />
-                )}
-              </span>
-            )}
+            {/* {isDateRangeSelected && ( */}
+            <span className="text-gray-600 font-semibold text-sm sm:text-base flex items-center gap-2">
+              ( Total Leads -{" "}
+              {isDataLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-teal-600" />
+              ) : (
+                totalLeadsCount
+              )}
+              )
+            </span>
+            {/* )} */}
           </div>
           <Button
             onClick={() => setIsConfigOpen(true)}
-            variant="outline"
-            className="bg-white text-gray-800 hover:bg-gray-50 border border-gray-200 shadow-sm font-medium flex items-center gap-2 cursor-pointer text-xs rounded-lg px-4 py-2"
+            className="bg-teal-400 hover:bg-teal-600 text-white"
           >
             <span>Set Follow-Up Frequency</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -740,12 +742,6 @@ export default function LeadScoring() {
         onOpenChange={(open) => !open && setSelectedDetailLead(null)}
         leadId={selectedDetailLead?.id || null}
         leadName={selectedDetailLead?.name}
-        kind={followUpKind === "all" ? "manual" : followUpKind}
-        startDate={dateFrom || undefined}
-        endDate={dateTo || undefined}
-        transitionState={
-          isDateRangeSelected && scoreState !== "all" ? scoreState : undefined
-        }
       />
 
       {/* Auto Follow-up Configuration Modal */}

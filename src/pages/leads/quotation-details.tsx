@@ -15,23 +15,13 @@ import {
 } from "lucide-react";
 import {
   useQuotationQuery,
-  useApproveQuotationMutation,
-  useRejectQuotationMutation,
-  useSendQuotationMutation,
   useDownloadQuotationPdfMutation,
   useQuotationHtmlPreviewQuery,
 } from "@/modules/quotations/quotations.hooks";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import ApproveQuotationDialog from "@/components/leads/approve-quotation-dialog";
+import RejectQuotationDialog from "@/components/leads/reject-quotation-dialog";
+import SendQuotationDialog from "@/components/leads/send-quotation-dialog";
 
 export default function QuotationDetailsPage() {
   const navigate = useNavigate();
@@ -45,65 +35,13 @@ export default function QuotationDetailsPage() {
     refetch: refetchHtmlPreview,
   } = useQuotationHtmlPreviewQuery(id);
 
-  const sendMutation = useSendQuotationMutation();
-  const approveMutation = useApproveQuotationMutation();
-  const rejectMutation = useRejectQuotationMutation();
   const downloadPdfMutation = useDownloadQuotationPdfMutation();
 
   const [isApproveOpen, setIsApproveOpen] = useState(false);
-  const [approveNote, setApproveNote] = useState("");
-
   const [isRejectOpen, setIsRejectOpen] = useState(false);
-  const [rejectionReason, setRejectionReason] = useState("");
+  const [isSendOpen, setIsSendOpen] = useState(false);
 
   const q = data?.data?.quotation;
-
-  const handleSend = async () => {
-    if (!id) return;
-    try {
-      const res = await sendMutation.mutateAsync(id);
-      const provider = res.data?.emailProvider
-        ? ` via ${res.data.emailProvider}`
-        : "";
-      toast.success(`Quotation sent to customer successfully${provider}!`);
-    } catch (err: unknown) {
-      const errorObj = err as { response?: { data?: { message?: string } } };
-      const msg =
-        errorObj?.response?.data?.message ||
-        "Failed to send quotation. Quotation must be approved first.";
-      toast.error(msg);
-    }
-  };
-
-  const handleApprove = async () => {
-    if (!id) return;
-    try {
-      await approveMutation.mutateAsync({ quotationId: id, note: approveNote });
-      toast.success("Quotation approved!");
-      setIsApproveOpen(false);
-      setApproveNote("");
-    } catch {
-      toast.error("Failed to approve quotation.");
-    }
-  };
-
-  const handleReject = async () => {
-    if (!id || !rejectionReason.trim()) {
-      toast.error("Please enter a reason for rejection.");
-      return;
-    }
-    try {
-      await rejectMutation.mutateAsync({
-        quotationId: id,
-        reason: rejectionReason,
-      });
-      toast.success("Quotation rejected.");
-      setIsRejectOpen(false);
-      setRejectionReason("");
-    } catch {
-      toast.error("Failed to reject quotation.");
-    }
-  };
 
   if (isLoading) {
     return (
@@ -213,8 +151,8 @@ export default function QuotationDetailsPage() {
           {/* Send to Customer (available once approved) */}
           <Button
             className="bg-[#7c3aed] hover:bg-purple-700 text-white h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 disabled:opacity-50"
-            onClick={handleSend}
-            disabled={!isApproved || sendMutation.isPending}
+            onClick={() => setIsSendOpen(true)}
+            disabled={!isApproved}
             title={
               !isApproved
                 ? "Quotation must be approved before sending to customer"
@@ -222,7 +160,7 @@ export default function QuotationDetailsPage() {
             }
           >
             <Send className="h-4 w-4" />
-            {sendMutation.isPending ? "Sending..." : "Send to Customer"}
+            Send to Customer
           </Button>
         </div>
       </div>
@@ -355,98 +293,38 @@ export default function QuotationDetailsPage() {
         )}
       </div>
 
+      {/* Extracted Approve Modal */}
+      {id && (
+        <ApproveQuotationDialog
+          open={isApproveOpen}
+          onOpenChange={setIsApproveOpen}
+          quotationId={id}
+          quoteNumber={q.quoteNumber}
+          versionNumber={q.versionNumber}
+        />
+      )}
 
-      {/* Approve Modal */}
-      <Dialog open={isApproveOpen} onOpenChange={setIsApproveOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base font-semibold">
-              Approve Quotation
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <p className="text-sm text-gray-600">
-              Are you sure you want to approve Quote{" "}
-              <strong>{q.quoteNumber}</strong> (v{q.versionNumber})? This will
-              enable sending the quotation to the customer.
-            </p>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-gray-600">
-                Optional Approval Note
-              </Label>
-              <Input
-                value={approveNote}
-                onChange={(e) => setApproveNote(e.target.value)}
-                placeholder="e.g. Approved for customer send"
-                className="h-9 text-sm"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsApproveOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="bg-[#16a34a] hover:bg-green-700 text-white"
-              onClick={handleApprove}
-              disabled={approveMutation.isPending}
-            >
-              {approveMutation.isPending ? "Approving..." : "Confirm Approve"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Extracted Reject Modal */}
+      {id && (
+        <RejectQuotationDialog
+          open={isRejectOpen}
+          onOpenChange={setIsRejectOpen}
+          quotationId={id}
+          quoteNumber={q.quoteNumber}
+          versionNumber={q.versionNumber}
+        />
+      )}
 
-      {/* Reject Modal */}
-      <Dialog open={isRejectOpen} onOpenChange={setIsRejectOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base font-semibold">
-              Reject Quotation
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <p className="text-sm text-gray-600">
-              Rejecting Quote <strong>{q.quoteNumber}</strong> (v
-              {q.versionNumber}). Sales will be requested to update and
-              resubmit.
-            </p>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-gray-600">
-                Rejection Reason <span className="text-red-500">*</span>
-              </Label>
-              <Textarea
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="e.g. Update dimensions and resend"
-                className="text-sm min-h-24 resize-none"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsRejectOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="bg-[#dc2626] hover:bg-red-700 text-white"
-              onClick={handleReject}
-              disabled={rejectMutation.isPending}
-            >
-              {rejectMutation.isPending ? "Rejecting..." : "Confirm Reject"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Extracted Send Modal */}
+      {id && (
+        <SendQuotationDialog
+          open={isSendOpen}
+          onOpenChange={setIsSendOpen}
+          quotationId={id}
+          quoteNumber={q.quoteNumber}
+          versionNumber={q.versionNumber}
+        />
+      )}
     </div>
   );
 }

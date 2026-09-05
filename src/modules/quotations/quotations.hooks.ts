@@ -17,6 +17,7 @@ import type {
   CreateQuotationPayload,
   UpdateQuotationPayload,
   GetQuotationsParams,
+  SendQuotationPayload,
 } from "./quotations.api";
 
 export function useCreateQuotationMutation() {
@@ -100,8 +101,9 @@ export function usePendingApprovalsQuery(params?: GetQuotationsParams) {
 export function useSendQuotationMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (quotationId: string) => sendQuotationProvider(quotationId),
-    onSuccess: (data, quotationId) => {
+    mutationFn: ({ quotationId, payload }: { quotationId: string; payload?: SendQuotationPayload }) =>
+      sendQuotationProvider(quotationId, payload),
+    onSuccess: (data, { quotationId }) => {
       queryClient.invalidateQueries({ queryKey: ["quotation", quotationId] });
       queryClient.invalidateQueries({ queryKey: ["quotations", "lead", data.data.quotation.leadId] });
       queryClient.invalidateQueries({ queryKey: ["quotations", "pending"] });
