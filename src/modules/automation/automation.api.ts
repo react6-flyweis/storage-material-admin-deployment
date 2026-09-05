@@ -26,22 +26,20 @@ export interface FollowupAutomationConfigPayload {
     maxAttempts: number;
     attemptIntervalsMinutes: number[];
   };
-  coldLead: {
-    enabled: boolean;
-    maxAttempts: number;
-    intervalsDays: number[];
-  };
+
   manualReminder: {
     defaultReminderMinutes: number;
     sendDueNowReminder: boolean;
   };
-  leadFrequency?: {
+  leadFollowUp?: {
     warm?: {
+      enabled?: boolean;
       preset?: WarmPreset;
       maxAttempts?: number;
       intervalsDays?: number[];
     };
     cold?: {
+      enabled?: boolean;
       preset?: ColdPreset;
       maxAttempts?: number;
       intervalsDays?: number[];
@@ -73,13 +71,15 @@ export type FollowUpAutomationConfig = {
     defaultReminderMinutes: number;
     sendDueNowReminder: boolean;
   };
-  leadFrequency?: {
+  leadFollowUp?: {
     warm?: {
+      enabled?: boolean;
       preset?: WarmPreset;
       maxAttempts?: number;
       intervalsDays?: number[];
     };
     cold?: {
+      enabled?: boolean;
       preset?: ColdPreset;
       maxAttempts?: number;
       intervalsDays?: number[];

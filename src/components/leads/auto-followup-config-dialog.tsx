@@ -214,6 +214,7 @@ export default function AutoFollowUpConfigDialog({
   });
 
   const [warmLead, setWarmLead] = useState({
+    enabled: true,
     preset: "twice_week" as WarmPreset,
     maxAttempts: 4,
     intervalsDaysStr: "3, 7, 10, 14",
@@ -265,43 +266,37 @@ export default function AutoFollowUpConfigDialog({
       });
     }
 
-    if (cfg.leadFrequency?.warm) {
-      const intervals = Array.isArray(cfg.leadFrequency.warm.intervalsDays)
-        ? cfg.leadFrequency.warm.intervalsDays
+    const warmCfg = cfg.leadFollowUp?.warm;
+    if (warmCfg) {
+      const intervals = Array.isArray(warmCfg.intervalsDays)
+        ? warmCfg.intervalsDays
         : [3, 7, 10, 14];
       setWarmLead({
-        preset:
-          (cfg.leadFrequency.warm.preset as WarmPreset) ||
-          detectWarmPreset(intervals),
-        maxAttempts: Number(cfg.leadFrequency.warm.maxAttempts) || 4,
+        enabled:
+          warmCfg.enabled !== undefined ? Boolean(warmCfg.enabled) : true,
+        preset: (warmCfg.preset as WarmPreset) || detectWarmPreset(intervals),
+        maxAttempts: Number(warmCfg.maxAttempts) || 4,
         intervalsDaysStr: intervals.join(", "),
       });
     } else {
       setWarmLead({
+        enabled: true,
         preset: "twice_week",
         maxAttempts: 4,
         intervalsDaysStr: "3, 7, 10, 14",
       });
     }
 
-    const coldIntervals = Array.isArray(cfg.coldLead?.intervalsDays)
-      ? cfg.coldLead.intervalsDays
-      : Array.isArray(cfg.leadFrequency?.cold?.intervalsDays)
-        ? cfg.leadFrequency.cold.intervalsDays
-        : [7, 15, 30];
+    const coldCfg = cfg.leadFollowUp?.cold;
+    const coldIntervals = Array.isArray(coldCfg?.intervalsDays)
+      ? coldCfg.intervalsDays
+      : [7, 15, 30];
     const coldPreset =
-      (cfg.leadFrequency?.cold?.preset as ColdPreset) ||
-      detectColdPreset(coldIntervals);
+      (coldCfg?.preset as ColdPreset) || detectColdPreset(coldIntervals);
     setColdLead({
-      enabled:
-        cfg.coldLead?.enabled !== undefined
-          ? Boolean(cfg.coldLead.enabled)
-          : true,
+      enabled: coldCfg?.enabled !== undefined ? Boolean(coldCfg.enabled) : true,
       preset: coldPreset,
-      maxAttempts:
-        Number(cfg.coldLead?.maxAttempts) ||
-        Number(cfg.leadFrequency?.cold?.maxAttempts) ||
-        4,
+      maxAttempts: Number(coldCfg?.maxAttempts) || 4,
       intervalsDaysStr: coldIntervals.join(", "),
     });
 
@@ -352,6 +347,7 @@ export default function AutoFollowUpConfigDialog({
     const target = WARM_PRESETS[presetKey];
     if (target) {
       setWarmLead({
+        enabled: true,
         preset: presetKey,
         intervalsDaysStr: target.intervals.join(", "),
         maxAttempts: target.maxAttempts,
@@ -395,16 +391,19 @@ export default function AutoFollowUpConfigDialog({
       ? "Please enter at least one valid interval in minutes."
       : null;
 
-  const chatTabHasError = Boolean(chatIntervalsCountError || chatEmptyIntervalsError);
+  const chatTabHasError = Boolean(
+    chatIntervalsCountError || chatEmptyIntervalsError,
+  );
 
   const warmIntervalsCountError =
+    warmLead.enabled &&
     warmLead.preset === "custom" &&
     parsedWarmIntervals.length !== warmLead.maxAttempts
       ? `Number of intervals (${parsedWarmIntervals.length}) must equal Max Attempts (${warmLead.maxAttempts}). Max ${warmLead.maxAttempts - 1} ${warmLead.maxAttempts - 1 === 1 ? "comma" : "commas"} allowed.`
       : null;
 
   const warmEmptyIntervalsError =
-    parsedWarmIntervals.length === 0
+    warmLead.enabled && parsedWarmIntervals.length === 0
       ? "Please enter at least one valid interval in days."
       : null;
 
@@ -422,9 +421,9 @@ export default function AutoFollowUpConfigDialog({
 
   const leadTabHasError = Boolean(
     warmIntervalsCountError ||
-      warmEmptyIntervalsError ||
-      coldIntervalsCountError ||
-      coldEmptyIntervalsError
+    warmEmptyIntervalsError ||
+    coldIntervalsCountError ||
+    coldEmptyIntervalsError,
   );
 
   const handleSave = () => {
@@ -434,7 +433,7 @@ export default function AutoFollowUpConfigDialog({
       return;
     }
     if (leadTabHasError) {
-      setActiveTab("leadFrequency");
+      setActiveTab("leadFollowUp");
       return;
     }
 
@@ -461,14 +460,6 @@ export default function AutoFollowUpConfigDialog({
         ),
         attemptIntervalsMinutes: sortedChatIntervals,
       },
-      coldLead: {
-        enabled: coldLead.enabled,
-        maxAttempts: Math.max(
-          1,
-          Number(coldLead.maxAttempts) || sortedColdIntervals.length || 4,
-        ),
-        intervalsDays: sortedColdIntervals,
-      },
       manualReminder: {
         defaultReminderMinutes: Math.max(
           0,
@@ -476,8 +467,9 @@ export default function AutoFollowUpConfigDialog({
         ),
         sendDueNowReminder: manualReminder.sendDueNowReminder,
       },
-      leadFrequency: {
+      leadFollowUp: {
         warm: {
+          enabled: warmLead.enabled,
           preset: warmLead.preset,
           maxAttempts: Math.max(
             1,
@@ -486,6 +478,7 @@ export default function AutoFollowUpConfigDialog({
           intervalsDays: sortedWarmIntervals,
         },
         cold: {
+          enabled: coldLead.enabled,
           preset: coldLead.preset,
           maxAttempts: Math.max(
             1,
@@ -587,7 +580,7 @@ export default function AutoFollowUpConfigDialog({
                     )}
                   </TabsTrigger>
                   <TabsTrigger
-                    value="leadFrequency"
+                    value="leadFollowUp"
                     className="text-xs py-2 data-active:bg-white data-active:text-gray-900 data-active:shadow-xs font-medium cursor-pointer relative"
                   >
                     <span>Lead Cadence</span>
@@ -783,7 +776,8 @@ export default function AutoFollowUpConfigDialog({
                           Chat Drop-Off Follow-Up
                         </h4>
                         <p className="text-xs text-gray-500">
-                          Automatically re-engage users who abandoned active chats
+                          Automatically re-engage users who abandoned active
+                          chats
                         </p>
                       </div>
                       <Switch
@@ -942,7 +936,8 @@ export default function AutoFollowUpConfigDialog({
                                 variant="secondary"
                                 className="text-[11px] bg-blue-50 text-blue-700 border border-blue-200 font-normal px-2.5 py-0.5"
                               >
-                                Attempt #{idx + 1}: {formatMinutes(mins)} ({mins}m)
+                                Attempt #{idx + 1}: {formatMinutes(mins)} (
+                                {mins}m)
                               </Badge>
                             ))}
                             {chatEmptyIntervalsError && (
@@ -962,7 +957,8 @@ export default function AutoFollowUpConfigDialog({
                                 variant="secondary"
                                 className="text-[11px] bg-blue-50 text-blue-700 border border-blue-200 font-normal px-2.5 py-0.5"
                               >
-                                Attempt #{idx + 1}: {formatMinutes(mins)} ({mins}m)
+                                Attempt #{idx + 1}: {formatMinutes(mins)} (
+                                {mins}m)
                               </Badge>
                             ))}
                           </div>
@@ -974,18 +970,26 @@ export default function AutoFollowUpConfigDialog({
 
                 {/* 3. Lead Cadence (Warm & Cold) Tab */}
                 <TabsContent
-                  value="leadFrequency"
+                  value="leadFollowUp"
                   className="space-y-4 pt-3 mt-0 focus-visible:ring-0"
                 >
                   {/* Card 1: Warm Leads */}
                   <div className="border border-gray-200 rounded-lg p-4 bg-white space-y-4">
-                    <div className="pb-3 border-b border-gray-100">
-                      <h4 className="text-sm font-semibold text-gray-900">
-                        Warm Leads
-                      </h4>
-                      <p className="text-xs text-gray-500">
-                        Follow-up schedule for warm leads
-                      </p>
+                    <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-900">
+                          Warm Leads
+                        </h4>
+                        <p className="text-xs text-gray-500">
+                          Follow-up schedule for warm leads
+                        </p>
+                      </div>
+                      <Switch
+                        checked={warmLead.enabled}
+                        onCheckedChange={(checked) =>
+                          setWarmLead((prev) => ({ ...prev, enabled: checked }))
+                        }
+                      />
                     </div>
 
                     <div className="space-y-2">
@@ -1082,7 +1086,8 @@ export default function AutoFollowUpConfigDialog({
                                 }}
                                 placeholder="e.g. 3, 7, 10, 14"
                                 className={`text-xs bg-white font-mono ${
-                                  warmIntervalsCountError || warmEmptyIntervalsError
+                                  warmIntervalsCountError ||
+                                  warmEmptyIntervalsError
                                     ? "border-red-500 focus-visible:ring-red-500"
                                     : ""
                                 }`}
@@ -1246,7 +1251,8 @@ export default function AutoFollowUpConfigDialog({
                                 }}
                                 placeholder="e.g. 7, 15, 30"
                                 className={`text-xs bg-white font-mono ${
-                                  coldIntervalsCountError || coldEmptyIntervalsError
+                                  coldIntervalsCountError ||
+                                  coldEmptyIntervalsError
                                     ? "border-red-500 focus-visible:ring-red-500"
                                     : ""
                                 }`}
@@ -1330,7 +1336,13 @@ export default function AutoFollowUpConfigDialog({
                 type="button"
                 size="sm"
                 onClick={handleSave}
-                disabled={isLoading || updateMutation.isPending || !isAdmin || chatTabHasError || leadTabHasError}
+                disabled={
+                  isLoading ||
+                  updateMutation.isPending ||
+                  !isAdmin ||
+                  chatTabHasError ||
+                  leadTabHasError
+                }
                 className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {updateMutation.isPending ? (

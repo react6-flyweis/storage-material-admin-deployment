@@ -233,6 +233,7 @@ export type GetLeadDetailResponse = {
       width?: string | null;
       length?: string | null;
       height?: string | null;
+      roofPitch?: string | null;
       source?: string;
       jobId?: string;
       projectName?: string;
