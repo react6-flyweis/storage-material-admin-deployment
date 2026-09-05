@@ -1,10 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router";
-import {
-  Eye,
-  Send,
-  Search,
-} from "lucide-react";
+import { Eye, Send, Search } from "lucide-react";
 import TitleSubtitle from "@/components/TitleSubtitle";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,34 +18,17 @@ import {
   TableHead,
   TableCell,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import Pagination from "@/components/Pagination";
 import BuildingTypeSelector from "@/components/leads/building-type-selector";
-import {
-  usePendingApprovalsQuery,
-  useApproveQuotationMutation,
-  useRejectQuotationMutation,
-  useSendQuotationMutation,
-} from "@/modules/quotations/quotations.hooks";
+import { usePendingApprovalsQuery } from "@/modules/quotations/quotations.hooks";
 import type { Quotation } from "@/modules/quotations/quotations.api";
-import { toast } from "sonner";
+import ApproveQuotationDialog from "@/components/leads/approve-quotation-dialog";
+import RejectQuotationDialog from "@/components/leads/reject-quotation-dialog";
+import SendQuotationDialog from "@/components/leads/send-quotation-dialog";
 
 function getStatusBadge(quotation: Quotation) {
-  const status =
-    quotation.approvalStatus ||
-    quotation.workflowStatus ||
-    quotation.approval?.status ||
-    quotation.status ||
-    "draft";
+  const status = quotation.workflowStatus || quotation.status || "draft";
 
   switch (status) {
     case "approved":
@@ -84,7 +63,6 @@ function getStatusBadge(quotation: Quotation) {
         </span>
       );
     case "draft":
-    case "not_submitted":
     default:
       return (
         <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-gray-100 text-gray-700">
@@ -146,11 +124,11 @@ export default function QuotationListPage() {
   }, [currentPage, rowsPerPage, debouncedSearch, selectedFilters]);
 
   // API Hooks
-  const { data: pendingData, isLoading, isError } = usePendingApprovalsQuery(queryParams);
-  const approveMutation = useApproveQuotationMutation();
-  const rejectMutation = useRejectQuotationMutation();
-  const sendMutation = useSendQuotationMutation();
-
+  const {
+    data: pendingData,
+    isLoading,
+    isError,
+  } = usePendingApprovalsQuery(queryParams);
   const quotations: Quotation[] = useMemo(
     () => pendingData?.data?.quotations || [],
     [pendingData?.data?.quotations],
@@ -159,10 +137,8 @@ export default function QuotationListPage() {
   const totalItems = pagination?.total ?? quotations.length;
 
   const [approveQuote, setApproveQuote] = useState<Quotation | null>(null);
-  const [approveNote, setApproveNote] = useState("");
-
   const [rejectQuote, setRejectQuote] = useState<Quotation | null>(null);
-  const [rejectionReason, setRejectionReason] = useState("");
+  const [sendQuote, setSendQuote] = useState<Quotation | null>(null);
 
   const handleFilterChange = (filterName: string, value: string) => {
     setSelectedFilters((prev) => ({
@@ -170,54 +146,6 @@ export default function QuotationListPage() {
       [filterName]: value,
     }));
     setCurrentPage(1);
-  };
-
-  const handleApprove = async () => {
-    if (!approveQuote) return;
-    try {
-      await approveMutation.mutateAsync({
-        quotationId: approveQuote._id,
-        note: approveNote,
-      });
-      toast.success(`Quotation ${approveQuote.quoteNumber} approved!`);
-      setApproveQuote(null);
-      setApproveNote("");
-    } catch {
-      toast.error("Failed to approve quotation.");
-    }
-  };
-
-  const handleReject = async () => {
-    if (!rejectQuote || !rejectionReason.trim()) {
-      toast.error("Please enter a rejection reason.");
-      return;
-    }
-    try {
-      await rejectMutation.mutateAsync({
-        quotationId: rejectQuote._id,
-        reason: rejectionReason,
-      });
-      toast.success(`Quotation ${rejectQuote.quoteNumber} rejected.`);
-      setRejectQuote(null);
-      setRejectionReason("");
-    } catch {
-      toast.error("Failed to reject quotation.");
-    }
-  };
-
-  const handleSend = async (q: Quotation) => {
-    try {
-      const res = await sendMutation.mutateAsync(q._id);
-      const provider = res.data?.emailProvider
-        ? ` via ${res.data.emailProvider}`
-        : "";
-      toast.success(`Quotation sent to customer successfully${provider}!`);
-    } catch (err: unknown) {
-      const errorObj = err as { response?: { data?: { message?: string } } };
-      const msg =
-        errorObj?.response?.data?.message || "Failed to send quotation.";
-      toast.error(msg);
-    }
   };
 
   const handleSelectAll = (checked: boolean) => {
@@ -237,8 +165,7 @@ export default function QuotationListPage() {
   };
 
   const allSelected =
-    quotations.length > 0 &&
-    selectedIds.length === quotations.length;
+    quotations.length > 0 && selectedIds.length === quotations.length;
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -385,7 +312,12 @@ export default function QuotationListPage() {
                   const isPending =
                     effectiveStatus === "pending_approval" ||
                     effectiveStatus === "pending";
-                  const isApproved = effectiveStatus === "approved";
+                  const isAlreadySent =
+                    quotation.workflowStatus === "sent" ||
+                    quotation.status === "sent" ||
+                    Boolean(quotation.sentAt);
+                  const isApproved =
+                    effectiveStatus === "approved" && !isAlreadySent;
                   const price =
                     quotation.finalPrice || quotation.basePrice || 0;
 
@@ -404,7 +336,11 @@ export default function QuotationListPage() {
                       <TableCell className="px-6 py-4 text-sm text-gray-900 font-medium">
                         <button
                           type="button"
-                          onClick={() => navigate(`/leads/quotation-details/${quotation._id}`)}
+                          onClick={() =>
+                            navigate(
+                              `/leads/quotation-details/${quotation._id}`,
+                            )
+                          }
                           className="hover:text-blue-600 hover:underline text-left cursor-pointer font-medium"
                         >
                           {quotation.quoteNumber}
@@ -450,14 +386,18 @@ export default function QuotationListPage() {
                             <Button
                               size="sm"
                               className="bg-[#3b82f6] hover:bg-blue-600 text-white h-7 px-2.5 text-xs font-medium rounded flex items-center gap-1"
-                              onClick={() => handleSend(quotation)}
+                              onClick={() => setSendQuote(quotation)}
                             >
                               <Send className="w-3 h-3" /> Send
                             </Button>
                           )}
                           <button
                             type="button"
-                            onClick={() => navigate(`/leads/quotation-details/${quotation._id}`)}
+                            onClick={() =>
+                              navigate(
+                                `/leads/quotation-details/${quotation._id}`,
+                              )
+                            }
                             className="text-purple-500 hover:text-purple-700 inline-block p-1 cursor-pointer"
                             title="View Details"
                           >
@@ -488,101 +428,32 @@ export default function QuotationListPage() {
         />
       </div>
 
-      {/* Approve Modal */}
-      <Dialog
+      {/* Extracted Approve Modal */}
+      <ApproveQuotationDialog
         open={!!approveQuote}
         onOpenChange={(o) => !o && setApproveQuote(null)}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base font-semibold">
-              Approve Quotation
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <p className="text-sm text-gray-600">
-              Approve Quotation <strong>{approveQuote?.quoteNumber}</strong> (v
-              {approveQuote?.versionNumber}) for customer dispatch?
-            </p>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-gray-600">
-                Approval Note (optional)
-              </Label>
-              <Input
-                value={approveNote}
-                onChange={(e) => setApproveNote(e.target.value)}
-                placeholder="e.g. Approved for customer send"
-                className="h-9 text-sm"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setApproveQuote(null)}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="bg-[#16a34a] hover:bg-green-700 text-white"
-              onClick={handleApprove}
-              disabled={approveMutation.isPending}
-            >
-              {approveMutation.isPending ? "Approving..." : "Confirm Approve"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        quotationId={approveQuote?._id || ""}
+        quoteNumber={approveQuote?.quoteNumber}
+        versionNumber={approveQuote?.versionNumber}
+      />
 
-      {/* Reject Modal */}
-      <Dialog
+      {/* Extracted Reject Modal */}
+      <RejectQuotationDialog
         open={!!rejectQuote}
         onOpenChange={(o) => !o && setRejectQuote(null)}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-base font-semibold">
-              Reject Quotation
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <p className="text-sm text-gray-600">
-              Rejecting Quotation <strong>{rejectQuote?.quoteNumber}</strong> (v
-              {rejectQuote?.versionNumber}).
-            </p>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-gray-600">
-                Reason for Rejection <span className="text-red-500">*</span>
-              </Label>
-              <Textarea
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="e.g. Update dimensions and resend"
-                className="text-sm min-h-24 resize-none"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setRejectQuote(null)}
-            >
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              className="bg-[#dc2626] hover:bg-red-700 text-white"
-              onClick={handleReject}
-              disabled={rejectMutation.isPending}
-            >
-              {rejectMutation.isPending ? "Rejecting..." : "Confirm Reject"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        quotationId={rejectQuote?._id || ""}
+        quoteNumber={rejectQuote?.quoteNumber}
+        versionNumber={rejectQuote?.versionNumber}
+      />
+
+      {/* Extracted Send Modal */}
+      <SendQuotationDialog
+        open={!!sendQuote}
+        onOpenChange={(o) => !o && setSendQuote(null)}
+        quotationId={sendQuote?._id || ""}
+        quoteNumber={sendQuote?.quoteNumber}
+        versionNumber={sendQuote?.versionNumber}
+      />
     </div>
   );
 }
