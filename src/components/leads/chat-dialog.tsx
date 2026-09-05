@@ -196,7 +196,7 @@ export default function ChatDialog({
     <Dialog open={isDialogOpen} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
 
-      <DialogContent className="sm:max-w-3xl h-[600px] flex flex-col p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden">
         <DialogHeader className="px-6 pt-6 pb-4 border-b pr-16">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
