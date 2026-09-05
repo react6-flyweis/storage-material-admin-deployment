@@ -241,9 +241,14 @@ export function useUpdateLeadTemperatureMutation() {
   return useMutation({
     mutationFn: ({ leadId, temperature }: { leadId: string; temperature: string }) =>
       updateLeadTemperatureProvider(leadId, temperature),
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       void queryClient.invalidateQueries({ queryKey: ["leads", "scoring"] });
       void queryClient.invalidateQueries({ queryKey: ["leads", "list"] });
+      void queryClient.invalidateQueries({ queryKey: ["followups"] });
+      if (variables?.leadId) {
+        void queryClient.invalidateQueries({ queryKey: ["leads", "detail", variables.leadId] });
+        void queryClient.invalidateQueries({ queryKey: ["lead", "detail", variables.leadId] });
+      }
     },
   });
 }
