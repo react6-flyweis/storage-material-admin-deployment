@@ -38,6 +38,7 @@ export function useUpdateAutomationConfigMutation() {
       updateAutomationConfigProvider(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["followup-automation", "config"] });
+      queryClient.invalidateQueries({ queryKey: ["followups"] });
     },
   });
 }
