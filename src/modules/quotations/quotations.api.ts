@@ -142,12 +142,24 @@ export type Quotation = {
 export type CreateQuotationPayload = Partial<Omit<Quotation, "_id" | "quoteNumber" | "customerId" | "totalArea" | "totalCOGS" | "markupValue" | "finalPrice" | "psf" | "createdBy" | "createdAt" | "updatedAt">> & { leadId: string };
 export type UpdateQuotationPayload = Partial<Omit<Quotation, "_id" | "quoteNumber" | "customerId" | "totalArea" | "totalCOGS" | "markupValue" | "finalPrice" | "psf" | "createdBy" | "createdAt" | "updatedAt">>;
 
+export type SendQuotationPayload = {
+  message?: string;
+  note?: string;
+  emailMessage?: string;
+  coverNote?: string;
+  sections?: string[];
+};
+
 export type QuotationResponse = {
   success: boolean;
   message: string;
   data: {
     quotation: Quotation;
-    emailProvider?: "sendgrid" | "smtp_fallback";
+    emailProvider?: string;
+    messageIncluded?: boolean;
+    messageSourceKey?: string | null;
+    pdfAttached?: boolean;
+    pdfWarning?: string | null;
   };
 };
 
@@ -226,8 +238,8 @@ export async function getPendingApprovalsProvider(params?: GetQuotationsParams) 
   return response.data;
 }
 
-export async function sendQuotationProvider(quotationId: string) {
-  const response = await apiClient.post<QuotationResponse>(`/api/quotations/${quotationId}/send`);
+export async function sendQuotationProvider(quotationId: string, payload?: SendQuotationPayload) {
+  const response = await apiClient.post<QuotationResponse>(`/api/quotations/${quotationId}/send`, payload || {});
   return response.data;
 }
 
