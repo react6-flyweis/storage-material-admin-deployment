@@ -134,6 +134,10 @@ export type Quotation = {
     [key: string]: unknown;
   };
   createdBy?: unknown;
+  sendMethod?: "platform" | "manual" | null;
+  sentTo?: string;
+  sentCc?: string[];
+  sentMessage?: string;
   sentAt?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -143,6 +147,11 @@ export type CreateQuotationPayload = Partial<Omit<Quotation, "_id" | "quoteNumbe
 export type UpdateQuotationPayload = Partial<Omit<Quotation, "_id" | "quoteNumber" | "customerId" | "totalArea" | "totalCOGS" | "markupValue" | "finalPrice" | "psf" | "createdBy" | "createdAt" | "updatedAt">>;
 
 export type SendQuotationPayload = {
+  to?: string;
+  toEmail?: string;
+  cc?: string | string[];
+  ccEmail?: string | string[];
+  ccEmails?: string | string[];
   message?: string;
   note?: string;
   emailMessage?: string;
@@ -150,11 +159,21 @@ export type SendQuotationPayload = {
   sections?: string[];
 };
 
+export type MarkQuotationSentPayload = {
+  note?: string;
+  message?: string;
+  sentAt?: string;
+};
+
 export type QuotationResponse = {
   success: boolean;
   message: string;
   data: {
     quotation: Quotation;
+    sendMethod?: "platform" | "manual" | null;
+    sentTo?: string;
+    sentCc?: string[];
+    sentMessage?: string;
     emailProvider?: string;
     messageIncluded?: boolean;
     messageSourceKey?: string | null;
@@ -240,6 +259,11 @@ export async function getPendingApprovalsProvider(params?: GetQuotationsParams) 
 
 export async function sendQuotationProvider(quotationId: string, payload?: SendQuotationPayload) {
   const response = await apiClient.post<QuotationResponse>(`/api/quotations/${quotationId}/send`, payload || {});
+  return response.data;
+}
+
+export async function markQuotationSentProvider(quotationId: string, payload?: MarkQuotationSentPayload) {
+  const response = await apiClient.post<QuotationResponse>(`/api/quotations/${quotationId}/mark-sent`, payload || {});
   return response.data;
 }
 
