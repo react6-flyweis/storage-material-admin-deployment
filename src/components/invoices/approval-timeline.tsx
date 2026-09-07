@@ -6,13 +6,22 @@ interface ApprovalTimelineProps {
   approval?: InvoiceApproval;
   workflowStatus?: WorkflowStatus | string;
   revision?: number;
+  sendMethod?: "platform" | "manual" | string | null;
+  sentAt?: string | null;
+  sentTo?: string;
+  sentCc?: string[];
+  sentMessage?: string;
   className?: string;
 }
 
-function formatUser(user?: any): string {
+function formatUser(user?: unknown): string {
   if (!user) return "System / User";
   if (typeof user === "string") return user;
-  return user.name || user.email || user._id || "User";
+  if (typeof user === "object" && user !== null) {
+    const u = user as { name?: string; email?: string; _id?: string };
+    return u.name || u.email || u._id || "User";
+  }
+  return "User";
 }
 
 function formatDate(dateStr?: string | Date): string {
@@ -48,9 +57,16 @@ export default function ApprovalTimeline({
   approval,
   workflowStatus,
   revision = 1,
+  sendMethod,
+  sentAt,
+  sentTo,
+  sentCc,
+  sentMessage,
   className = "",
 }: ApprovalTimelineProps) {
   const history = approval?.history || [];
+
+  const isSent = workflowStatus === "sent" || Boolean(sentAt || sendMethod);
 
   return (
     <div className={`border border-gray-200 rounded-md bg-white p-6 ${className}`}>
@@ -71,8 +87,43 @@ export default function ApprovalTimeline({
         <InvoiceStatusBadge
           workflowStatus={workflowStatus}
           approvalStatus={approval?.status}
+          sendMethod={sendMethod}
         />
       </div>
+
+      {/* Sent details banner if sent */}
+      {isSent && (
+        <div className="mt-4 p-3.5 bg-blue-50/70 border border-blue-200 rounded-md">
+          <div className="flex items-start gap-2.5">
+            <Send className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
+            <div className="text-xs space-y-1 w-full">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-blue-900">
+                  {sendMethod === "manual" ? "Marked as Sent (External Email)" : "Sent via Platform Email (SMTP)"}
+                </span>
+                {sentAt && (
+                  <span className="text-blue-600 text-[11px]">{formatDate(sentAt)}</span>
+                )}
+              </div>
+              {sentTo && (
+                <p className="text-blue-800">
+                  <span className="font-medium text-blue-900">To:</span> {sentTo}
+                  {sentCc && sentCc.length > 0 && (
+                    <span className="ml-2">
+                      <span className="font-medium text-blue-900">CC:</span> {sentCc.join(", ")}
+                    </span>
+                  )}
+                </p>
+              )}
+              {sentMessage && (
+                <p className="text-blue-700 mt-1 italic whitespace-pre-wrap">
+                  "{sentMessage}"
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Rejection Reason Alert if rejected */}
       {approval?.status === "rejected" && approval?.rejectionReason && (
