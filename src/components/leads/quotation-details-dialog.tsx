@@ -59,9 +59,16 @@ function getWorkflowBadge(quotation: Quotation) {
         </Badge>
       );
     case "sent":
+      if (quotation.sendMethod === "manual") {
+        return (
+          <Badge className="bg-[#e0e7ff] text-[#4338ca] hover:bg-[#e0e7ff] border-none px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
+            Marked Sent
+          </Badge>
+        );
+      }
       return (
         <Badge className="bg-[#dbeafe] text-[#2563eb] hover:bg-[#dbeafe] border-none px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
-          Quote Sent
+          Sent via Email
         </Badge>
       );
     case "draft":
@@ -94,6 +101,8 @@ export default function QuotationDetailsDialog({
   const isPending = effectiveStatus === "pending_approval";
   const isApproved = effectiveStatus === "approved";
   const isRejected = effectiveStatus === "rejected";
+  const isAlreadySent = effectiveStatus === "sent" || Boolean(quotation.sentAt);
+  const canSend = isApproved || isAlreadySent;
 
   const price = quotation.finalPrice || quotation.basePrice || 0;
   const dimensionsStr =
@@ -374,6 +383,38 @@ export default function QuotationDetailsDialog({
             </div>
           )}
 
+          {/* Sent Information Section */}
+          {isAlreadySent && (
+            <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-xl space-y-1.5 text-xs">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Send className="w-3.5 h-3.5 text-blue-600" />
+                  {quotation.sendMethod === "manual" ? "Marked as Sent (External Email)" : "Sent via Platform Email (SMTP)"}
+                </h4>
+                {quotation.sentAt && (
+                  <span className="text-[11px] text-blue-600">
+                    {dayjs(quotation.sentAt).format("MMM D, YYYY h:mm A")}
+                  </span>
+                )}
+              </div>
+              {quotation.sentTo && (
+                <p className="text-blue-800">
+                  <span className="font-medium text-blue-900">To:</span> {quotation.sentTo}
+                  {quotation.sentCc && quotation.sentCc.length > 0 && (
+                    <span className="ml-2">
+                      <span className="font-medium text-blue-900">CC:</span> {quotation.sentCc.join(", ")}
+                    </span>
+                  )}
+                </p>
+              )}
+              {quotation.sentMessage && (
+                <p className="text-blue-700 italic whitespace-pre-wrap">
+                  "{quotation.sentMessage}"
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Notes Section */}
           {(quotation.specialNote || quotation.clientNotes || quotation.internalNotes) && (
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
@@ -423,13 +464,13 @@ export default function QuotationDetailsDialog({
               Reject
             </Button>
           )}
-          {isApproved && onSend && (
+          {canSend && onSend && (
             <Button
               size="sm"
-              className="bg-[#3b82f6] hover:bg-blue-600 text-white text-xs h-8 px-3 rounded-lg flex items-center gap-1"
+              className="bg-[#1D51A4] hover:bg-[#174287] text-white text-xs h-8 px-3 rounded-lg flex items-center gap-1"
               onClick={() => onSend(quotation)}
             >
-              <Send className="w-3 h-3" /> Send
+              <Send className="w-3 h-3" /> {isAlreadySent ? "Resend" : "Send"}
             </Button>
           )}
           <Button
