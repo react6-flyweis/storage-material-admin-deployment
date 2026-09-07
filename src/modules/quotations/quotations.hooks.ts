@@ -8,6 +8,7 @@ import {
   rejectQuotationProvider,
   getPendingApprovalsProvider,
   sendQuotationProvider,
+  markQuotationSentProvider,
   getQuotationSummaryProvider,
   getLeadQuotationsProvider,
   downloadQuotationPdfProvider,
@@ -18,6 +19,7 @@ import type {
   UpdateQuotationPayload,
   GetQuotationsParams,
   SendQuotationPayload,
+  MarkQuotationSentPayload,
 } from "./quotations.api";
 
 export function useCreateQuotationMutation() {
@@ -101,13 +103,45 @@ export function usePendingApprovalsQuery(params?: GetQuotationsParams) {
 export function useSendQuotationMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ quotationId, payload }: { quotationId: string; payload?: SendQuotationPayload }) =>
-      sendQuotationProvider(quotationId, payload),
-    onSuccess: (data, { quotationId }) => {
+    mutationFn: (args: string | { quotationId: string; payload?: SendQuotationPayload }) => {
+      const quotationId = typeof args === "string" ? args : args.quotationId;
+      const payload = typeof args === "string" ? undefined : args.payload;
+      return sendQuotationProvider(quotationId, payload);
+    },
+    onSuccess: (data, args) => {
+      const quotationId = typeof args === "string" ? args : args.quotationId;
+      const leadId = data?.data?.quotation?.leadId;
       queryClient.invalidateQueries({ queryKey: ["quotation", quotationId] });
-      queryClient.invalidateQueries({ queryKey: ["quotations", "lead", data.data.quotation.leadId] });
+      queryClient.invalidateQueries({ queryKey: ["quotations"] });
+      if (leadId) {
+        queryClient.invalidateQueries({ queryKey: ["quotations", "lead", leadId] });
+        queryClient.invalidateQueries({ queryKey: ["lead", leadId] });
+      }
       queryClient.invalidateQueries({ queryKey: ["quotations", "pending"] });
-      // Also invalidate leads summary
+      // Also invalidate leads summary and details
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+  });
+}
+
+export function useMarkQuotationSentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: string | { quotationId: string; payload?: MarkQuotationSentPayload }) => {
+      const quotationId = typeof args === "string" ? args : args.quotationId;
+      const payload = typeof args === "string" ? undefined : args.payload;
+      return markQuotationSentProvider(quotationId, payload);
+    },
+    onSuccess: (data, args) => {
+      const quotationId = typeof args === "string" ? args : args.quotationId;
+      const leadId = data?.data?.quotation?.leadId;
+      queryClient.invalidateQueries({ queryKey: ["quotation", quotationId] });
+      queryClient.invalidateQueries({ queryKey: ["quotations"] });
+      if (leadId) {
+        queryClient.invalidateQueries({ queryKey: ["quotations", "lead", leadId] });
+        queryClient.invalidateQueries({ queryKey: ["lead", leadId] });
+      }
+      queryClient.invalidateQueries({ queryKey: ["quotations", "pending"] });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
     },
   });
