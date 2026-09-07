@@ -9,11 +9,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Mail,
-  Wallet,
   CheckCircle2,
   XCircle,
-  Clock,
-  AlertTriangle,
   ArrowLeft,
 } from "lucide-react";
 import logo from "@/assets/steel-building-depot-logo.png";
@@ -24,6 +21,7 @@ import {
 } from "@/components/invoices/approval-action-dialogs";
 import ApprovalTimeline from "@/components/invoices/approval-timeline";
 import InvoiceStatusBadge from "@/components/invoices/invoice-status-badge";
+import SendInvoiceDialog from "@/components/invoices/send-invoice-dialog";
 import { toast } from "sonner";
 
 export default function InvoicePreview() {
@@ -32,6 +30,7 @@ export default function InvoicePreview() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showSendDialog, setShowSendDialog] = useState(false);
 
   const defaultItems = [
     {
@@ -82,7 +81,6 @@ export default function InvoicePreview() {
 
   const total = invoiceData?.totalAmount ?? fallbackState?.total ?? 0;
   const deposit = invoiceData?.depositAmount ?? 0;
-  const markupTotal = invoiceData?.markupTotal ?? 0;
   const discount = invoiceData?.discount ?? 0;
 
   // Approval & Workflow calculation
@@ -99,7 +97,6 @@ export default function InvoicePreview() {
     approvedRevision === undefined || approvedRevision === revision;
   const isApproved = approvalStatus === "approved" && isRevisionCurrent;
   const isPendingApproval = approvalStatus === "pending_approval";
-  const isRejected = approvalStatus === "rejected";
   const isSent = (invoiceData?.status || fallbackState?.status) === "sent";
   const isPaid = (invoiceData?.status || fallbackState?.status) === "paid";
 
@@ -131,17 +128,24 @@ export default function InvoicePreview() {
     }
   };
 
-  const handleSendEmail = async () => {
+  const isCancelled = (invoiceData?.status || fallbackState?.status) === "cancelled";
+  const customerEmail =
+    invoiceData?.customerId?.email ||
+    invoiceData?.customer?.email ||
+    invoiceData?.sentTo ||
+    "";
+
+  const handleSendEmail = () => {
     if (!invoiceId) {
       toast.error("Please save the invoice before sending.");
       return;
     }
-    if (isSent) {
-      toast.info("Invoice has already been sent.");
-      return;
-    }
     if (isPaid) {
       toast.info("Cannot send an invoice that is already paid.");
+      return;
+    }
+    if (isCancelled) {
+      toast.info("Cannot send an invoice that is cancelled.");
       return;
     }
     if (!isApproved) {
@@ -150,18 +154,7 @@ export default function InvoicePreview() {
       );
       return;
     }
-
-    try {
-      await sendInvoiceMutation.mutateAsync(invoiceId);
-      setShowSuccess(true);
-      queryClient.invalidateQueries({ queryKey: ["invoice", invoiceId] });
-      queryClient.invalidateQueries({ queryKey: ["invoices"] });
-    } catch (error: any) {
-      console.error("Failed to send invoice email", error);
-      const msg =
-        error?.response?.data?.message || "Failed to send invoice email";
-      toast.error(msg);
-    }
+    setShowSendDialog(true);
   };
 
   const handleApprovalSuccess = () => {
@@ -199,7 +192,7 @@ export default function InvoicePreview() {
   }
 
   const isEmailDisabled =
-    !isApproved || isSent || isPaid || sendInvoiceMutation.isPending;
+    !isApproved || isPaid || isCancelled || sendInvoiceMutation.isPending;
 
   return (
     <>
@@ -262,23 +255,25 @@ export default function InvoicePreview() {
             <Button
               className={
                 isEmailDisabled
-                  ? "bg-gray-400 cursor-not-allowed text-white min-w-[100px] gap-2"
-                  : "bg-[#2563EB] hover:bg-blue-700 text-white min-w-[100px] gap-2"
+                  ? "bg-gray-200 text-gray-400 border border-gray-200 cursor-not-allowed min-w-[100px] gap-2"
+                  : "bg-[#1D51A4] hover:bg-[#174287] text-white min-w-[100px] gap-2 shadow-sm cursor-pointer"
               }
               onClick={handleSendEmail}
               disabled={isEmailDisabled}
               title={
                 !isApproved
                   ? "Requires admin approval before sending"
-                  : isSent
-                    ? "Invoice already sent"
-                    : isPaid
-                      ? "Invoice already paid"
-                      : "Send invoice to customer"
+                  : isPaid
+                    ? "Invoice already paid"
+                    : isCancelled
+                      ? "Invoice is cancelled"
+                      : isSent
+                        ? "Resend invoice to customer"
+                        : "Send invoice to customer"
               }
             >
               <Mail className="w-4 h-4" />
-              {sendInvoiceMutation.isPending ? "Sending..." : "Email"}
+              {isSent ? "Resend Email" : "Email"}
             </Button>
 
             {/* <Button
@@ -293,8 +288,8 @@ export default function InvoicePreview() {
             <Button
               className={
                 (invoiceData?.status || fallbackState?.status) !== "sent"
-                  ? "bg-gray-400 cursor-not-allowed text-white min-w-[100px]"
-                  : "bg-[#2563EB] hover:bg-blue-700 text-white min-w-[100px]"
+                  ? "bg-gray-200 text-gray-400 border border-gray-200 cursor-not-allowed min-w-[100px]"
+                  : "bg-[#1D51A4] hover:bg-[#174287] text-white min-w-[100px] shadow-sm cursor-pointer"
               }
               onClick={handleMarkPaid}
               disabled={
@@ -317,6 +312,7 @@ export default function InvoicePreview() {
                 workflowStatus={workflowStatus}
                 approvalStatus={approvalStatus}
                 financialStatus={invoiceData?.status}
+                sendMethod={invoiceData?.sendMethod}
               />
             </div>
           </div>
@@ -575,6 +571,11 @@ export default function InvoicePreview() {
           approval={approval}
           workflowStatus={workflowStatus}
           revision={revision}
+          sendMethod={invoiceData?.sendMethod}
+          sentAt={invoiceData?.sentAt}
+          sentTo={invoiceData?.sentTo}
+          sentCc={invoiceData?.sentCc}
+          sentMessage={invoiceData?.sentMessage}
         />
       </div>
 
@@ -599,6 +600,24 @@ export default function InvoicePreview() {
         invoiceId={invoiceId}
         invoiceNumber={invoiceNumber}
         onSuccess={handleApprovalSuccess}
+      />
+
+      <SendInvoiceDialog
+        open={showSendDialog}
+        onOpenChange={setShowSendDialog}
+        invoiceId={invoiceId}
+        invoiceNumber={invoiceNumber}
+        recipientEmail={customerEmail}
+        status={invoiceData?.status || fallbackState?.status}
+        sendMethod={invoiceData?.sendMethod}
+        sentAt={invoiceData?.sentAt}
+        onSuccess={() => {
+          if (invoiceId) {
+            queryClient.invalidateQueries({ queryKey: ["invoice", invoiceId] });
+            queryClient.invalidateQueries({ queryKey: ["invoices"] });
+            queryClient.invalidateQueries({ queryKey: ["invoiceStats"] });
+          }
+        }}
       />
     </>
   );
