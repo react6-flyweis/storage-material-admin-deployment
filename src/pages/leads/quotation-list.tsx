@@ -51,9 +51,16 @@ function getStatusBadge(quotation: Quotation) {
         </span>
       );
     case "sent":
+      if (quotation.sendMethod === "manual") {
+        return (
+          <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+            Marked sent
+          </span>
+        );
+      }
       return (
         <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-purple-100 text-purple-700">
-          Quote sent
+          Sent via email
         </span>
       );
     case "accepted":
@@ -317,7 +324,10 @@ export default function QuotationListPage() {
                     quotation.status === "sent" ||
                     Boolean(quotation.sentAt);
                   const isApproved =
-                    effectiveStatus === "approved" && !isAlreadySent;
+                    effectiveStatus === "approved" ||
+                    quotation.approvalStatus === "approved" ||
+                    quotation.approval?.status === "approved";
+                  const canSend = isApproved || isAlreadySent;
                   const price =
                     quotation.finalPrice || quotation.basePrice || 0;
 
@@ -382,13 +392,13 @@ export default function QuotationListPage() {
                               </Button>
                             </>
                           )}
-                          {isApproved && (
+                          {canSend && (
                             <Button
                               size="sm"
-                              className="bg-[#3b82f6] hover:bg-blue-600 text-white h-7 px-2.5 text-xs font-medium rounded flex items-center gap-1"
+                              className="bg-[#1D51A4] hover:bg-[#174287] text-white h-7 px-2.5 text-xs font-medium rounded flex items-center gap-1"
                               onClick={() => setSendQuote(quotation)}
                             >
-                              <Send className="w-3 h-3" /> Send
+                              <Send className="w-3 h-3" /> {isAlreadySent ? "Resend" : "Send"}
                             </Button>
                           )}
                           <button
@@ -398,7 +408,7 @@ export default function QuotationListPage() {
                                 `/leads/quotation-details/${quotation._id}`,
                               )
                             }
-                            className="text-purple-500 hover:text-purple-700 inline-block p-1 cursor-pointer"
+                            className="text-gray-500 hover:text-[#1D51A4] inline-block p-1 cursor-pointer"
                             title="View Details"
                           >
                             <Eye className="size-4" />
@@ -453,6 +463,10 @@ export default function QuotationListPage() {
         quotationId={sendQuote?._id || ""}
         quoteNumber={sendQuote?.quoteNumber}
         versionNumber={sendQuote?.versionNumber}
+        recipientEmail={sendQuote?.sentTo}
+        status={sendQuote?.workflowStatus || sendQuote?.status}
+        sendMethod={sendQuote?.sendMethod}
+        sentAt={sendQuote?.sentAt}
       />
     </div>
   );
