@@ -64,9 +64,52 @@ export async function markInvoicePaidProvider(invoiceId: string) {
   return response.data;
 }
 
-export async function sendInvoiceProvider(invoiceId: string) {
-  const response = await apiClient.post(
-    `/api/invoices/${invoiceId}/send`
+export type SendInvoicePayload = {
+  to?: string;
+  toEmail?: string;
+  cc?: string | string[];
+  ccEmail?: string | string[];
+  ccEmails?: string | string[];
+  message?: string;
+  note?: string;
+  emailMessage?: string;
+  coverNote?: string;
+};
+
+export type MarkInvoiceSentPayload = {
+  note?: string;
+  message?: string;
+  sentAt?: string;
+};
+
+export type SendInvoiceResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    invoice: any;
+    sendMethod?: "platform" | "manual" | null;
+    sentTo?: string;
+    sentCc?: string[];
+    sentMessage?: string;
+    messageIncluded?: boolean;
+    messageSourceKey?: string | null;
+    pdfAttached?: boolean;
+    pdfWarning?: string | null;
+  };
+};
+
+export async function sendInvoiceProvider(invoiceId: string, payload?: SendInvoicePayload) {
+  const response = await apiClient.post<SendInvoiceResponse>(
+    `/api/invoices/${invoiceId}/send`,
+    payload || {}
+  );
+  return response.data;
+}
+
+export async function markInvoiceSentProvider(invoiceId: string, payload?: MarkInvoiceSentPayload) {
+  const response = await apiClient.post<SendInvoiceResponse>(
+    `/api/invoices/${invoiceId}/mark-sent`,
+    payload || {}
   );
   return response.data;
 }
