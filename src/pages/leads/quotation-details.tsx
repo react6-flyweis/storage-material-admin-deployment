@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import ApproveQuotationDialog from "@/components/leads/approve-quotation-dialog";
 import RejectQuotationDialog from "@/components/leads/reject-quotation-dialog";
 import SendQuotationDialog from "@/components/leads/send-quotation-dialog";
+import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
 
 export default function QuotationDetailsPage() {
   const navigate = useNavigate();
@@ -42,6 +43,11 @@ export default function QuotationDetailsPage() {
   const [isSendOpen, setIsSendOpen] = useState(false);
 
   const q = data?.data?.quotation;
+  const { data: leadDetailData } = useLeadDetailQuery(q?.leadId || "");
+  const customerEmail =
+    q?.sentTo ||
+    leadDetailData?.data?.customer?.email ||
+    "";
 
   if (isLoading) {
     return (
@@ -74,6 +80,8 @@ export default function QuotationDetailsPage() {
   const isPending =
     effectiveStatus === "pending" || effectiveStatus === "pending_approval";
   const isRejected = effectiveStatus === "rejected";
+  const isSent = effectiveStatus === "sent";
+  const canSend = isApproved || isSent;
 
   const handleDownloadPdf = async () => {
     if (!id) return;
@@ -148,19 +156,25 @@ export default function QuotationDetailsPage() {
             </>
           )}
 
-          {/* Send to Customer (available once approved) */}
+          {/* Send to Customer (available once approved, or re-send if already sent) */}
           <Button
-            className="bg-[#7c3aed] hover:bg-purple-700 text-white h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 disabled:opacity-50"
+            className={
+              !canSend
+                ? "bg-gray-200 text-gray-400 border border-gray-200 cursor-not-allowed h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5"
+                : "bg-[#1D51A4] hover:bg-[#174287] text-white h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer"
+            }
             onClick={() => setIsSendOpen(true)}
-            disabled={!isApproved}
+            disabled={!canSend}
             title={
-              !isApproved
+              !canSend
                 ? "Quotation must be approved before sending to customer"
-                : "Send quotation to customer"
+                : isSent
+                  ? "Resend quotation to customer"
+                  : "Send quotation to customer"
             }
           >
             <Send className="h-4 w-4" />
-            Send to Customer
+            {isSent ? "Resend Quote" : "Send to Customer"}
           </Button>
         </div>
       </div>
@@ -216,13 +230,39 @@ export default function QuotationDetailsPage() {
       {effectiveStatus === "sent" && (
         <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-5 flex items-start gap-4">
           <Send className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <h4 className="font-semibold text-blue-900 text-sm">
-              Quotation Sent to Customer
-            </h4>
+          <div className="space-y-1 w-full">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-blue-900 text-sm">
+                {q.sendMethod === "manual"
+                  ? "Quotation Marked as Sent (External Email)"
+                  : "Quotation Sent to Customer"}
+              </h4>
+              {q.sentAt && (
+                <span className="text-xs text-blue-600">
+                  {new Date(q.sentAt).toLocaleString()}
+                </span>
+              )}
+            </div>
             <p className="text-xs text-blue-700">
-              This quotation has been successfully dispatched to the customer.
+              {q.sendMethod === "manual"
+                ? "This quotation was emailed externally and recorded as sent in the platform."
+                : "This quotation has been successfully dispatched to the customer via platform email."}
             </p>
+            {q.sentTo && (
+              <p className="text-xs text-blue-800 pt-0.5">
+                <span className="font-medium">To:</span> {q.sentTo}
+                {q.sentCc && q.sentCc.length > 0 && (
+                  <span className="ml-3">
+                    <span className="font-medium">CC:</span> {q.sentCc.join(", ")}
+                  </span>
+                )}
+              </p>
+            )}
+            {q.sentMessage && (
+              <p className="text-xs text-blue-700 italic pt-1 whitespace-pre-wrap">
+                "{q.sentMessage}"
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -323,6 +363,10 @@ export default function QuotationDetailsPage() {
           quotationId={id}
           quoteNumber={q.quoteNumber}
           versionNumber={q.versionNumber}
+          recipientEmail={customerEmail}
+          status={effectiveStatus}
+          sendMethod={q.sendMethod}
+          sentAt={q.sentAt}
         />
       )}
     </div>
