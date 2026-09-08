@@ -236,7 +236,7 @@ function SendQuotationModalBody({
         </DialogDescription>
       </DialogHeader>
 
-      <div className="p-6 space-y-4 max-h-[72vh] overflow-y-auto">
+      <div className="p-6 space-y-4 flex-1 min-h-0 overflow-y-auto">
         {/* Notice if already sent */}
         {isAlreadySent && (
           <div className="bg-blue-50 border border-blue-200/80 rounded-lg p-3 text-xs flex items-start gap-2.5">
@@ -541,7 +541,7 @@ export default function SendQuotationDialog({
 }: SendQuotationDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg w-full p-0 gap-0 overflow-hidden">
+      <DialogContent className="sm:max-w-lg w-full max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
         {open && (
           <SendQuotationModalBody
             key={quotationId + "-" + (recipientEmail || "")}
