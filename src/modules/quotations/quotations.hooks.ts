@@ -13,6 +13,7 @@ import {
   getLeadQuotationsProvider,
   downloadQuotationPdfProvider,
   getQuotationHtmlPreviewProvider,
+  getQuotationStatsProvider,
 } from "./quotations.api";
 import type {
   CreateQuotationPayload,
@@ -21,6 +22,13 @@ import type {
   SendQuotationPayload,
   MarkQuotationSentPayload,
 } from "./quotations.api";
+
+export function useQuotationStatsQuery() {
+  return useQuery({
+    queryKey: ["quotations", "stats"],
+    queryFn: () => getQuotationStatsProvider(),
+  });
+}
 
 export function useCreateQuotationMutation() {
   const queryClient = useQueryClient();
@@ -63,6 +71,7 @@ export function useSubmitQuotationApprovalMutation() {
       queryClient.invalidateQueries({ queryKey: ["quotation", variables.quotationId] });
       queryClient.invalidateQueries({ queryKey: ["quotations", "lead", data.data.quotation.leadId] });
       queryClient.invalidateQueries({ queryKey: ["quotations", "pending"] });
+      queryClient.invalidateQueries({ queryKey: ["quotations", "stats"] });
     },
   });
 }
@@ -76,6 +85,7 @@ export function useApproveQuotationMutation() {
       queryClient.invalidateQueries({ queryKey: ["quotation", variables.quotationId] });
       queryClient.invalidateQueries({ queryKey: ["quotations", "lead", data.data.quotation.leadId] });
       queryClient.invalidateQueries({ queryKey: ["quotations", "pending"] });
+      queryClient.invalidateQueries({ queryKey: ["quotations", "stats"] });
     },
   });
 }
@@ -89,6 +99,7 @@ export function useRejectQuotationMutation() {
       queryClient.invalidateQueries({ queryKey: ["quotation", variables.quotationId] });
       queryClient.invalidateQueries({ queryKey: ["quotations", "lead", data.data.quotation.leadId] });
       queryClient.invalidateQueries({ queryKey: ["quotations", "pending"] });
+      queryClient.invalidateQueries({ queryKey: ["quotations", "stats"] });
     },
   });
 }
