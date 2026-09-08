@@ -1,8 +1,20 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { Eye, Send, Search } from "lucide-react";
+import {
+  Eye,
+  Send,
+  Search,
+  FileText,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  MailCheck,
+  FileEdit,
+} from "lucide-react";
 import TitleSubtitle from "@/components/TitleSubtitle";
 import { Button } from "@/components/ui/button";
+import StatCard from "@/components/ui/stat-card";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectTrigger,
@@ -21,11 +33,34 @@ import {
 import { Input } from "@/components/ui/input";
 import Pagination from "@/components/Pagination";
 import BuildingTypeSelector from "@/components/leads/building-type-selector";
-import { usePendingApprovalsQuery } from "@/modules/quotations/quotations.hooks";
-import type { Quotation } from "@/modules/quotations/quotations.api";
+import {
+  usePendingApprovalsQuery,
+  useQuotationStatsQuery,
+} from "@/modules/quotations/quotations.hooks";
+import {
+  BUILDING_TYPE,
+  ADMIN_STATUS,
+  type Quotation,
+  type AdminStatus,
+} from "@/modules/quotations/quotations.api";
 import ApproveQuotationDialog from "@/components/leads/approve-quotation-dialog";
 import RejectQuotationDialog from "@/components/leads/reject-quotation-dialog";
 import SendQuotationDialog from "@/components/leads/send-quotation-dialog";
+
+const STATUS_LABELS: Record<AdminStatus, string> = {
+  draft: "Draft",
+  pending: "Pending",
+  pending_approval: "Pending Approval",
+  approved: "Approved",
+  rejected: "Rejected",
+  sent: "Sent",
+  accepted: "Accepted",
+};
+
+const BUILDING_TYPE_OPTIONS = BUILDING_TYPE.map((type) => ({
+  value: type,
+  label: type,
+}));
 
 function getStatusBadge(quotation: Quotation) {
   const status = quotation.workflowStatus || quotation.status || "draft";
@@ -131,6 +166,10 @@ export default function QuotationListPage() {
   }, [currentPage, rowsPerPage, debouncedSearch, selectedFilters]);
 
   // API Hooks
+  const { data: statsResponse, isLoading: isStatsLoading } =
+    useQuotationStatsQuery();
+  const stats = statsResponse?.data;
+
   const {
     data: pendingData,
     isLoading,
@@ -184,6 +223,84 @@ export default function QuotationListPage() {
         />
       </div>
 
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <StatCard
+          title="Total"
+          value={String(stats?.total ?? 0)}
+          color="bg-[#1D51A4]"
+          loading={isStatsLoading}
+          icon={<FileText className="h-5 w-5 text-[#1D51A4]" />}
+          className={cn(
+            "transition-all cursor-pointer hover:shadow-md",
+            selectedFilters.status === "all" ? "ring-2 ring-blue-500 ring-offset-2" : "",
+          )}
+          onClick={() => handleFilterChange("status", "all")}
+        />
+        <StatCard
+          title="Pending"
+          value={String(stats?.pendingApproval ?? stats?.pending_approval ?? 0)}
+          color="bg-amber-500"
+          loading={isStatsLoading}
+          icon={<Clock className="h-5 w-5 text-amber-500" />}
+          className={cn(
+            "transition-all cursor-pointer hover:shadow-md",
+            selectedFilters.status === "pending_approval" || selectedFilters.status === "pending"
+              ? "ring-2 ring-amber-500 ring-offset-2"
+              : "",
+          )}
+          onClick={() => handleFilterChange("status", "pending_approval")}
+        />
+        <StatCard
+          title="Approved"
+          value={String(stats?.approved ?? 0)}
+          color="bg-green-600"
+          loading={isStatsLoading}
+          icon={<CheckCircle2 className="h-5 w-5 text-green-600" />}
+          className={cn(
+            "transition-all cursor-pointer hover:shadow-md",
+            selectedFilters.status === "approved" ? "ring-2 ring-green-500 ring-offset-2" : "",
+          )}
+          onClick={() => handleFilterChange("status", "approved")}
+        />
+        <StatCard
+          title="Sent"
+          value={String(stats?.sent ?? 0)}
+          color="bg-purple-600"
+          loading={isStatsLoading}
+          icon={<MailCheck className="h-5 w-5 text-purple-600" />}
+          className={cn(
+            "transition-all cursor-pointer hover:shadow-md",
+            selectedFilters.status === "sent" ? "ring-2 ring-purple-500 ring-offset-2" : "",
+          )}
+          onClick={() => handleFilterChange("status", "sent")}
+        />
+        <StatCard
+          title="Rejected"
+          value={String(stats?.rejected ?? 0)}
+          color="bg-red-500"
+          loading={isStatsLoading}
+          icon={<XCircle className="h-5 w-5 text-red-500" />}
+          className={cn(
+            "transition-all cursor-pointer hover:shadow-md",
+            selectedFilters.status === "rejected" ? "ring-2 ring-red-500 ring-offset-2" : "",
+          )}
+          onClick={() => handleFilterChange("status", "rejected")}
+        />
+        <StatCard
+          title="Draft"
+          value={String(stats?.draft ?? 0)}
+          color="bg-gray-600"
+          loading={isStatsLoading}
+          icon={<FileEdit className="h-5 w-5 text-gray-600" />}
+          className={cn(
+            "transition-all cursor-pointer hover:shadow-md",
+            selectedFilters.status === "draft" ? "ring-2 ring-gray-500 ring-offset-2" : "",
+          )}
+          onClick={() => handleFilterChange("status", "draft")}
+        />
+      </div>
+
       {/* Action Buttons and Filters */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         {/* Search input */}
@@ -202,6 +319,7 @@ export default function QuotationListPage() {
           <BuildingTypeSelector
             value={selectedFilters.buildingType}
             onChange={(val) => handleFilterChange("buildingType", val)}
+            options={BUILDING_TYPE_OPTIONS}
             includeAll
             allLabel="All Building Types"
             triggerClassName="w-full sm:w-44 bg-white text-xs h-9"
@@ -218,13 +336,11 @@ export default function QuotationListPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="pending_approval">Pending Approval</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-              <SelectItem value="sent">Sent</SelectItem>
-              <SelectItem value="accepted">Accepted</SelectItem>
+              {ADMIN_STATUS.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {STATUS_LABELS[status] || status}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
 
@@ -262,6 +378,9 @@ export default function QuotationListPage() {
                   QUOTE ID
                 </TableHead>
                 <TableHead className="text-gray-600 text-xs font-semibold">
+                  LEAD DETAILS
+                </TableHead>
+                <TableHead className="text-gray-600 text-xs font-semibold">
                   BUILDING TYPE
                 </TableHead>
                 <TableHead className="text-gray-600 text-xs font-semibold">
@@ -285,7 +404,7 @@ export default function QuotationListPage() {
               {isLoading ? (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={9}
                     className="px-6 py-8 text-center text-sm text-gray-500"
                   >
                     Loading quotations...
@@ -294,7 +413,7 @@ export default function QuotationListPage() {
               ) : isError ? (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={9}
                     className="px-6 py-8 text-center text-sm text-red-500"
                   >
                     Failed to load quotations.
@@ -303,7 +422,7 @@ export default function QuotationListPage() {
               ) : quotations.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={9}
                     className="px-6 py-8 text-center text-sm text-gray-500"
                   >
                     No quotations found.
@@ -331,6 +450,37 @@ export default function QuotationListPage() {
                   const price =
                     quotation.finalPrice || quotation.basePrice || 0;
 
+                  // Lead & Customer information extraction
+                  const customerObj =
+                    typeof quotation.customerId === "object" && quotation.customerId !== null
+                      ? quotation.customerId
+                      : null;
+                  const leadObj =
+                    typeof quotation.leadId === "object" && quotation.leadId !== null
+                      ? quotation.leadId
+                      : null;
+                  const projectName =
+                    quotation.projectName ||
+                    leadObj?.projectName ||
+                    quotation.companyName ||
+                    customerObj?.company ||
+                    "";
+                  const jobId =
+                    quotation.jobId ||
+                    quotation.projectId ||
+                    leadObj?.jobId ||
+                    "";
+                  const customerName =
+                    quotation.customerName ||
+                    [customerObj?.firstName, customerObj?.lastName].filter(Boolean).join(" ").trim() ||
+                    "";
+                  const customerEmail =
+                    quotation.customerEmail ||
+                    quotation.defaultToEmail ||
+                    customerObj?.email ||
+                    quotation.sentTo ||
+                    "";
+
                   return (
                     <TableRow key={quotation._id} className="hover:bg-gray-50">
                       <TableCell className="px-6 py-4">
@@ -355,6 +505,28 @@ export default function QuotationListPage() {
                         >
                           {quotation.quoteNumber}
                         </button>
+                      </TableCell>
+                      <TableCell className="px-6 py-4 text-sm text-gray-900">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-gray-900">
+                            {projectName || customerName || "—"}
+                          </span>
+                          {jobId && (
+                            <span className="text-xs text-gray-500">
+                              {jobId}
+                            </span>
+                          )}
+                          {customerName && customerName !== projectName && (
+                            <span className="text-xs text-gray-600">
+                              {customerName}
+                            </span>
+                          )}
+                          {customerEmail && (
+                            <span className="text-xs text-gray-400">
+                              {customerEmail}
+                            </span>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="px-6 py-4 text-sm text-gray-900 capitalize">
                         {quotation.buildingType || "—"}
@@ -463,7 +635,12 @@ export default function QuotationListPage() {
         quotationId={sendQuote?._id || ""}
         quoteNumber={sendQuote?.quoteNumber}
         versionNumber={sendQuote?.versionNumber}
-        recipientEmail={sendQuote?.sentTo}
+        recipientEmail={
+          sendQuote?.sentTo ||
+          sendQuote?.defaultToEmail ||
+          sendQuote?.customerEmail ||
+          (typeof sendQuote?.customerId === "object" ? sendQuote?.customerId?.email : undefined)
+        }
         status={sendQuote?.workflowStatus || sendQuote?.status}
         sendMethod={sendQuote?.sendMethod}
         sentAt={sendQuote?.sentAt}
