@@ -43,9 +43,13 @@ export default function QuotationDetailsPage() {
   const [isSendOpen, setIsSendOpen] = useState(false);
 
   const q = data?.data?.quotation;
-  const { data: leadDetailData } = useLeadDetailQuery(q?.leadId || "");
+  const leadIdStr = typeof q?.leadId === "object" ? q?.leadId?._id : q?.leadId;
+  const { data: leadDetailData } = useLeadDetailQuery(leadIdStr || "");
   const customerEmail =
     q?.sentTo ||
+    q?.customerEmail ||
+    q?.defaultToEmail ||
+    (typeof q?.customerId === "object" ? q?.customerId?.email : undefined) ||
     leadDetailData?.data?.customer?.email ||
     "";
 
