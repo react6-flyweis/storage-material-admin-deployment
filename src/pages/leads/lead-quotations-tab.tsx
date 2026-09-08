@@ -15,12 +15,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import CreateQuotationDialog from "@/components/leads/create-quotation-dialog";
 import QuotationDetailsDialog from "@/components/leads/quotation-details-dialog";
+import SendQuotationDialog from "@/components/leads/send-quotation-dialog";
 import {
   useLeadQuotationsQuery,
   useSubmitQuotationApprovalMutation,
   useApproveQuotationMutation,
   useRejectQuotationMutation,
-  useSendQuotationMutation,
 } from "@/modules/quotations/quotations.hooks";
 import type { Quotation } from "@/modules/quotations/quotations.api";
 import { toast } from "sonner";
@@ -54,9 +54,16 @@ function getWorkflowBadge(quotation: Quotation) {
         </Badge>
       );
     case "sent":
+      if (quotation.sendMethod === "manual") {
+        return (
+          <Badge className="bg-[#e0e7ff] text-[#4338ca] hover:bg-[#e0e7ff] border-none px-2 py-0.5 rounded text-[11px] font-bold capitalize tracking-wider">
+            Marked Sent
+          </Badge>
+        );
+      }
       return (
         <Badge className="bg-[#dbeafe] text-[#2563eb] hover:bg-[#dbeafe] border-none px-2 py-0.5 rounded text-[11px] font-bold capitalize tracking-wider">
-          Quote Sent
+          Sent via Email
         </Badge>
       );
     case "draft":
@@ -77,7 +84,6 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
   const submitMutation = useSubmitQuotationApprovalMutation();
   const approveMutation = useApproveQuotationMutation();
   const rejectMutation = useRejectQuotationMutation();
-  const sendMutation = useSendQuotationMutation();
 
   const [approveDialogQuote, setApproveDialogQuote] = useState<Quotation | null>(null);
   const [approveNote, setApproveNote] = useState("");
@@ -89,6 +95,7 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
   const [submitNote, setSubmitNote] = useState("");
 
   const [viewDialogQuote, setViewDialogQuote] = useState<Quotation | null>(null);
+  const [sendDialogQuote, setSendDialogQuote] = useState<Quotation | null>(null);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-US", {
@@ -146,17 +153,7 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
     }
   };
 
-  const handleSend = async (q: Quotation) => {
-    try {
-      const res = await sendMutation.mutateAsync(q._id);
-      const provider = res.data?.emailProvider ? ` via ${res.data.emailProvider}` : "";
-      toast.success(`Quotation sent to customer successfully${provider}!`);
-    } catch (err: unknown) {
-      const errorObj = err as { response?: { data?: { message?: string } } };
-      const msg = errorObj?.response?.data?.message || "Failed to send quotation. Ensure quote is approved.";
-      toast.error(msg);
-    }
-  };
+
 
   if (isLoading) {
     return <div className="p-6 text-center text-gray-500">Loading quotations...</div>;
@@ -179,7 +176,7 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
           <CreateQuotationDialog
             leadData={{ id: leadId, name: customerName || "Lead" }}
             trigger={
-              <Button className="bg-[#3b82f6] hover:bg-blue-600 text-white h-8 px-3 text-xs rounded font-medium flex items-center gap-1.5">
+              <Button className="bg-[#1D51A4] hover:bg-[#174287] text-white h-8 px-3 text-xs rounded font-medium flex items-center gap-1.5">
                 <Plus className="w-3.5 h-3.5" /> Create Quotation
               </Button>
             }
@@ -228,7 +225,6 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
                 {quotations.length > 0 ? (
                   quotations.map((q) => {
                     const effectiveStatus = q.workflowStatus || q.approval?.status || q.status;
-                    const isApproved = effectiveStatus === "approved";
                     const isPending = effectiveStatus === "pending_approval";
                     const canSubmit = effectiveStatus === "draft" || effectiveStatus === "not_submitted" || effectiveStatus === "rejected";
                     const price = q.finalPrice || q.basePrice || 0;
@@ -283,20 +279,24 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
                                 </Button>
                               </>
                             )}
-                            {isApproved && (
-                              <Button
-                                size="sm"
-                                className="bg-[#3b82f6] hover:bg-blue-600 text-white h-7 px-2.5 text-xs font-medium rounded flex items-center gap-1"
-                                disabled={sendMutation.isPending}
-                                onClick={() => handleSend(q)}
-                              >
-                                <Send className="w-3 h-3" /> Send
-                              </Button>
-                            )}
+                            {(() => {
+                              const isAlreadySent = (q.workflowStatus || q.status) === "sent" || Boolean(q.sentAt);
+                              const isAppr = (q.workflowStatus || q.approval?.status) === "approved";
+                              const canSend = isAppr || isAlreadySent;
+                              return canSend ? (
+                                <Button
+                                  size="sm"
+                                  className="bg-[#1D51A4] hover:bg-[#174287] text-white h-7 px-2.5 text-xs font-medium rounded flex items-center gap-1"
+                                  onClick={() => setSendDialogQuote(q)}
+                                >
+                                  <Send className="w-3 h-3" /> {isAlreadySent ? "Resend" : "Send"}
+                                </Button>
+                              ) : null;
+                            })()}
                             <button
                               type="button"
                               onClick={() => setViewDialogQuote(q)}
-                              className="text-purple-600 hover:text-purple-800 inline-block p-1 cursor-pointer"
+                              className="text-gray-500 hover:text-[#1D51A4] inline-block p-1 cursor-pointer"
                               title="View Quotation Details"
                             >
                               <Eye className="w-4 h-4" />
@@ -345,7 +345,7 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
             </Button>
             <Button
               size="sm"
-              className="bg-[#3b82f6] hover:bg-blue-600 text-white"
+              className="bg-[#1D51A4] hover:bg-[#174287] text-white"
               onClick={handleSubmitForApproval}
               disabled={submitMutation.isPending}
             >
@@ -443,8 +443,22 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
           setRejectDialogQuote(q);
         }}
         onSend={(q) => {
-          handleSend(q);
+          setViewDialogQuote(null);
+          setSendDialogQuote(q);
         }}
+      />
+
+      {/* Send Modal */}
+      <SendQuotationDialog
+        open={!!sendDialogQuote}
+        onOpenChange={(o) => !o && setSendDialogQuote(null)}
+        quotationId={sendDialogQuote?._id || ""}
+        quoteNumber={sendDialogQuote?.quoteNumber}
+        versionNumber={sendDialogQuote?.versionNumber}
+        recipientEmail={sendDialogQuote?.sentTo}
+        status={sendDialogQuote?.workflowStatus || sendDialogQuote?.status}
+        sendMethod={sendDialogQuote?.sendMethod}
+        sentAt={sendDialogQuote?.sentAt}
       />
     </div>
   );

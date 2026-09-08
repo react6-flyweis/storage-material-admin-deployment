@@ -4,13 +4,15 @@ interface InvoiceStatusBadgeProps {
   workflowStatus?: WorkflowStatus | string;
   approvalStatus?: ApprovalStatus | string;
   financialStatus?: string;
+  sendMethod?: "platform" | "manual" | string | null;
   className?: string;
 }
 
-export function getNormalizedStatusLabel(
+function getNormalizedStatusLabel(
   workflowStatus?: string,
   approvalStatus?: string,
   financialStatus?: string,
+  sendMethod?: "platform" | "manual" | string | null,
 ): { label: string; bgClass: string } {
   // If financial status is paid/overdue/cancelled, or if workflowStatus matches
   const normalized = (workflowStatus || approvalStatus || financialStatus || "draft").toLowerCase();
@@ -19,6 +21,12 @@ export function getNormalizedStatusLabel(
     case "paid":
       return { label: "Paid", bgClass: "bg-emerald-500" };
     case "sent":
+      if (sendMethod === "manual") {
+        return { label: "Marked Sent", bgClass: "bg-indigo-600" };
+      }
+      if (sendMethod === "platform") {
+        return { label: "Sent via Email", bgClass: "bg-blue-600" };
+      }
       return { label: "Sent", bgClass: "bg-blue-600" };
     case "pending_approval":
       return { label: "Pending Approval", bgClass: "bg-amber-500" };
@@ -41,12 +49,14 @@ export default function InvoiceStatusBadge({
   workflowStatus,
   approvalStatus,
   financialStatus,
+  sendMethod,
   className = "",
 }: InvoiceStatusBadgeProps) {
   const { label, bgClass } = getNormalizedStatusLabel(
     workflowStatus,
     approvalStatus,
     financialStatus,
+    sendMethod,
   );
 
   return (

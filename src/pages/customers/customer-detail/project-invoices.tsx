@@ -312,6 +312,7 @@ export default function ProjectInvoicesPage() {
                         financialStatus={
                           invoice.invoiceStatus || invoice.status
                         }
+                        sendMethod={invoice.invoice?.sendMethod}
                       />
                     </TableCell>
                     <TableCell>

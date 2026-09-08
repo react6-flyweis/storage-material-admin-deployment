@@ -44,13 +44,49 @@ export type QuotationApproval = {
   history?: ApprovalHistoryItem[];
 };
 
+export const BUILDING_TYPE = ["PEMB", "Storage"] as const;
+export type BuildingType = (typeof BUILDING_TYPE)[number];
+
+// Admin list
+export const ADMIN_STATUS = [
+  "draft",
+  "pending",
+  "pending_approval",
+  "approved",
+  "rejected",
+  "sent",
+  "accepted",
+] as const;
+export type AdminStatus = (typeof ADMIN_STATUS)[number];
+
 export type WorkflowStatus = "draft" | "pending_approval" | "approved" | "rejected" | "sent";
+
+export type QuotationCustomer = {
+  _id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  company?: string;
+  phone?: string;
+};
+
+export type QuotationLead = {
+  _id: string;
+  jobId?: string;
+  projectName?: string;
+};
 
 export type Quotation = {
   _id: string;
-  leadId: string;
-  customerId?: string;
+  leadId: string | QuotationLead;
+  customerId?: string | QuotationCustomer;
   quoteNumber: string;
+  customerName?: string;
+  customerEmail?: string;
+  defaultToEmail?: string;
+  projectName?: string;
+  jobId?: string;
+  projectId?: string;
   status: "draft" | "pending" | "pending_approval" | "approved" | "rejected" | "sent" | "accepted";
   approvalStatus?: "not_submitted" | "pending_approval" | "approved" | "rejected" | string;
   workflowStatus?: WorkflowStatus;
@@ -134,6 +170,10 @@ export type Quotation = {
     [key: string]: unknown;
   };
   createdBy?: unknown;
+  sendMethod?: "platform" | "manual" | null;
+  sentTo?: string;
+  sentCc?: string[];
+  sentMessage?: string;
   sentAt?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -143,6 +183,11 @@ export type CreateQuotationPayload = Partial<Omit<Quotation, "_id" | "quoteNumbe
 export type UpdateQuotationPayload = Partial<Omit<Quotation, "_id" | "quoteNumber" | "customerId" | "totalArea" | "totalCOGS" | "markupValue" | "finalPrice" | "psf" | "createdBy" | "createdAt" | "updatedAt">>;
 
 export type SendQuotationPayload = {
+  to?: string;
+  toEmail?: string;
+  cc?: string | string[];
+  ccEmail?: string | string[];
+  ccEmails?: string | string[];
   message?: string;
   note?: string;
   emailMessage?: string;
@@ -150,17 +195,43 @@ export type SendQuotationPayload = {
   sections?: string[];
 };
 
+export type MarkQuotationSentPayload = {
+  note?: string;
+  message?: string;
+  sentAt?: string;
+};
+
 export type QuotationResponse = {
   success: boolean;
   message: string;
   data: {
     quotation: Quotation;
+    sendMethod?: "platform" | "manual" | null;
+    sentTo?: string;
+    sentCc?: string[];
+    sentMessage?: string;
     emailProvider?: string;
     messageIncluded?: boolean;
     messageSourceKey?: string | null;
     pdfAttached?: boolean;
     pdfWarning?: string | null;
   };
+};
+
+export type QuotationStatsData = {
+  total: number;
+  approved: number;
+  pendingApproval?: number;
+  pending_approval?: number;
+  rejected: number;
+  sent: number;
+  draft: number;
+  accepted?: number;
+};
+
+export type QuotationStatsResponse = {
+  success: boolean;
+  data: QuotationStatsData;
 };
 
 export type QuotationSummaryResponse = {
@@ -243,6 +314,11 @@ export async function sendQuotationProvider(quotationId: string, payload?: SendQ
   return response.data;
 }
 
+export async function markQuotationSentProvider(quotationId: string, payload?: MarkQuotationSentPayload) {
+  const response = await apiClient.post<QuotationResponse>(`/api/quotations/${quotationId}/mark-sent`, payload || {});
+  return response.data;
+}
+
 export async function getQuotationSummaryProvider(quotationId: string) {
   const response = await apiClient.get<QuotationSummaryResponse>(`/api/quotations/${quotationId}/summary`);
   return response.data;
@@ -266,6 +342,11 @@ export async function getQuotationHtmlPreviewProvider(quotationId: string): Prom
     params: { format: "html" },
     responseType: "text",
   });
+  return response.data;
+}
+
+export async function getQuotationStatsProvider() {
+  const response = await apiClient.get<QuotationStatsResponse>("/api/quotations/stats");
   return response.data;
 }
 

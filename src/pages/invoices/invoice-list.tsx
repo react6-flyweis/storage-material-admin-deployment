@@ -296,6 +296,7 @@ export default function InvoiceListPage() {
                             workflowStatus={inv.invoice?.workflowStatus}
                             approvalStatus={inv.invoice?.approval?.status}
                             financialStatus={inv.status}
+                            sendMethod={inv.invoice?.sendMethod}
                           />
                         </TableCell>
                         <TableCell className="text-left px-6 py-4">

@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   updateInvoiceProvider,
   createInvoiceProvider,
@@ -10,6 +10,7 @@ import {
   markInvoicePaidProvider,
   getAdminProjectInvoicesProvider,
   sendInvoiceProvider,
+  markInvoiceSentProvider,
   approveInvoiceProvider,
   rejectInvoiceProvider,
   submitInvoiceApprovalProvider,
@@ -25,6 +26,8 @@ import {
   type GetInvoicesParams,
   type GetVendorInvoicesParams,
   type GetCarrierInvoicesParams,
+  type SendInvoicePayload,
+  type MarkInvoiceSentPayload,
 } from "./invoices.api";
 
 import {
@@ -85,8 +88,36 @@ export function useMarkInvoicePaidMutation() {
 }
 
 export function useSendInvoiceMutation() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (invoiceId: string) => sendInvoiceProvider(invoiceId),
+    mutationFn: (args: string | { invoiceId: string; payload?: SendInvoicePayload }) => {
+      const invoiceId = typeof args === "string" ? args : args.invoiceId;
+      const payload = typeof args === "string" ? undefined : args.payload;
+      return sendInvoiceProvider(invoiceId, payload);
+    },
+    onSuccess: (data, args) => {
+      const invoiceId = typeof args === "string" ? args : args.invoiceId;
+      queryClient.invalidateQueries({ queryKey: ["invoice", invoiceId] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["invoiceStats"] });
+    },
+  });
+}
+
+export function useMarkInvoiceSentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: string | { invoiceId: string; payload?: MarkInvoiceSentPayload }) => {
+      const invoiceId = typeof args === "string" ? args : args.invoiceId;
+      const payload = typeof args === "string" ? undefined : args.payload;
+      return markInvoiceSentProvider(invoiceId, payload);
+    },
+    onSuccess: (data, args) => {
+      const invoiceId = typeof args === "string" ? args : args.invoiceId;
+      queryClient.invalidateQueries({ queryKey: ["invoice", invoiceId] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["invoiceStats"] });
+    },
   });
 }
 

@@ -12,9 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  useSendQuotationMutation,
-  useMarkQuotationSentMutation,
-} from "@/modules/quotations/quotations.hooks";
+  useSendInvoiceMutation,
+  useMarkInvoiceSentMutation,
+} from "@/modules/invoices/invoices.hooks";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { toast } from "sonner";
 import {
@@ -28,12 +28,11 @@ import {
   Info,
 } from "lucide-react";
 
-interface SendQuotationDialogProps {
+interface SendInvoiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  quotationId: string;
-  quoteNumber?: string;
-  versionNumber?: number;
+  invoiceId: string;
+  invoiceNumber?: string;
   recipientEmail?: string;
   status?: string;
   sendMethod?: "platform" | "manual" | string | null;
@@ -41,17 +40,9 @@ interface SendQuotationDialogProps {
   onSuccess?: () => void;
 }
 
-const AVAILABLE_SECTIONS = [
-  { id: "quote", label: "Quote" },
-  { id: "sow", label: "Scope of Work (SOW)" },
-  { id: "contract", label: "Contract" },
-  { id: "drawings", label: "Drawings" },
-];
-
-function SendQuotationModalBody({
-  quotationId,
-  quoteNumber,
-  versionNumber,
+function SendInvoiceModalBody({
+  invoiceId,
+  invoiceNumber,
   recipientEmail,
   status,
   sendMethod,
@@ -59,9 +50,8 @@ function SendQuotationModalBody({
   onClose,
   onSuccess,
 }: {
-  quotationId: string;
-  quoteNumber?: string;
-  versionNumber?: number;
+  invoiceId: string;
+  invoiceNumber?: string;
   recipientEmail?: string;
   status?: string;
   sendMethod?: "platform" | "manual" | string | null;
@@ -76,15 +66,9 @@ function SendQuotationModalBody({
   const [toEmail, setToEmail] = useState(recipientEmail || "");
   const [ccList, setCcList] = useState<string[]>([]);
   const [ccInput, setCcInput] = useState("");
-  const [emailMessage, setEmailMessage] = useState(
-    `Please review the attached quotation ${quoteNumber ? `(${quoteNumber})` : ""} and let us know your feedback.`,
+  const [message, setMessage] = useState(
+    `Please find invoice ${invoiceNumber ? `#${invoiceNumber}` : ""} attached for your review and payment.`,
   );
-  const [selectedSections, setSelectedSections] = useState<string[]>([
-    "quote",
-    "sow",
-    "contract",
-    "drawings",
-  ]);
 
   // Manual Mark Sent state
   const [manualNote, setManualNote] = useState("");
@@ -92,13 +76,14 @@ function SendQuotationModalBody({
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const sendMutation = useSendQuotationMutation();
-  const markSentMutation = useMarkQuotationSentMutation();
+  const sendMutation = useSendInvoiceMutation();
+  const markSentMutation = useMarkInvoiceSentMutation();
 
   const handleAddCc = () => {
     const raw = ccInput.trim().replace(/[,;]/g, "");
     if (!raw) return;
 
+    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(raw)) {
       setErrorMessage(`"${raw}" is not a valid email address.`);
@@ -129,27 +114,14 @@ function SendQuotationModalBody({
     setCcList(ccList.filter((_, i) => i !== idx));
   };
 
-  const toggleSection = (id: string) => {
-    if (selectedSections.includes(id)) {
-      if (selectedSections.length === 1) {
-        toast.info("At least one section must be included.");
-        return;
-      }
-      setSelectedSections(selectedSections.filter((s) => s !== id));
-    } else {
-      setSelectedSections([...selectedSections, id]);
-    }
-  };
-
   const handlePlatformSend = async () => {
-    if (!quotationId) return;
+    if (!invoiceId) return;
     setErrorMessage(null);
 
     const payload: {
       toEmail?: string;
       cc?: string[];
       message?: string;
-      sections?: string[];
     } = {};
 
     if (toEmail.trim()) {
@@ -158,33 +130,27 @@ function SendQuotationModalBody({
     if (ccList.length > 0) {
       payload.cc = ccList;
     }
-    if (emailMessage.trim()) {
-      payload.message = emailMessage.trim();
-    }
-    if (selectedSections.length > 0) {
-      payload.sections = selectedSections;
+    if (message.trim()) {
+      payload.message = message.trim();
     }
 
     try {
-      const res = await sendMutation.mutateAsync({
-        quotationId,
+      await sendMutation.mutateAsync({
+        invoiceId,
         payload,
       });
 
-      const provider = res.data?.emailProvider
-        ? ` via ${res.data.emailProvider}`
-        : "";
       toast.success(
         isAlreadySent
-          ? `Quotation re-sent to customer successfully${provider}!`
-          : `Quotation sent to customer successfully${provider}!`,
+          ? "Invoice re-sent to customer successfully!"
+          : "Invoice sent to customer successfully!",
       );
       onClose();
       onSuccess?.();
     } catch (err: unknown) {
       const msg = getApiErrorMessage(
         err,
-        "Failed to send quotation. Quotation must be approved first.",
+        "Failed to send invoice. Please verify SMTP settings and invoice approval.",
       );
       setErrorMessage(msg);
       toast.error(msg);
@@ -192,25 +158,25 @@ function SendQuotationModalBody({
   };
 
   const handleMarkAsSent = async () => {
-    if (!quotationId) return;
+    if (!invoiceId) return;
     setErrorMessage(null);
 
     try {
       await markSentMutation.mutateAsync({
-        quotationId,
+        invoiceId,
         payload: {
           note: manualNote.trim() || undefined,
           sentAt: customSentAt ? new Date(customSentAt).toISOString() : undefined,
         },
       });
 
-      toast.success("Quotation marked as sent successfully!");
+      toast.success("Invoice marked as sent successfully!");
       onClose();
       onSuccess?.();
     } catch (err: unknown) {
       const msg = getApiErrorMessage(
         err,
-        "Failed to mark quotation as sent. Ensure quotation is approved.",
+        "Failed to mark invoice as sent. Ensure invoice is approved.",
       );
       setErrorMessage(msg);
       toast.error(msg);
@@ -222,34 +188,30 @@ function SendQuotationModalBody({
       <DialogHeader className="border-b px-6 py-4.5">
         <DialogTitle className="text-lg font-semibold text-gray-900">
           {isAlreadySent
-            ? `Resend Quote ${quoteNumber ? `#${quoteNumber}` : ""} ${
-                versionNumber !== undefined ? `(v${versionNumber})` : ""
-              }`
-            : `Send Quote ${quoteNumber ? `#${quoteNumber}` : ""} ${
-                versionNumber !== undefined ? `(v${versionNumber})` : ""
-              }`}
+            ? `Resend Invoice ${invoiceNumber ? `#${invoiceNumber}` : ""}`
+            : `Send Invoice ${invoiceNumber ? `#${invoiceNumber}` : ""}`}
         </DialogTitle>
         <DialogDescription className="text-xs text-gray-500 mt-1">
           {isAlreadySent
-            ? "This quotation was previously sent. You can dispatch another copy to the customer."
-            : "Send quote to customer via email or record it as externally sent."}
+            ? "This invoice was previously sent. You can dispatch another copy to the customer."
+            : "Send invoice to customer via email or record it as externally sent."}
         </DialogDescription>
       </DialogHeader>
 
-      <div className="p-6 space-y-4 flex-1 min-h-0 overflow-y-auto">
-        {/* Notice if already sent */}
+      <div className="p-6 space-y-4 max-h-[72vh] overflow-y-auto">
+        {/* Status notice if already sent */}
         {isAlreadySent && (
           <div className="bg-blue-50 border border-blue-200/80 rounded-lg p-3 text-xs flex items-start gap-2.5">
             <Info className="w-4 h-4 text-[#1D51A4] shrink-0 mt-0.5" />
             <div className="space-y-0.5">
-              <p className="font-semibold text-gray-900">Quotation already sent</p>
+              <p className="font-semibold text-gray-900">Invoice has already been sent</p>
               <p className="text-gray-600 text-xs">
                 Sent via{" "}
                 <span className="font-medium text-gray-800 capitalize">
                   {sendMethod === "manual" ? "external email" : "platform email"}
                 </span>
                 {sentAt ? ` on ${new Date(sentAt).toLocaleDateString()}` : ""}.
-                You can re-send the quotation below via platform email.
+                You can re-send the invoice below via platform email.
               </p>
             </div>
           </div>
@@ -312,7 +274,7 @@ function SendQuotationModalBody({
             {/* To Email */}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-gray-700 flex justify-between">
-                <span>To (Customer Email)</span>
+                <span>To (Recipient Email)</span>
                 <span className="text-gray-400 font-normal">
                   Optional — defaults to customer email
                 </span>
@@ -390,51 +352,24 @@ function SendQuotationModalBody({
               )}
             </div>
 
-            {/* Email Message Draft */}
+            {/* Message Draft */}
             <div className="space-y-1.5">
               <Label className="text-xs font-medium text-gray-700">
                 Email Cover Message
               </Label>
               <Textarea
-                value={emailMessage}
-                onChange={(e) => setEmailMessage(e.target.value)}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
                 placeholder="Add a personalized note for the customer..."
                 rows={3}
                 className="text-xs border-gray-200 bg-white placeholder:text-gray-400 resize-none"
               />
             </div>
 
-            {/* PDF Included Sections */}
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-gray-700">
-                Include in Generated PDF Attachment
-              </Label>
-              <div className="flex flex-wrap gap-2">
-                {AVAILABLE_SECTIONS.map((sec) => {
-                  const isSelected = selectedSections.includes(sec.id);
-                  return (
-                    <button
-                      key={sec.id}
-                      type="button"
-                      onClick={() => toggleSection(sec.id)}
-                      className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors border flex items-center gap-1.5 cursor-pointer ${
-                        isSelected
-                          ? "bg-blue-50 border-blue-300 text-[#1D51A4]"
-                          : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-                      }`}
-                    >
-                      <span className="text-xs font-bold">{isSelected ? "✓" : "+"}</span>
-                      {sec.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-[11px] text-gray-600 flex items-center gap-2">
               <FileCheck className="w-4 h-4 text-gray-500 shrink-0" />
               <span>
-                The quotation PDF with selected sections will be automatically attached by the platform.
+                The official invoice PDF will be automatically attached by the platform.
               </span>
             </div>
           </div>
@@ -448,10 +383,9 @@ function SendQuotationModalBody({
               <div className="space-y-1">
                 <p className="font-semibold text-gray-900">Emailed outside the platform?</p>
                 <p className="text-gray-600 text-xs leading-relaxed">
-                  Use this if you already sent the quote to the customer via Gmail,
-                  Outlook, or another external email. This marks the quote as
-                  sent and unlocks subsequent workflows (such as creating invoices)
-                  without requiring platform SMTP delivery.
+                  Use this if you already sent the invoice to the customer via Gmail,
+                  Outlook, or another external email. This marks the invoice as
+                  sent and unlocks subsequent workflows without requiring platform SMTP delivery.
                 </p>
               </div>
             </div>
@@ -464,7 +398,7 @@ function SendQuotationModalBody({
               <Textarea
                 value={manualNote}
                 onChange={(e) => setManualNote(e.target.value)}
-                placeholder="e.g. Sent directly via company Gmail on 7 Sep"
+                placeholder="e.g. Sent directly from Gmail on 7 Sep"
                 rows={2}
                 className="text-xs border-gray-200 bg-white placeholder:text-gray-400 resize-none"
               />
@@ -508,8 +442,8 @@ function SendQuotationModalBody({
             {sendMutation.isPending
               ? "Sending..."
               : isAlreadySent
-                ? "Resend Quotation"
-                : "Send Quotation"}
+                ? "Resend Invoice"
+                : "Send Invoice"}
           </Button>
         ) : (
           <Button
@@ -527,27 +461,25 @@ function SendQuotationModalBody({
   );
 }
 
-export default function SendQuotationDialog({
+export default function SendInvoiceDialog({
   open,
   onOpenChange,
-  quotationId,
-  quoteNumber,
-  versionNumber,
+  invoiceId,
+  invoiceNumber,
   recipientEmail,
   status,
   sendMethod,
   sentAt,
   onSuccess,
-}: SendQuotationDialogProps) {
+}: SendInvoiceDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg w-full max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col">
+      <DialogContent className="sm:max-w-lg w-full p-0 gap-0 overflow-hidden">
         {open && (
-          <SendQuotationModalBody
-            key={quotationId + "-" + (recipientEmail || "")}
-            quotationId={quotationId}
-            quoteNumber={quoteNumber}
-            versionNumber={versionNumber}
+          <SendInvoiceModalBody
+            key={invoiceId + "-" + (recipientEmail || "")}
+            invoiceId={invoiceId}
+            invoiceNumber={invoiceNumber}
             recipientEmail={recipientEmail}
             status={status}
             sendMethod={sendMethod}
