@@ -44,13 +44,49 @@ export type QuotationApproval = {
   history?: ApprovalHistoryItem[];
 };
 
+export const BUILDING_TYPE = ["PEMB", "Storage"] as const;
+export type BuildingType = (typeof BUILDING_TYPE)[number];
+
+// Admin list
+export const ADMIN_STATUS = [
+  "draft",
+  "pending",
+  "pending_approval",
+  "approved",
+  "rejected",
+  "sent",
+  "accepted",
+] as const;
+export type AdminStatus = (typeof ADMIN_STATUS)[number];
+
 export type WorkflowStatus = "draft" | "pending_approval" | "approved" | "rejected" | "sent";
+
+export type QuotationCustomer = {
+  _id: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  company?: string;
+  phone?: string;
+};
+
+export type QuotationLead = {
+  _id: string;
+  jobId?: string;
+  projectName?: string;
+};
 
 export type Quotation = {
   _id: string;
-  leadId: string;
-  customerId?: string;
+  leadId: string | QuotationLead;
+  customerId?: string | QuotationCustomer;
   quoteNumber: string;
+  customerName?: string;
+  customerEmail?: string;
+  defaultToEmail?: string;
+  projectName?: string;
+  jobId?: string;
+  projectId?: string;
   status: "draft" | "pending" | "pending_approval" | "approved" | "rejected" | "sent" | "accepted";
   approvalStatus?: "not_submitted" | "pending_approval" | "approved" | "rejected" | string;
   workflowStatus?: WorkflowStatus;
@@ -182,6 +218,22 @@ export type QuotationResponse = {
   };
 };
 
+export type QuotationStatsData = {
+  total: number;
+  approved: number;
+  pendingApproval?: number;
+  pending_approval?: number;
+  rejected: number;
+  sent: number;
+  draft: number;
+  accepted?: number;
+};
+
+export type QuotationStatsResponse = {
+  success: boolean;
+  data: QuotationStatsData;
+};
+
 export type QuotationSummaryResponse = {
   success: boolean;
   data: {
@@ -290,6 +342,11 @@ export async function getQuotationHtmlPreviewProvider(quotationId: string): Prom
     params: { format: "html" },
     responseType: "text",
   });
+  return response.data;
+}
+
+export async function getQuotationStatsProvider() {
+  const response = await apiClient.get<QuotationStatsResponse>("/api/quotations/stats");
   return response.data;
 }
 
