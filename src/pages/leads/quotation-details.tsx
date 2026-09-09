@@ -12,6 +12,8 @@ import {
   Download,
   Loader2,
   RefreshCw,
+  MessageSquare,
+  History,
 } from "lucide-react";
 import {
   useQuotationQuery,
@@ -23,6 +25,11 @@ import ApproveQuotationDialog from "@/components/leads/approve-quotation-dialog"
 import RejectQuotationDialog from "@/components/leads/reject-quotation-dialog";
 import SendQuotationDialog from "@/components/leads/send-quotation-dialog";
 import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
+import QuotationApprovalTimeline from "@/components/leads/quotation-approval-timeline";
+import {
+  getQuotationSalesSubmission,
+  formatDate,
+} from "@/modules/quotations/quotations.utils";
 
 export default function QuotationDetailsPage() {
   const navigate = useNavigate();
@@ -87,6 +94,8 @@ export default function QuotationDetailsPage() {
   const isSent = effectiveStatus === "sent";
   const canSend = isApproved || isSent;
 
+  const salesSubmission = getQuotationSalesSubmission(q);
+
   const handleDownloadPdf = async () => {
     if (!id) return;
     try {
@@ -108,6 +117,13 @@ export default function QuotationDetailsPage() {
     }
   };
 
+  const scrollToTimeline = () => {
+    const el = document.getElementById("approval-timeline");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6 space-y-6 ">
       {/* Top Action Bar */}
@@ -122,6 +138,18 @@ export default function QuotationDetailsPage() {
           Back
         </Button>
         <div className="flex items-center gap-3">
+          {/* Timeline Jump button */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="bg-white hover:bg-gray-50 border-gray-300 text-gray-700 h-9 px-3.5 text-xs font-medium rounded-md flex items-center gap-1.5"
+            onClick={scrollToTimeline}
+            title="View Workflow & Approval Timeline"
+          >
+            <History className="h-4 w-4 text-gray-500" />
+            <span>Timeline</span>
+          </Button>
+
           {/* Download PDF button */}
           <Button
             size="sm"
@@ -187,13 +215,40 @@ export default function QuotationDetailsPage() {
       {isPending && (
         <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-5 flex items-start gap-4">
           <Clock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <h4 className="font-semibold text-amber-900 text-sm">
-              Pending Admin Approval
-            </h4>
+          <div className="space-y-1 w-full">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="font-semibold text-amber-900 text-sm">
+                Pending Admin Approval
+              </h4>
+              {salesSubmission.submittedAt && (
+                <span className="text-xs text-amber-700 font-medium">
+                  Submitted {formatDate(salesSubmission.submittedAt)}
+                </span>
+              )}
+            </div>
             <p className="text-xs text-amber-700">
               This quotation is waiting for administrative review. You can review the preview below and approve or reject it.
             </p>
+
+            {/* Approval Message Sent by Sales */}
+            {salesSubmission.message && (
+              <div className="mt-3.5 p-3.5 bg-white rounded-lg border border-amber-300 shadow-2xs">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <span className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                    <MessageSquare className="h-3.5 w-3.5 text-amber-700" />
+                    Approval Message Sent by Sales
+                  </span>
+                  {salesSubmission.authorName && (
+                    <span className="text-[11px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      By {salesSubmission.authorName}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-amber-900 leading-relaxed whitespace-pre-wrap pl-3.5 border-l-2 border-amber-400 italic">
+                  "{salesSubmission.message}"
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -201,13 +256,34 @@ export default function QuotationDetailsPage() {
       {isApproved && (
         <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-5 flex items-start gap-4">
           <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <h4 className="font-semibold text-emerald-900 text-sm">
-              Quotation Approved
-            </h4>
+          <div className="space-y-1 w-full">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="font-semibold text-emerald-900 text-sm">
+                Quotation Approved
+              </h4>
+              {q.approval?.reviewedAt && (
+                <span className="text-xs text-emerald-700 font-medium">
+                  Approved {formatDate(q.approval.reviewedAt)}
+                </span>
+              )}
+            </div>
             <p className="text-xs text-emerald-700">
               This quotation has been approved and is ready to be sent to the customer.
             </p>
+            {salesSubmission.message && (
+              <div className="mt-3 p-3 bg-white/95 rounded-lg border border-emerald-200 text-xs">
+                <div className="flex items-center gap-1.5 font-semibold text-emerald-950 mb-1">
+                  <MessageSquare className="h-3.5 w-3.5 text-emerald-700" />
+                  Approval Request Message from Sales:
+                  {salesSubmission.authorName && (
+                    <span className="font-normal text-emerald-700">({salesSubmission.authorName})</span>
+                  )}
+                </div>
+                <p className="text-emerald-800 italic whitespace-pre-wrap pl-3 border-l-2 border-emerald-400">
+                  "{salesSubmission.message}"
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -215,18 +291,39 @@ export default function QuotationDetailsPage() {
       {isRejected && (
         <div className="bg-red-50/80 border border-red-200 rounded-xl p-5 flex items-start gap-4">
           <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <h4 className="font-semibold text-red-900 text-sm">
-              Quotation Rejected
-            </h4>
+          <div className="space-y-1 w-full">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="font-semibold text-red-900 text-sm">
+                Quotation Rejected
+              </h4>
+              {q.approval?.reviewedAt && (
+                <span className="text-xs text-red-700 font-medium">
+                  Rejected {formatDate(q.approval.reviewedAt)}
+                </span>
+              )}
+            </div>
             {q.approval?.rejectionReason && (
-              <p className="text-sm text-red-700">
+              <p className="text-sm text-red-700 mt-1">
                 <strong>Reason:</strong> {q.approval.rejectionReason}
               </p>
             )}
             <p className="text-xs text-red-600 mt-1">
               Sales team has been notified to revise this quotation and resubmit for approval.
             </p>
+            {salesSubmission.message && (
+              <div className="mt-3 p-3 bg-white/95 rounded-lg border border-red-200 text-xs">
+                <div className="flex items-center gap-1.5 font-semibold text-red-950 mb-1">
+                  <MessageSquare className="h-3.5 w-3.5 text-red-700" />
+                  Sales Message when submitted:
+                  {salesSubmission.authorName && (
+                    <span className="font-normal text-red-700">({salesSubmission.authorName})</span>
+                  )}
+                </div>
+                <p className="text-red-800 italic whitespace-pre-wrap pl-3 border-l-2 border-red-400">
+                  "{salesSubmission.message}"
+                </p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -242,8 +339,8 @@ export default function QuotationDetailsPage() {
                   : "Quotation Sent to Customer"}
               </h4>
               {q.sentAt && (
-                <span className="text-xs text-blue-600">
-                  {new Date(q.sentAt).toLocaleString()}
+                <span className="text-xs text-blue-600 font-medium">
+                  {formatDate(q.sentAt)}
                 </span>
               )}
             </div>
@@ -266,6 +363,12 @@ export default function QuotationDetailsPage() {
               <p className="text-xs text-blue-700 italic pt-1 whitespace-pre-wrap">
                 "{q.sentMessage}"
               </p>
+            )}
+            {salesSubmission.message && (
+              <div className="mt-2.5 pt-2 border-t border-blue-200/60 text-xs">
+                <span className="text-blue-900 font-medium">Sales Submission Note:</span>{" "}
+                <span className="text-blue-700 italic">"{salesSubmission.message}"</span>
+              </div>
             )}
           </div>
         </div>
@@ -335,6 +438,11 @@ export default function QuotationDetailsPage() {
             />
           </div>
         )}
+      </div>
+
+      {/* Quotation Approval & Workflow Timeline */}
+      <div id="approval-timeline">
+        <QuotationApprovalTimeline quotation={q} />
       </div>
 
       {/* Extracted Approve Modal */}

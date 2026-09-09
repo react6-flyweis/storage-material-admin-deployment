@@ -37,6 +37,10 @@ export type QuotationApproval = {
   status: "not_submitted" | "pending_approval" | "approved" | "rejected";
   submittedBy?: unknown;
   submittedAt?: string;
+  submissionNote?: string;
+  note?: string;
+  message?: string;
+  submitNote?: string;
   reviewedBy?: unknown;
   reviewedAt?: string;
   rejectionReason?: string;
@@ -154,6 +158,9 @@ export type Quotation = {
   internalNotes?: string;
   priorityLevel?: "low" | "medium" | "high" | "urgent";
   changeNote?: string;
+  submissionNote?: string;
+  submitNote?: string;
+  approvalMessage?: string;
   
   // Computed fields
   totalArea?: number;
