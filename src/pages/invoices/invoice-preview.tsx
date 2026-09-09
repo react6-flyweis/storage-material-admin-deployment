@@ -309,6 +309,7 @@ export default function InvoicePreview() {
                 INVOICE
               </h1>
               <InvoiceStatusBadge
+                invoiceStatus={invoiceData?.invoiceStatus}
                 workflowStatus={workflowStatus}
                 approvalStatus={approvalStatus}
                 financialStatus={invoiceData?.status}
@@ -568,6 +569,7 @@ export default function InvoicePreview() {
         {/* Approval Audit Timeline */}
 
         <ApprovalTimeline
+          invoiceStatus={invoiceData?.invoiceStatus}
           approval={approval}
           workflowStatus={workflowStatus}
           revision={revision}

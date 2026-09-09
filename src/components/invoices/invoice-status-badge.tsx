@@ -1,21 +1,34 @@
 import type { WorkflowStatus, ApprovalStatus } from "@/modules/invoices/invoices.api";
 
 interface InvoiceStatusBadgeProps {
+  invoiceStatus?: string;
   workflowStatus?: WorkflowStatus | string;
   approvalStatus?: ApprovalStatus | string;
   financialStatus?: string;
+  status?: string;
   sendMethod?: "platform" | "manual" | string | null;
   className?: string;
 }
 
 function getNormalizedStatusLabel(
+  invoiceStatus?: string,
   workflowStatus?: string,
   approvalStatus?: string,
   financialStatus?: string,
   sendMethod?: "platform" | "manual" | string | null,
+  status?: string,
 ): { label: string; bgClass: string } {
-  // If financial status is paid/overdue/cancelled, or if workflowStatus matches
-  const normalized = (workflowStatus || approvalStatus || financialStatus || "draft").toLowerCase();
+  // Prioritize invoiceStatus first, or fallback to workflowStatus, approvalStatus, financialStatus, status
+  const rawStatus = (
+    invoiceStatus ||
+    workflowStatus ||
+    approvalStatus ||
+    financialStatus ||
+    status ||
+    "draft"
+  ).trim();
+
+  const normalized = rawStatus.toLowerCase().replace(/[\s-]+/g, "_");
 
   switch (normalized) {
     case "paid":
@@ -29,6 +42,7 @@ function getNormalizedStatusLabel(
       }
       return { label: "Sent", bgClass: "bg-blue-600" };
     case "pending_approval":
+    case "pending":
       return { label: "Pending Approval", bgClass: "bg-amber-500" };
     case "approved":
       return { label: "Approved", bgClass: "bg-emerald-600" };
@@ -46,17 +60,21 @@ function getNormalizedStatusLabel(
 }
 
 export default function InvoiceStatusBadge({
+  invoiceStatus,
   workflowStatus,
   approvalStatus,
   financialStatus,
+  status,
   sendMethod,
   className = "",
 }: InvoiceStatusBadgeProps) {
   const { label, bgClass } = getNormalizedStatusLabel(
+    invoiceStatus,
     workflowStatus,
     approvalStatus,
     financialStatus,
     sendMethod,
+    status,
   );
 
   return (
@@ -68,3 +86,4 @@ export default function InvoiceStatusBadge({
     </span>
   );
 }
+
