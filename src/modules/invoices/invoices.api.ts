@@ -183,6 +183,7 @@ export type InvoiceListItem = {
   dueDate: string;
   amount: number;
   status: string;
+  invoiceStatus?: string;
   invoice: any;
 };
 
