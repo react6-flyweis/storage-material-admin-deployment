@@ -3,6 +3,7 @@ import InvoiceStatusBadge from "./invoice-status-badge";
 import { Clock, CheckCircle, XCircle, FileText, Send, User } from "lucide-react";
 
 interface ApprovalTimelineProps {
+  invoiceStatus?: string;
   approval?: InvoiceApproval;
   workflowStatus?: WorkflowStatus | string;
   revision?: number;
@@ -54,6 +55,7 @@ function getEventIcon(status: string) {
 }
 
 export default function ApprovalTimeline({
+  invoiceStatus,
   approval,
   workflowStatus,
   revision = 1,
@@ -85,6 +87,7 @@ export default function ApprovalTimeline({
           </p>
         </div>
         <InvoiceStatusBadge
+          invoiceStatus={invoiceStatus}
           workflowStatus={workflowStatus}
           approvalStatus={approval?.status}
           sendMethod={sendMethod}
