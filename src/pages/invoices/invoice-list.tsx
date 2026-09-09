@@ -293,6 +293,7 @@ export default function InvoiceListPage() {
                         </TableCell>
                         <TableCell className="text-left px-6 py-4">
                           <InvoiceStatusBadge
+                            invoiceStatus={inv.invoiceStatus || inv.invoice?.invoiceStatus}
                             workflowStatus={inv.invoice?.workflowStatus}
                             approvalStatus={inv.invoice?.approval?.status}
                             financialStatus={inv.status}
