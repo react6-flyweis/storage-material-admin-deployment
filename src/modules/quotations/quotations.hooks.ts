@@ -14,7 +14,11 @@ import {
   downloadQuotationPdfProvider,
   getQuotationHtmlPreviewProvider,
   getQuotationStatsProvider,
+  getLatestApprovedTaxByLeadProvider,
+  type LatestApprovedTaxResponse,
 } from "./quotations.api";
+
+export { type LatestApprovedTaxResponse };
 import type {
   CreateQuotationPayload,
   UpdateQuotationPayload,
@@ -188,6 +192,18 @@ export function useQuotationHtmlPreviewQuery(quotationId: string | undefined) {
     enabled: !!quotationId,
   });
 }
+
+export function useLatestApprovedTaxByLeadQuery(
+  leadId: string | undefined,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: ["leads", leadId, "quotations", "latest-approved-tax"],
+    queryFn: () => getLatestApprovedTaxByLeadProvider(leadId!),
+    enabled: Boolean(leadId) && enabled,
+  });
+}
+
 
 
 
