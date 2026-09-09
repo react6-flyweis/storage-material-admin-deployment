@@ -1,6 +1,6 @@
 import { useForm, Controller, useFieldArray, useWatch } from "react-hook-form";
 import { Calendar, Plus, UserPlus, ChevronDown } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import InvoiceLineItem from "./invoice-line-item";
 import AddMarkupDialog from "@/components/add-markup-dialog";
 import AddDiscountDialog from "@/components/add-discount-dialog";
@@ -20,6 +20,7 @@ import {
 import type { CreateInvoicePayload } from "@/modules/invoices/invoices.api";
 import AddProjectDialog from "@/components/add-project-dialog";
 import { useLeadsQuery } from "@/modules/leads/leads.hooks";
+import { useLatestApprovedTaxByLeadQuery } from "@/modules/quotations/quotations.hooks";
 import { toast } from "sonner";
 
 export interface LineItem {
@@ -27,11 +28,13 @@ export interface LineItem {
   description: string;
   notes: string;
   rate: number;
-  markup: number;
-  markupType: "percentage" | "amount";
+  markup?: number;
+  markupType?: "percentage" | "amount";
   quantity: number;
-  taxType: "%" | "$";
+  taxType: "%" | "$" | "percentage" | "amount";
   taxValue: string;
+  tax?: number;
+  taxAmount?: number;
   selectedTax?: string;
   images: string[];
   items: string[];
@@ -57,53 +60,74 @@ export interface InvoiceFormValues {
   clientAvatar: string;
   projectId: string;
   projectName: string;
+  leadId?: string;
   taxes: { name: string; rate: string; type?: "%" | "$" }[];
 }
 
-export default function InvoiceForm() {
+interface InvoiceFormProps {
+  invoice?: any;
+  paymentSchedule?: any;
+  isSummaryReadOnly?: boolean;
+}
+
+export default function InvoiceForm({
+  invoice,
+  paymentSchedule,
+  isSummaryReadOnly = false,
+}: InvoiceFormProps = {}) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const createInvoiceMutation = useCreateInvoiceMutation();
   const createPaymentScheduleMutation = useCreatePaymentScheduleMutation();
 
-  const { register, control, handleSubmit, setValue, getValues, reset, setError, clearErrors, formState: { errors } } =
-    useForm<InvoiceFormValues>({
-      defaultValues: {
-        invoiceNumber: "2460",
-        date: "10-25-2025",
-        daysToPay: "15",
-        poNumber: "",
-        groupSections: false,
-        markupType: "%",
-        markupValue: "",
-        discountType: "%",
-        discountValue: "",
-        depositType: "%",
-        depositValue: "",
-        paymentScheduleType: "%",
-        paymentSchedulePayments: [],
-        clientId: "",
-        clientName: "",
-        clientAvatar: "",
-        projectId: "",
-        projectName: "",
-        taxes: [],
-        lineItems: [
-          {
-            id: "1",
-            description: "",
-            notes: "",
-            rate: 0,
-            markup: 0,
-            markupType: "amount",
-            quantity: 1,
-            taxType: "%",
-            taxValue: "",
-            images: [],
-            items: [],
-          },
-        ],
-      },
-    });
+  const {
+    register,
+    control,
+    handleSubmit,
+    setValue,
+    getValues,
+    reset,
+    setError,
+    clearErrors,
+    formState: { errors },
+  } = useForm<InvoiceFormValues>({
+    defaultValues: {
+      invoiceNumber: "2460",
+      date: "10-25-2025",
+      daysToPay: "15",
+      poNumber: "",
+      groupSections: false,
+      markupType: "%",
+      markupValue: "",
+      discountType: "%",
+      discountValue: "",
+      depositType: "%",
+      depositValue: "",
+      paymentScheduleType: "%",
+      paymentSchedulePayments: [],
+      clientId: "",
+      clientName: "",
+      clientAvatar: "",
+      projectId: "",
+      projectName: "",
+      leadId: "",
+      taxes: [],
+      lineItems: [
+        {
+          id: "1",
+          description: "",
+          notes: "",
+          rate: 0,
+          markup: 0,
+          markupType: "amount",
+          quantity: 1,
+          taxType: "%",
+          taxValue: "",
+          images: [],
+          items: [],
+        },
+      ],
+    },
+  });
 
   const watchedValues = useWatch({ control }) as InvoiceFormValues;
 
@@ -130,7 +154,112 @@ export default function InvoiceForm() {
   const clientAvatar = watchedValues?.clientAvatar ?? "";
   const projectId = watchedValues?.projectId ?? "";
   const projectName = watchedValues?.projectName ?? "";
+  const leadId =
+    watchedValues?.leadId ||
+    projectId ||
+    (typeof invoice?.leadId === "object"
+      ? invoice?.leadId?._id
+      : invoice?.leadId || invoice?.projectId) ||
+    "";
   const taxes = watchedValues?.taxes ?? [];
+
+  // Ref to track which leadId has already had quotation tax data applied
+  const lastAppliedLeadTaxIdRef = useRef<string | null>(null);
+
+  // Trigger query when leadId is selected and invoice is not in read-only state
+  const latestApprovedTaxQuery = useLatestApprovedTaxByLeadQuery(
+    leadId || undefined,
+    Boolean(leadId) && !isSummaryReadOnly,
+  );
+
+  // Preserve Existing Invoices in Edit Mode
+  useEffect(() => {
+    if (invoice) {
+      // Initialize to existing leadId to avoid overwriting saved line items on mount
+      const existingLeadId =
+        typeof invoice?.leadId === "object"
+          ? invoice?.leadId?._id
+          : invoice?.leadId || invoice?.projectId || null;
+      lastAppliedLeadTaxIdRef.current = existingLeadId ?? null;
+    }
+  }, [invoice, paymentSchedule, reset]);
+
+  // Auto-Fill Effect on Lead Change
+  useEffect(() => {
+    if (!leadId) {
+      lastAppliedLeadTaxIdRef.current = null;
+      return;
+    }
+
+    if (!latestApprovedTaxQuery.isSuccess) {
+      return;
+    }
+
+    // Prevent repeated runs for the same leadId
+    if (lastAppliedLeadTaxIdRef.current === leadId) {
+      return;
+    }
+
+    lastAppliedLeadTaxIdRef.current = leadId;
+
+    const taxData = latestApprovedTaxQuery.data;
+    if (!taxData) return;
+
+    // 1. Auto-fill quote value to lineItems.0.rate
+    if (
+      typeof taxData.quoteValue === "number" &&
+      !Number.isNaN(taxData.quoteValue)
+    ) {
+      setValue("lineItems.0.rate", taxData.quoteValue);
+      setValue("lineItems.0.quantity", getValues("lineItems.0.quantity") || 1);
+      if (!getValues("lineItems.0.description")) {
+        setValue("lineItems.0.description", "Project Quote");
+      }
+    }
+
+    // 2. Auto-fill tax rate and line item tax
+    const taxRate = taxData.taxRate ?? taxData.salesTax?.rate ?? 0;
+    const taxAmount = taxData.tax ?? taxData.salesTax?.amount;
+
+    if (taxRate > 0) {
+      const currentTaxes = (getValues("taxes") || []) as {
+        name: string;
+        rate: string;
+        type?: "%" | "$";
+      }[];
+      const rateStr = String(taxRate);
+      let matchingTax = currentTaxes.find(
+        (t) => parseFloat(t.rate) === taxRate,
+      );
+
+      // If matching tax does not exist in the form's tax list, register it
+      if (!matchingTax) {
+        const name = `Tax ${rateStr}%`;
+        matchingTax = { name, rate: rateStr, type: "%" };
+        setValue("taxes", [...currentTaxes, matchingTax]);
+      }
+
+      setValue("lineItems.0.selectedTax", matchingTax.name);
+      setValue("lineItems.0.tax", taxRate);
+      setValue("lineItems.0.taxValue", rateStr);
+      setValue("lineItems.0.taxType", "percentage");
+      if (taxAmount != null) {
+        setValue("lineItems.0.taxAmount", taxAmount);
+      }
+    } else {
+      setValue("lineItems.0.selectedTax", "");
+      setValue("lineItems.0.tax", 0);
+      setValue("lineItems.0.taxValue", "");
+      setValue("lineItems.0.taxType", "percentage");
+      setValue("lineItems.0.taxAmount", 0);
+    }
+  }, [
+    leadId,
+    latestApprovedTaxQuery.isSuccess,
+    latestApprovedTaxQuery.data,
+    setValue,
+    getValues,
+  ]);
 
   // const { data: customersData, isLoading: isLoadingCustomers } = useCustomersQuery(1, 100);
   // const mappedCustomers = (customersData?.data?.customers || []).map((c) => ({
@@ -139,19 +268,28 @@ export default function InvoiceForm() {
   //   avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(`${c.firstName || ""} ${c.lastName || ""}`.trim() || c.companyName || "U")}&background=random`,
   // }));
 
-  const { data: leadsData, isLoading: isLoadingProjects } = useLeadsQuery(1, 100, {
-  });
+  const { data: leadsData, isLoading: isLoadingProjects } = useLeadsQuery(
+    1,
+    100,
+    {},
+  );
   const mappedProjects = (leadsData?.data?.leads || []).map((p) => ({
     id: p._id,
-    name: p.projectName?.trim() ? p.projectName.replace(/\s*\d{4}-\d{2}-\d{2}T.*Z$/, '') : `Project (${p._id.slice(-5)})`,
+    name: p.projectName?.trim()
+      ? p.projectName.replace(/\s*\d{4}-\d{2}-\d{2}T.*Z$/, "")
+      : p.jobId || (p._id ? `Project (${p._id.slice(-5)})` : "Project"),
+    jobId: p.jobId,
     lifecycleStatus: p.lifecycleStatus,
   }));
 
-  const { data: scheduleData } = usePaymentScheduleQuery(projectId);
+  const { data: scheduleData } = usePaymentScheduleQuery(leadId || projectId);
 
   useEffect(() => {
     const schedule = scheduleData?.data?.schedule;
-    if (schedule && (schedule.payments?.length > 0 || schedule.stages?.length > 0)) {
+    if (
+      schedule &&
+      (schedule.payments?.length > 0 || schedule.stages?.length > 0)
+    ) {
       // If a schedule exists for this lead, pre-populate it
       const stages = schedule.payments || schedule.stages;
       const type = stages[0]?.amountType === "percentage" ? "%" : "$";
@@ -163,8 +301,6 @@ export default function InvoiceForm() {
       setValue("paymentSchedulePayments", formattedStages);
     }
   }, [scheduleData, projectId, setValue]);
-
-
 
   // const toggleNotes = (id: string) => {
   //   setNotesOpen((p) => ({ ...p, [id]: !p[id] }));
@@ -229,7 +365,8 @@ export default function InvoiceForm() {
     const baseSubtotal = calculateBaseSubtotal();
     const markupTotal = calculateMarkupTotal();
 
-    const lineMarkupAmount = baseSubtotal > 0 ? ((rate * qty) / baseSubtotal) * markupTotal : 0;
+    const lineMarkupAmount =
+      baseSubtotal > 0 ? ((rate * qty) / baseSubtotal) * markupTotal : 0;
     const markupPerUnit = qty > 0 ? lineMarkupAmount / qty : 0;
 
     return rate + markupPerUnit;
@@ -251,10 +388,12 @@ export default function InvoiceForm() {
 
     return items.reduce((sum, item) => {
       const itemSubtotal = getLineTotal(item);
-      const taxRate = parseFloat(item.taxValue || "0");
+      const taxRate = parseFloat(
+        item.taxValue || (item.tax != null ? String(item.tax) : "0"),
+      );
       if (isNaN(taxRate) || taxRate <= 0) return sum;
 
-      if (item.taxType === "%") {
+      if (item.taxType === "%" || item.taxType === "percentage") {
         return sum + itemSubtotal * (taxRate / 100);
       }
       return sum + taxRate * (item.quantity || 0);
@@ -266,11 +405,7 @@ export default function InvoiceForm() {
   };
 
   const calculateTotal = () => {
-    return (
-      calculateSubtotal() -
-      calculateDiscount() +
-      calculateTax()
-    );
+    return calculateSubtotal() - calculateDiscount() + calculateTax();
   };
 
   const buildCreateInvoicePayload = (
@@ -279,24 +414,34 @@ export default function InvoiceForm() {
     const baseSubtotal = calculateBaseSubtotal();
     const markupTotal = calculateMarkupTotal();
     const subtotal = calculateSubtotal();
-    const discount = resolveAdjustment(data.discountType, data.discountValue, subtotal);
+    const discount = resolveAdjustment(
+      data.discountType,
+      data.discountValue,
+      subtotal,
+    );
 
     const parsedLineItems = (data.lineItems || []).map((lineItem) => {
       const rate = toNumber(lineItem.rate);
       const quantity = toNumber(lineItem.quantity || 1);
       const lineBase = rate * quantity;
 
-      const lineMarkupAmount = baseSubtotal > 0 ? (lineBase / baseSubtotal) * markupTotal : 0;
+      const lineMarkupAmount =
+        baseSubtotal > 0 ? (lineBase / baseSubtotal) * markupTotal : 0;
       const effectiveRate = (lineBase + lineMarkupAmount) / quantity;
       const lineTotal = lineBase + lineMarkupAmount;
 
-      const taxVal = toNumber(lineItem.taxValue);
-      const tType = lineItem.taxType === "%" ? "percentage" : "amount";
+      const taxVal = toNumber(lineItem.taxValue || lineItem.tax);
+      const tType =
+        lineItem.taxType === "%" || lineItem.taxType === "percentage"
+          ? "percentage"
+          : "amount";
 
       let taxAmount = 0;
-      if (taxVal > 0) {
+      if (lineItem.taxAmount != null && lineItem.taxAmount > 0) {
+        taxAmount = lineItem.taxAmount;
+      } else if (taxVal > 0) {
         if (tType === "percentage") {
-          taxAmount = lineTotal * taxVal / 100;
+          taxAmount = (lineTotal * taxVal) / 100;
         } else {
           taxAmount = taxVal * quantity;
         }
@@ -315,7 +460,12 @@ export default function InvoiceForm() {
 
       return {
         images: lineItem.images || [],
-        items: (lineItem.items || []).length > 0 ? lineItem.items : lineItem.description ? [lineItem.description] : [],
+        items:
+          (lineItem.items || []).length > 0
+            ? lineItem.items
+            : lineItem.description
+              ? [lineItem.description]
+              : [],
         rate,
         quantity,
         markup: lineMarkupInput,
@@ -329,14 +479,23 @@ export default function InvoiceForm() {
       };
     });
 
-    const taxTotal = parsedLineItems.reduce((sum, item) => sum + item.taxAmount, 0);
+    const taxTotal = parsedLineItems.reduce(
+      (sum, item) => sum + item.taxAmount,
+      0,
+    );
     const totalAmount = subtotal - discount + taxTotal;
-    const depositAmount = resolveAdjustment(data.depositType, data.depositValue, totalAmount);
+    const depositAmount = resolveAdjustment(
+      data.depositType,
+      data.depositValue,
+      totalAmount,
+    );
 
     return {
-      leadId: data.projectId || "",
+      leadId: data.leadId || data.projectId || "",
       quotationId: (data.poNumber || "").trim(),
-      date: data.date ? new Date(`${data.date}T00:00:00.000Z`).toISOString() : new Date().toISOString(),
+      date: data.date
+        ? new Date(`${data.date}T00:00:00.000Z`).toISOString()
+        : new Date().toISOString(),
       daysToPay: toNumber(data.daysToPay),
       lineItems: parsedLineItems,
       subtotal,
@@ -355,19 +514,29 @@ export default function InvoiceForm() {
       setError("projectId", { type: "manual", message: "Required" });
       hasError = true;
     }
-    if (data.paymentSchedulePayments && data.paymentSchedulePayments.length > 0 && data.paymentScheduleType === "%") {
-      const depositPercent = data.depositType === "%" ? parseFloat(data.depositValue || "0") : 0;
+    if (
+      data.paymentSchedulePayments &&
+      data.paymentSchedulePayments.length > 0 &&
+      data.paymentScheduleType === "%"
+    ) {
+      const depositPercent =
+        data.depositType === "%" ? parseFloat(data.depositValue || "0") : 0;
       const target = Math.max(0, 100 - depositPercent);
-      const sum = data.paymentSchedulePayments.reduce((acc, curr) => acc + parseFloat(curr.amount || "0"), 0);
+      const sum = data.paymentSchedulePayments.reduce(
+        (acc, curr) => acc + parseFloat(curr.amount || "0"),
+        0,
+      );
       if (Math.abs(sum - target) > 0.01) {
-        toast.error(`Please ensure all payment stages add up to exactly ${target}%. Your current total is ${sum}%.`);
+        toast.error(
+          `Please ensure all payment stages add up to exactly ${target}%. Your current total is ${sum}%.`,
+        );
         hasError = true;
       }
     }
 
     if (hasError) return;
 
-    const selectedProject = mappedProjects.find(p => p.id === data.projectId);
+    const selectedProject = mappedProjects.find((p) => p.id === data.projectId);
     const lifecycleOrder = [
       "initial_contact",
       "requirements_gathered",
@@ -376,20 +545,24 @@ export default function InvoiceForm() {
       "deal_closed",
       "payment_done",
       "converted_to_po",
-      "sent_to_admin"
+      "sent_to_admin",
     ];
 
     const currentStatus = selectedProject?.lifecycleStatus || "initial_contact";
     const statusIndex = lifecycleOrder.indexOf(currentStatus);
 
     if (statusIndex >= 0 && statusIndex < 2) {
-      toast.error("Cannot create invoice: Lead must be at least at 'Proposal Sent' stage.");
+      toast.error(
+        "Cannot create invoice: Lead must be at least at 'Proposal Sent' stage.",
+      );
       return;
     }
 
     try {
       const payload = buildCreateInvoicePayload(data);
-      const response = await createInvoiceMutation.mutateAsync(payload) as any;
+      const response = (await createInvoiceMutation.mutateAsync(
+        payload,
+      )) as any;
 
       if (!response.success) {
         setErrorMessage(response.message || "Unable to save invoice.");
@@ -403,19 +576,20 @@ export default function InvoiceForm() {
       ) {
         try {
           await createPaymentScheduleMutation.mutateAsync({
-            leadId: data.projectId,
+            leadId: data.leadId || data.projectId,
             totalAmount: payload.totalAmount,
             stages: data.paymentSchedulePayments.map((p) => ({
               stageName: p.name,
               amount: parseFloat(p.amount),
-              amountType: data.paymentScheduleType === "%" ? "percentage" : "fixed",
+              amountType:
+                data.paymentScheduleType === "%" ? "percentage" : "fixed",
             })),
           });
         } catch (scheduleError: any) {
           console.error("Failed to create payment schedule:", scheduleError);
           toast.error(
             scheduleError?.response?.data?.message ||
-            "Payment schedule already exists for this lead or could not be created."
+              "Payment schedule already exists for this lead or could not be created.",
           );
         }
       }
@@ -436,13 +610,15 @@ export default function InvoiceForm() {
       rate: li.rate,
       quantity: li.quantity,
       photos: li.images || [],
-      markup: getLineEffectiveRate(li) - (parseFloat(String(li.rate || 0)) || 0),
+      markup:
+        getLineEffectiveRate(li) - (parseFloat(String(li.rate || 0)) || 0),
     }));
 
     navigate("/invoice/preview", {
       state: {
         invoiceId: savedInvoice?._id,
-        invoiceNumber: savedInvoice?.invoiceNumber || values.invoiceNumber || invoiceNumber,
+        invoiceNumber:
+          savedInvoice?.invoiceNumber || values.invoiceNumber || invoiceNumber,
         date: savedInvoice?.date || values.date,
         daysToPay: values.daysToPay,
         items,
@@ -462,7 +638,7 @@ export default function InvoiceForm() {
         <div className="flex items-center gap-3 ml-auto">
           <Button
             variant="outline"
-            onClick={() => navigate('/invoices')}
+            onClick={() => navigate("/invoices")}
             className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200"
           >
             Cancel
@@ -506,8 +682,7 @@ export default function InvoiceForm() {
           </div>
 
           <div className="flex-1 max-w-2xl flex flex-col gap-6">
-            <div className="flex flex-wrap justify-end gap-3">
-            </div>
+            <div className="flex flex-wrap justify-end gap-3"></div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-6">
               <div className="space-y-2">
@@ -520,16 +695,23 @@ export default function InvoiceForm() {
                     type="date"
                     aria-invalid={!!errors.date}
                     {...register("date", { required: true })}
-                    className={`bg-white h-11 ${errors.date ? "border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50" : "border-gray-200"
-                      }`}
+                    className={`bg-white h-11 ${
+                      errors.date
+                        ? "border-red-500 focus-visible:border-red-500 focus-visible:ring-red-500/50"
+                        : "border-gray-200"
+                    }`}
                   />
                   <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 </div>
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700 flex justify-between">
-                  <span>Project <span className="text-red-500">*</span></span>
-                  {errors.projectId && <span className="text-red-500 text-xs">Required</span>}
+                  <span>
+                    Project <span className="text-red-500">*</span>
+                  </span>
+                  {errors.projectId && (
+                    <span className="text-red-500 text-xs">Required</span>
+                  )}
                 </label>
                 <AddProjectDialog
                   projects={mappedProjects}
@@ -539,35 +721,50 @@ export default function InvoiceForm() {
                     if (!project) {
                       setValue("projectId", "");
                       setValue("projectName", "");
+                      setValue("leadId", "");
                       return;
                     }
                     setValue("projectId", project.id);
                     setValue("projectName", project.name);
+                    setValue("leadId", project.id);
                     clearErrors("projectId");
 
-                    const fullProject = leadsData?.data?.leads?.find(p => p._id === project.id);
+                    const fullProject = leadsData?.data?.leads?.find(
+                      (p) => p._id === project.id,
+                    );
                     if (fullProject) {
-                      setValue("lineItems", [{
-                        id: Date.now().toString(),
-                        description: fullProject.projectName || `Project (${fullProject._id.slice(-5)})`,
-                        notes: "",
-                        rate: fullProject.quoteValue || 0,
-                        markup: 0,
-                        markupType: "amount",
-                        quantity: 1,
-                        taxType: "%",
-                        taxValue: "",
-                        images: [],
-                        items: [],
-                      }]);
+                      setValue("lineItems", [
+                        {
+                          id: Date.now().toString(),
+                          description:
+                            fullProject.projectName ||
+                            (fullProject._id
+                              ? `Project (${fullProject._id.slice(-5)})`
+                              : "Project Quote"),
+                          notes: "",
+                          rate: fullProject.quoteValue || 0,
+                          markup: 0,
+                          markupType: "amount",
+                          quantity: 1,
+                          taxType: "%",
+                          taxValue: "",
+                          images: [],
+                          items: [],
+                        },
+                      ]);
                     }
                   }}
                 >
                   <button
                     type="button"
-                    className={`flex items-center justify-between w-full h-11 px-3 text-sm text-left bg-white border rounded-md focus:outline-none focus:ring-2 ${errors.projectId ? "border-red-500 focus:ring-red-500" : "border-gray-200 focus:ring-blue-500"
-                      }`}
-                  >  <span className="truncate text-gray-700">
+                    className={`flex items-center justify-between w-full h-11 px-3 text-sm text-left bg-white border rounded-md focus:outline-none focus:ring-2 ${
+                      errors.projectId
+                        ? "border-red-500 focus:ring-red-500"
+                        : "border-gray-200 focus:ring-blue-500"
+                    }`}
+                  >
+                    {" "}
+                    <span className="truncate text-gray-700">
                       {projectName || "Select project (lead)"}
                     </span>
                     <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />
@@ -584,7 +781,6 @@ export default function InvoiceForm() {
                   className="bg-white border-gray-200 h-11"
                 />
               </div>
-
             </div>
           </div>
         </div>
@@ -626,10 +822,15 @@ export default function InvoiceForm() {
             const item = watchLineItems?.[index] || field;
             const lineMarkupAmount =
               calculateBaseSubtotal() > 0
-                ? ((parseFloat(String(item.rate || 0)) || 0) * (item.quantity || 1) / calculateBaseSubtotal()) * calculateMarkupTotal()
+                ? (((parseFloat(String(item.rate || 0)) || 0) *
+                    (item.quantity || 1)) /
+                    calculateBaseSubtotal()) *
+                  calculateMarkupTotal()
                 : 0;
-            const markupPerUnit = item.quantity > 0 ? lineMarkupAmount / item.quantity : 0;
-            const effectiveRate = (parseFloat(String(item.rate || 0)) || 0) + markupPerUnit;
+            const markupPerUnit =
+              item.quantity > 0 ? lineMarkupAmount / item.quantity : 0;
+            const effectiveRate =
+              (parseFloat(String(item.rate || 0)) || 0) + markupPerUnit;
             const lineTotal = effectiveRate * (item.quantity || 1);
 
             return (
@@ -799,22 +1000,37 @@ export default function InvoiceForm() {
                     setValue("depositValue", value);
 
                     // Auto-adjust payment schedule if needed
-                    const currentSchedule = getValues("paymentSchedulePayments") || [];
+                    const currentSchedule =
+                      getValues("paymentSchedulePayments") || [];
                     const scheduleType = getValues("paymentScheduleType");
 
-                    if (scheduleType === "%" && type === "%" && currentSchedule.length > 0) {
+                    if (
+                      scheduleType === "%" &&
+                      type === "%" &&
+                      currentSchedule.length > 0
+                    ) {
                       const depositPercent = parseFloat(value || "0");
-                      const scheduleSum = currentSchedule.reduce((sum, p) => sum + parseFloat(p.amount || "0"), 0);
-                      const targetScheduleSum = Math.max(0, 100 - depositPercent);
+                      const scheduleSum = currentSchedule.reduce(
+                        (sum, p) => sum + parseFloat(p.amount || "0"),
+                        0,
+                      );
+                      const targetScheduleSum = Math.max(
+                        0,
+                        100 - depositPercent,
+                      );
 
                       if (Math.abs(scheduleSum - targetScheduleSum) > 0.01) {
                         const newSchedule = [...currentSchedule];
                         const diff = scheduleSum - targetScheduleSum;
 
                         for (let i = 0; i < newSchedule.length; i++) {
-                          const currentAmount = parseFloat(newSchedule[i].amount || "0");
+                          const currentAmount = parseFloat(
+                            newSchedule[i].amount || "0",
+                          );
                           if (currentAmount > diff) {
-                            newSchedule[i].amount = (currentAmount - diff).toString();
+                            newSchedule[i].amount = (
+                              currentAmount - diff
+                            ).toString();
                             break;
                           }
                         }
@@ -856,7 +1072,11 @@ export default function InvoiceForm() {
                     <PaymentScheduleDialog
                       initialType={paymentScheduleType}
                       initialPayments={paymentSchedulePayments}
-                      maxPercent={depositType === "%" ? Math.max(0, 100 - parseFloat(depositValue || "0")) : 100}
+                      maxPercent={
+                        depositType === "%"
+                          ? Math.max(0, 100 - parseFloat(depositValue || "0"))
+                          : 100
+                      }
                       onDone={({ type, payments }) => {
                         setValue("paymentScheduleType", type);
                         setValue("paymentSchedulePayments", payments);
@@ -879,7 +1099,11 @@ export default function InvoiceForm() {
                 <PaymentScheduleDialog
                   initialType={paymentScheduleType}
                   initialPayments={paymentSchedulePayments}
-                  maxPercent={depositType === "%" ? Math.max(0, 100 - parseFloat(depositValue || "0")) : 100}
+                  maxPercent={
+                    depositType === "%"
+                      ? Math.max(0, 100 - parseFloat(depositValue || "0"))
+                      : 100
+                  }
                   onDone={({ type, payments }) => {
                     setValue("paymentScheduleType", type);
                     setValue("paymentSchedulePayments", payments);
