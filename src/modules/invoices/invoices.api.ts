@@ -130,6 +130,19 @@ export type ApprovalHistoryItem = {
   note?: string;
   by?: { _id?: string; name?: string; email?: string } | string;
   at: string;
+  revision?: number;
+  version?: number;
+};
+
+export type InvoiceApprovalRequest = {
+  status: ApprovalStatus | string;
+  revision: number;
+  submittedAt?: string;
+  submittedBy?: { _id?: string; name?: string; email?: string } | string;
+  note?: string;
+  current?: boolean;
+  closedAt?: string;
+  closedNote?: string;
 };
 
 export type InvoiceApproval = {
@@ -141,6 +154,7 @@ export type InvoiceApproval = {
   rejectionReason?: string;
   approvedRevision?: number;
   history?: ApprovalHistoryItem[];
+  approvalRequests?: InvoiceApprovalRequest[];
 };
 
 export async function approveInvoiceProvider(invoiceId: string, payload?: { note?: string }) {
