@@ -571,6 +571,7 @@ export default function InvoicePreview() {
         <ApprovalTimeline
           invoiceStatus={invoiceData?.invoiceStatus}
           approval={approval}
+          approvalRequests={invoiceData?.approvalRequests}
           workflowStatus={workflowStatus}
           revision={revision}
           sendMethod={invoiceData?.sendMethod}

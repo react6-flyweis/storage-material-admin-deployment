@@ -25,7 +25,7 @@ import ApproveQuotationDialog from "@/components/leads/approve-quotation-dialog"
 import RejectQuotationDialog from "@/components/leads/reject-quotation-dialog";
 import SendQuotationDialog from "@/components/leads/send-quotation-dialog";
 import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
-import QuotationApprovalTimeline from "@/components/leads/quotation-approval-timeline";
+import { ApprovalHistoryTimeline } from "@/components/timeline/approval-history-timeline";
 import {
   getQuotationSalesSubmission,
   formatDate,
@@ -442,7 +442,13 @@ export default function QuotationDetailsPage() {
 
       {/* Quotation Approval & Workflow Timeline */}
       <div id="approval-timeline">
-        <QuotationApprovalTimeline quotation={q} />
+        <ApprovalHistoryTimeline
+          history={q.approval?.history}
+          quotation={q}
+          version={q.versionNumber}
+          approvedVersion={q.approval?.approvedVersionNumber}
+          showEmpty={true}
+        />
       </div>
 
       {/* Extracted Approve Modal */}
