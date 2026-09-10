@@ -205,12 +205,23 @@ export default function InvoiceForm({
     const taxData = latestApprovedTaxQuery.data;
     if (!taxData) return;
 
-    // 1. Auto-fill quote value to lineItems.0.rate
+    // 1. Auto-fill quote value (amount without tax) to lineItems.0.rate
+    const quoteAmountWithoutTax =
+      typeof taxData.quoteAmountMinusTax === "number" &&
+      !Number.isNaN(taxData.quoteAmountMinusTax)
+        ? taxData.quoteAmountMinusTax
+        : typeof taxData.quoteValue === "number" &&
+          !Number.isNaN(taxData.quoteValue)
+        ? (typeof taxData.tax === "number" && taxData.tax > 0
+            ? taxData.quoteValue - taxData.tax
+            : taxData.quoteValue)
+        : undefined;
+
     if (
-      typeof taxData.quoteValue === "number" &&
-      !Number.isNaN(taxData.quoteValue)
+      typeof quoteAmountWithoutTax === "number" &&
+      !Number.isNaN(quoteAmountWithoutTax)
     ) {
-      setValue("lineItems.0.rate", taxData.quoteValue);
+      setValue("lineItems.0.rate", quoteAmountWithoutTax);
       setValue("lineItems.0.quantity", getValues("lineItems.0.quantity") || 1);
       if (!getValues("lineItems.0.description")) {
         setValue("lineItems.0.description", "Project Quote");
