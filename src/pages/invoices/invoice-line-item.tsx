@@ -1,10 +1,8 @@
-import { Controller } from "react-hook-form";
 import type {
   Control,
   UseFormRegister,
   UseFormGetValues,
   UseFormSetValue,
-  FieldArrayWithId,
 } from "react-hook-form";
 import { Upload, List } from "lucide-react";
 import UploadImageDialog from "@/components/upload-image-dialog";
@@ -12,39 +10,32 @@ import ItemListDialog from "@/components/item-list-dialog";
 import { uploadFileToS3 } from "@/lib/upload";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import TaxDialog from "@/components/tax-dialog";
 
 import type { InvoiceFormValues, LineItem } from "./invoice-form";
 
-type FieldType = FieldArrayWithId<InvoiceFormValues, "lineItems", "fieldId">;
-
 type Props = {
-  field: FieldType;
   index: number;
   item: LineItem;
-  control: Control<InvoiceFormValues>;
+  control?: Control<InvoiceFormValues>;
   register: UseFormRegister<InvoiceFormValues>;
   getValues: UseFormGetValues<InvoiceFormValues>;
   setValue: UseFormSetValue<InvoiceFormValues>;
-  remove: (index: number) => void;
+  remove?: (index: number) => void;
+  canRemove?: boolean;
   taxes?: { name: string; rate: string; type?: "%" | "$" }[];
+  effectiveRate?: number;
+  lineTotal?: number;
 };
 
 export default function InvoiceLineItem({
   index,
   item,
-  control,
   register,
   getValues,
   setValue,
   remove,
+  canRemove = false,
   taxes = [],
 }: Props) {
   const removeImage = (imageIndex: number) => {
@@ -56,15 +47,18 @@ export default function InvoiceLineItem({
 
   return (
     <div className="relative group">
-      <button
-        onClick={() => remove(index)}
-        className="absolute md:-left-8 left-2 top-4 text-red-500 hover:text-red-700 group-hover:opacity-100 transition-opacity"
-        title="Remove item"
-      >
-        <div className="md:w-5 md:h-5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white">
-          <span className="h-0.5 w-3 bg-white"></span>
-        </div>
-      </button>
+      {canRemove && remove && (
+        <button
+          type="button"
+          onClick={() => remove(index)}
+          className="absolute md:-left-8 left-2 top-4 text-red-500 hover:text-red-700 group-hover:opacity-100 transition-opacity cursor-pointer"
+          title="Remove item"
+        >
+          <div className="md:w-5 md:h-5 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-white">
+            <span className="h-0.5 w-3 bg-white"></span>
+          </div>
+        </button>
+      )}
 
       <div className="border border-gray-200 rounded-lg overflow-hidden">
         {/* Main Item Row */}

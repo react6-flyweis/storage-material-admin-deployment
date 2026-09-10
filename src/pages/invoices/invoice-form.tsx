@@ -1,16 +1,15 @@
-import { useForm, Controller, useFieldArray, useWatch } from "react-hook-form";
-import { Calendar, Plus, UserPlus, ChevronDown } from "lucide-react";
+import { useForm, useFieldArray, useWatch } from "react-hook-form";
+import { Calendar, ChevronDown, Plus } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import InvoiceLineItem from "./invoice-line-item";
 import AddMarkupDialog from "@/components/add-markup-dialog";
 import AddDiscountDialog from "@/components/add-discount-dialog";
 import AddDepositDialog from "@/components/add-deposit-dialog";
 import PaymentScheduleDialog from "@/components/payment-schedule-dialog";
-import AddClientDialog from "@/components/add-client-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import steelLogo from "@/assets/steel-building-depot-logo.png";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
   useCreateInvoiceMutation,
@@ -32,9 +31,12 @@ export interface LineItem {
   markupType?: "percentage" | "amount";
   quantity: number;
   taxType: "%" | "$" | "percentage" | "amount";
-  taxValue: string;
+  taxValue?: string;
   tax?: number;
   taxAmount?: number;
+  markupAmount?: number;
+  effectiveRate?: number;
+  total?: number;
   selectedTax?: string;
   images: string[];
   items: string[];
@@ -132,6 +134,10 @@ export default function InvoiceForm({
   const watchedValues = useWatch({ control }) as InvoiceFormValues;
 
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const typeParam = searchParams.get("type");
+  const leadIdParam = searchParams.get("leadId");
+  const isFromQuotation = typeParam === "quotation";
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -149,9 +155,6 @@ export default function InvoiceForm({
   const depositValue = watchedValues?.depositValue ?? "";
   const paymentScheduleType = watchedValues?.paymentScheduleType ?? "%";
   const paymentSchedulePayments = watchedValues?.paymentSchedulePayments ?? [];
-  const clientId = watchedValues?.clientId ?? "";
-  const clientName = watchedValues?.clientName ?? "";
-  const clientAvatar = watchedValues?.clientAvatar ?? "";
   const projectId = watchedValues?.projectId ?? "";
   const projectName = watchedValues?.projectName ?? "";
   const leadId =
@@ -171,6 +174,14 @@ export default function InvoiceForm({
     leadId || undefined,
     Boolean(leadId) && !isSummaryReadOnly,
   );
+
+  // Pre-fill lead/project if leadId is passed in search params
+  useEffect(() => {
+    if (leadIdParam) {
+      setValue("leadId", leadIdParam);
+      setValue("projectId", leadIdParam);
+    }
+  }, [leadIdParam, setValue]);
 
   // Preserve Existing Invoices in Edit Mode
   useEffect(() => {
@@ -205,62 +216,60 @@ export default function InvoiceForm({
     const taxData = latestApprovedTaxQuery.data;
     if (!taxData) return;
 
-    // 1. Auto-fill quote value (amount without tax) to lineItems.0.rate
-    const quoteAmountWithoutTax =
-      typeof taxData.quoteAmountMinusTax === "number" &&
-      !Number.isNaN(taxData.quoteAmountMinusTax)
-        ? taxData.quoteAmountMinusTax
-        : typeof taxData.quoteValue === "number" &&
-          !Number.isNaN(taxData.quoteValue)
-        ? (typeof taxData.tax === "number" && taxData.tax > 0
-            ? taxData.quoteValue - taxData.tax
-            : taxData.quoteValue)
-        : undefined;
+    // 1. Base rate before markup
+    const baseRate =
+      taxData.amountWithoutMarkup ?? taxData.subtotalWithoutMarkup ?? 0;
 
-    if (
-      typeof quoteAmountWithoutTax === "number" &&
-      !Number.isNaN(quoteAmountWithoutTax)
-    ) {
-      setValue("lineItems.0.rate", quoteAmountWithoutTax);
-      setValue("lineItems.0.quantity", getValues("lineItems.0.quantity") || 1);
-      if (!getValues("lineItems.0.description")) {
-        setValue("lineItems.0.description", "Project Quote");
-      }
+    setValue("lineItems.0.rate", baseRate);
+    setValue("lineItems.0.quantity", getValues("lineItems.0.quantity") || 1);
+    if (!getValues("lineItems.0.description")) {
+      setValue(
+        "lineItems.0.description",
+        taxData.quoteNumber
+          ? `Quotation ${taxData.quoteNumber}`
+          : "Project Quote",
+      );
     }
 
-    // 2. Auto-fill tax rate and line item tax
-    const taxRate = taxData.taxRate ?? taxData.salesTax?.rate ?? 0;
-    const taxAmount = taxData.tax ?? taxData.salesTax?.amount;
+    // 2. Direct Markup Amount ($)
+    const markupAmount = taxData.markup ?? 0;
+    setValue("markupType", "$");
+    setValue("markupValue", markupAmount > 0 ? String(markupAmount) : "");
+    setValue("lineItems.0.markup", markupAmount);
+    setValue("lineItems.0.markupType", "amount");
+    setValue("lineItems.0.markupAmount", markupAmount);
+    const effectiveRate = baseRate + markupAmount;
+    setValue("lineItems.0.effectiveRate", effectiveRate);
+    setValue(
+      "lineItems.0.total",
+      baseRate * (getValues("lineItems.0.quantity") || 1),
+    );
 
-    if (taxRate > 0) {
-      const currentTaxes = (getValues("taxes") || []) as {
-        name: string;
-        rate: string;
-        type?: "%" | "$";
-      }[];
+    // 3. Direct Tax Amount & Rate
+    const taxRate = taxData.taxRate ?? 0;
+    const taxAmount = taxData.tax ?? 0;
+
+    if (taxRate > 0 || taxAmount > 0) {
+      const currentTaxes = (getValues("taxes") || []) as InvoiceFormValues["taxes"];
       const rateStr = String(taxRate);
-      let matchingTax = currentTaxes.find(
-        (t) => parseFloat(t.rate) === taxRate,
-      );
+      let matchingTax = currentTaxes.find((t) => parseFloat(t.rate) === taxRate);
 
-      // If matching tax does not exist in the form's tax list, register it
-      if (!matchingTax) {
+      if (!matchingTax && taxRate > 0) {
         const name = `Tax ${rateStr}%`;
-        matchingTax = { name, rate: rateStr, type: "%" };
+        matchingTax = { name, rate: rateStr };
+        setValue("taxes", [...currentTaxes, matchingTax]);
+      } else if (!matchingTax) {
+        matchingTax = { name: "Tax", rate: "0" };
         setValue("taxes", [...currentTaxes, matchingTax]);
       }
 
       setValue("lineItems.0.selectedTax", matchingTax.name);
       setValue("lineItems.0.tax", taxRate);
-      setValue("lineItems.0.taxValue", rateStr);
       setValue("lineItems.0.taxType", "percentage");
-      if (taxAmount != null) {
-        setValue("lineItems.0.taxAmount", taxAmount);
-      }
+      setValue("lineItems.0.taxAmount", taxAmount);
     } else {
       setValue("lineItems.0.selectedTax", "");
       setValue("lineItems.0.tax", 0);
-      setValue("lineItems.0.taxValue", "");
       setValue("lineItems.0.taxType", "percentage");
       setValue("lineItems.0.taxAmount", 0);
     }
@@ -294,6 +303,15 @@ export default function InvoiceForm({
   }));
 
   const { data: scheduleData } = usePaymentScheduleQuery(leadId || projectId);
+
+  useEffect(() => {
+    if (leadIdParam && mappedProjects.length > 0 && !getValues("projectName")) {
+      const match = mappedProjects.find((p) => p.id === leadIdParam);
+      if (match) {
+        setValue("projectName", match.name);
+      }
+    }
+  }, [leadIdParam, mappedProjects, setValue, getValues]);
 
   useEffect(() => {
     const schedule = scheduleData?.data?.schedule;
@@ -395,19 +413,41 @@ export default function InvoiceForm({
   };
 
   const calculateTax = () => {
+    const markupPercent = markupType === "%" ? parseFloat(markupValue) || 0 : 0;
+    const markupFixed = markupType === "$" ? parseFloat(markupValue) || 0 : 0;
     const items = watchLineItems || [];
+    const available = taxes || [];
 
-    return items.reduce((sum, item) => {
-      const itemSubtotal = getLineTotal(item);
-      const taxRate = parseFloat(
-        item.taxValue || (item.tax != null ? String(item.tax) : "0"),
-      );
-      if (isNaN(taxRate) || taxRate <= 0) return sum;
+    return items.reduce((sum, item, idx) => {
+      const selectedName = item.selectedTax;
+      const t = available.find((a) => a.name === selectedName);
+      const taxRate = t ? parseFloat(t.rate || "0") : 0;
 
-      if (item.taxType === "%" || item.taxType === "percentage") {
-        return sum + itemSubtotal * (taxRate / 100);
+      // Use direct tax amount if pre-populated and tax rate matches
+      if (
+        typeof item.taxAmount === "number" &&
+        !Number.isNaN(item.taxAmount) &&
+        item.taxAmount > 0 &&
+        (item.tax === taxRate || taxRate === 0)
+      ) {
+        return sum + item.taxAmount;
       }
-      return sum + taxRate * (item.quantity || 0);
+
+      if (!t || taxRate === 0) return sum;
+
+      const rate = parseFloat(String(item.rate || 0)) || 0;
+      const quantity = parseFloat(String(item.quantity || 1)) || 0;
+      const itemMarkup =
+        markupType === "%"
+          ? rate * (markupPercent / 100) * quantity
+          : idx === 0
+          ? markupFixed
+          : 0;
+      const effectiveRate =
+        quantity > 0 ? (rate * quantity + itemMarkup) / quantity : rate;
+      const total = effectiveRate * quantity;
+
+      return sum + total * (taxRate / 100);
     }, 0);
   };
 
@@ -422,79 +462,74 @@ export default function InvoiceForm({
   const buildCreateInvoicePayload = (
     data: InvoiceFormValues,
   ): CreateInvoicePayload => {
-    const baseSubtotal = calculateBaseSubtotal();
-    const markupTotal = calculateMarkupTotal();
-    const subtotal = calculateSubtotal();
+    const markupPercent =
+      data.markupType === "%" ? toNumber(data.markupValue) : 0;
+    const markupFixed =
+      data.markupType === "$" ? toNumber(data.markupValue) : 0;
+
+    let subtotalWithoutMarkup = 0;
+    let markupTotal = 0;
+    let taxTotal = 0;
+
+    const parsedLineItems = (data.lineItems || []).map((item, idx) => {
+      const rate = toNumber(item.rate);
+      const quantity = toNumber(item.quantity || 1);
+
+      const itemMarkupAmount =
+        data.markupType === "%"
+          ? rate * (markupPercent / 100) * quantity
+          : idx === 0
+          ? markupFixed
+          : 0;
+      const effectiveRate =
+        quantity > 0 ? (rate * quantity + itemMarkupAmount) / quantity : rate;
+      const itemTotal = effectiveRate * quantity;
+
+      const matchingTax = (data.taxes || []).find((t) => t.name === item.selectedTax);
+      const taxPercent = matchingTax ? toNumber(matchingTax.rate) : 0;
+      const itemTaxAmount =
+        typeof item.taxAmount === "number" &&
+        item.taxAmount > 0 &&
+        (item.tax === taxPercent || taxPercent === 0)
+          ? item.taxAmount
+          : itemTotal * (taxPercent / 100);
+
+      subtotalWithoutMarkup += rate * quantity;
+      markupTotal += itemMarkupAmount;
+      taxTotal += itemTaxAmount;
+
+      return {
+        description: item.description?.trim() || "",
+        notes: item.notes?.trim() || "",
+        images: item.images || [],
+        items:
+          (item.items || []).length > 0
+            ? item.items
+            : item.description
+              ? [item.description]
+              : [],
+        rate,
+        quantity,
+        markup: data.markupType === "%" ? markupPercent : itemMarkupAmount,
+        markupType: (data.markupType === "%" ? "percentage" : "amount") as
+          | "percentage"
+          | "amount",
+        tax: taxPercent,
+        taxType: "percentage" as const,
+        effectiveRate,
+        markupAmount: itemMarkupAmount,
+        taxAmount: itemTaxAmount,
+        total: itemTotal,
+      };
+    });
+
+    const subtotal = subtotalWithoutMarkup + markupTotal;
     const discount = resolveAdjustment(
       data.discountType,
       data.discountValue,
       subtotal,
     );
-
-    const parsedLineItems = (data.lineItems || []).map((lineItem) => {
-      const rate = toNumber(lineItem.rate);
-      const quantity = toNumber(lineItem.quantity || 1);
-      const lineBase = rate * quantity;
-
-      const lineMarkupAmount =
-        baseSubtotal > 0 ? (lineBase / baseSubtotal) * markupTotal : 0;
-      const effectiveRate = (lineBase + lineMarkupAmount) / quantity;
-      const lineTotal = lineBase + lineMarkupAmount;
-
-      const taxVal = toNumber(lineItem.taxValue || lineItem.tax);
-      const tType =
-        lineItem.taxType === "%" || lineItem.taxType === "percentage"
-          ? "percentage"
-          : "amount";
-
-      let taxAmount = 0;
-      if (lineItem.taxAmount != null && lineItem.taxAmount > 0) {
-        taxAmount = lineItem.taxAmount;
-      } else if (taxVal > 0) {
-        if (tType === "percentage") {
-          taxAmount = (lineTotal * taxVal) / 100;
-        } else {
-          taxAmount = taxVal * quantity;
-        }
-      }
-
-      let lineMarkupInput = 0;
-      let lineMarkupType = "amount";
-
-      if (data.markupType === "%") {
-        lineMarkupInput = toNumber(data.markupValue);
-        lineMarkupType = "percentage";
-      } else {
-        lineMarkupInput = lineMarkupAmount;
-        lineMarkupType = "amount";
-      }
-
-      return {
-        images: lineItem.images || [],
-        items:
-          (lineItem.items || []).length > 0
-            ? lineItem.items
-            : lineItem.description
-              ? [lineItem.description]
-              : [],
-        rate,
-        quantity,
-        markup: lineMarkupInput,
-        markupType: lineMarkupType as "percentage" | "amount",
-        tax: taxVal,
-        taxType: tType as "percentage" | "amount",
-        effectiveRate,
-        markupAmount: lineMarkupAmount,
-        taxAmount,
-        total: lineTotal,
-      };
-    });
-
-    const taxTotal = parsedLineItems.reduce(
-      (sum, item) => sum + item.taxAmount,
-      0,
-    );
-    const totalAmount = subtotal - discount + taxTotal;
+    const totalAmount = Math.max(0, subtotal - discount + taxTotal);
     const depositAmount = resolveAdjustment(
       data.depositType,
       data.depositValue,
@@ -854,6 +889,7 @@ export default function InvoiceForm({
                 getValues={getValues}
                 setValue={setValue}
                 remove={remove}
+                canRemove={!isFromQuotation && fields.length > 1}
                 taxes={taxes}
                 effectiveRate={effectiveRate}
                 lineTotal={lineTotal}
@@ -862,18 +898,21 @@ export default function InvoiceForm({
           })}
         </div>
 
-        <div className="mt-4">
-          <Button
-            variant="outline"
-            onClick={addLineItem}
-            className="w-full border-blue-500 text-blue-600 hover:bg-blue-50 h-12 border-dashed flex items-center justify-center gap-2 font-medium"
-          >
-            <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-white">
-              <Plus className="w-3.5 h-3.5" />
-            </div>
-            ADD LINE ITEM
-          </Button>
-        </div>
+        {!isFromQuotation && (
+          <div className="mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={addLineItem}
+              className="w-full border-blue-500 text-blue-600 hover:bg-blue-50 h-12 border-dashed flex items-center justify-center gap-2 font-medium cursor-pointer"
+            >
+              <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center text-white">
+                <Plus className="w-3.5 h-3.5" />
+              </div>
+              ADD LINE ITEM
+            </Button>
+          </div>
+        )}
 
         {/* Footer Summary */}
         <div className="mt-12 flex justify-end">
