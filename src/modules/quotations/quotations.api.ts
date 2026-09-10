@@ -361,6 +361,8 @@ export type LatestApprovedTaxResponse = {
   quotationId?: string;
   quoteNumber?: string;
   quoteValue?: number;
+  quoteAmountIncludingTax?: number;
+  quoteAmountMinusTax?: number;
   tax?: number;
   taxRate?: number;
   salesTax?: {
