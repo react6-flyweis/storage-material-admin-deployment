@@ -15,6 +15,20 @@ export type CreateInvoiceLineItemPayload = {
   total: number;
 };
 
+export type CreateInvoiceDraftPayload = {
+  date?: string;
+  daysToPay?: number;
+  lineItems?: CreateInvoiceLineItemPayload[];
+  subtotal?: number;
+  markupTotal?: number;
+  tax?: number;
+  discount?: number;
+  depositAmount?: number;
+  totalAmount: number;
+  paymentScheduleId?: string;
+  paymentScheduleStageId?: string;
+};
+
 export type CreateInvoicePayload = {
   leadId: string;
   quotationId: string;
