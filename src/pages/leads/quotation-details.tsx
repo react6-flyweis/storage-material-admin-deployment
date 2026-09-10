@@ -14,6 +14,7 @@ import {
   RefreshCw,
   MessageSquare,
   History,
+  Receipt,
 } from "lucide-react";
 import {
   useQuotationQuery,
@@ -207,6 +208,22 @@ export default function QuotationDetailsPage() {
           >
             <Send className="h-4 w-4" />
             {isSent ? "Resend Quote" : "Send to Customer"}
+          </Button>
+
+          {/* Create Invoice */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="bg-white hover:bg-blue-50 border-blue-200 text-blue-700 h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer"
+            onClick={() => {
+              navigate(
+                `/invoice?type=quotation${leadIdStr ? `&leadId=${leadIdStr}` : ""}`,
+              );
+            }}
+            title="Create Invoice from Quotation"
+          >
+            <Receipt className="h-4 w-4" />
+            Create Invoice
           </Button>
         </div>
       </div>
