@@ -37,6 +37,10 @@ export type QuotationApproval = {
   status: "not_submitted" | "pending_approval" | "approved" | "rejected";
   submittedBy?: unknown;
   submittedAt?: string;
+  submissionNote?: string;
+  note?: string;
+  message?: string;
+  submitNote?: string;
   reviewedBy?: unknown;
   reviewedAt?: string;
   rejectionReason?: string;
@@ -154,6 +158,9 @@ export type Quotation = {
   internalNotes?: string;
   priorityLevel?: "low" | "medium" | "high" | "urgent";
   changeNote?: string;
+  submissionNote?: string;
+  submitNote?: string;
+  approvalMessage?: string;
   
   // Computed fields
   totalArea?: number;
@@ -348,6 +355,39 @@ export async function getQuotationHtmlPreviewProvider(quotationId: string): Prom
 export async function getQuotationStatsProvider() {
   const response = await apiClient.get<QuotationStatsResponse>("/api/quotations/stats");
   return response.data;
+}
+
+export type LatestApprovedTaxResponse = {
+  leadId: string;
+  quotationId: string;
+  quoteNumber: string;
+  amountWithoutMarkup: number;
+  subtotalWithoutMarkup: number;
+  markup: number;
+  subtotal: number;
+  subtotalWithMarkup: number;
+  tax: number;
+  total: number;
+  taxRate: number;
+  taxableBase: number;
+  taxNote?: string;
+  currency?: string;
+  approvalStatus: string;
+  versionNumber: number;
+  reviewedAt: string;
+};
+
+export async function getLatestApprovedTaxByLeadProvider(leadId: string) {
+  const response = await apiClient.get<
+    LatestApprovedTaxResponse | { success?: boolean; data?: LatestApprovedTaxResponse }
+  >(`/api/leads/${encodeURIComponent(leadId)}/quotations/latest-approved-tax`);
+
+  const raw = response.data;
+  // Safely support direct object or standard `{ success: true, data: { ... } }` wrapper
+  if (raw && typeof raw === "object" && "data" in raw && raw.data) {
+    return raw.data as LatestApprovedTaxResponse;
+  }
+  return raw as LatestApprovedTaxResponse;
 }
 
 

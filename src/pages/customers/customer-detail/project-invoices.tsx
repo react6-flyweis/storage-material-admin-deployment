@@ -307,6 +307,9 @@ export default function ProjectInvoicesPage() {
                     </TableCell>
                     <TableCell>
                       <InvoiceStatusBadge
+                        invoiceStatus={
+                          invoice.invoiceStatus || invoice.invoice?.invoiceStatus
+                        }
                         workflowStatus={invoice.invoice?.workflowStatus}
                         approvalStatus={invoice.invoice?.approval?.status}
                         financialStatus={

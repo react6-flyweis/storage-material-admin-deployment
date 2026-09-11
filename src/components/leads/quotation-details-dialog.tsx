@@ -19,9 +19,16 @@ import {
   Flame,
   Info,
   ShieldAlert,
+  Clock,
+  MessageSquare,
 } from "lucide-react";
 import type { Quotation } from "@/modules/quotations/quotations.api";
 import dayjs from "dayjs";
+import QuotationApprovalTimeline from "./quotation-approval-timeline";
+import {
+  getQuotationSalesSubmission,
+  formatDate,
+} from "@/modules/quotations/quotations.utils";
 
 interface QuotationDetailsDialogProps {
   open: boolean;
@@ -104,6 +111,8 @@ export default function QuotationDetailsDialog({
   const isAlreadySent = effectiveStatus === "sent" || Boolean(quotation.sentAt);
   const canSend = isApproved || isAlreadySent;
 
+  const salesSubmission = getQuotationSalesSubmission(quotation);
+
   const price = quotation.finalPrice || quotation.basePrice || 0;
   const dimensionsStr =
     quotation.width && quotation.length && quotation.height
@@ -160,6 +169,40 @@ export default function QuotationDetailsDialog({
 
         {/* Scrollable Content Body */}
         <div className="p-6 overflow-y-auto space-y-6 text-sm text-slate-700 flex-1 thin-scrollbar">
+          {/* Pending Approval Banner with Sales Message */}
+          {isPending && (
+            <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wide flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  Pending Admin Approval
+                </h4>
+                {salesSubmission.submittedAt && (
+                  <span className="text-[11px] text-amber-700">
+                    {formatDate(salesSubmission.submittedAt)}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-amber-700">
+                This quotation is waiting for administrative review.
+              </p>
+              {salesSubmission.message && (
+                <div className="mt-2 p-2.5 bg-white rounded border border-amber-200 text-xs">
+                  <div className="flex items-center gap-1.5 font-semibold text-amber-950 mb-1">
+                    <MessageSquare className="w-3 h-3 text-amber-700" />
+                    Approval Message from Sales
+                    {salesSubmission.authorName && (
+                      <span className="font-normal text-amber-700">({salesSubmission.authorName})</span>
+                    )}
+                  </div>
+                  <p className="text-amber-900 italic whitespace-pre-wrap pl-3 border-l-2 border-amber-400">
+                    "{salesSubmission.message}"
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Rejection Alert Banner if Rejected */}
           {isRejected && (quotation.approval?.rejectionReason || quotation.specialNote) && (
             <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
@@ -441,6 +484,9 @@ export default function QuotationDetailsDialog({
               )}
             </div>
           )}
+
+          {/* Quotation Approval & Workflow Timeline */}
+          <QuotationApprovalTimeline quotation={quotation} />
         </div>
 
         {/* Modal Footer Actions */}

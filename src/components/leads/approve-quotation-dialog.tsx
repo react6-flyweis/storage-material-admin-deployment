@@ -7,8 +7,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useApproveQuotationMutation } from "@/modules/quotations/quotations.hooks";
 import { toast } from "sonner";
 
@@ -62,28 +62,29 @@ export default function ApproveQuotationDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md w-full max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-base font-semibold">
             Approve Quotation
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-4 py-2">
-          <p className="text-sm text-gray-600">
+        <div className="space-y-4 py-2 w-full min-w-0">
+          <p className="text-sm text-gray-600 wrap-break-word">
             Are you sure you want to approve Quote{" "}
             <strong>{quoteNumber || quotationId}</strong>
             {versionNumber !== undefined ? ` (v${versionNumber})` : ""}? This will
             enable sending the quotation to the customer.
           </p>
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 w-full min-w-0">
             <Label className="text-xs text-gray-600">
               Optional Approval Note
             </Label>
-            <Input
+            <Textarea
               value={approveNote}
               onChange={(e) => setApproveNote(e.target.value)}
               placeholder="e.g. Approved for customer send"
-              className="h-9 text-sm"
+              rows={4}
+              className="h-28 max-h-40"
             />
           </div>
         </div>

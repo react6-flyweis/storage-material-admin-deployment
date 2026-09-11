@@ -1,9 +1,18 @@
-import type { InvoiceApproval, WorkflowStatus } from "@/modules/invoices/invoices.api";
-import InvoiceStatusBadge from "./invoice-status-badge";
-import { Clock, CheckCircle, XCircle, FileText, Send, User } from "lucide-react";
+import { useMemo } from "react";
+import type {
+  InvoiceApproval,
+  InvoiceApprovalRequest,
+  WorkflowStatus,
+} from "@/modules/invoices/invoices.api";
+import {
+  ApprovalHistoryTimeline,
+  type ApprovalHistoryItem,
+} from "@/components/timeline/approval-history-timeline";
 
-interface ApprovalTimelineProps {
+export interface ApprovalTimelineProps {
+  invoiceStatus?: string;
   approval?: InvoiceApproval;
+  approvalRequests?: InvoiceApprovalRequest[];
   workflowStatus?: WorkflowStatus | string;
   revision?: number;
   sendMethod?: "platform" | "manual" | string | null;
@@ -14,182 +23,186 @@ interface ApprovalTimelineProps {
   className?: string;
 }
 
-function formatUser(user?: unknown): string {
-  if (!user) return "System / User";
-  if (typeof user === "string") return user;
-  if (typeof user === "object" && user !== null) {
-    const u = user as { name?: string; email?: string; _id?: string };
-    return u.name || u.email || u._id || "User";
-  }
-  return "User";
-}
+function getInvoiceTimelineHistory({
+  approval,
+  approvalRequests,
+  workflowStatus,
+  sendMethod,
+  sentAt,
+  sentMessage,
+}: {
+  approval?: InvoiceApproval;
+  approvalRequests?: InvoiceApprovalRequest[];
+  workflowStatus?: WorkflowStatus | string;
+  sendMethod?: string | null;
+  sentAt?: string | null;
+  sentMessage?: string;
+}): ApprovalHistoryItem[] {
+  const history = (approval?.history || []) as Array<Record<string, unknown>>;
+  const requests = (approvalRequests ||
+    approval?.approvalRequests ||
+    []) as InvoiceApprovalRequest[];
+  const isSent = workflowStatus === "sent" || Boolean(sentAt || sendMethod);
 
-function formatDate(dateStr?: string | Date): string {
-  if (!dateStr) return "";
-  const d = new Date(dateStr);
-  return isNaN(d.getTime())
-    ? String(dateStr)
-    : d.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
+  const items: ApprovalHistoryItem[] = [];
+
+  if (history && history.length > 0) {
+    items.push(
+      ...history.map((item) => {
+        // Try finding revision directly on the history item, or match with approvalRequests
+        let itemRevision =
+          (item.revision as number | string | undefined) ??
+          (item.version as number | string | undefined) ??
+          (item.versionNumber as number | string | undefined);
+
+        if (itemRevision === undefined && requests.length > 0) {
+          const matched = requests.find(
+            (r) =>
+              (r.submittedAt && r.submittedAt === item.at) ||
+              (r.closedAt && r.closedAt === item.at) ||
+              (r.closedNote && r.closedNote === item.note) ||
+              (r.note && r.note === item.note)
+          );
+          if (matched) {
+            itemRevision = matched.revision;
+          }
+        }
+
+        return {
+          status: (item.status as string) || "draft",
+          note: (item.note as string) || undefined,
+          by: item.by,
+          at: (item.at as string) || undefined,
+          revision: itemRevision,
+          version: itemRevision,
+          versionNumber: itemRevision,
+        };
+      })
+    );
+
+    // If sent occurred and not recorded in history, append sent event
+    const hasSent = history.some(
+      (h) =>
+        (h.status as string) === "sent" ||
+        (h.status as string) === "marked_sent" ||
+        (h.status as string) === "sent_via_email"
+    );
+    if (isSent && !hasSent) {
+      items.push({
+        status: sendMethod === "manual" ? "marked_sent" : "sent",
+        by: approval?.reviewedBy || "Admin",
+        at: sentAt || undefined,
+        note: sentMessage || undefined,
       });
-}
+    }
+  } else if (requests && requests.length > 0) {
+    // Generate timeline directly from approvalRequests
+    requests.forEach((req) => {
+      // 1. Decision event (Approved or Rejected)
+      if (
+        req.closedAt &&
+        req.status !== "pending" &&
+        req.status !== "pending_approval"
+      ) {
+        items.push({
+          status: req.status,
+          note: req.closedNote,
+          by: approval?.reviewedBy || "Admin",
+          at: req.closedAt,
+          revision: req.revision,
+          version: req.revision,
+          versionNumber: req.revision,
+        });
+      }
 
-function getEventIcon(status: string) {
-  switch (status.toLowerCase()) {
-    case "approved":
-      return <CheckCircle className="w-4 h-4 text-emerald-600" />;
-    case "rejected":
-      return <XCircle className="w-4 h-4 text-rose-600" />;
-    case "pending_approval":
-      return <Clock className="w-4 h-4 text-amber-600" />;
-    case "sent":
-      return <Send className="w-4 h-4 text-blue-600" />;
-    default:
-      return <FileText className="w-4 h-4 text-slate-500" />;
+      // 2. Submission event (Pending Approval)
+      if (req.submittedAt) {
+        items.push({
+          status: "pending_approval",
+          note: req.note,
+          by: req.submittedBy,
+          at: req.submittedAt,
+          revision: req.revision,
+          version: req.revision,
+          versionNumber: req.revision,
+        });
+      }
+    });
+
+    if (isSent) {
+      items.push({
+        status: sendMethod === "manual" ? "marked_sent" : "sent",
+        by: approval?.reviewedBy || "Admin",
+        at: sentAt || undefined,
+        note: sentMessage || undefined,
+      });
+    }
+  } else {
+    // Fallback if neither history nor approvalRequests exist
+    if (isSent) {
+      items.push({
+        status: sendMethod === "manual" ? "marked_sent" : "sent",
+        by: approval?.reviewedBy || "Admin",
+        at: sentAt || undefined,
+        note: sentMessage || undefined,
+      });
+    }
+
+    if (approval?.status === "approved") {
+      items.push({
+        status: "approved",
+        by: approval.reviewedBy || "Admin",
+        at: approval.reviewedAt || undefined,
+      });
+    } else if (approval?.status === "rejected") {
+      items.push({
+        status: "rejected",
+        by: approval.reviewedBy || "Admin",
+        at: approval.reviewedAt || undefined,
+        note: approval.rejectionReason,
+      });
+    }
+
+    if (approval?.submittedAt || approval?.status === "pending_approval") {
+      items.push({
+        status: "pending_approval",
+        by: approval?.submittedBy || "User",
+        at: approval?.submittedAt || undefined,
+      });
+    }
   }
+
+  return items;
 }
 
 export default function ApprovalTimeline({
   approval,
+  approvalRequests,
   workflowStatus,
   revision = 1,
   sendMethod,
   sentAt,
-  sentTo,
-  sentCc,
   sentMessage,
   className = "",
 }: ApprovalTimelineProps) {
-  const history = approval?.history || [];
-
-  const isSent = workflowStatus === "sent" || Boolean(sentAt || sendMethod);
+  const historyItems = useMemo(() => {
+    return getInvoiceTimelineHistory({
+      approval,
+      approvalRequests,
+      workflowStatus,
+      sendMethod,
+      sentAt,
+      sentMessage,
+    });
+  }, [approval, approvalRequests, workflowStatus, sendMethod, sentAt, sentMessage]);
 
   return (
-    <div className={`border border-gray-200 rounded-md bg-white p-6 ${className}`}>
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-gray-100">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900">
-            Approval & Workflow Status
-          </h3>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Current Revision: <span className="font-medium text-slate-700">v{revision}</span>
-            {approval?.approvedRevision !== undefined && approval?.approvedRevision > 0 && (
-              <span className="ml-2 text-slate-500">
-                (Approved: v{approval.approvedRevision})
-              </span>
-            )}
-          </p>
-        </div>
-        <InvoiceStatusBadge
-          workflowStatus={workflowStatus}
-          approvalStatus={approval?.status}
-          sendMethod={sendMethod}
-        />
-      </div>
-
-      {/* Sent details banner if sent */}
-      {isSent && (
-        <div className="mt-4 p-3.5 bg-blue-50/70 border border-blue-200 rounded-md">
-          <div className="flex items-start gap-2.5">
-            <Send className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
-            <div className="text-xs space-y-1 w-full">
-              <div className="flex items-center justify-between">
-                <span className="font-semibold text-blue-900">
-                  {sendMethod === "manual" ? "Marked as Sent (External Email)" : "Sent via Platform Email (SMTP)"}
-                </span>
-                {sentAt && (
-                  <span className="text-blue-600 text-[11px]">{formatDate(sentAt)}</span>
-                )}
-              </div>
-              {sentTo && (
-                <p className="text-blue-800">
-                  <span className="font-medium text-blue-900">To:</span> {sentTo}
-                  {sentCc && sentCc.length > 0 && (
-                    <span className="ml-2">
-                      <span className="font-medium text-blue-900">CC:</span> {sentCc.join(", ")}
-                    </span>
-                  )}
-                </p>
-              )}
-              {sentMessage && (
-                <p className="text-blue-700 mt-1 italic whitespace-pre-wrap">
-                  "{sentMessage}"
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Rejection Reason Alert if rejected */}
-      {approval?.status === "rejected" && approval?.rejectionReason && (
-        <div className="mt-4 p-3 bg-rose-50 border border-rose-200 rounded-md">
-          <div className="flex items-start gap-2">
-            <XCircle className="w-4 h-4 text-rose-600 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-xs font-semibold text-rose-900">Rejection Reason</p>
-              <p className="text-xs text-rose-700 mt-0.5 whitespace-pre-wrap">
-                {approval.rejectionReason}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Timeline entries */}
-      <div className="mt-6 space-y-6">
-        {history.length > 0 ? (
-          history.map((event, idx) => (
-            <div key={idx} className="relative flex items-start gap-4">
-              {idx < history.length - 1 && (
-                <div className="absolute left-3.5 top-6 bottom-0 w-px bg-slate-200 -mb-6" />
-              )}
-              <div className="relative z-10 w-7 h-7 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center shrink-0">
-                {getEventIcon(event.status)}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <InvoiceStatusBadge approvalStatus={event.status} />
-                    <span className="text-xs text-slate-600 flex items-center gap-1">
-                      <User className="w-3 h-3 text-slate-400" />
-                      {formatUser(event.by)}
-                    </span>
-                  </div>
-                  <span className="text-[11px] text-slate-400">
-                    {formatDate(event.at)}
-                  </span>
-                </div>
-                {event.note && (
-                  <p className="text-xs text-slate-600 mt-1.5 bg-slate-50 p-2.5 rounded border border-slate-100 whitespace-pre-wrap">
-                    {event.note}
-                  </p>
-                )}
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="text-xs text-slate-500 py-2">
-            {approval?.submittedAt && (
-              <p className="mb-1">
-                Submitted by <span className="font-medium text-slate-700">{formatUser(approval.submittedBy)}</span> on {formatDate(approval.submittedAt)}
-              </p>
-            )}
-            {approval?.reviewedAt && (
-              <p>
-                Reviewed by <span className="font-medium text-slate-700">{formatUser(approval.reviewedBy)}</span> on {formatDate(approval.reviewedAt)}
-              </p>
-            )}
-            {!approval?.submittedAt && !approval?.reviewedAt && (
-              <p className="text-slate-400 italic">No approval history recorded yet.</p>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
+    <ApprovalHistoryTimeline
+      history={historyItems}
+      version={revision}
+      approvedVersion={approval?.approvedRevision}
+      className={className}
+      showEmpty={true}
+    />
   );
 }
