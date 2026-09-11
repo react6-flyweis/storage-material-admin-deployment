@@ -17,7 +17,9 @@ import {
   usePaymentScheduleQuery,
 } from "@/modules/invoices/invoices.hooks";
 import type { CreateInvoicePayload } from "@/modules/invoices/invoices.api";
-import AddProjectDialog from "@/components/add-project-dialog";
+import AddProjectDialog, {
+  getProjectDisplayName,
+} from "@/components/add-project-dialog";
 import { useLeadsQuery } from "@/modules/leads/leads.hooks";
 import { useLatestApprovedTaxByLeadQuery } from "@/modules/quotations/quotations.hooks";
 import { toast } from "sonner";
@@ -293,14 +295,38 @@ export default function InvoiceForm({
     100,
     {},
   );
-  const mappedProjects = (leadsData?.data?.leads || []).map((p) => ({
-    id: p._id,
-    name: p.projectName?.trim()
-      ? p.projectName.replace(/\s*\d{4}-\d{2}-\d{2}T.*Z$/, "")
-      : p.jobId || (p._id ? `Project (${p._id.slice(-5)})` : "Project"),
-    jobId: p.jobId,
-    lifecycleStatus: p.lifecycleStatus,
-  }));
+  const mappedProjects = (leadsData?.data?.leads || []).map((p: any) => {
+    const custName =
+      p.customerName ||
+      (p.customerId && typeof p.customerId === "object"
+        ? `${p.customerId?.firstName || ""} ${p.customerId?.lastName || ""}`.trim() ||
+          p.customerId?.companyName ||
+          p.customerId?.name
+        : "") ||
+      "";
+    const cleanProjName = p.projectName?.trim()
+      ? p.projectName.replace(/\s*\d{4}-\d{2}-\d{2}T.*Z$/, "").trim()
+      : "";
+
+    return {
+      id: p._id,
+      projectName: cleanProjName,
+      customerName: custName,
+      buildingType: p.buildingType || "",
+      location: p.location || "",
+      jobId: p.jobId || p.projectId || (p._id ? `PRO-${p._id.slice(-3)}` : ""),
+      code: p.jobId || p.projectId,
+      status: p.lifecycleStatus || p.status || "",
+      lifecycleStatus: p.lifecycleStatus,
+      name: getProjectDisplayName({
+        projectName: cleanProjName,
+        customerName: custName,
+        buildingType: p.buildingType || "",
+        location: p.location || "",
+        id: p._id,
+      }),
+    };
+  });
 
   const { data: scheduleData } = usePaymentScheduleQuery(leadId || projectId);
 
@@ -565,16 +591,21 @@ export default function InvoiceForm({
       data.paymentSchedulePayments.length > 0 &&
       data.paymentScheduleType === "%"
     ) {
+      const hasDepositRow = data.paymentSchedulePayments.some(
+        (p) => p.name.trim().toLowerCase() === "deposit",
+      );
       const depositPercent =
-        data.depositType === "%" ? parseFloat(data.depositValue || "0") : 0;
-      const target = Math.max(0, 100 - depositPercent);
+        !hasDepositRow && data.depositType === "%"
+          ? parseFloat(data.depositValue || "0")
+          : 0;
       const sum = data.paymentSchedulePayments.reduce(
         (acc, curr) => acc + parseFloat(curr.amount || "0"),
         0,
       );
-      if (Math.abs(sum - target) > 0.01) {
+      const totalSum = sum + depositPercent;
+      if (Math.abs(totalSum - 100) > 0.01) {
         toast.error(
-          `Please ensure all payment stages add up to exactly ${target}%. Your current total is ${sum}%.`,
+          `Please ensure all payment stages (including deposit) add up to exactly 100%. Your current total is ${totalSum}%.`,
         );
         hasError = true;
       }
@@ -621,10 +652,39 @@ export default function InvoiceForm({
         !scheduleData?.data?.schedule
       ) {
         try {
+          const stages = [...data.paymentSchedulePayments];
+          const hasDeposit = stages.some(
+            (s) => s.name.trim().toLowerCase() === "deposit",
+          );
+          const depositVal = parseFloat(data.depositValue || "0");
+          if (!hasDeposit && depositVal > 0) {
+            if (data.paymentScheduleType === "%") {
+              const depositPercent =
+                data.depositType === "%"
+                  ? depositVal
+                  : payload.totalAmount > 0
+                  ? (depositVal / payload.totalAmount) * 100
+                  : 0;
+              stages.unshift({
+                name: "Deposit",
+                amount: depositPercent.toString(),
+              });
+            } else {
+              const depositFixed =
+                data.depositType === "$"
+                  ? depositVal
+                  : (payload.totalAmount * depositVal) / 100;
+              stages.unshift({
+                name: "Deposit",
+                amount: depositFixed.toString(),
+              });
+            }
+          }
+
           await createPaymentScheduleMutation.mutateAsync({
             leadId: data.leadId || data.projectId,
             totalAmount: payload.totalAmount,
-            stages: data.paymentSchedulePayments.map((p) => ({
+            stages: stages.map((p) => ({
               stageName: p.name,
               amount: parseFloat(p.amount),
               amountType:
@@ -1028,6 +1088,64 @@ export default function InvoiceForm({
                     onDone={({ type, value }) => {
                       setValue("depositType", type);
                       setValue("depositValue", value);
+
+                      const currentSchedule =
+                        getValues("paymentSchedulePayments") || [];
+                      const scheduleType = getValues("paymentScheduleType");
+
+                      if (
+                        scheduleType === "%" &&
+                        type === "%" &&
+                        currentSchedule.length > 0
+                      ) {
+                        const depositPercent = parseFloat(value || "0");
+                        const depositIdx = currentSchedule.findIndex(
+                          (p) => p.name.trim().toLowerCase() === "deposit",
+                        );
+
+                        const newSchedule = [...currentSchedule];
+                        if (depositIdx >= 0) {
+                          if (depositPercent > 0) {
+                            newSchedule[depositIdx].amount = value;
+                          } else {
+                            newSchedule.splice(depositIdx, 1);
+                          }
+                        } else if (depositPercent > 0) {
+                          newSchedule.unshift({
+                            name: "Deposit",
+                            amount: value,
+                          });
+                        }
+
+                        const totalSum = newSchedule.reduce(
+                          (sum, p) => sum + (parseFloat(p.amount || "0") || 0),
+                          0,
+                        );
+                        if (totalSum > 100) {
+                          let diff = totalSum - 100;
+                          for (let i = newSchedule.length - 1; i >= 0; i--) {
+                            if (
+                              newSchedule[i].name.trim().toLowerCase() ===
+                              "deposit"
+                            )
+                              continue;
+                            const currentAmount = parseFloat(
+                              newSchedule[i].amount || "0",
+                            );
+                            if (currentAmount > diff) {
+                              newSchedule[i].amount = (
+                                currentAmount - diff
+                              ).toString();
+                              diff = 0;
+                              break;
+                            } else {
+                              diff -= currentAmount;
+                              newSchedule[i].amount = "0";
+                            }
+                          }
+                        }
+                        setValue("paymentSchedulePayments", newSchedule);
+                      }
                     }}
                   >
                     <button className="text-blue-500 text-xs font-medium hover:underline">
@@ -1035,7 +1153,19 @@ export default function InvoiceForm({
                     </button>
                   </AddDepositDialog>
                   <button
-                    onClick={() => setValue("depositValue", "")}
+                    onClick={() => {
+                      setValue("depositValue", "");
+                      const currentSchedule =
+                        getValues("paymentSchedulePayments") || [];
+                      const depositIdx = currentSchedule.findIndex(
+                        (p) => p.name.trim().toLowerCase() === "deposit",
+                      );
+                      if (depositIdx >= 0) {
+                        const newSchedule = [...currentSchedule];
+                        newSchedule.splice(depositIdx, 1);
+                        setValue("paymentSchedulePayments", newSchedule);
+                      }
+                    }}
                     className="text-gray-500 hover:text-red-500"
                   >
                     Remove
@@ -1060,20 +1190,36 @@ export default function InvoiceForm({
                       currentSchedule.length > 0
                     ) {
                       const depositPercent = parseFloat(value || "0");
-                      const scheduleSum = currentSchedule.reduce(
-                        (sum, p) => sum + parseFloat(p.amount || "0"),
-                        0,
-                      );
-                      const targetScheduleSum = Math.max(
-                        0,
-                        100 - depositPercent,
+                      const depositIdx = currentSchedule.findIndex(
+                        (p) => p.name.trim().toLowerCase() === "deposit",
                       );
 
-                      if (Math.abs(scheduleSum - targetScheduleSum) > 0.01) {
-                        const newSchedule = [...currentSchedule];
-                        const diff = scheduleSum - targetScheduleSum;
+                      const newSchedule = [...currentSchedule];
+                      if (depositIdx >= 0) {
+                        if (depositPercent > 0) {
+                          newSchedule[depositIdx].amount = value;
+                        } else {
+                          newSchedule.splice(depositIdx, 1);
+                        }
+                      } else if (depositPercent > 0) {
+                        newSchedule.unshift({
+                          name: "Deposit",
+                          amount: value,
+                        });
+                      }
 
-                        for (let i = 0; i < newSchedule.length; i++) {
+                      const totalSum = newSchedule.reduce(
+                        (sum, p) => sum + (parseFloat(p.amount || "0") || 0),
+                        0,
+                      );
+                      if (totalSum > 100) {
+                        let diff = totalSum - 100;
+                        for (let i = newSchedule.length - 1; i >= 0; i--) {
+                          if (
+                            newSchedule[i].name.trim().toLowerCase() ===
+                            "deposit"
+                          )
+                            continue;
                           const currentAmount = parseFloat(
                             newSchedule[i].amount || "0",
                           );
@@ -1081,11 +1227,15 @@ export default function InvoiceForm({
                             newSchedule[i].amount = (
                               currentAmount - diff
                             ).toString();
+                            diff = 0;
                             break;
+                          } else {
+                            diff -= currentAmount;
+                            newSchedule[i].amount = "0";
                           }
                         }
-                        setValue("paymentSchedulePayments", newSchedule);
                       }
+                      setValue("paymentSchedulePayments", newSchedule);
                     }
                   }}
                 >
@@ -1115,6 +1265,10 @@ export default function InvoiceForm({
                           className="bg-gray-100 px-3 py-1 rounded text-sm"
                         >
                           {p.name} {p.amount}
+                          {paymentScheduleType === "%" &&
+                          !p.amount.includes("%")
+                            ? "%"
+                            : ""}
                         </div>
                       ),
                     )}
@@ -1122,10 +1276,10 @@ export default function InvoiceForm({
                     <PaymentScheduleDialog
                       initialType={paymentScheduleType}
                       initialPayments={paymentSchedulePayments}
-                      maxPercent={
-                        depositType === "%"
-                          ? Math.max(0, 100 - parseFloat(depositValue || "0"))
-                          : 100
+                      deposit={
+                        depositValue
+                          ? { type: depositType, value: depositValue }
+                          : undefined
                       }
                       onDone={({ type, payments }) => {
                         setValue("paymentScheduleType", type);
@@ -1149,10 +1303,10 @@ export default function InvoiceForm({
                 <PaymentScheduleDialog
                   initialType={paymentScheduleType}
                   initialPayments={paymentSchedulePayments}
-                  maxPercent={
-                    depositType === "%"
-                      ? Math.max(0, 100 - parseFloat(depositValue || "0"))
-                      : 100
+                  deposit={
+                    depositValue
+                      ? { type: depositType, value: depositValue }
+                      : undefined
                   }
                   onDone={({ type, payments }) => {
                     setValue("paymentScheduleType", type);
