@@ -13,22 +13,37 @@ import {
   CardTitle,
   CardAction,
   CardContent,
-  CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
+import type { FinancialOverviewRevenueTrendItem } from "@/modules/financials/financials.api";
 
-const revenueTrendData = [
-  { month: "Jan", revenue: 820 },
-  { month: "Feb", revenue: 1340 },
-  { month: "Mar", revenue: 1360 },
-  { month: "Apr", revenue: 1080 },
-  { month: "May", revenue: 1520 },
-  { month: "Jun", revenue: 1540 },
-  { month: "Jul", revenue: 1880 },
+const MONTH_NAMES = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
-export function RevenueTrendChart() {
+type RevenueTrendChartProps = {
+  data?: FinancialOverviewRevenueTrendItem[];
+  isLoading?: boolean;
+};
+
+export function RevenueTrendChart({ data = [], isLoading = false }: RevenueTrendChartProps) {
+  const chartData = data.map((item) => ({
+    month: `${MONTH_NAMES[(item._id.month - 1) % 12]} ${item._id.year}`,
+    revenue: item.revenue,
+  }));
+
   return (
     <Card className="rounded">
       <CardHeader className="border-b px-4 flex items-center">
@@ -41,42 +56,39 @@ export function RevenueTrendChart() {
         </CardAction>
       </CardHeader>
       <CardContent>
-        <div className="mb-4 text-sm text-slate-500">
-          <span className="text-2xl font-semibold text-slate-900">98%</span>
-          <span className="ml-2 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-600">
-            +12%
-          </span>
-          <span className="ml-1">vs last years</span>
-        </div>
-        <div className="h-56">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={revenueTrendData}>
-              <defs>
-                <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#22c55e" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="#22c55e" stopOpacity={0.04} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} />
-              <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
-              <Tooltip />
-              <Area
-                type="monotone"
-                dataKey="revenue"
-                stroke="#22c55e"
-                strokeWidth={2}
-                fill="url(#revenueFill)"
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
+        {isLoading ? (
+          <div className="flex h-64 items-center justify-center">
+            <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
+          </div>
+        ) : (
+          <div className="h-64 pt-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="revenueFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#22c55e" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#22c55e" stopOpacity={0.04} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" />
+                <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} />
+                <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
+                <Tooltip
+                  formatter={(value: number) => [`$${value.toLocaleString()}`, "Revenue"]}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#22c55e"
+                  strokeWidth={2}
+                  fill="url(#revenueFill)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
       </CardContent>
-      <CardFooter className="border-t pt-3">
-        <p className="text-xs text-slate-500">
-          Ratings are as per the feedback from higher authorities
-        </p>
-      </CardFooter>
     </Card>
   );
 }
+

@@ -1,7 +1,7 @@
-import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -18,13 +18,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useCreateExpenseCategoryMutation } from "@/modules/financials/financials.hooks";
 
 const addExpenseCategorySchema = z.object({
   name: z.string().min(1, "Category name is required"),
-  description: z.string().min(1, "Description is required"),
-  type: z.string().min(1, "Type is required"),
-  default: z.string().min(1, "Default is required"),
-  status: z.string().min(1, "Status is required"),
+  description: z.string().optional(),
+  type: z.string().optional(),
+  default: z.string().optional(),
+  status: z.string().optional(),
 });
 
 export type AddExpenseCategoryFormValues = z.infer<
@@ -34,7 +35,7 @@ export type AddExpenseCategoryFormValues = z.infer<
 type AddExpenseCategoryDialogProps = {
   open: boolean;
   onClose: () => void;
-  onSuccess?: (data: AddExpenseCategoryFormValues) => void;
+  onSuccess?: () => void;
 };
 
 const typeOptions = ["System", "Custom"];
@@ -46,7 +47,7 @@ export function AddExpenseCategoryDialog({
   onClose,
   onSuccess,
 }: AddExpenseCategoryDialogProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const createCategoryMutation = useCreateExpenseCategoryMutation();
 
   const {
     control,
@@ -71,14 +72,19 @@ export function AddExpenseCategoryDialog({
   };
 
   const onSubmit = async (data: AddExpenseCategoryFormValues) => {
-    setIsSubmitting(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      onSuccess?.(data);
+      await createCategoryMutation.mutateAsync({
+        name: data.name.trim(),
+      });
+      toast.success("Expense category created successfully");
       reset();
+      onSuccess?.();
       onClose();
-    } finally {
-      setIsSubmitting(false);
+    } catch (error) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(
+        err?.response?.data?.message || "Failed to create expense category"
+      );
     }
   };
 
@@ -120,11 +126,6 @@ export function AddExpenseCategoryDialog({
                 className="w-full"
                 {...register("description")}
               />
-              {errors.description && (
-                <p className="text-sm text-red-500">
-                  {errors.description.message}
-                </p>
-              )}
             </div>
 
             <div className="space-y-2">
@@ -149,9 +150,6 @@ export function AddExpenseCategoryDialog({
                   </Select>
                 )}
               />
-              {errors.type && (
-                <p className="text-sm text-red-500">{errors.type.message}</p>
-              )}
             </div>
 
             <div className="space-y-2">
@@ -176,9 +174,6 @@ export function AddExpenseCategoryDialog({
                   </Select>
                 )}
               />
-              {errors.default && (
-                <p className="text-sm text-red-500">{errors.default.message}</p>
-              )}
             </div>
 
             <div className="space-y-2">
@@ -203,9 +198,6 @@ export function AddExpenseCategoryDialog({
                   </Select>
                 )}
               />
-              {errors.status && (
-                <p className="text-sm text-red-500">{errors.status.message}</p>
-              )}
             </div>
           </div>
 
@@ -215,7 +207,7 @@ export function AddExpenseCategoryDialog({
               variant="outline"
               size="lg"
               onClick={handleCancel}
-              disabled={isSubmitting}
+              disabled={createCategoryMutation.isPending}
               className="border-slate-300 px-8"
             >
               Cancel
@@ -223,10 +215,10 @@ export function AddExpenseCategoryDialog({
             <Button
               type="submit"
               size="lg"
-              disabled={isSubmitting}
+              disabled={createCategoryMutation.isPending}
               className="bg-violet-600 px-8 hover:bg-violet-700"
             >
-              {isSubmitting ? "Saving..." : "Save"}
+              {createCategoryMutation.isPending ? "Saving..." : "Save"}
             </Button>
           </div>
         </form>
@@ -234,3 +226,5 @@ export function AddExpenseCategoryDialog({
     </Dialog>
   );
 }
+
+

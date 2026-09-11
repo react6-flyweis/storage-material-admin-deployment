@@ -19,7 +19,9 @@ import {
   FieldTitle,
 } from "@/components/ui/field";
 import { cn } from "@/lib/utils";
-import { PlusIcon } from "lucide-react";
+import { PlusIcon, Loader2 } from "lucide-react";
+import { useCreateRoleMutation } from "@/modules/roles/roles.hooks";
+import type { ApiRolePermissions, ApiPermissionAction } from "@/modules/roles/roles.types";
 
 // Zod schema for form validation
 const roleFormSchema = z.object({
@@ -37,13 +39,6 @@ const roleFormSchema = z.object({
 
 type RoleFormData = z.infer<typeof roleFormSchema>;
 
-interface RoleData {
-  roleName: string;
-  description: string;
-  color: string;
-  permissions: Record<string, string[]>;
-}
-
 const ROLE_COLORS = [
   { name: "red", bg: "bg-red-500", hex: "#EF4444" },
   { name: "blue", bg: "bg-blue-600", hex: "#2563EB" },
@@ -53,103 +48,50 @@ const ROLE_COLORS = [
   { name: "pink", bg: "bg-pink-500", hex: "#EC4899" },
 ];
 
+const MODULE_KEYS = [
+  "deliveries",
+  "leads",
+  "customers",
+  "employees",
+  "financials",
+  "products",
+  "invoices",
+  "reports",
+  "plant",
+  "construction",
+  "settings",
+  "communication",
+];
+
 const PERMISSION_MODULES = [
   {
-    id: "delivery-management",
+    id: "deliveries",
     title: "Delivery Management",
     permissions: [
-      {
-        id: "view-deliveries",
-        name: "View Deliveries",
-        description: "View all deliveries and details",
-      },
-      {
-        id: "create-deliveries",
-        name: "Create Deliveries",
-        description: "Add new delivery records",
-      },
-      {
-        id: "edit-deliveries",
-        name: "Edit Deliveries",
-        description: "Modify existing deliveries",
-      },
-      {
-        id: "delete-deliveries",
-        name: "Delete Deliveries",
-        description: "Remove delivery records",
-      },
-      {
-        id: "reschedule-deliveries",
-        name: "Reschedule Deliveries",
-        description: "Change delivery dates/times",
-      },
+      { id: "view", name: "View Deliveries", description: "View all deliveries and details" },
+      { id: "create", name: "Create Deliveries", description: "Add new delivery records" },
+      { id: "edit", name: "Edit Deliveries", description: "Modify existing deliveries" },
+      { id: "delete", name: "Delete Deliveries", description: "Remove delivery records" },
     ],
   },
   {
-    id: "freight-bidding",
-    title: "Freight Bidding",
+    id: "leads",
+    title: "Leads Management",
     permissions: [
-      {
-        id: "view-freight-requests",
-        name: "View Freight Requests",
-        description: "View all freight requests and bids",
-      },
-      {
-        id: "create-freight-requests",
-        name: "Create Freight Requests",
-        description: "Create new freight requests",
-      },
-      {
-        id: "submit-bids",
-        name: "Submit Bids",
-        description: "Submit bids on freight requests",
-      },
-      {
-        id: "award-loads",
-        name: "Award Loads",
-        description: "Award freight to carriers",
-      },
-      {
-        id: "decline-bids",
-        name: "Decline Bids",
-        description: "Decline submitted bids",
-      },
+      { id: "view", name: "View Leads", description: "View lead records and details" },
+      { id: "create", name: "Create Leads", description: "Add new leads" },
+      { id: "edit", name: "Edit Leads", description: "Modify existing leads" },
+      { id: "delete", name: "Delete Leads", description: "Remove lead records" },
     ],
   },
   {
-    id: "master-data",
-    title: "Master Data",
+    id: "customers",
+    title: "Customer Management",
     permissions: [
-      {
-        id: "view-vendors",
-        name: "View Vendors",
-        description: "View vendor information",
-      },
-      {
-        id: "manage-vendors",
-        name: "Manage Vendors",
-        description: "Add/Edit/Delete vendors",
-      },
-      {
-        id: "view-carriers",
-        name: "View Carriers",
-        description: "View carrier information",
-      },
-      {
-        id: "manage-carriers",
-        name: "Manage Carriers",
-        description: "Add/Edit/Delete carriers",
-      },
-      {
-        id: "view-delivery-companies",
-        name: "View Delivery Companies",
-        description: "View delivery company information",
-      },
-      {
-        id: "manage-delivery-companies",
-        name: "Manage Delivery Companies",
-        description: "Add/Edit/Delete delivery companies",
-      },
+      { id: "view", name: "View Customers", description: "View customer records" },
+      { id: "create", name: "Create Customers", description: "Add new customers" },
+      { id: "edit", name: "Edit Customers", description: "Modify existing customer details" },
+      { id: "delete", name: "Delete Customers", description: "Remove customer records" },
     ],
   },
 ];
@@ -160,32 +102,9 @@ const QUICK_TEMPLATES = [
     name: "View Only",
     icon: "eye",
     permissions: {
-      "delivery-management": ["view-deliveries"],
-      "freight-bidding": ["view-freight-requests"],
-      "master-data": [
-        "view-vendors",
-        "view-carriers",
-        "view-delivery-companies",
-      ],
-    },
-  },
-  {
-    id: "delivery-focus",
-    name: "Delivery Focus",
-    icon: "focus",
-    permissions: {
-      "delivery-management": [
-        "view-deliveries",
-        "create-deliveries",
-        "edit-deliveries",
-        "reschedule-deliveries",
-      ],
-      "freight-bidding": ["view-freight-requests", "create-freight-requests"],
-      "master-data": [
-        "view-vendors",
-        "view-carriers",
-        "view-delivery-companies",
-      ],
+      deliveries: ["view"],
+      leads: ["view"],
+      customers: ["view"],
     },
   },
   {
@@ -193,38 +112,17 @@ const QUICK_TEMPLATES = [
     name: "Full Access",
     icon: "check",
     permissions: {
-      "delivery-management": [
-        "view-deliveries",
-        "create-deliveries",
-        "edit-deliveries",
-        "delete-deliveries",
-        "reschedule-deliveries",
-      ],
-      "freight-bidding": [
-        "view-freight-requests",
-        "create-freight-requests",
-        "submit-bids",
-        "award-loads",
-        "decline-bids",
-      ],
-      "master-data": [
-        "view-vendors",
-        "manage-vendors",
-        "view-carriers",
-        "manage-carriers",
-        "view-delivery-companies",
-        "manage-delivery-companies",
-      ],
+      deliveries: ["view", "create", "edit", "delete"],
+      leads: ["view", "create", "edit", "delete"],
+      customers: ["view", "create", "edit", "delete"],
     },
   },
 ];
 
-interface AddRoleDialogProps {
-  onRoleCreated?: (roleData: RoleData) => void;
-}
-
-export function AddRoleDialog({ onRoleCreated }: AddRoleDialogProps) {
+export function AddRoleDialog() {
   const [isOpen, setIsOpen] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const createRoleMutation = useCreateRoleMutation();
 
   const {
     control,
@@ -239,9 +137,9 @@ export function AddRoleDialog({ onRoleCreated }: AddRoleDialogProps) {
       roleName: "",
       description: "",
       color: "blue",
-      permissions: PERMISSION_MODULES.reduce(
-        (acc, module) => {
-          acc[module.id] = [];
+      permissions: MODULE_KEYS.reduce(
+        (acc, moduleKey) => {
+          acc[moduleKey] = [];
           return acc;
         },
         {} as Record<string, string[]>,
@@ -281,19 +179,36 @@ export function AddRoleDialog({ onRoleCreated }: AddRoleDialogProps) {
     }
   };
 
-  const onSubmit = (data: RoleFormData) => {
-    const roleData: RoleData = {
-      roleName: data.roleName,
-      description: data.description,
-      color: data.color,
-      permissions: data.permissions,
-    };
+  const onSubmit = async (data: RoleFormData) => {
+    setSubmitError(null);
 
-    onRoleCreated?.(roleData);
+    const formattedPermissions: ApiRolePermissions = {};
+    MODULE_KEYS.forEach((moduleKey) => {
+      const selectedActions = data.permissions[moduleKey] || [];
+      const actions: ApiPermissionAction = {
+        view: selectedActions.includes("view"),
+        create: selectedActions.includes("create"),
+        edit: selectedActions.includes("edit"),
+        delete: selectedActions.includes("delete"),
+      };
+      formattedPermissions[moduleKey] = actions;
+    });
 
-    // Reset form and close dialog
-    reset();
-    setIsOpen(false);
+    try {
+      await createRoleMutation.mutateAsync({
+        name: data.roleName,
+        description: data.description,
+        color: data.color,
+        permissions: formattedPermissions,
+      });
+
+      reset();
+      setIsOpen(false);
+    } catch (err: unknown) {
+      setSubmitError(
+        err instanceof Error ? err.message : "Failed to create role",
+      );
+    }
   };
 
   if (!isOpen) {
@@ -552,19 +467,27 @@ export function AddRoleDialog({ onRoleCreated }: AddRoleDialogProps) {
               </div>
             </FieldContent>
           </FieldGroup>
+          {submitError && (
+            <div className="p-3 text-sm rounded bg-red-50 text-red-600 border border-red-200">
+              {submitError}
+            </div>
+          )}
         </form>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setIsOpen(false)}>
+          <Button variant="outline" onClick={() => setIsOpen(false)} disabled={createRoleMutation.isPending}>
             Cancel
           </Button>
           <Button
             className="bg-blue-600 hover:bg-blue-700 text-white"
             onClick={handleSubmit(onSubmit)}
+            disabled={createRoleMutation.isPending}
           >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10.5 1.5H9.5a.5.5 0 00-.5.5v7H2a.5.5 0 00-.5.5v1a.5.5 0 00.5.5h6.5v7a.5.5 0 00.5.5h1a.5.5 0 00.5-.5v-7h6.5a.5.5 0 00.5-.5v-1a.5.5 0 00-.5-.5h-6.5V2a.5.5 0 00-.5-.5z" />
-            </svg>
+            {createRoleMutation.isPending ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <PlusIcon className="w-4 h-4 mr-2" />
+            )}
             Create Role
           </Button>
         </DialogFooter>

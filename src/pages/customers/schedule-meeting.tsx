@@ -15,11 +15,8 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft } from "lucide-react";
-import ClientSelector from "@/components/customers/client-selector";
 import LeadSelector from "@/components/leads/lead-selector";
-import EmployeeSelector from "@/components/customers/employee-selector";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { useAuthStore } from "@/modules/auth/auth.store";
 import { useCreateMeetingMutation } from "@/modules/meetings/meetings.hooks";
 import SuccessDialog from "@/components/success-dialog";
 
@@ -35,6 +32,7 @@ const meetingSchema = z.object({
   mode: z.enum(["online", "in-person"]),
   link: z.string().optional(),
   notes: z.string().optional(),
+  reminderMinutes: z.string(),
 }).superRefine((data, ctx) => {
   if (data.mode === "online" && (!data.link || data.link.trim() === "")) {
     ctx.addIssue({
@@ -61,7 +59,6 @@ export default function ScheduleMeeting() {
   const [successOpen, setSuccessOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const createMeetingMutation = useCreateMeetingMutation();
-  const authUserId = useAuthStore((state) => state.user?._id ?? "");
   const routeState = (location.state ?? {}) as MeetingRouteState;
 
   const {
@@ -81,10 +78,12 @@ export default function ScheduleMeeting() {
       link: "",
       notes: "",
       lead: "",
+      reminderMinutes: "30",
     },
   });
 
-  // clients list available for the selector
+  const currentMode = watch("mode");
+  const currentReminderMinutes = watch("reminderMinutes");
 
   const onSubmit = async (data: MeetingFormData) => {
     setErrorMessage(null);
@@ -120,6 +119,7 @@ export default function ScheduleMeeting() {
         mode: data.mode,
         meetingLink: data.link?.trim() ?? "",
         notes: data.notes?.trim() || undefined,
+        reminderMinutes: Number.parseInt(data.reminderMinutes, 10) || 30,
       });
 
       if (!response.success) {
@@ -135,7 +135,7 @@ export default function ScheduleMeeting() {
   };
 
   return (
-    <div className="p-4 sm:p-6  w-full">
+    <div className="p-4 sm:p-6 w-full">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Button
@@ -165,7 +165,6 @@ export default function ScheduleMeeting() {
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full to-fuchsia-50">
-
             {/* Select a project */}
             <div className="space-y-2">
               <Label htmlFor="lead">
@@ -279,10 +278,30 @@ export default function ScheduleMeeting() {
                 <p className="text-sm text-red-500">{errors.mode.message}</p>
               )}
             </div>
+
+            {/* Reminder Timing */}
+            <div className="space-y-2">
+              <Label>Reminder Timing</Label>
+              <Select
+                value={currentReminderMinutes}
+                onValueChange={(val) => setValue("reminderMinutes", val)}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select reminder" />
+                </SelectTrigger>
+                <SelectContent position="popper">
+                  <SelectItem value="15">15 minutes before</SelectItem>
+                  <SelectItem value="30">30 minutes before</SelectItem>
+                  <SelectItem value="60">1 hour before</SelectItem>
+                  <SelectItem value="120">2 hours before</SelectItem>
+                  <SelectItem value="1440">1 day before</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Meeting Link */}
-          {watch("mode") === "online" && (
+          {currentMode === "online" && (
             <div className="space-y-2">
               <Label htmlFor="link">
                 Meeting Link <span className="text-red-500">*</span>

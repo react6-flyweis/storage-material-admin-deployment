@@ -1,9 +1,11 @@
-import { SaveIcon, Shield, Users } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { SaveIcon, Shield, Users, RefreshCw, AlertCircle, Loader2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AddRoleDialog } from "@/components/add-role-dialog";
 import SuccessDialog from "@/components/success-dialog";
+import { useRolesQuery, useUpdateRolePermissionsMutation } from "@/modules/roles/roles.hooks";
+import type { ApiRole, ApiRolePermissions, ApiPermissionAction } from "@/modules/roles/roles.types";
 
 interface RoleCard {
   id: string;
@@ -13,6 +15,7 @@ interface RoleCard {
   tagClassName: string;
   users: number;
   grantedPermissions: number;
+  totalPermissions: number;
 }
 
 interface ModulePermission {
@@ -28,255 +31,95 @@ interface PermissionModule {
   permissions: ModulePermission[];
 }
 
-interface AddRolePayload {
-  roleName: string;
-  description: string;
-  color: string;
-  permissions: Record<string, string[]>;
+const MODULE_TITLE_MAP: Record<string, string> = {
+  deliveries: "Delivery Management",
+  leads: "Leads Management",
+  customers: "Customer Management",
+  employees: "Employee Management",
+  financials: "Financials",
+  products: "Product Catalog",
+  invoices: "Invoices",
+  reports: "Reports & Analytics",
+  plant: "Plant Operations",
+  construction: "Construction Site",
+  settings: "System Settings",
+  communication: "Communication",
+};
+
+const ACTION_TITLE_MAP: Record<string, { name: string; description: string }> = {
+  view: { name: "View Access", description: "View module records and details" },
+  create: { name: "Create Access", description: "Add new module records" },
+  edit: { name: "Edit Access", description: "Modify existing module records" },
+  delete: { name: "Delete Access", description: "Remove module records" },
+};
+
+function toRoleTagClass(color?: string): string {
+  const colorMap: Record<string, string> = {
+    red: "bg-red-100 text-red-600",
+    blue: "bg-blue-100 text-blue-600",
+    green: "bg-green-100 text-green-700",
+    purple: "bg-purple-100 text-purple-600",
+    orange: "bg-orange-100 text-orange-600",
+    pink: "bg-pink-100 text-pink-600",
+  };
+
+  return (color && colorMap[color]) || "bg-slate-100 text-slate-600";
 }
 
-const roleCards: RoleCard[] = [
-  {
-    id: "system-admin",
-    title: "System Administrator",
-    description: "Full access to all modules and settings",
-    tag: "System",
-    tagClassName: "bg-red-100 text-red-600",
-    users: 3,
-    grantedPermissions: 24,
-  },
-  {
-    id: "operations-manager",
-    title: "Operations Manager",
-    description: "Manage deliveries, freight, and view reports",
-    tag: "Operations",
-    tagClassName: "bg-blue-100 text-blue-600",
-    users: 8,
-    grantedPermissions: 15,
-  },
-  {
-    id: "delivery-coordinator",
-    title: "Delivery Coordinator",
-    description: "Coordinate deliveries and manage schedules",
-    tag: "Delivery",
-    tagClassName: "bg-green-100 text-green-700",
-    users: 12,
-    grantedPermissions: 10,
-  },
-  {
-    id: "freight-specialist",
-    title: "Freight Specialist",
-    description: "Manage freight bidding and carrier relations",
-    tag: "Freight",
-    tagClassName: "bg-orange-100 text-orange-600",
-    users: 5,
-    grantedPermissions: 10,
-  },
-  {
-    id: "viewer",
-    title: "Viewer",
-    description: "Read-only access to deliveries and reports",
-    tag: "Viewer",
-    tagClassName: "bg-slate-100 text-slate-600",
-    users: 15,
-    grantedPermissions: 7,
-  },
-  {
-    id: "construction-user",
-    title: "Construction User",
-    description: "Site-level delivery management",
-    tag: "Construction",
-    tagClassName: "bg-purple-100 text-purple-600",
-    users: 20,
-    grantedPermissions: 6,
-  },
-];
-
-const basePermissionModules: (Omit<PermissionModule, "permissions"> & {
-  permissions: Omit<ModulePermission, "enabled">[];
-})[] = [
-  {
-    id: "delivery-management",
-    title: "Delivery Management",
-    permissions: [
-      {
-        id: "view-deliveries",
-        name: "View Deliveries",
-        description: "View all deliveries and details",
-      },
-      {
-        id: "create-deliveries",
-        name: "Create Deliveries",
-        description: "Add new delivery records",
-      },
-      {
-        id: "edit-deliveries",
-        name: "Edit Deliveries",
-        description: "Modify existing deliveries",
-      },
-      {
-        id: "delete-deliveries",
-        name: "Delete Deliveries",
-        description: "Remove delivery records",
-      },
-      {
-        id: "reschedule-deliveries",
-        name: "Reschedule Deliveries",
-        description: "Change delivery dates/times",
-      },
-    ],
-  },
-  {
-    id: "freight-bidding",
-    title: "Freight Bidding",
-    permissions: [
-      {
-        id: "view-freight-requests",
-        name: "View Freight Requests",
-        description: "View all freight requests and bids",
-      },
-      {
-        id: "create-freight-requests",
-        name: "Create Freight Requests",
-        description: "Create new freight requests",
-      },
-      {
-        id: "submit-bids",
-        name: "Submit Bids",
-        description: "Submit bids on freight requests",
-      },
-      {
-        id: "award-loads",
-        name: "Award Loads",
-        description: "Award freight to carriers",
-      },
-      {
-        id: "decline-bids",
-        name: "Decline Bids",
-        description: "Decline submitted bids",
-      },
-    ],
-  },
-  {
-    id: "master-data",
-    title: "Master Data",
-    permissions: [
-      {
-        id: "view-vendors",
-        name: "View Vendors",
-        description: "View vendor information",
-      },
-      {
-        id: "manage-vendors",
-        name: "Manage Vendors",
-        description: "Add/Edit/Delete vendors",
-      },
-      {
-        id: "view-carriers",
-        name: "View Carriers",
-        description: "View carrier information",
-      },
-      {
-        id: "manage-carriers",
-        name: "Manage Carriers",
-        description: "Add/Edit/Delete carriers",
-      },
-      {
-        id: "view-delivery-companies",
-        name: "View Delivery Companies",
-        description: "View delivery company information",
-      },
-      {
-        id: "manage-delivery-companies",
-        name: "Manage Delivery Companies",
-        description: "Add/Edit/Delete delivery companies",
-      },
-    ],
-  },
-  {
-    id: "notifications",
-    title: "Notifications",
-    permissions: [
-      {
-        id: "view-notifications",
-        name: "View Notifications",
-        description: "View notification history",
-      },
-      {
-        id: "send-notifications",
-        name: "Send Notifications",
-        description: "Send manual notifications",
-      },
-      {
-        id: "manage-templates",
-        name: "Manage Templates",
-        description: "Create/Edit notification templates",
-      },
-    ],
-  },
-  {
-    id: "reports",
-    title: "Reports",
-    permissions: [
-      {
-        id: "view-reports",
-        name: "View Reports",
-        description: "View all reports and analytics",
-      },
-      {
-        id: "export-reports",
-        name: "Export Reports",
-        description: "Export reports to CSV/PDF",
-      },
-    ],
-  },
-  {
-    id: "admin",
-    title: "Admin",
-    permissions: [
-      {
-        id: "manage-users",
-        name: "Manage Users",
-        description: "Add/Edit/Delete users",
-      },
-      {
-        id: "manage-roles",
-        name: "Manage Roles",
-        description: "Create/Edit roles and permissions",
-      },
-      {
-        id: "system-settings",
-        name: "System Settings",
-        description: "Configure system settings",
-      },
-    ],
-  },
-];
-
-function buildRolePermissions(enabledCount: number): PermissionModule[] {
-  let remaining = enabledCount;
-
-  return basePermissionModules.map((module) => ({
-    id: module.id,
-    title: module.title,
-    permissions: module.permissions.map((permission) => {
-      const enabled = remaining > 0;
-      if (remaining > 0) {
-        remaining -= 1;
-      }
-      return {
-        ...permission,
-        enabled,
+function transformApiRoleToModules(apiPermissions: ApiRolePermissions): PermissionModule[] {
+  return Object.entries(apiPermissions).map(([moduleKey, actions]) => {
+    const moduleTitle = MODULE_TITLE_MAP[moduleKey] || moduleKey.charAt(0).toUpperCase() + moduleKey.slice(1);
+    
+    const permissions: ModulePermission[] = Object.entries(actions).map(([actionKey, isEnabled]) => {
+      const actionMeta = ACTION_TITLE_MAP[actionKey] || {
+        name: `${actionKey.charAt(0).toUpperCase()}${actionKey.slice(1)} Access`,
+        description: `Allow ${actionKey} action for ${moduleTitle}`,
       };
-    }),
-  }));
+
+      return {
+        id: `${moduleKey}:${actionKey}`,
+        name: actionMeta.name,
+        description: actionMeta.description,
+        enabled: Boolean(isEnabled),
+      };
+    });
+
+    return {
+      id: moduleKey,
+      title: moduleTitle,
+      permissions,
+    };
+  });
+}
+
+function transformModulesToApiPermissions(modules: PermissionModule[]): ApiRolePermissions {
+  const apiPermissions: ApiRolePermissions = {};
+
+  modules.forEach((module) => {
+    const actions: ApiPermissionAction = {
+      view: false,
+      create: false,
+      edit: false,
+      delete: false,
+    };
+
+    module.permissions.forEach((permission) => {
+      const actionKey = permission.id.split(":")[1] as keyof ApiPermissionAction;
+      if (actionKey in actions) {
+        actions[actionKey] = permission.enabled;
+      }
+    });
+
+    apiPermissions[module.id] = actions;
+  });
+
+  return apiPermissions;
 }
 
 function countEnabledPermissions(modules: PermissionModule[]): number {
   return modules.reduce(
     (total, module) =>
-      total +
-      module.permissions.filter((permission) => permission.enabled).length,
+      total + module.permissions.filter((permission) => permission.enabled).length,
     0,
   );
 }
@@ -288,65 +131,63 @@ function countTotalPermissions(modules: PermissionModule[]): number {
   );
 }
 
-const initialPermissionState: Record<string, PermissionModule[]> =
-  roleCards.reduce(
-    (acc, role) => {
-      acc[role.id] = buildRolePermissions(role.grantedPermissions);
-      return acc;
-    },
-    {} as Record<string, PermissionModule[]>,
-  );
-
-function buildRolePermissionsFromSelection(
-  selectedPermissions: Record<string, string[]>,
-): PermissionModule[] {
-  return basePermissionModules.map((module) => ({
-    id: module.id,
-    title: module.title,
-    permissions: module.permissions.map((permission) => ({
-      ...permission,
-      enabled: (selectedPermissions[module.id] ?? []).includes(permission.id),
-    })),
-  }));
-}
-
-function toRoleTagClass(color: string): string {
-  const colorMap: Record<string, string> = {
-    red: "bg-red-100 text-red-600",
-    blue: "bg-blue-100 text-blue-600",
-    green: "bg-green-100 text-green-700",
-    purple: "bg-purple-100 text-purple-600",
-    orange: "bg-orange-100 text-orange-600",
-    pink: "bg-pink-100 text-pink-600",
-  };
-
-  return colorMap[color] ?? "bg-slate-100 text-slate-600";
-}
-
-function createRoleId(name: string): string {
-  const slug = name
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-");
-
-  return slug ? `custom-${slug}-${Date.now()}` : `custom-role-${Date.now()}`;
-}
-
 export default function RolePermissions() {
-  const [roles, setRoles] = useState<RoleCard[]>(roleCards);
+  const { data: rolesResponse, isLoading, isError, error, refetch } = useRolesQuery();
+  const updatePermissionsMutation = useUpdateRolePermissionsMutation();
+
+  const [roles, setRoles] = useState<RoleCard[]>([]);
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [permissionStateByRole, setPermissionStateByRole] = useState<
     Record<string, PermissionModule[]>
-  >(initialPermissionState);
+  >({});
   const [showSuccess, setShowSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Keep a snapshot of the saved state to detect unsaved changes
-  const savedSnapshot = useRef({
-    roles: roleCards,
-    permissionState: initialPermissionState,
+  const [savedSnapshot, setSavedSnapshot] = useState<{
+    roles: RoleCard[];
+    permissionState: Record<string, PermissionModule[]>;
+  }>({
+    roles: [],
+    permissionState: {},
   });
+
+  useEffect(() => {
+    if (rolesResponse?.data?.roles) {
+      const fetchedApiRoles = rolesResponse.data.roles;
+
+      const formattedRoleCards: RoleCard[] = fetchedApiRoles.map((apiRole: ApiRole) => {
+        const modules = transformApiRoleToModules(apiRole.permissions || {});
+        const calculatedGranted = countEnabledPermissions(modules);
+        const calculatedTotal = countTotalPermissions(modules);
+
+        return {
+          id: apiRole._id,
+          title: apiRole.name,
+          description: apiRole.description || "",
+          tag: apiRole.isSystem ? "System" : apiRole.name.split(" ")[0] || "Role",
+          tagClassName: toRoleTagClass(apiRole.color),
+          users: apiRole.userCount ?? 0,
+          grantedPermissions: apiRole.grantedPermissions ?? calculatedGranted,
+          totalPermissions: apiRole.totalPermissions ?? calculatedTotal,
+        };
+      });
+
+      const initialPermissions: Record<string, PermissionModule[]> = {};
+      fetchedApiRoles.forEach((apiRole: ApiRole) => {
+        initialPermissions[apiRole._id] = transformApiRoleToModules(apiRole.permissions || {});
+      });
+
+      setRoles(formattedRoleCards);
+      setPermissionStateByRole(initialPermissions);
+
+      setSelectedRoleId((current) => current || (formattedRoleCards.length > 0 ? formattedRoleCards[0].id : null));
+
+      setSavedSnapshot({
+        roles: formattedRoleCards,
+        permissionState: initialPermissions,
+      });
+    }
+  }, [rolesResponse]);
 
   const selectedRole = useMemo(
     () => roles.find((role) => role.id === selectedRoleId) ?? null,
@@ -400,34 +241,9 @@ export default function RolePermissions() {
     }));
   };
 
-  const handleRoleCreated = (roleData: AddRolePayload) => {
-    const roleId = createRoleId(roleData.roleName);
-    const rolePermissions = buildRolePermissionsFromSelection(
-      roleData.permissions,
-    );
-    const grantedPermissions = countEnabledPermissions(rolePermissions);
-
-    const newRole: RoleCard = {
-      id: roleId,
-      title: roleData.roleName,
-      description: roleData.description,
-      tag: roleData.roleName.split(" ")[0] || "Custom",
-      tagClassName: toRoleTagClass(roleData.color),
-      users: 0,
-      grantedPermissions,
-    };
-
-    setRoles((prev) => [newRole, ...prev]);
-    setPermissionStateByRole((prev) => ({
-      ...prev,
-      [roleId]: rolePermissions,
-    }));
-    setSelectedRoleId(roleId);
-  };
-
   const hasChanges = useMemo(() => {
     try {
-      const saved = JSON.stringify(savedSnapshot.current);
+      const saved = JSON.stringify(savedSnapshot);
       const current = JSON.stringify({
         roles,
         permissionState: permissionStateByRole,
@@ -436,13 +252,30 @@ export default function RolePermissions() {
     } catch {
       return false;
     }
-  }, [roles, permissionStateByRole]);
+  }, [roles, permissionStateByRole, savedSnapshot]);
 
-  const handleSaveChanges = () => {
-    // Simulate save: update snapshot and show success dialog
-    savedSnapshot.current = { roles, permissionState: permissionStateByRole };
-    setShowSuccess(true);
+  const handleSaveChanges = async () => {
+    if (!selectedRoleId) return;
+    setSaveError(null);
+
+    const currentModules = permissionStateByRole[selectedRoleId] ?? [];
+    const payloadPermissions = transformModulesToApiPermissions(currentModules);
+
+    try {
+      await updatePermissionsMutation.mutateAsync({
+        roleId: selectedRoleId,
+        payload: { permissions: payloadPermissions },
+      });
+
+      setSavedSnapshot({ roles, permissionState: permissionStateByRole });
+      setShowSuccess(true);
+    } catch (err: unknown) {
+      setSaveError(
+        err instanceof Error ? err.message : "Failed to update role permissions",
+      );
+    }
   };
+
 
   return (
     <div className="p-5 space-y-5">
@@ -457,78 +290,128 @@ export default function RolePermissions() {
         </div>
 
         <div className="flex items-center gap-3">
-          <AddRoleDialog onRoleCreated={handleRoleCreated} />
+          <AddRoleDialog />
           <Button
-            className={cn({ "bg-green-600": hasChanges })}
-            disabled={!hasChanges}
+            className={cn({ "bg-green-600 hover:bg-green-700 text-white": hasChanges })}
+            disabled={!hasChanges || updatePermissionsMutation.isPending}
             onClick={handleSaveChanges}
           >
-            <SaveIcon />
+            {updatePermissionsMutation.isPending ? (
+              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+            ) : (
+              <SaveIcon className="w-4 h-4 mr-1" />
+            )}
             Save Changes
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {roles.map((role) => {
-          const roleModules = permissionStateByRole[role.id] ?? [];
-          const grantedCount = countEnabledPermissions(roleModules);
-          const totalCount = countTotalPermissions(roleModules);
-          const progress =
-            totalCount === 0 ? 0 : (grantedCount / totalCount) * 100;
-          const isSelected = selectedRoleId === role.id;
+      {saveError && (
+        <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{saveError}</span>
+        </div>
+      )}
 
-          return (
-            <button
-              key={role.id}
-              type="button"
-              onClick={() => setSelectedRoleId(role.id)}
-              className={cn(
-                "w-full text-left rounded-xl border bg-white p-4 shadow-sm transition-colors",
-                "hover:border-blue-300",
-                isSelected
-                  ? "border-blue-500 ring-1 ring-blue-200"
-                  : "border-slate-200",
-              )}
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {[1, 2, 3].map((idx) => (
+            <div
+              key={idx}
+              className="w-full rounded-xl border border-slate-200 bg-white p-4 shadow-sm animate-pulse space-y-4"
             >
-              <h2 className="text-lg font-semibold text-slate-800">
-                {role.title}
-              </h2>
-              <p className="text-sm text-slate-500 min-h-10 mt-1">
-                {role.description}
+              <div className="h-5 bg-slate-200 rounded w-1/2" />
+              <div className="h-4 bg-slate-100 rounded w-3/4" />
+              <div className="flex justify-between items-center pt-2">
+                <div className="h-6 bg-slate-200 rounded-full w-16" />
+                <div className="h-4 bg-slate-100 rounded w-20" />
+              </div>
+              <div className="h-2 bg-slate-100 rounded-full" />
+            </div>
+          ))}
+        </div>
+      ) : isError ? (
+        <div className="p-6 rounded-xl border border-red-200 bg-red-50 text-red-700 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-6 h-6 shrink-0" />
+            <div>
+              <p className="font-semibold">Failed to load roles</p>
+              <p className="text-sm text-red-600">
+                {error instanceof Error ? error.message : "An unexpected error occurred while fetching roles."}
               </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            className="border-red-300 text-red-700 hover:bg-red-100"
+            onClick={() => void refetch()}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Retry
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {roles.map((role) => {
+            const roleModules = permissionStateByRole[role.id] ?? [];
+            const grantedCount = countEnabledPermissions(roleModules);
+            const totalCount = countTotalPermissions(roleModules);
+            const progress =
+              totalCount === 0 ? 0 : (grantedCount / totalCount) * 100;
+            const isSelected = selectedRoleId === role.id;
 
-              <div className="flex items-center justify-between mt-4">
-                <span
-                  className={cn(
-                    "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium",
-                    role.tagClassName,
-                  )}
-                >
-                  {role.tag}
-                </span>
-
-                <span className="inline-flex items-center gap-2 text-sm text-slate-600">
-                  <Users className="w-4 h-4" />
-                  <span>{role.users} users</span>
-                </span>
-              </div>
-
-              <div className="mt-6">
-                <p className="text-xs text-slate-500 mb-2">
-                  {grantedCount} of {totalCount} permissions
+            return (
+              <button
+                key={role.id}
+                type="button"
+                onClick={() => setSelectedRoleId(role.id)}
+                className={cn(
+                  "w-full text-left rounded-xl border bg-white p-4 shadow-sm transition-colors",
+                  "hover:border-blue-300",
+                  isSelected
+                    ? "border-blue-500 ring-1 ring-blue-200"
+                    : "border-slate-200",
+                )}
+              >
+                <h2 className="text-lg font-semibold text-slate-800">
+                  {role.title}
+                </h2>
+                <p className="text-sm text-slate-500 min-h-10 mt-1">
+                  {role.description}
                 </p>
-                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-blue-600 rounded-full"
-                    style={{ width: `${progress}%` }}
-                  />
+
+                <div className="flex items-center justify-between mt-4">
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium",
+                      role.tagClassName,
+                    )}
+                  >
+                    {role.tag}
+                  </span>
+
+                  <span className="inline-flex items-center gap-2 text-sm text-slate-600">
+                    <Users className="w-4 h-4" />
+                    <span>{role.users} users</span>
+                  </span>
                 </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+
+                <div className="mt-6">
+                  <p className="text-xs text-slate-500 mb-2">
+                    {grantedCount} of {totalCount} permissions
+                  </p>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {selectedRole ? (
         <section className="rounded-xl border border-slate-200 bg-white shadow-sm p-4 md:p-5 space-y-4">
@@ -591,7 +474,7 @@ export default function RolePermissions() {
                     <div
                       key={permission.id}
                       className={cn(
-                        "px-3 py-3 border-t border-slate-200 flex items-center justify-between gap-3",
+                        "px-3 py-3 border-t border-slate-200 flex items-center justify-between gap-3 transition-colors",
                         permission.enabled ? "bg-emerald-50" : "bg-white",
                       )}
                     >
@@ -627,7 +510,7 @@ export default function RolePermissions() {
                           )
                         }
                         className={cn(
-                          "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                          "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2",
                           permission.enabled
                             ? "bg-emerald-500"
                             : "bg-slate-300",
@@ -669,3 +552,4 @@ export default function RolePermissions() {
     </div>
   );
 }
+

@@ -23,6 +23,7 @@ import {
 import { Trash2, Search, Eye, Users, PenLine } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { EditEmployeeDialog } from "@/components/employees/edit-employee-dialog";
+import { DeleteEmployeeDialog } from "@/components/employees/delete-employee-dialog";
 import SuccessDialog from "@/components/success-dialog";
 import { useUpdateAdminEmployeeMutation } from "@/modules/employees/employees.hooks";
 import { toast } from "sonner";
@@ -65,6 +66,8 @@ export function EmployeeTable({
 }: EmployeeTableProps) {
   const navigate = useNavigate();
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
+  const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
+  const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
   const [deletedEmployeeName, setDeletedEmployeeName] = useState<string>("");
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
@@ -103,6 +106,13 @@ export function EmployeeTable({
         },
       }
     );
+  };
+
+  const handleDeleteSuccess = () => {
+    if (employeeToDelete) {
+      setDeletedEmployeeName(employeeToDelete.name);
+      setIsSuccessDialogOpen(true);
+    }
   };
 
   // Backend handles filtering now
@@ -354,8 +364,8 @@ export function EmployeeTable({
                             className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setDeletedEmployeeName(employee.name);
-                              setIsSuccessDialogOpen(true);
+                              setEmployeeToDelete(employee);
+                              setIsConfirmDeleteDialogOpen(true);
                             }}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -374,6 +384,14 @@ export function EmployeeTable({
           </div>
         )}
       </div>
+
+      <DeleteEmployeeDialog
+        open={isConfirmDeleteDialogOpen}
+        onOpenChange={setIsConfirmDeleteDialogOpen}
+        employeeId={employeeToDelete?.id}
+        employeeName={employeeToDelete?.name}
+        onSuccess={handleDeleteSuccess}
+      />
 
       <SuccessDialog
         open={isSuccessDialogOpen}

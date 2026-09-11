@@ -1,102 +1,130 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Filter, Download, Search, Ribbon, Truck, CheckCircle2, DollarSign, Phone } from "lucide-react";
+import {
+  Filter,
+  Download,
+  Search,
+  Ribbon,
+  Truck,
+  CheckCircle2,
+  DollarSign,
+  Phone,
+  ChevronLeft,
+  ChevronRight,
+  X,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
-import AwardedLoadsFiltersDialog from "@/plant/components/AwardedLoadsFiltersDialog";
-
-const mockAwardedLoads = [
-  {
-    id: "LOAD-002",
-    requestedDate: "2024-03-16",
-    statusBadge: "Scheduled",
-    project: "Storage Facility B",
-    description: "Roll-up door panels",
-    pickupLocation: "Dallas, TX",
-    deliveryLocation: "San Antonio, TX",
-    pickupDate: "2024-03-27",
-    deliveryDate: "2024-03-28",
-    carrier: "Quick Haul Transport",
-    phone: "(555) 222-3333",
-    budget: "$1,850",
-    awarded: "$1,850",
-    bids: 3,
-    status: "Awarded",
-  },
-  {
-    id: "LOAD-005",
-    requestedDate: "2024-03-16",
-    statusBadge: "In Transit",
-    project: "Industrial Complex A",
-    description: "Secondary steel beams",
-    pickupLocation: "Houston, TX",
-    deliveryLocation: "Austin, TX",
-    pickupDate: "2024-03-28",
-    deliveryDate: "2024-03-29",
-    carrier: "Fast Freight LLC",
-    phone: "(555) 222-3333",
-    budget: "$1,850",
-    awarded: "$1,850",
-    bids: 3,
-    status: "Awarded",
-  },
-  {
-    id: "LOAD-007",
-    requestedDate: "2024-03-16",
-    statusBadge: "In Transit",
-    project: "Warehouse Complex",
-    description: "Electrical fixtures - bulk",
-    pickupLocation: "San Antonio, TX",
-    deliveryLocation: "Fort Worth, TX",
-    pickupDate: "2024-03-30",
-    deliveryDate: "2024-03-31",
-    carrier: "Regional Logistics",
-    phone: "(555) 222-3333",
-    budget: "$1,850",
-    awarded: "$1,850",
-    bids: 3,
-    status: "Awarded",
-  },
-  {
-    id: "LOAD-006",
-    requestedDate: "2024-03-16",
-    statusBadge: "Scheduled",
-    project: "Storage Facility B",
-    description: "Roofing panels",
-    pickupLocation: "Dallas, TX",
-    deliveryLocation: "Houston, TX",
-    pickupDate: "2024-03-29",
-    deliveryDate: "2024-03-30",
-    carrier: "Quick Haul Transport",
-    phone: "(555) 222-3333",
-    budget: "$1,850",
-    awarded: "$1,850",
-    bids: 3,
-    status: "Awarded",
-  },
-];
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  useAwardedStatsQuery,
+  useAwardedLoadsQuery,
+  useFreightFiltersQuery,
+} from "@/modules/plant/freight.hooks";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AwardedLoads() {
+  const navigate = useNavigate();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(20);
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [projectId, setProjectId] = useState("all");
+  const [customerId, setCustomerId] = useState("all");
+  const [carrierId, setCarrierId] = useState("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+  // Debounce search input
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 400);
+    return () => clearTimeout(handler);
+  }, [searchInput]);
+
+  const { data: statsResponse } = useAwardedStatsQuery();
+  const { data: filtersResponse } = useFreightFiltersQuery();
+
+  const awardedLoadsParams: Record<string, string | number> = {
+    page,
+    limit,
+  };
+  if (search.trim()) awardedLoadsParams.search = search.trim();
+  if (status && status !== "all") awardedLoadsParams.status = status;
+  if (projectId && projectId !== "all")
+    awardedLoadsParams.projectId = projectId;
+  if (customerId && customerId !== "all")
+    awardedLoadsParams.customerId = customerId;
+  if (carrierId && carrierId !== "all")
+    awardedLoadsParams.carrierId = carrierId;
+  if (fromDate.trim()) awardedLoadsParams.fromDate = fromDate.trim();
+  if (toDate.trim()) awardedLoadsParams.toDate = toDate.trim();
+
+  const { data: loadsResponse, isLoading: isLoadsLoading } =
+    useAwardedLoadsQuery(awardedLoadsParams);
+
+  const stats = statsResponse?.data;
+  const requests = loadsResponse?.data?.requests || [];
+  const total = loadsResponse?.data?.total || 0;
+
+  const statusesList = filtersResponse?.data?.statuses || [];
+  const projectsList = filtersResponse?.data?.projects || [];
+  const customersList = filtersResponse?.data?.customers || [];
+  const carriersList = filtersResponse?.data?.carriers || [];
+
+  const handleClearFilters = () => {
+    setStatus("all");
+    setProjectId("all");
+    setCustomerId("all");
+    setCarrierId("all");
+    setFromDate("");
+    setToDate("");
+    setSearchInput("");
+    setSearch("");
+    setPage(1);
+  };
+
+  const hasActiveFilters =
+    status !== "all" ||
+    projectId !== "all" ||
+    customerId !== "all" ||
+    carrierId !== "all" ||
+    fromDate !== "" ||
+    toDate !== "" ||
+    search !== "";
 
   return (
     <div className="flex-1 space-y-6 p-6 bg-[#f9fafb] min-h-screen">
-      
       {/* Header */}
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Awarded Loads</h1>
-          <p className="text-sm text-slate-500 mt-1">Track all awarded freight loads</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+            Awarded Loads
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            Track all awarded freight loads
+          </p>
         </div>
-        <div className="flex items-center gap-3">
+        {/* <div className="flex items-center gap-3">
           <Button 
             variant="outline" 
             className="bg-white gap-2 font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 rounded-xl"
-            onClick={() => setIsFilterOpen(true)}
+            onClick={() => setIsFilterOpen((prev) => !prev)}
           >
             <Filter className="w-4 h-4" />
-            Filter
+            {isFilterOpen ? "Hide Filters" : "Filter"}
           </Button>
           <Button 
             variant="outline" 
@@ -105,7 +133,7 @@ export default function AwardedLoads() {
             <Download className="w-4 h-4" />
             Export
           </Button>
-        </div>
+        </div> */}
       </div>
 
       {/* Summary Cards */}
@@ -114,8 +142,12 @@ export default function AwardedLoads() {
         <Card className="rounded-2xl border-[2px] border-green-500 shadow-sm bg-white overflow-hidden">
           <CardContent className="p-5 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-slate-500">Total Awarded</p>
-              <h2 className="text-4xl font-bold text-slate-900 mt-1">4</h2>
+              <p className="text-sm font-medium text-slate-500">
+                Total Awarded
+              </p>
+              <h2 className="text-4xl font-bold text-slate-900 mt-1">
+                {stats?.totalAwarded ?? 0}
+              </h2>
             </div>
             <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center">
               <Ribbon className="w-6 h-6 text-green-500" />
@@ -128,7 +160,9 @@ export default function AwardedLoads() {
           <CardContent className="p-5 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500">In Transit</p>
-              <h2 className="text-4xl font-bold text-slate-900 mt-1">1</h2>
+              <h2 className="text-4xl font-bold text-slate-900 mt-1">
+                {stats?.inTransit ?? 0}
+              </h2>
             </div>
             <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center">
               <Truck className="w-6 h-6 text-orange-500" />
@@ -141,7 +175,9 @@ export default function AwardedLoads() {
           <CardContent className="p-5 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500">Delivered</p>
-              <h2 className="text-4xl font-bold text-slate-900 mt-1">1</h2>
+              <h2 className="text-4xl font-bold text-slate-900 mt-1">
+                {stats?.delivered ?? 0}
+              </h2>
             </div>
             <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center">
               <CheckCircle2 className="w-6 h-6 text-green-500" />
@@ -154,7 +190,11 @@ export default function AwardedLoads() {
           <CardContent className="p-5 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-slate-500">Total Spent</p>
-              <h2 className="text-4xl font-bold text-slate-900 mt-1">$7,650</h2>
+              <h2 className="text-4xl font-bold text-slate-900 mt-1">
+                {stats?.totalSpent
+                  ? `$${stats.totalSpent.toLocaleString()}`
+                  : "$0"}
+              </h2>
             </div>
             <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center">
               <DollarSign className="w-6 h-6 text-blue-500" />
@@ -165,22 +205,183 @@ export default function AwardedLoads() {
 
       {/* Search and Table Area */}
       <div className="bg-white rounded-3xl p-6 shadow-sm">
-        
-        {/* Search Bar & Filter Button */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input 
-              placeholder="Search notifications..." 
-              className="pl-10 h-12 bg-slate-50 border-0 rounded-xl"
-            />
+        {/* Search Bar & Filter Controls */}
+        <div className="flex flex-col space-y-4 mb-6">
+          <div className="flex flex-col sm:flex-row justify-between gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Input
+                placeholder="Search awarded loads..."
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                className="pl-10 h-11 bg-slate-50 border-0 rounded-xl text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              {hasActiveFilters && (
+                <Button
+                  variant="outline"
+                  className="border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50 h-11 px-6 rounded-xl w-full sm:w-auto"
+                  onClick={handleClearFilters}
+                >
+                  <X className="w-4 h-4 mr-2 text-slate-400" />
+                  Clear
+                </Button>
+              )}
+              <Button
+                className="h-11 px-8 rounded-xl bg-[#3b59df] hover:bg-[#2b41b3] text-white font-medium w-full sm:w-auto"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                Filters
+              </Button>
+            </div>
           </div>
-          <Button 
-            className="h-12 px-8 rounded-xl bg-[#3b59df] hover:bg-[#2b41b3] text-white font-medium"
-            onClick={() => setIsFilterOpen(true)}
-          >
-            Filter
-          </Button>
+
+          {/* Filter Panel */}
+          {isFilterOpen && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 pt-4 border-t border-slate-100 animate-in fade-in slide-in-from-top-1 duration-200">
+              {/* Status Select */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Status
+                </label>
+                <Select
+                  value={status}
+                  onValueChange={(val) => {
+                    setStatus(val);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="bg-white border-slate-200 rounded-xl">
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    {statusesList.map((st) => (
+                      <SelectItem key={st} value={st}>
+                        {st
+                          .replace(/_/g, " ")
+                          .replace(/\b\w/g, (c) => c.toUpperCase())}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Project Select */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Project
+                </label>
+                <Select
+                  value={projectId}
+                  onValueChange={(val) => {
+                    setProjectId(val);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="bg-white border-slate-200 rounded-xl">
+                    <SelectValue placeholder="All Projects" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Projects</SelectItem>
+                    {projectsList.map((p) => (
+                      <SelectItem key={p._id} value={p._id}>
+                        {p.projectName
+                          ? `${p.projectName}${p.jobId ? ` (${p.jobId})` : ""}`
+                          : p.jobId || p._id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Customer Select */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Customer
+                </label>
+                <Select
+                  value={customerId}
+                  onValueChange={(val) => {
+                    setCustomerId(val);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="bg-white border-slate-200 rounded-xl">
+                    <SelectValue placeholder="All Customers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Customers</SelectItem>
+                    {customersList.map((c) => (
+                      <SelectItem key={c._id} value={c._id}>
+                        {c.name || c._id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Carrier Select */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  Carrier
+                </label>
+                <Select
+                  value={carrierId}
+                  onValueChange={(val) => {
+                    setCarrierId(val);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="bg-white border-slate-200 rounded-xl">
+                    <SelectValue placeholder="All Carriers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Carriers</SelectItem>
+                    {carriersList.map((c) => (
+                      <SelectItem key={c._id} value={c._id}>
+                        {c.carrierName || c._id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* From Date */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  From Date
+                </label>
+                <Input
+                  type="date"
+                  className="bg-white border-slate-200 h-10 text-sm rounded-xl"
+                  value={fromDate}
+                  onChange={(e) => {
+                    setFromDate(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+
+              {/* To Date */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                  To Date
+                </label>
+                <Input
+                  type="date"
+                  className="bg-white border-slate-200 h-10 text-sm rounded-xl"
+                  value={toDate}
+                  onChange={(e) => {
+                    setToDate(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Table */}
@@ -188,80 +389,218 @@ export default function AwardedLoads() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Request ID</th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Project</th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Description</th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Pickup Location</th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Delivery Location</th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Dates</th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Carrier</th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Budget & Bids</th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Request ID
+                </th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Project
+                </th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Description
+                </th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Pickup Location
+                </th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Delivery Location
+                </th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Dates
+                </th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Carrier
+                </th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Awarded Amount
+                </th>
+                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  Status
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {mockAwardedLoads.map((load, index) => (
-                <tr key={index} className="group hover:bg-slate-50/50 transition-colors">
-                  <td className="py-5 align-top">
-                    <p className="font-bold text-slate-900 mb-1">{load.id}</p>
-                    <p className="text-[11px] text-slate-500 mb-2">Requested: {load.requestedDate}</p>
-                    <Badge 
-                      variant="outline" 
-                      className={`text-[10px] rounded-full px-2 py-0.5 font-medium border
-                        ${load.statusBadge === "Scheduled" ? "text-blue-600 bg-blue-50 border-blue-200" : ""}
-                        ${load.statusBadge === "In Transit" ? "text-blue-600 bg-blue-50 border-blue-200" : ""}
-                      `}
-                    >
-                      {load.statusBadge}
-                    </Badge>
-                  </td>
-                  <td className="py-5 align-top">
-                    <p className="text-sm font-medium text-slate-700">{load.project}</p>
-                  </td>
-                  <td className="py-5 align-top">
-                    <p className="text-sm text-slate-600 max-w-[150px]">{load.description}</p>
-                  </td>
-                  <td className="py-5 align-top">
-                    <p className="text-sm text-slate-600 w-20">{load.pickupLocation}</p>
-                  </td>
-                  <td className="py-5 align-top">
-                    <p className="text-sm text-slate-600 w-20">{load.deliveryLocation}</p>
-                  </td>
-                  <td className="py-5 align-top">
-                    <p className="text-[12px] text-slate-500 w-24">Pickup:<br />{load.pickupDate}</p>
-                    <p className="text-[12px] text-slate-500 w-24 mt-1">Delivery:<br />{load.deliveryDate}</p>
-                  </td>
-                  <td className="py-5 align-top">
-                    <p className="text-sm font-semibold text-slate-900 mb-1 w-28">{load.carrier}</p>
-                    <a href={`tel:${load.phone}`} className="text-[11px] text-blue-600 flex items-center gap-1 hover:underline">
-                      <Phone className="w-3 h-3" />
-                      {load.phone}
-                    </a>
-                  </td>
-                  <td className="py-5 align-top">
-                    <p className="text-sm font-bold text-slate-900 mb-1">{load.budget}</p>
-                    <p className="text-[12px] font-semibold text-slate-900">Awarded: {load.awarded}</p>
-                    <p className="text-[12px] font-semibold text-slate-900">{load.bids} bids</p>
-                  </td>
-                  <td className="py-5 align-top">
-                    <Badge className="bg-green-100 hover:bg-green-100 text-green-700 border border-green-200 rounded-full px-3 font-medium">
-                      {load.status}
-                    </Badge>
+              {isLoadsLoading ? (
+                Array.from({ length: 5 }).map((_, index) => (
+                  <tr key={index}>
+                    <td className="py-5">
+                      <Skeleton className="h-6 w-24" />
+                    </td>
+                    <td className="py-5">
+                      <Skeleton className="h-6 w-32" />
+                    </td>
+                    <td className="py-5">
+                      <Skeleton className="h-6 w-40" />
+                    </td>
+                    <td className="py-5">
+                      <Skeleton className="h-6 w-28" />
+                    </td>
+                    <td className="py-5">
+                      <Skeleton className="h-6 w-28" />
+                    </td>
+                    <td className="py-5">
+                      <Skeleton className="h-10 w-24" />
+                    </td>
+                    <td className="py-5">
+                      <Skeleton className="h-8 w-32" />
+                    </td>
+                    <td className="py-5">
+                      <Skeleton className="h-6 w-20" />
+                    </td>
+                    <td className="py-5">
+                      <Skeleton className="h-6 w-16" />
+                    </td>
+                  </tr>
+                ))
+              ) : requests.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-8 text-center text-slate-500">
+                    No awarded loads found
                   </td>
                 </tr>
-              ))}
+              ) : (
+                requests.map((load, index) => (
+                  <tr
+                    key={load._id || index}
+                    className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
+                    onClick={() =>
+                      navigate(
+                        `/plant/freight-loads/details/${load._id || load.requestId}`,
+                      )
+                    }
+                  >
+                    <td className="py-5 align-top">
+                      <p className="font-bold text-slate-900 mb-1">
+                        {load.deliveryNumber}
+                      </p>
+                      <p className="text-[11px] text-slate-500 mb-2">
+                        Requested:{" "}
+                        {load.createdAt
+                          ? new Date(load.createdAt).toLocaleDateString()
+                          : "-"}
+                      </p>
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] rounded-full px-2 py-0.5 font-medium border
+                          ${load.status === "delivered" ? "text-emerald-600 bg-emerald-50 border-emerald-200" : "text-blue-600 bg-blue-50 border-blue-200"}
+                        `}
+                      >
+                        {load.status.replace("_", " ")}
+                      </Badge>
+                    </td>
+                    <td className="py-5 align-top">
+                      <p className="text-sm font-medium text-slate-700">
+                        {load.project?.projectName ||
+                          load.project?.jobId ||
+                          "-"}
+                      </p>
+                    </td>
+                    <td className="py-5 align-top">
+                      <p className="text-sm text-slate-600 max-w-[150px]">
+                        {load.description}
+                      </p>
+                    </td>
+                    <td className="py-5 align-top">
+                      <p className="text-sm text-slate-600 w-20">
+                        {load.pickupLocation || "-"}
+                      </p>
+                    </td>
+                    <td className="py-5 align-top">
+                      <p className="text-sm text-slate-600 w-20">
+                        {load.deliveryLocation || "-"}
+                      </p>
+                    </td>
+                    <td className="py-5 align-top">
+                      <p className="text-[12px] text-slate-500 w-24">
+                        Pickup:
+                        <br />
+                        {load.pickupDate
+                          ? new Date(load.pickupDate).toLocaleDateString()
+                          : "-"}
+                      </p>
+                      <p className="text-[12px] text-slate-500 w-24 mt-1">
+                        Delivery:
+                        <br />
+                        {load.deliveryDate
+                          ? new Date(load.deliveryDate).toLocaleDateString()
+                          : "-"}
+                      </p>
+                    </td>
+                    <td className="py-5 align-top">
+                      <p className="text-sm font-semibold text-slate-900 mb-1 w-28">
+                        {load.carrier?.carrierName || "-"}
+                      </p>
+                      {load.poc?.pickupContactPhone && (
+                        <a
+                          href={`tel:${load.poc.pickupContactPhone}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-[11px] text-blue-600 flex items-center gap-1 hover:underline"
+                        >
+                          <Phone className="w-3 h-3" />
+                          {load.poc.pickupContactPhone}
+                        </a>
+                      )}
+                    </td>
+                    <td className="py-5 align-top">
+                      <p className="text-sm font-bold text-slate-900 mb-1">
+                        {load.awardedBidAmount !== undefined &&
+                        load.awardedBidAmount !== null
+                          ? `$${load.awardedBidAmount.toLocaleString()}`
+                          : "-"}
+                      </p>
+                    </td>
+                    <td className="py-5 align-top">
+                      <Badge className="bg-green-100 hover:bg-green-100 text-green-700 border border-green-200 rounded-full px-3 font-medium uppercase text-[10px]">
+                        {load.status === "delivered" ? "Delivered" : "Awarded"}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
 
+        {/* Pagination */}
+        {!isLoadsLoading && total > 0 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-white">
+            <div className="flex flex-1 items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Showing{" "}
+                  <span className="font-medium">{(page - 1) * limit + 1}</span>{" "}
+                  to{" "}
+                  <span className="font-medium">
+                    {Math.min(page * limit, total)}
+                  </span>{" "}
+                  of <span className="font-medium">{total}</span> results
+                </p>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="h-9 px-3 border-gray-200"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  <span className="sr-only">Previous</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => p + 1)}
+                  disabled={page * limit >= total}
+                  className="h-9 px-3 border-gray-200"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                  <span className="sr-only">Next</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Filter Modal */}
-      <AwardedLoadsFiltersDialog 
-        open={isFilterOpen}
-        onOpenChange={setIsFilterOpen}
-      />
-
     </div>
   );
 }

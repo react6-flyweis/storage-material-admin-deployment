@@ -25,9 +25,17 @@ import UpdateStatusDialog from "./update-status-dialog";
 import TerminateProjectDialog from "./terminate-project-dialog";
 import { AddNotesDialog, type AddNotesFormValues } from "./add-notes-dialog";
 import { useNavigate, useParams } from "react-router";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import {
+  PLANT_LIFECYCLE_STAGES,
+  PLANT_LIFECYCLE_STATUS_CONFIG,
+  getPlantLifecycleStatusConfig,
+  getPlantLifecycleStageIndex,
+} from "@/modules/plant/projects.lifecycle";
 
-import { UploadFileDialog } from "@/components/upload-file-dialog";
+import UploadBomFileDialog from "@/plant/components/UploadBomFileDialog";
+import UploadDrawingsModal from "@/plant/components/UploadDrawingsModal";
 
 const quickActionButtons1 = [
   { label: "View Invoices", path: "project-invoices" },
@@ -43,37 +51,39 @@ const quickActionButtons2 = [
   { label: "View Shipper Files", path: "project-shipper-files" },
 ];
 
-const lifecycleSteps = [
-  { id: 1, label: "Released\nto plant", date: "24-10-10" },
-  { id: 2, label: "Drawings\nReceived", date: "24-10-10" },
-  { id: 3, label: "BOM\nReceived", date: "24-10-10" },
-  { id: 4, label: "BOM\nReview", date: "24-10-10" },
-  { id: 5, label: "Material\nCheck", date: "24-10-10" },
-  { id: 6, label: "Material\nRequest", date: "24-10-10" },
-  {
-    id: 7,
-    label: "Production\nPlanning",
-    labelSub: "Current\nStep",
-    current: true,
-  },
-  { id: 8, label: "Fabrication\nStarted" },
-  { id: 9, label: "Quality\nInspection" },
-  { id: 10, label: "Packing\nBundling" },
-  { id: 11, label: "Shipper\nPrepared" },
-  { id: 12, label: "Ready For\nDelivery" },
-  { id: 13, label: "Dispatched" },
-  { id: 14, label: "Delivered" },
-];
+const plantLifecycleSteps = PLANT_LIFECYCLE_STAGES.map((stageKey, idx) => {
+  const config = PLANT_LIFECYCLE_STATUS_CONFIG[stageKey];
+  return {
+    id: idx + 1,
+    value: stageKey,
+    label: config.label.replace(/\s+/g, "\n"),
+    fullLabel: config.label,
+  };
+});
 
 export default function ProjectDetailsPage() {
   const navigate = useNavigate();
-  const { id, projectId } = useParams<{ id: string, projectId: string }>();
+  const { id, projectId } = useParams<{ id: string; projectId: string }>();
   // Use projectId if available, otherwise fallback to id
   const leadId = projectId || id || "";
-  const basePath = id ? `/customers/${id}` : "/customers";
 
-  const { data: leadData, isLoading: isLeadLoading } = useLeadDetailQuery(leadId);
+  const { data: leadData, isLoading: isLeadLoading } =
+    useLeadDetailQuery(leadId);
   const project = leadData?.data?.lead;
+
+  const customerId =
+    id ||
+    (typeof project?.customerId === "object" && project?.customerId !== null
+      ? (project.customerId as { _id?: string; id?: string })?._id ||
+        (project.customerId as { _id?: string; id?: string })?.id
+      : (project?.customerId as string)) ||
+    leadId;
+  const basePath = `/customers/${customerId}`;
+
+  const currentStatusConfig = getPlantLifecycleStatusConfig(
+    project?.lifecycleStatus,
+  );
+  const initialStepId = getPlantLifecycleStageIndex(project?.lifecycleStatus);
 
   const [notes, setNotes] = useState<AddNotesFormValues[]>([
     {
@@ -82,13 +92,19 @@ export default function ProjectDetailsPage() {
         "Reliable for long-distance steel transport.\nPreferred carrier for Texas routes.\nFast response time during bidding.",
     },
   ]);
-  const [selectedStepId, setSelectedStepId] = useState(7);
+  const [selectedStepId, setSelectedStepId] = useState(initialStepId);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
-  const [successDialogTitle, setSuccessDialogTitle] = useState(
-    "Status Updated Successfully",
-  );
+  const [successDialogTitle] = useState("Status Updated Successfully");
   const [terminateDialogOpen, setTerminateDialogOpen] = useState(false);
+  const [bomModalOpen, setBomModalOpen] = useState(false);
+  const [drawingsModalOpen, setDrawingsModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (project?.lifecycleStatus) {
+      setSelectedStepId(getPlantLifecycleStageIndex(project.lifecycleStatus));
+    }
+  }, [project?.lifecycleStatus]);
 
   const handleSaveNote = (data: AddNotesFormValues) => {
     setNotes((current) => [data, ...current]);
@@ -113,55 +129,33 @@ export default function ProjectDetailsPage() {
         <div className="flex items-center gap-3">
           <Button
             variant="default"
-            onClick={() => navigate('/customers')}
+            onClick={() => navigate(-1)}
             className="px-4 bg-[#1D51A4] hover:bg-[#1D51A4]/90 text-white"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
             Back
           </Button>
-          <h1 className="text-xl font-semibold">Project Details - {project?.projectName || "Unnamed Project"}</h1>
+          <h1 className="text-xl font-semibold">
+            Project Details - {project?.projectName || "Unnamed Project"}
+          </h1>
         </div>
         <div className="flex items-center gap-3">
-          <UploadFileDialog
-            title="Upload BOM File"
-            description="Add your documents here, and you can upload up to 5 files max"
-            supportText="Only support .jpg, .png and .svg and zip files"
-            accept=".jpg,.jpeg,.png,.svg,.zip,.pdf"
-            maxFiles={5}
-            onUpload={(files) => {
-              console.log("Uploaded BOM files:", files);
-              setSuccessDialogTitle("File(s) Uploaded Successfully");
-              setSuccessDialogOpen(true);
-            }}
+          <Button
+            variant="outline"
+            className="border-[#1D51A4] text-[#1D51A4] hover:bg-slate-50"
+            onClick={() => setBomModalOpen(true)}
           >
-            <Button
-              variant="outline"
-              className="border-[#1D51A4] text-[#1D51A4] hover:bg-slate-50"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload BOM File
-            </Button>
-          </UploadFileDialog>
-          <UploadFileDialog
-            title="Upload Building Drawings & Photos"
-            description="Add your documents here, and you can upload up to 5 files max"
-            supportText="Only support .jpg, .png and .svg and zip files"
-            accept=".jpg,.jpeg,.png,.svg,.zip,.pdf"
-            maxFiles={5}
-            onUpload={(files) => {
-              console.log("Uploaded Drawing files:", files);
-              setSuccessDialogTitle("File(s) Uploaded Successfully");
-              setSuccessDialogOpen(true);
-            }}
+            <Upload className="h-4 w-4 mr-2" />
+            Upload BOM File
+          </Button>
+          <Button
+            variant="outline"
+            className="border-[#1D51A4] text-[#1D51A4] hover:bg-slate-50"
+            onClick={() => setDrawingsModalOpen(true)}
           >
-            <Button
-              variant="outline"
-              className="border-[#1D51A4] text-[#1D51A4] hover:bg-slate-50"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Building Drawings
-            </Button>
-          </UploadFileDialog>
+            <Upload className="h-4 w-4 mr-2" />
+            Upload Building Drawings
+          </Button>
         </div>
       </div>
 
@@ -173,7 +167,7 @@ export default function ProjectDetailsPage() {
               key={btn.label}
               variant="default"
               className="bg-[#1D51A4] hover:bg-[#1D51A4]/90 text-white rounded-[6px] shadow-sm"
-              onClick={() => navigate(projectId ? `${basePath}/${btn.path}/${projectId}` : `${basePath}/${btn.path}`)}
+              onClick={() => navigate(`${basePath}/${btn.path}/${leadId}`)}
             >
               {btn.label}
             </Button>
@@ -187,7 +181,7 @@ export default function ProjectDetailsPage() {
               className="bg-[#1D51A4] hover:bg-[#1D51A4]/90 text-white rounded-[6px] shadow-sm"
               onClick={() => {
                 if (btn.path.startsWith("/")) navigate(btn.path);
-                else navigate(projectId ? `${basePath}/${btn.path}/${projectId}` : `${basePath}/${btn.path}`);
+                else navigate(`${basePath}/${btn.path}/${leadId}`);
               }}
             >
               {btn.label}
@@ -208,18 +202,29 @@ export default function ProjectDetailsPage() {
                 <h2 className="text-[16px] font-semibold text-slate-800">
                   {project?.projectName || "Unnamed Project"}
                 </h2>
-                <span className="inline-flex items-center rounded-full bg-[#DCFCE7] px-2 py-0.5 text-[12px] font-medium text-[#16A34A]">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] mr-1.5"></span>
-                  {project?.lifecycleStatus || "In Progress"}
+                <span
+                  className={cn(
+                    "inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-medium border",
+                    currentStatusConfig.badgeClassName,
+                  )}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5"></span>
+                  {currentStatusConfig.label}
                 </span>
               </div>
-              <p className="text-[13px] text-slate-500 mt-1">Q-2025-1047</p>
+              <p className="text-[13px] text-slate-500 mt-1">
+                {project?.jobId ||
+                  project?.projectId ||
+                  (project?._id
+                    ? `PRJ-${project._id.slice(-6).toUpperCase()}`
+                    : "PRJ-001")}
+              </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <Button
               className="bg-[#F5B700] hover:bg-[#F5B700]/90 text-white rounded-[6px]"
-              onClick={() => navigate(`${basePath}/budget-planning`)}
+              onClick={() => navigate(`${basePath}/budget-planning/${leadId}`)}
             >
               Budget Planning
             </Button>
@@ -253,7 +258,9 @@ export default function ProjectDetailsPage() {
               <div>
                 <p className="text-[12px] text-slate-500">Quote Value</p>
                 <p className="text-[14px] font-medium text-slate-800">
-                  {project?.quoteValue ? `$${project.quoteValue.toLocaleString()}` : "N/A"}
+                  {project?.quoteValue
+                    ? `$${project.quoteValue.toLocaleString()}`
+                    : "N/A"}
                 </p>
               </div>
             </div>
@@ -264,7 +271,9 @@ export default function ProjectDetailsPage() {
               <div>
                 <p className="text-[12px] text-slate-500">Created On</p>
                 <p className="text-[14px] font-medium text-slate-800">
-                  {project?.createdAt ? new Date(project.createdAt).toLocaleDateString() : "N/A"}
+                  {project?.createdAt
+                    ? new Date(project.createdAt).toLocaleDateString()
+                    : "N/A"}
                 </p>
               </div>
             </div>
@@ -291,14 +300,25 @@ export default function ProjectDetailsPage() {
               <div className="bg-[#F8FAFC] rounded-[8px] p-4 flex gap-4">
                 <div className="flex-1 space-y-2">
                   <p className="text-[14px] font-medium text-slate-800 mb-1">
-                    {project?.customerId ? `${project.customerId.firstName || ""} ${project.customerId.lastName || ""}`.trim() || "Unknown" : "Unknown"}
+                    {typeof project?.customerId === "object" &&
+                    project?.customerId !== null
+                      ? `${project.customerId.firstName || ""} ${project.customerId.lastName || ""}`.trim() ||
+                        project.customerId.company ||
+                        "Unknown Customer"
+                      : "Unknown Customer"}
                   </p>
                   <div className="flex items-start gap-2">
                     <Phone className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
                     <div className="flex text-[13px]">
                       <span className="text-slate-500 w-16">Phone</span>
                       <span className="font-medium text-slate-800">
-                        {project?.customerId?.phone ? `${project.customerId.phone.countryCode || ""} ${project.customerId.phone.number || ""}`.trim() : "N/A"}
+                        {typeof project?.customerId === "object" &&
+                        project?.customerId !== null &&
+                        project.customerId.phone
+                          ? typeof project.customerId.phone === "object"
+                            ? `${project.customerId.phone.countryCode || ""} ${project.customerId.phone.number || ""}`.trim()
+                            : String(project.customerId.phone)
+                          : "N/A"}
                       </span>
                     </div>
                   </div>
@@ -307,10 +327,19 @@ export default function ProjectDetailsPage() {
                     <div className="flex text-[13px]">
                       <span className="text-slate-500 w-16">Email</span>
                       <a
-                        href={project?.customerId?.email ? `mailto:${project.customerId.email}` : "#"}
+                        href={
+                          typeof project?.customerId === "object" &&
+                          project?.customerId !== null &&
+                          project.customerId.email
+                            ? `mailto:${project.customerId.email}`
+                            : "#"
+                        }
                         className="font-medium text-[#1D51A4] hover:underline"
                       >
-                        {project?.customerId?.email || "N/A"}
+                        {typeof project?.customerId === "object" &&
+                        project?.customerId !== null
+                          ? project.customerId.email || "N/A"
+                          : "N/A"}
                       </a>
                     </div>
                   </div>
@@ -319,7 +348,15 @@ export default function ProjectDetailsPage() {
                     <div className="flex flex-col text-[13px]">
                       <span className="text-slate-500 w-16">Address</span>
                       <span className="font-medium text-slate-800">
-                        {project?.customerId?.address?.street || "N/A"}
+                        {typeof project?.customerId === "object" &&
+                        project?.customerId !== null &&
+                        project.customerId.address
+                          ? typeof project.customerId.address === "object"
+                            ? project.customerId.address.street ||
+                              project.customerId.address.city ||
+                              "N/A"
+                            : String(project.customerId.address)
+                          : project?.location || "N/A"}
                       </span>
                     </div>
                   </div>
@@ -359,7 +396,7 @@ export default function ProjectDetailsPage() {
                     Signed contract/Agreement
                   </p>
                   <p className="text-[13px] text-slate-500 mt-1">
-                    Signed on: 12 April 2025
+                    Status: {project?.isTerminated ? "Terminated" : "Active"}
                   </p>
                 </div>
               </div>
@@ -375,47 +412,51 @@ export default function ProjectDetailsPage() {
         </CardHeader>
 
         <CardContent>
-          <div className="relative min-w-[900px] mb-8">
+          <div className="relative min-w-[900px] mb-8 overflow-x-auto pb-4">
             <div className="absolute top-[11px] left-3 right-3 h-[2px] bg-[#E2E8F0] -z-10"></div>
-            <div className="absolute top-[11px] left-3 w-[45%] h-[2px] bg-[#1D51A4] -z-10"></div>
+            <div
+              className="absolute top-[11px] left-3 h-[2px] bg-[#1D51A4] -z-10 transition-all duration-300"
+              style={{
+                width: `${Math.max(
+                  0,
+                  Math.min(
+                    100,
+                    ((selectedStepId - 1) / (plantLifecycleSteps.length - 1)) *
+                      100,
+                  ),
+                )}%`,
+              }}
+            ></div>
 
             <div className="flex justify-between">
-              {lifecycleSteps.map((step) => {
+              {plantLifecycleSteps.map((step) => {
                 const isCompleted = step.id < selectedStepId;
                 const isCurrent = step.id === selectedStepId;
 
                 return (
                   <div
                     key={step.id}
-                    className="flex flex-col items-center group relative w-16"
+                    className="flex flex-col items-center group relative w-16 cursor-pointer"
+                    onClick={() => setSelectedStepId(step.id)}
                   >
                     <div
                       className={`flex h-[24px] w-[24px] items-center justify-center rounded-full text-[12px] font-semibold mb-2 z-10 transition-colors
-                      ${isCompleted
+                      ${
+                        isCompleted
                           ? "bg-[#16A34A] text-white border-2 border-white"
                           : isCurrent
                             ? "bg-[#1D51A4] text-white border-2 border-white"
                             : "bg-white border-2 border-[#E2E8F0] text-slate-400"
-                        }`}
+                      }`}
                     >
                       {step.id}
                     </div>
                     <div className="text-center font-medium">
                       <p
-                        className={`text-[11px] whitespace-pre-line leading-tight ${isCurrent ? "text-[#1D51A4]" : "text-slate-600"}`}
+                        className={`text-[11px] whitespace-pre-line leading-tight ${isCurrent ? "text-[#1D51A4] font-bold" : "text-slate-600"}`}
                       >
                         {step.label}
                       </p>
-                      {step.labelSub && (
-                        <p className="text-[10px] text-slate-400 whitespace-pre-line mt-1">
-                          {step.labelSub}
-                        </p>
-                      )}
-                      {step.date && (
-                        <p className="text-[10px] text-slate-400 mt-1">
-                          {step.date}
-                        </p>
-                      )}
                     </div>
                   </div>
                 );
@@ -426,11 +467,12 @@ export default function ProjectDetailsPage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-[#F8FAFC] rounded-[8px] p-5 mb-5 border border-slate-100">
             <div>
               <p className="text-[14px] font-semibold text-slate-800 mb-1">
-                Production Planning (Step 7 of 14)
+                {plantLifecycleSteps.find((s) => s.id === selectedStepId)
+                  ?.fullLabel || "Production Planning"}{" "}
+                (Step {selectedStepId} of {plantLifecycleSteps.length})
               </p>
               <p className="text-[12px] text-slate-500 leading-relaxed">
-                Plan Production Schedule, assign resources and determine
-                fabrication priority for this project
+                Current manufacturing and processing phase for this project
               </p>
             </div>
 
@@ -438,22 +480,22 @@ export default function ProjectDetailsPage() {
               <div className="flex items-start gap-3 mb-4">
                 <Calendar className="h-5 w-5 text-slate-400 mt-0.5" />
                 <div>
-                  <p className="text-[12px] text-slate-500">
-                    Planned start date
-                  </p>
+                  <p className="text-[12px] text-slate-500">Created Date</p>
                   <p className="text-[13px] font-medium text-slate-800">
-                    2024-10-10
+                    {project?.createdAt
+                      ? new Date(project.createdAt).toLocaleDateString()
+                      : "N/A"}
                   </p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
                 <Calendar className="h-5 w-5 text-slate-400 mt-0.5" />
                 <div>
-                  <p className="text-[12px] text-slate-500">
-                    Target Completion
-                  </p>
+                  <p className="text-[12px] text-slate-500">Last Updated</p>
                   <p className="text-[13px] font-medium text-slate-800">
-                    2024-10-10
+                    {project?.updatedAt
+                      ? new Date(project.updatedAt).toLocaleDateString()
+                      : "N/A"}
                   </p>
                 </div>
               </div>
@@ -461,28 +503,32 @@ export default function ProjectDetailsPage() {
 
             <div>
               <div className="mb-4">
-                <p className="text-[12px] text-slate-500 mb-0.5">
-                  Assigned Planner
-                </p>
+                <p className="text-[12px] text-slate-500 mb-0.5">Assigned To</p>
                 <p className="text-[13px] font-medium text-slate-800">
-                  Sarah Lee
+                  {project?.assignedSales?.name || "Plant Team"}
                 </p>
               </div>
               <div>
-                <p className="text-[12px] text-slate-500 mb-0.5">Priority</p>
-                <p className="text-[13px] font-medium text-[#D97706] inline-flex items-center px-2 py-0.5 rounded-[4px] bg-[#FEF3C7]">
-                  Medium
-                </p>
+                <p className="text-[12px] text-slate-500 mb-0.5">Stage</p>
+                <span
+                  className={cn(
+                    "text-[12px] font-medium inline-flex items-center px-2 py-0.5 rounded-[4px] border",
+                    currentStatusConfig.badgeClassName,
+                  )}
+                >
+                  {currentStatusConfig.label}
+                </span>
               </div>
             </div>
 
             <div>
               <p className="text-[12px] text-slate-500 mb-1">Next Step</p>
               <p className="text-[13px] font-medium text-slate-800">
-                Fabrication Production Started
+                {plantLifecycleSteps.find((s) => s.id === selectedStepId + 1)
+                  ?.fullLabel || "Delivered / Completed"}
               </p>
               <p className="text-[12px] text-slate-500 mt-1">
-                Upcoming After completion
+                Upcoming after completion
               </p>
             </div>
           </div>
@@ -501,7 +547,7 @@ export default function ProjectDetailsPage() {
           <UpdateStatusDialog
             open={statusDialogOpen}
             currentStepId={selectedStepId}
-            steps={lifecycleSteps}
+            steps={plantLifecycleSteps}
             onOpenChange={setStatusDialogOpen}
             onSave={(stepId) => {
               setSelectedStepId(stepId);
@@ -549,16 +595,20 @@ export default function ProjectDetailsPage() {
                 strokeWidth="10"
                 fill="transparent"
                 strokeDasharray="251.2"
-                strokeDashoffset="125.6" /* 50% */
-                className="text-[#1D51A4]"
+                strokeDashoffset={
+                  251.2 - 251.2 * (selectedStepId / plantLifecycleSteps.length)
+                }
+                className="text-[#1D51A4] transition-all duration-500"
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <span className="text-[12px] text-slate-500">Step</span>
               <span className="text-[28px] font-bold text-slate-800 leading-none">
-                7
+                {selectedStepId}
               </span>
-              <span className="text-[11px] text-slate-500">of 14</span>
+              <span className="text-[11px] text-slate-500">
+                of {plantLifecycleSteps.length}
+              </span>
             </div>
           </div>
 
@@ -566,23 +616,30 @@ export default function ProjectDetailsPage() {
             <div>
               <p className="text-[12px] text-slate-500">Current step</p>
               <p className="text-[14px] font-medium text-[#1D51A4]">
-                Production Planning
+                {plantLifecycleSteps.find((s) => s.id === selectedStepId)
+                  ?.fullLabel || "In Production"}
               </p>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <Calendar className="h-4 w-4 text-slate-600" />
                 <p className="text-[13px] font-semibold text-slate-800">
-                  Started on
+                  Created on
                 </p>
               </div>
-              <p className="text-[13px] text-slate-500 ml-6">2024-10-10</p>
+              <p className="text-[13px] text-slate-500 ml-6">
+                {project?.createdAt
+                  ? new Date(project.createdAt).toLocaleDateString()
+                  : "N/A"}
+              </p>
             </div>
             <div>
               <p className="text-[13px] font-semibold text-slate-800 mb-1">
-                Estimate Completion
+                Status
               </p>
-              <p className="text-[13px] text-slate-500">2024-10-10</p>
+              <p className="text-[13px] text-slate-500">
+                {currentStatusConfig.label}
+              </p>
             </div>
           </div>
         </Card>
@@ -690,6 +747,19 @@ export default function ProjectDetailsPage() {
           // You could show a success dialog here if you prefer,
           // but toast is already handled in the dialog component.
         }}
+      />
+
+      <UploadBomFileDialog
+        open={bomModalOpen}
+        onOpenChange={setBomModalOpen}
+        leadId={leadId}
+        customerId={customerId}
+      />
+
+      <UploadDrawingsModal
+        isOpen={drawingsModalOpen}
+        onClose={() => setDrawingsModalOpen(false)}
+        leadId={leadId}
       />
     </div>
   );

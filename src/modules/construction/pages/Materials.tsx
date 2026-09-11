@@ -1,418 +1,426 @@
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
-import StatsOverview from "../components/cards/StatCard";
-import PlusIcon from "../assets/plusicon.svg";
-import type { StatItem } from "../components/cards/StatCard";
-import EyeIcon from "../assets/EyeIcon.svg";
-import CameraIcon from "../assets/cameraicon.svg";
-import DoubleCheck from "../assets/tickdoubleicon.svg";
-import Dispatch from "../assets/dispatchicon.svg";
-import Alert from "../assets/alerticon.svg";
+import { useState, useMemo } from "react";
+import { useSearchParams } from "react-router";
 import CustomSelect from "../components/common/CustomSelect";
+import ProjectSelector from "../components/common/ProjectSelector";
 import IssueReportingModal from "../components/reportingIssueModel";
 import RequestMaterialModel from "../components/requestMaterialModel";
 import PhotoModel from "../components/photoModel";
-import FolderIcon from "../assets/clockicon.svg";
-import BoxIcon from "../assets/dispatchicon.svg";
-import ShieldCheckIcon from "../assets/SieldIcon";
-import RightCheckIcon from "../assets/RightTickIcon";
 import SuccessModal from "../components/common/SuccessModal";
+import MaterialRequestDetailsDialog from "../components/MaterialRequestDetailsDialog";
+import MaterialsList, { getRequestedByName } from "../components/MaterialsList";
+import {
+  useMaterialRequestsQuery,
+  useReviewMaterialRequestMutation,
+  useExportMaterialRequestsMutation,
+  useMaterialRequestFiltersQuery,
+} from "../construction.hooks";
+import type { MaterialRequestItem } from "../construction.api";
 
-const stats: StatItem[] = [
-  {
-    key: "activeProjects",
-    title: "Pending",
-    value: 1,
-    icon: FolderIcon,
-    bg: "#EAB308",
-  },
-  {
-    key: "completionRate",
-    title: "Approved",
-    value: 1,
-    iconsvg: <RightCheckIcon color="#9333EA" />,
-    bg: "#9333EA",
-  },
-  {
-    key: "pendingMaterials",
-    title: "Dispatched",
-    value: 1,
-    icon: BoxIcon,
-    bg: "#1D51A4",
-  },
-  {
-    key: "safetyScore",
-    title: "Delivered",
-    value: 1,
-    iconsvg: <ShieldCheckIcon color="#3AB449" />,
-    bg: "#3AB449",
-  },
-];
+import {
+  DollarSign,
+  ShoppingBag,
+  Lock,
+  Hourglass,
+  Download,
+  Calendar,
+} from "lucide-react";
 
-const statusStyle: Record<string, string> = {
-  Approved: "bg-[#F1E1FF] text-[#9333EA]",
-  Dispatched: "bg-[#D0E2FF] text-[#1D51A4]",
-  Pending: "bg-[#FFF5D5] text-[#EAB308]",
-  Delivered: "bg-[#D0FFDA] text-[#3AB449]",
-};
+// Icons for Stat Cards (matching image design with subtle borders/colors)
+function DollarStatIcon() {
+  return (
+    <div className="w-9 h-9 rounded-lg border border-[#9333EA]/30 bg-[#F5F3FF] flex items-center justify-center text-[#9333EA]">
+      <DollarSign className="w-5 h-5" />
+    </div>
+  );
+}
 
-const options = [
-  { label: "All Requests", value: "all" },
-  { label: "Approved", value: "approved" },
-  { label: "Dispatched", value: "dispatched" },
-  { label: "Pending", value: "pending" },
-  { label: "Delivered", value: "delivered" },
-];
+function ShoppingBagStatIcon() {
+  return (
+    <div className="w-9 h-9 rounded-lg border border-[#22C55E]/30 bg-[#F0FDF4] flex items-center justify-center text-[#22C55E]">
+      <ShoppingBag className="w-5 h-5" />
+    </div>
+  );
+}
+
+function LockStatIcon() {
+  return (
+    <div className="w-9 h-9 rounded-lg border border-[#EAB308]/30 bg-[#FEFCE8] flex items-center justify-center text-[#EAB308]">
+      <Lock className="w-5 h-5" />
+    </div>
+  );
+}
+
+function HourglassStatIcon() {
+  return (
+    <div className="w-9 h-9 rounded-lg border border-[#EF4444]/30 bg-[#FEF2F2] flex items-center justify-center text-[#EF4444]">
+      <Hourglass className="w-5 h-5" />
+    </div>
+  );
+}
+
+function formatTitleCase(str: string) {
+  if (!str) return "";
+  return str
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
 
 export default function Materials() {
-  const [requests, setRequests] = useState([
-    {
-      id: "1",
-      requestNo: "MR-001",
-      requestedBy: "John Smith",
-      projectName: "Downtown Office Complex",
-      projectCode: "PRJ-001",
-      material: "Steel Beams",
-      quantity: "50 units",
-      spec: "Grade A steel required",
-      needBy: "2025-02-02",
-      delivery: "2025-02-18",
-      status: "Approved",
-      supplier: "Steel Corp Ltd",
-    },
-    {
-      id: "2",
-      requestNo: "MR-002",
-      requestedBy: "Sarah Wilson",
-      projectName: "Residential Tower A",
-      projectCode: "PRJ-002",
-      material: "Concrete Mix",
-      quantity: "200 cubic meters",
-      spec: "High strength concrete",
-      needBy: "2025-02-15",
-      delivery: "2025-02-14",
-      status: "Dispatched",
-      supplier: "Concrete Solutions",
-    },
-    {
-      id: "3",
-      requestNo: "MR-003",
-      requestedBy: "Mike Johnson",
-      projectName: "Downtown Office Complex",
-      projectCode: "PRJ-001",
-      material: "Electrical Cables",
-      quantity: "500 units",
-      spec: "Fire-resistant cable",
-      needBy: "2025-02-25",
-      delivery: "TBD",
-      status: "Pending",
-      supplier: "Electro Tech",
-    },
-    {
-      id: "4",
-      requestNo: "MR-004",
-      requestedBy: "Tom Brown",
-      projectName: "Residential Tower A",
-      projectCode: "PRJ-002",
-      material: "Ceramic Tiles",
-      quantity: "1000 sq ft",
-      spec: "Premium quality tiles",
-      needBy: "2025-03-01",
-      delivery: "2025-02-10",
-      status: "Delivered",
-      supplier: "Tile Masters",
-    },
-  ]);
   const [searchParams] = useSearchParams();
   const search = searchParams.get("search") || "";
-  const [status, setStatus] = useState("all");
-  const navigate = useNavigate();
+
+  const [selectedProject, setSelectedProject] = useState("all");
+  const [selectedDept, setSelectedDept] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [selectedReqBy, setSelectedReqBy] = useState("all");
+  const [startDate, setStartDate] = useState<string | undefined>(undefined);
+  const [endDate, setEndDate] = useState<string | undefined>(undefined);
+
   const [openReportModel, setReportModel] = useState(false);
   const [openRequestModel, setRequestModel] = useState(false);
   const [successOpen, setSuccessOpen] = useState(false);
-  const [pendingRequest, setPendingRequest] = useState<any>(null);
   const [successTitle, setSuccessTitle] = useState("");
   const [openPhotoModel, setPhotoModel] = useState(false);
-  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(
-    null
-  );
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 
-  const filteredRequests = requests.filter((r) => {
-    const matchStatus = status === "all" || r.status.toLowerCase() === status;
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<MaterialRequestItem | null>(null);
 
-    const matchSearch = search
-      ? `${r.requestNo}
-       ${r.requestedBy}
-       ${r.projectName}
-       ${r.projectCode}
-       ${r.material}
-       ${r.quantity}
-       ${r.spec}
-       ${r.supplier}
-       ${r.status}`
-          .toLowerCase()
-          .includes(search.toLowerCase())
-      : true;
+  const { data: filtersData } = useMaterialRequestFiltersQuery();
 
-    return matchStatus && matchSearch;
-  });
+  const queryParams = useMemo(() => {
+    return {
+      leadId: selectedProject === "all" ? undefined : selectedProject,
+      department: selectedDept === "all" ? undefined : selectedDept,
+      status: selectedStatus === "all" ? undefined : selectedStatus,
+      requestedBy: selectedReqBy === "all" ? undefined : selectedReqBy,
+      startDate: startDate || undefined,
+      endDate: endDate || undefined,
+      search: search.trim() || undefined,
+    };
+  }, [selectedProject, selectedDept, selectedStatus, selectedReqBy, startDate, endDate, search]);
+
+  const { data, isLoading, refetch } = useMaterialRequestsQuery(queryParams);
+  const reviewMutation = useReviewMaterialRequestMutation();
+  const exportMutation = useExportMaterialRequestsMutation();
+
+  const departmentOptions = useMemo(() => {
+    const apiDepts = filtersData?.data?.departments || [];
+    const options = apiDepts.map((d) => ({ label: formatTitleCase(d), value: d }));
+    return [{ label: "All Departments", value: "all" }, ...options];
+  }, [filtersData]);
+
+  const statusFilterOptions = useMemo(() => {
+    const apiStatuses = filtersData?.data?.statuses || [];
+    const options = apiStatuses.map((s) => ({ label: formatTitleCase(s), value: s }));
+    return options.length > 0
+      ? [{ label: "All Status", value: "all" }, ...options]
+      : [
+          { label: "All Status", value: "all" },
+          { label: "Pending", value: "pending" },
+          { label: "Approved", value: "approved" },
+          { label: "Rejected", value: "rejected" },
+          { label: "Fulfilled", value: "fulfilled" },
+          { label: "Cancelled", value: "cancelled" },
+        ];
+  }, [filtersData]);
+
+  const requestedByOptions = useMemo(() => {
+    const apiReqBy = filtersData?.data?.requestedBy || [];
+    const options = apiReqBy.map((user) => ({ label: user.name, value: user._id }));
+    return [{ label: "All", value: "all" }, ...options];
+  }, [filtersData]);
+
+  const handleExport = async () => {
+    try {
+      const blob = await exportMutation.mutateAsync(queryParams);
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `material-requests-${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      setSuccessTitle("Data Exported Successfully");
+      setSuccessOpen(true);
+    } catch (error) {
+      console.error("Failed to export material requests:", error);
+    }
+  };
+
+  const handleReviewRequest = async (
+    req: MaterialRequestItem,
+    action: "approved" | "rejected"
+  ) => {
+    const targetId = req._id || req.requestId;
+    if (!targetId) return;
+
+    try {
+      await reviewMutation.mutateAsync({
+        requestId: targetId,
+        payload: {
+          action,
+          reviewNotes: action === "approved" ? "Approved" : "Rejected",
+        },
+      });
+      setSuccessTitle(
+        action === "approved"
+          ? "Material Request Approved"
+          : "Material Request Rejected"
+      );
+      setSuccessOpen(true);
+    } catch (error) {
+      console.error(`Failed to ${action} material request:`, error);
+    }
+  };
+
+  const apiRequests = data?.data?.requests || [];
+  const statsData = data?.data?.stats;
+
+  const totalRequestsCount = statsData?.total ?? apiRequests.length ?? 0;
+  const pendingCount = statsData?.pending?.count ?? 0;
+  const approvedCount = statsData?.approved?.count ?? 0;
+  const rejectedCount = statsData?.rejected?.count ?? 0;
+
+  const filteredRequests = useMemo(() => {
+    let requests = apiRequests;
+
+    if (!search) return requests;
+    const term = search.toLowerCase();
+    return requests.filter((r) => {
+      const reqNo = r.requestId || "";
+      const reqBy = getRequestedByName(r);
+      const projName = r.leadId?.projectName || "";
+      const jobId = r.leadId?.jobId || "";
+      const building = r.buildingLabel || "";
+      const itemNames = r.requestedItems?.map((i) => i.name).join(" ") || "";
+      const statusStr = r.status || "";
+
+      return `${reqNo} ${reqBy} ${projName} ${jobId} ${building} ${itemNames} ${statusStr}`
+        .toLowerCase()
+        .includes(term);
+    });
+  }, [apiRequests, search]);
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex xl:flex-row flex-col gap-6 xl:items-center justify-between mb-8">
-          <div>
-            <h1 className="text-[#111827] lg:text-[30px] text-[24px] font-bold leading-[36px]">
-              Material Requests & Tracking
-            </h1>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <CustomSelect
-              title="All Requests"
-              options={options}
-              value={status}
-              onChange={setStatus}
-            />
-
-            <button
-              onClick={() => setReportModel(true)}
-              className="
-              bg-[#4B5563] text-white
-              px-6 flex items-center justify-center rounded-[8px] h-[38px]
-              text-sm font-medium
-            "
-            >
-              Issue Reporting
-            </button>
-
-            <button
-              onClick={() => setRequestModel(true)}
-              className="bg-[#2563EB] h-[38px] gap-2 text-[14px] flex justify-center items-center text-white px-4 rounded-[8px]"
-            >
-              <img src={PlusIcon} alt="" />
-              Requests Material
-            </button>
-
-            <IssueReportingModal
-              open={openReportModel}
-              onClose={() => setReportModel(false)}
-              onCreate={(newRequest) => {
-                setSuccessTitle("Report Submitted Successfully");
-                setPendingRequest(newRequest);
-                setSuccessOpen(true);
-              }}
-            />
-
-            <RequestMaterialModel
-              open={openRequestModel}
-              onClose={() => setRequestModel(false)}
-              onCreate={(newRequest) => {
-                setSuccessTitle("Material Requested Successfully");
-                setPendingRequest(newRequest);
-                setSuccessOpen(true);
-              }}
-            />
-
-            <SuccessModal
-              open={successOpen}
-              title={successTitle}
-              onClose={() => {
-                setSuccessOpen(false);
-                if (pendingRequest) {
-                  setRequests((prev) => [pendingRequest, ...prev]);
-                  setPendingRequest(null);
-                }
-              }}
-            />
-          </div>
+      {/* Top Header Section */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-[#111827] text-[22px] md:text-[24px] font-bold">
+            Material Requests
+          </h1>
+          <p className="text-[13px] text-[#6B7280] mt-0.5">
+            View & Manage all additional material requests raised by construction teams.
+          </p>
         </div>
-        <StatsOverview stats={stats} />
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => void handleExport()}
+            disabled={exportMutation.isPending}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-[#E5E7EB] rounded-[8px] text-[13px] font-medium text-[#374151] hover:bg-gray-50 transition-colors shadow-sm disabled:opacity-50"
+          >
+            <Download className="w-4 h-4 text-gray-600" />
+            {exportMutation.isPending ? "Exporting..." : "Export"}
+          </button>
+        </div>
+      </div>
 
-        <div className="rounded-[8px] bg-white border border-[#F3F4F6] shadow mt-6 overflow-hidden">
-          <div className="overflow-x-auto scroll-hide w-[calc(100vw-26px)] lg:w-[calc(100vw-324px)]">
-            <table className="min-w-[900px] w-full border-collapse rounded-[8px]">
-              <thead>
-                <tr className="text-[12px] uppercase text-[#6B7280] bg-[#F9FAFB] border-b">
-                  <th className="lg:px-6 px-3 lg:py-4 py-3 font-normal text-start">
-                    Request
-                  </th>
-                  <th className="lg:px-6 px-3 lg:py-4 py-3 font-normal text-start">
-                    Project
-                  </th>
-                  <th className="lg:px-6 px-3 lg:py-4 py-3 font-normal text-start">
-                    Material
-                  </th>
-                  <th className="lg:px-6 px-3 lg:py-4 py-3 font-normal text-start">
-                    Timeline
-                  </th>
-                  <th className="lg:px-6 px-3 lg:py-4 py-3 font-normal text-start">
-                    Status
-                  </th>
-                  <th className="lg:px-6 px-3 lg:py-4 py-3 font-normal text-start">
-                    Supplier
-                  </th>
-                  <th className="lg:px-6 px-3 lg:py-4 py-3 font-normal text-start">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredRequests.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="border-b last:border-b-0 even:bg-[#F9FAFB]"
-                  >
-                    <td className="lg:px-6 px-3 lg:py-6 py-3">
-                      <p className="text-[13px] text-[#111827]">
-                        {r.requestNo}
-                      </p>
-                      <p className="text-xs text-[#6B7280] mt-1">
-                        by {r.requestedBy}
-                      </p>
-                    </td>
-
-                    <td className="lg:px-6 px-3 lg:py-6 py-3">
-                      <p className="text-[13px] text-[#111827]">
-                        {r.projectName}
-                      </p>
-                      <p className="text-xs text-[#6B7280] mt-1">
-                        {r.projectCode}
-                      </p>
-                    </td>
-
-                    <td className="lg:px-6 px-3 lg:py-6 py-3">
-                      <p className="text-[13px] text-[#111827]">{r.material}</p>
-                      <p className="text-xs text-[#6B7280] mt-1">
-                        {r.quantity}
-                      </p>
-                      <p className="text-xs text-[#6B7280]">{r.spec}</p>
-                    </td>
-
-                    <td className="lg:px-6 px-3 lg:py-6 py-3">
-                      <p className="text-[13px] text-[#111827]">
-                        Need by: {r.needBy}
-                      </p>
-                      <p className="text-xs text-[#6B7280] mt-1">
-                        Delivery: {r.delivery}
-                      </p>
-                    </td>
-
-                    <td className="lg:px-6 px-3 lg:py-6 py-3">
-                      <span
-                        className={`px-4 py-1 rounded-full text-[12px] ${
-                          statusStyle[r.status]
-                        }`}
-                      >
-                        {r.status}
-                      </span>
-                    </td>
-
-                    <td className="lg:px-6 px-3 lg:py-6 py-3 text-[13px] text-[#111827]">
-                      {r.supplier}
-                    </td>
-
-                    <td className="lg:px-6 px-3 lg:py-6 py-3">
-                      <div className="flex gap-4 text-[#2563EB]">
-                        <button
-                          onClick={() => navigate("/material-view-page")}
-                          className="hover:opacity-70"
-                        >
-                          <img src={EyeIcon} alt="" className="min-w-fit" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedRequestId(r.id);
-                            setPhotoModel(true);
-                          }}
-                          className="hover:opacity-70"
-                        >
-                          <img src={CameraIcon} alt="" className="min-w-fit" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {filteredRequests.length === 0 && (
-              <p className="text-center text-sm text-[#6B7280] py-8">
-                No projects found
-              </p>
-            )}
-          </div>
+      {/* Filters Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end bg-white p-6 rounded-lg">
+        <div>
+          <label className="block text-[12px] font-medium text-[#6B7280] mb-1">
+            Projects
+          </label>
+          <ProjectSelector
+            value={selectedProject}
+            onValueChange={setSelectedProject}
+            placeholder="All Projects"
+            includeAllOption
+          />
         </div>
 
-        <PhotoModel
-          open={openPhotoModel}
-          requestId={selectedRequestId}
-          onClose={() => {
-            setSuccessTitle("Photo Uploaded Successfully");
-            setPhotoModel(false);
-            setSuccessOpen(true);
-            setSelectedRequestId(null);
-          }}
-          onUpload={(file, requestId) => {
-            console.log("Uploaded file:", file);
-            console.log("Request ID:", requestId);
-          }}
-        />
+        <div>
+          <label className="block text-[12px] font-medium text-[#6B7280] mb-1">
+            Departments
+          </label>
+          <CustomSelect
+            title="All Departments"
+            options={departmentOptions}
+            value={selectedDept}
+            onChange={setSelectedDept}
+          />
+        </div>
 
-        <div
-          className="
-            rounded-[8px] lg:p-6 p-3 border !bg-white border-[#F3F4F6] mt-6
-            !shadow-[0px_2px_4px_-2px_rgba(0,0,0,0.1),_0px_4px_6px_-1px_rgba(0,0,0,0.1)]
-          "
-        >
-          <h2 className="text-[18px] font-semibold text-[#111827] mb-6">
-            Material Requests & Tracking
-          </h2>
+        <div>
+          <label className="block text-[12px] font-medium text-[#6B7280] mb-1">
+            Status
+          </label>
+          <CustomSelect
+            title="All Status"
+            options={statusFilterOptions}
+            value={selectedStatus}
+            onChange={setSelectedStatus}
+          />
+        </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="flex items-center gap-4 border border-[#22C55E] rounded-[8px] p-4 bg-[#F0FDF4]">
-              <div className="text-[#166534] mt-1">
-                <img src={DoubleCheck} alt="Double Check" />
-              </div>
-              <div>
-                <p className="text-[#006927] font-medium text-[16px]">
-                  Inventory Connected
-                </p>
-                <p className="text-[#006927] text-[12px] mt-1">
-                  Real-time stock levels available
-                </p>
-              </div>
-            </div>
+        <div>
+          <label className="block text-[12px] font-medium text-[#6B7280] mb-1">
+            Requested By
+          </label>
+          <CustomSelect
+            title="All"
+            options={requestedByOptions}
+            value={selectedReqBy}
+            onChange={setSelectedReqBy}
+          />
+        </div>
 
-            <div className="flex items-center gap-4 border border-[#674EDA] rounded-[8px] p-4 bg-[#EFF6FF]">
-              <div className="text-[#4338CA] mt-1">
-                <img src={Dispatch} alt="Dispatch icon" />
-              </div>
-              <div>
-                <p className="text-[#003562] font-medium text-[16px]">
-                  Auto Dispatch
-                </p>
-                <p className="text-[#003562] text-[12px] mt-1">
-                  Automatic delivery scheduling
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 border border-[#EAB308] rounded-[8px] p-4 bg-[#FEFCE8]">
-              <div className="text-[#854D0E] mt-1">
-                <img src={Alert} alt="Alert Icon" />
-              </div>
-              <div>
-                <p className="text-[#735700] font-medium text-[16px]">
-                  Low Stock Alerts
-                </p>
-                <p className="text-[#735700] text-[12px] mt-1">
-                  Proactive inventory monitoring
-                </p>
-              </div>
-            </div>
+        <div>
+          <label className="block text-[12px] font-medium text-[#6B7280] mb-1">
+            Date Range
+          </label>
+          <div className="flex items-center justify-between px-3 py-2 bg-white border border-[#E5E7EB] rounded-[8px] text-[13px] text-[#374151] shadow-sm cursor-pointer hover:border-gray-400">
+            <span>May 1 - May 31, 2025</span>
+            <Calendar className="w-4 h-4 text-gray-500" />
           </div>
         </div>
       </div>
+
+      {/* Summary Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Requests Card */}
+        <div className="relative overflow-hidden bg-white border border-[#E5E7EB] rounded-[10px] p-4 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-[12px] font-medium text-[#6B7280]">Total Requests</p>
+              <h3 className="text-[22px] font-bold text-[#111827] mt-1">{totalRequestsCount}</h3>
+            </div>
+            <DollarStatIcon />
+          </div>
+          <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-gradient-to-tl from-[#9333EA]/10 to-transparent rounded-full pointer-events-none" />
+        </div>
+
+        {/* Pending Card */}
+        <div className="relative overflow-hidden bg-white border border-[#E5E7EB] rounded-[10px] p-4 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-[12px] font-medium text-[#6B7280]">Pending</p>
+              <h3 className="text-[22px] font-bold text-[#111827] mt-1">{pendingCount}</h3>
+            </div>
+            <ShoppingBagStatIcon />
+          </div>
+          <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-gradient-to-tl from-[#22C55E]/10 to-transparent rounded-full pointer-events-none" />
+        </div>
+
+        {/* Approved Card */}
+        <div className="relative overflow-hidden bg-white border border-[#E5E7EB] rounded-[10px] p-4 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-[12px] font-medium text-[#6B7280]">Approved</p>
+              <h3 className="text-[22px] font-bold text-[#111827] mt-1">{approvedCount}</h3>
+            </div>
+            <LockStatIcon />
+          </div>
+          <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-gradient-to-tl from-[#EAB308]/10 to-transparent rounded-full pointer-events-none" />
+        </div>
+
+        {/* Rejected Card */}
+        <div className="relative overflow-hidden bg-white border border-[#E5E7EB] rounded-[10px] p-4 shadow-sm">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-[12px] font-medium text-[#6B7280]">Rejected</p>
+              <h3 className="text-[22px] font-bold text-[#111827] mt-1">{rejectedCount}</h3>
+            </div>
+            <HourglassStatIcon />
+          </div>
+          <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-gradient-to-tl from-[#EF4444]/10 to-transparent rounded-full pointer-events-none" />
+        </div>
+      </div>
+
+      {/* Main Table Card */}
+      <MaterialsList
+        requests={filteredRequests}
+        isLoading={isLoading}
+        isReviewing={reviewMutation.isPending}
+        onView={(req) => {
+          setSelectedRequestId(req._id);
+          setSelectedRequest(req);
+          setDetailsOpen(true);
+        }}
+        onUploadPhoto={(requestId) => {
+          setSelectedRequestId(requestId);
+          setPhotoModel(true);
+        }}
+        onReview={handleReviewRequest}
+      />
+
+      {/* Modals */}
+      <MaterialRequestDetailsDialog
+        open={detailsOpen}
+        requestId={selectedRequestId}
+        onClose={() => {
+          setDetailsOpen(false);
+          setSelectedRequest(null);
+          setSelectedRequestId(null);
+        }}
+        request={selectedRequest}
+        onApprove={() => {
+          setSuccessTitle("Material Request Approved");
+          setSuccessOpen(true);
+          void refetch();
+        }}
+        onReject={() => {
+          setSuccessTitle("Material Request Rejected");
+          setSuccessOpen(true);
+          void refetch();
+        }}
+      />
+
+      <IssueReportingModal
+        open={openReportModel}
+        onClose={() => setReportModel(false)}
+        onCreate={() => {
+          setSuccessTitle("Report Submitted Successfully");
+          setSuccessOpen(true);
+          void refetch();
+        }}
+      />
+
+      <RequestMaterialModel
+        open={openRequestModel}
+        onClose={() => setRequestModel(false)}
+        onCreate={() => {
+          setSuccessTitle("Material Requested Successfully");
+          setSuccessOpen(true);
+          void refetch();
+        }}
+      />
+
+      <SuccessModal
+        open={successOpen}
+        title={successTitle}
+        onClose={() => {
+          setSuccessOpen(false);
+        }}
+      />
+
+      <PhotoModel
+        open={openPhotoModel}
+        requestId={selectedRequestId}
+        onClose={() => {
+          setPhotoModel(false);
+          setSelectedRequestId(null);
+        }}
+        onSuccess={() => {
+          setSuccessTitle("Photo Uploaded Successfully");
+          setPhotoModel(false);
+          setSuccessOpen(true);
+          setSelectedRequestId(null);
+        }}
+      />
     </div>
   );
 }

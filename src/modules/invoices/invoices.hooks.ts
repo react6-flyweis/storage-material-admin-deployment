@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   updateInvoiceProvider,
   createInvoiceProvider,
@@ -10,9 +10,24 @@ import {
   markInvoicePaidProvider,
   getAdminProjectInvoicesProvider,
   sendInvoiceProvider,
+  markInvoiceSentProvider,
+  approveInvoiceProvider,
+  rejectInvoiceProvider,
+  submitInvoiceApprovalProvider,
+  getPendingApprovalInvoicesProvider,
+  getVendorInvoicesProvider,
+  exportVendorInvoicesProvider,
+  getAdminVendorInvoiceDetailProvider,
+  getAdminInvoiceDetailProvider,
+  getCarrierInvoicesProvider,
+  exportCarrierInvoicesProvider,
   type CreateInvoicePayload,
   type UpdateInvoicePayload,
   type GetInvoicesParams,
+  type GetVendorInvoicesParams,
+  type GetCarrierInvoicesParams,
+  type SendInvoicePayload,
+  type MarkInvoiceSentPayload,
 } from "./invoices.api";
 
 import {
@@ -73,8 +88,64 @@ export function useMarkInvoicePaidMutation() {
 }
 
 export function useSendInvoiceMutation() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (invoiceId: string) => sendInvoiceProvider(invoiceId),
+    mutationFn: (args: string | { invoiceId: string; payload?: SendInvoicePayload }) => {
+      const invoiceId = typeof args === "string" ? args : args.invoiceId;
+      const payload = typeof args === "string" ? undefined : args.payload;
+      return sendInvoiceProvider(invoiceId, payload);
+    },
+    onSuccess: (data, args) => {
+      const invoiceId = typeof args === "string" ? args : args.invoiceId;
+      queryClient.invalidateQueries({ queryKey: ["invoice", invoiceId] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["invoiceStats"] });
+    },
+  });
+}
+
+export function useMarkInvoiceSentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (args: string | { invoiceId: string; payload?: MarkInvoiceSentPayload }) => {
+      const invoiceId = typeof args === "string" ? args : args.invoiceId;
+      const payload = typeof args === "string" ? undefined : args.payload;
+      return markInvoiceSentProvider(invoiceId, payload);
+    },
+    onSuccess: (data, args) => {
+      const invoiceId = typeof args === "string" ? args : args.invoiceId;
+      queryClient.invalidateQueries({ queryKey: ["invoice", invoiceId] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["invoiceStats"] });
+    },
+  });
+}
+
+export function useApproveInvoiceMutation() {
+  return useMutation({
+    mutationFn: ({ invoiceId, note }: { invoiceId: string; note?: string }) =>
+      approveInvoiceProvider(invoiceId, { note }),
+  });
+}
+
+export function useRejectInvoiceMutation() {
+  return useMutation({
+    mutationFn: ({ invoiceId, reason }: { invoiceId: string; reason: string }) =>
+      rejectInvoiceProvider(invoiceId, { reason }),
+  });
+}
+
+export function useSubmitInvoiceApprovalMutation() {
+  return useMutation({
+    mutationFn: ({ invoiceId, note }: { invoiceId: string; note?: string }) =>
+      submitInvoiceApprovalProvider(invoiceId, { note }),
+  });
+}
+
+export function useGetPendingApprovalInvoicesQuery(params?: GetInvoicesParams) {
+  return useQuery({
+    queryKey: ["pendingApprovalInvoices", params],
+    queryFn: () => getPendingApprovalInvoicesProvider(params),
   });
 }
 
@@ -108,3 +179,49 @@ export function useGetAdminProjectInvoicesQuery(customerId: string, leadId: stri
     enabled: Boolean(customerId && leadId),
   });
 }
+
+export function useGetVendorInvoicesQuery(params?: GetVendorInvoicesParams) {
+  return useQuery({
+    queryKey: ["vendorInvoices", params],
+    queryFn: () => getVendorInvoicesProvider(params),
+  });
+}
+
+export function useExportVendorInvoicesMutation() {
+  return useMutation({
+    mutationFn: (params?: GetVendorInvoicesParams) => exportVendorInvoicesProvider(params),
+  });
+}
+
+export function useGetAdminVendorInvoiceDetailQuery(invoiceId: string) {
+  return useQuery({
+    queryKey: ["adminVendorInvoiceDetail", invoiceId],
+    queryFn: () => getAdminVendorInvoiceDetailProvider(invoiceId),
+    enabled: Boolean(invoiceId),
+  });
+}
+
+export function useGetAdminInvoiceDetailQuery(invoiceId: string) {
+  return useQuery({
+    queryKey: ["adminInvoiceDetail", invoiceId],
+    queryFn: () => getAdminInvoiceDetailProvider(invoiceId),
+    enabled: Boolean(invoiceId),
+  });
+}
+
+export function useGetCarrierInvoicesQuery(params?: GetCarrierInvoicesParams) {
+  return useQuery({
+    queryKey: ["carrierInvoices", params],
+    queryFn: () => getCarrierInvoicesProvider(params),
+  });
+}
+
+export function useExportCarrierInvoicesMutation() {
+  return useMutation({
+    mutationFn: (params?: GetCarrierInvoicesParams) => exportCarrierInvoicesProvider(params),
+  });
+}
+
+
+
+

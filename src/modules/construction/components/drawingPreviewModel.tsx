@@ -1,19 +1,25 @@
+import { useState } from "react";
 import CloseIcon from "../assets/closeicon.svg";
 import DownloadIcon from "../assets/downloadicon.svg";
 import LinkIcon from "../assets/linkicon.svg";
-import PendingImg from "../assets/drawingpreview.png";
-import ApprovedImg from "../assets/approvedimg.png";
-import RevisionImg from "../assets/revisionimg.png";
+import { useAddDrawingCommentMutation } from "../construction.hooks";
+import { toast } from "sonner";
+import { Loader2 } from "lucide-react";
 
 type DrawingPreviewModalProps = {
   open: boolean;
   onClose: () => void;
   fileId: string;
-  file: {
-    id: string;
-    name: string;
-    size: string;
-    status: string;
+  file?: {
+    id?: string;
+    name?: string;
+    size?: string;
+    status?: string;
+    location?: string;
+    uploadedBy?: string;
+    updatedOn?: string;
+    fileUrl?: string;
+    jobId?: string;
   } | null;
 };
 
@@ -21,8 +27,39 @@ export default function DrawingPreviewModal({
   open,
   onClose,
   fileId,
+  file,
 }: DrawingPreviewModalProps) {
+  const [commentText, setCommentText] = useState("");
+  const addCommentMutation = useAddDrawingCommentMutation();
+
   if (!open) return null;
+
+  const docId = file?.id;
+
+  const handleSendComment = async () => {
+    if (!commentText.trim()) {
+      toast.error("Please enter a comment");
+      return;
+    }
+
+    if (!docId) {
+      toast.error("Document ID not found");
+      return;
+    }
+
+    try {
+      await addCommentMutation.mutateAsync({
+        docId,
+        payload: { text: commentText.trim() },
+      });
+      toast.success("Comment added successfully");
+      setCommentText("");
+    } catch (err: any) {
+      toast.error(
+        err?.response?.data?.message || err?.message || "Failed to add comment"
+      );
+    }
+  };
 
   return (
     <div
@@ -37,23 +74,23 @@ export default function DrawingPreviewModal({
           <div className="flex md:flex-row flex-col justify-start gap-4 md:items-center">
             <div className="space-y-1">
               <h2 className="text-xl font-semibold text-[#111827]">
-                Architectural Plans
+                {file?.name || "Architectural Plans"}
               </h2>
-              <p className="text-sm text-[#6B7280]">PEB-1021</p>
+              <p className="text-sm text-[#6B7280]">{file?.jobId || "PEB-1021"}</p>
             </div>
 
             <div className="flex flex-wrap items-center lg:gap-10 gap-3 text-sm text-[#111827]">
               <div>
                 <p className="text-[#6B7280] max-w-[200px] min-w-[100px]">Location</p>
-                <p>Pune, Maharashtra</p>
+                <p>{file?.location || "—"}</p>
               </div>
               <div>
                 <p className="text-[#6B7280] max-w-[200px] min-w-[100px]">Uploaded By</p>
-                <p>Rahul Sharma</p>
+                <p>{file?.uploadedBy || "Admin User"}</p>
               </div>
               <div>
                 <p className="text-[#6B7280] max-w-[200px] min-w-[100px]">Received on</p>
-                <p>25-April-2025</p>
+                <p>{file?.updatedOn || "—"}</p>
               </div>
             </div>
           </div>
@@ -66,26 +103,69 @@ export default function DrawingPreviewModal({
           />
         </div>
 
-        <div className="bg-[#F9FAFB] flex justify-center items-center lg:px-6 px-3 py-4">
-          <img
-            src={
-                fileId === "Approved"
-                ? ApprovedImg
-                : fileId === "Revision"
-                ? RevisionImg
-                : PendingImg
-            }
-            alt="drawing"
-            className="max-h-[450px] object-contain"
-            />
+        <div className="bg-[#F9FAFB] flex justify-center items-center lg:px-6 px-3 py-4 min-h-[350px]">
+          {(() => {
+            const url = file?.fileUrl;
+            const name = file?.name || "";
+            const isImage = url && (/\.(jpg|jpeg|png|gif|webp|svg)($|\?)/i.test(url) || /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(name));
+            const isPdf = url && (/\.pdf($|\?)/i.test(url) || /\.pdf$/i.test(name));
 
+            if (isImage) {
+              return (
+                <img
+                  src={url}
+                  alt={file?.name || "Drawing preview"}
+                  className="max-h-[70vh] w-auto object-contain rounded"
+                />
+              );
+            }
+
+            if (isPdf) {
+              return (
+                <iframe
+                  src={url}
+                  title={file?.name || "PDF preview"}
+                  className="w-full h-[70vh] rounded border border-gray-200"
+                />
+              );
+            }
+
+            if (url) {
+              return (
+                <iframe
+                  src={url}
+                  title={file?.name || "Document preview"}
+                  className="w-full h-[70vh] rounded border border-gray-200"
+                />
+              );
+            }
+
+            return (
+              <div className="text-center py-12 text-gray-500 text-sm">
+                No preview available for this document
+              </div>
+            );
+          })()}
         </div>
 
         <div className="lg:px-6 px-3 py-4 flex sm:flex-row flex-col gap-3 sm:justify-between items-end sm:items-center border-t">
-          <button className="flex items-center gap-2 bg-[#9CA3AF] text-white px-5 py-1 rounded-full w-fit">
-            <img src={DownloadIcon} className="brightness-[10]" alt="" />
-            Download
-          </button>
+          {file?.fileUrl ? (
+            <a
+              href={file.fileUrl}
+              download={file.name || "download"}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 bg-[#2563EB] hover:bg-blue-700 text-white px-5 py-1.5 rounded-full w-fit transition-colors text-sm font-medium"
+            >
+              <img src={DownloadIcon} className="brightness-[10]" alt="" />
+              Download
+            </a>
+          ) : (
+            <button className="flex items-center gap-2 bg-[#9CA3AF] text-white px-5 py-1.5 rounded-full w-fit cursor-not-allowed text-sm font-medium">
+              <img src={DownloadIcon} className="brightness-[10]" alt="" />
+              Download
+            </button>
+          )}
 
           <div className="flex gap-3 items-center">
             {fileId !== "Pending" && (
@@ -108,20 +188,37 @@ export default function DrawingPreviewModal({
           </div>
         </div>
         {fileId == "Pending" && (
-          <div className="lg:px-6 px-3 py-3 border-t flex sm:gap-4 gap-2 items-center">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSendComment();
+            }}
+            className="lg:px-6 px-3 py-3 border-t flex sm:gap-4 gap-2 items-center"
+          >
             <div className="h-[40px] border rounded-lg flex items-center gap-1 flex-1 sm:px-4 px-2">
               <input
                 placeholder="Type your Comment..."
-                className="flex-1 outline-none"
+                className="flex-1 outline-none text-sm"
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                disabled={addCommentMutation.isPending}
               />
               <img src={LinkIcon} alt="" />
             </div>
-            <button className="bg-[#2563EB] text-white sm:px-6 px-3 py-2 h-10 rounded-lg">
+            <button
+              type="submit"
+              disabled={addCommentMutation.isPending}
+              className="bg-[#2563EB] hover:bg-blue-700 disabled:opacity-50 text-white sm:px-6 px-3 py-2 h-10 rounded-lg flex items-center gap-2 text-sm font-medium"
+            >
+              {addCommentMutation.isPending && (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              )}
               Send <span className="hidden sm:inline-block">Comment</span>
             </button>
-          </div>
+          </form>
         )}
       </div>
     </div>
   );
 }
+

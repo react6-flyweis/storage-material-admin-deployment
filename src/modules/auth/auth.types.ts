@@ -3,6 +3,7 @@ export interface AuthUser {
   name: string;
   email: string;
   role: string;
+  isMainAdmin?: boolean;
 }
 
 export interface LoginRequest {
@@ -30,6 +31,10 @@ export interface RefreshTokenResponse {
   message: string;
   data: {
     accessToken: string;
+    refreshToken?: string;
+    role?: string;
+    user?: AuthUser;
+    isMainAdmin?: boolean;
   };
 }
 

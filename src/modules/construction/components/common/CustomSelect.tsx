@@ -39,7 +39,7 @@ export default function CustomSelect({
 
   const selectedLabel = options.find((o) => o.value === value)?.label || title;
 
-    const filteredOptions = useMemo(() => {
+  const filteredOptions = useMemo(() => {
     if (!searchable || !searchQuery) return options;
     return options.filter((opt) =>
       opt.label.toLowerCase().includes(searchQuery.toLowerCase())
@@ -49,6 +49,7 @@ export default function CustomSelect({
   return (
     <div ref={ref} className="relative" style={{ width }}>
       <button
+        type="button"
         onClick={() => setOpen(!open)}
         className="
           w-full bg-white px-4 h-[40px]
@@ -82,7 +83,7 @@ export default function CustomSelect({
             ${upperSide ? "bottom-full mb-2" : "top-full mt-2"}
           `}
         >
-                    {searchable && (
+          {searchable && (
             <div className="px-4 py-2 border-b">
               <input
                 type="text"
@@ -94,41 +95,48 @@ export default function CustomSelect({
             </div>
           )}
 
-          {filteredOptions.map((opt) => {
-            const selected = opt.value === value;
-            return (
-              <button
-                key={opt.value}
-                onClick={() => {
-                  onChange(opt.value);
-                  setOpen(false);
-                }}
-                className="
-                  w-full px-4 py-2
-                  flex items-center justify-between
-                  text-sm hover:bg-gray-50
-                "
-              >
-                <span className="text-start">{opt.label}</span>
-
-                {selected && (
-                  <svg
-                    className="w-4 h-4 text-black"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={3}
+          <div className="max-h-56 overflow-y-auto">
+            {filteredOptions.length === 0 ? (
+              <div className="px-4 py-3 text-sm text-gray-500 text-center">No results found</div>
+            ) : (
+              filteredOptions.map((opt) => {
+                const selected = opt.value === value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      onChange(opt.value);
+                      setOpen(false);
+                    }}
+                    className="
+                      w-full px-4 py-2
+                      flex items-center justify-between
+                      text-sm hover:bg-gray-50
+                    "
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                )}
-              </button>
-            );
-          })}
+                    <span className="text-start">{opt.label}</span>
+
+                    {selected && (
+                      <svg
+                        className="w-4 h-4 text-black"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={3}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
     </div>

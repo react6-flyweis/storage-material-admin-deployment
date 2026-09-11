@@ -1,3 +1,6 @@
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
+import type { DateRange } from "react-day-picker";
 import PaymentStatusDistribution from "@/components/payments/payment-status-distribution";
 import RevenueTrend from "@/components/payments/revenue-trend";
 import PaymentAgingAnalysis from "@/components/payments/payment-aging-analysis";
@@ -14,10 +17,54 @@ import {
 } from "lucide-react";
 import DateRangeFilter from "@/components/ui/date-range-filter";
 import { Button } from "@/components/ui/button";
-// import AIRevenueForecasting from "@/components/payments/ai-revenue-forecasting";
-// import CustomerTaxTable from "@/components/payments/customer-tax-table";
+import {
+  getPaymentsDashboardProvider,
+  exportPaymentsDashboardProvider,
+} from "@/modules/payments/payments.api";
 
 export default function PaymentsPage() {
+  const [dateRange, setDateRange] = React.useState<DateRange | undefined>();
+  const [isExporting, setIsExporting] = React.useState(false);
+
+  const startDate = dateRange?.from
+    ? dateRange.from.toISOString().split("T")[0]
+    : undefined;
+  const endDate = dateRange?.to
+    ? dateRange.to.toISOString().split("T")[0]
+    : undefined;
+
+  const { data: response, isLoading } = useQuery({
+    queryKey: ["payments-dashboard", startDate, endDate],
+    queryFn: () => getPaymentsDashboardProvider({ startDate, endDate }),
+  });
+
+  const dashboardData = response?.data;
+  const stats = dashboardData?.stats;
+
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      const blob = await exportPaymentsDashboardProvider({ startDate, endDate });
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `payments_dashboard_${startDate || "all"}_to_${endDate || "all"}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Failed to export payments dashboard:", err);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const formatCurrency = (amt?: number) => {
+    if (amt === undefined || amt === null) return "$0";
+    return `$${amt.toLocaleString()}`;
+  };
+
   return (
     <div className="lg:pr-5 lg:pt-5 p-5 lg:p-0 space-y-5">
       {/* Header */}
@@ -31,10 +78,14 @@ export default function PaymentsPage() {
         </div>
         {/* Action buttons (date range filter and export ) */}
         <div className="flex items-center space-x-3">
-          <DateRangeFilter className="bg-white" />
-          <Button variant="outline">
+          <DateRangeFilter
+            value={dateRange}
+            onChange={setDateRange}
+            className="bg-white"
+          />
+          <Button variant="outline" onClick={handleExport} disabled={isExporting}>
             <Upload className="w-4 h-4 mr-2" />
-            Export
+            {isExporting ? "Exporting..." : "Export"}
           </Button>
         </div>
       </div>
@@ -43,36 +94,36 @@ export default function PaymentsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <StatCardV2
           title="Total Payments"
-          value="$12,500,000"
-          subtitle="vs Apr 2025"
+          value={isLoading ? "..." : formatCurrency(stats?.totalPayments)}
+          subtitle="Total recorded"
           icon={<DollarSign className="w-5 h-5" />}
           color="purple"
         />
         <StatCardV2
           title="Total Received"
-          value="$8,950,000"
-          subtitle="vs Apr 2025"
+          value={isLoading ? "..." : formatCurrency(stats?.totalReceived)}
+          subtitle="Received amount"
           icon={<ShoppingBag className="w-5 h-5" />}
           color="green"
         />
         <StatCardV2
           title="Total Outstanding"
-          value="$3,550,000"
-          subtitle="vs Apr 2025"
+          value={isLoading ? "..." : formatCurrency(stats?.totalOutstanding)}
+          subtitle="Outstanding amount"
           icon={<Handbag className="w-5 h-5" />}
           color="yellow"
         />
         <StatCardV2
           title="Total Overdue"
-          value="$2,750,000"
-          subtitle="vs Apr 2025"
+          value={isLoading ? "..." : formatCurrency(stats?.totalOverdue)}
+          subtitle="Overdue amount"
           icon={<Hourglass className="w-5 h-5" />}
           color="red"
         />
         <StatCardV2
           title="Total Overdue (YTD)"
-          value="22.0%"
-          subtitle="vs Apr 2025"
+          value={isLoading ? "..." : `${stats?.totalOverdueYTDPct ?? 0}%`}
+          subtitle={`YTD: ${formatCurrency(stats?.totalOverdueYTD)}`}
           icon={<CircleDollarSign className="w-5 h-5" />}
           color="purple"
         />
@@ -80,63 +131,36 @@ export default function PaymentsPage() {
 
       {/* First Row - 3 Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <PaymentStatusDistribution />
-        <RevenueTrend />
-        <PaymentAgingAnalysis />
+        <PaymentStatusDistribution
+          data={dashboardData?.statusDistribution}
+          isLoading={isLoading}
+        />
+        <RevenueTrend
+          data={dashboardData?.revenueTrend}
+          isLoading={isLoading}
+        />
+        <PaymentAgingAnalysis
+          data={dashboardData?.expectedPayments}
+          isLoading={isLoading}
+        />
       </div>
 
       {/* Second Row - 2 Columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <StageWisePaymentProgress />
+        <StageWisePaymentProgress
+          data={dashboardData?.stageWise}
+          isLoading={isLoading}
+        />
 
         {/* Recent payments table */}
         <div className="lg:col-span-2">
-          <RecentPaymentsTable />
+          <RecentPaymentsTable
+            data={dashboardData?.recentPayments}
+            isLoading={isLoading}
+          />
         </div>
-        {/* <AIRevenueForecasting /> */}
       </div>
-
-      {/* Smart Notifications & Insights */}
-      {/* <div className="mt-4 space-y-3">
-        <h2 className="text-sm font-semibold text-gray-700">
-          Smart Notifications & Insights
-        </h2>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-            <div className="text-sm text-red-700">
-              2 payments are overdue ($45,000 total).
-            </div>
-            <Link
-              to="/leads/1/chats"
-              className="text-sm font-medium text-red-600 border border-red-200 px-3 py-1 rounded-md hover:bg-red-50"
-            >
-              Send Reminder
-            </Link>
-          </div>
-
-          <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
-            <div className="text-sm text-blue-700">
-              Upcoming payment on 26 Oct - John Doe ($20,000).
-            </div>
-            <Link
-              to="/leads/1/chats"
-              className="text-sm font-medium text-blue-600 border border-blue-200 px-3 py-1 rounded-md hover:bg-blue-50"
-            >
-              Send Reminder
-            </Link>
-          </div>
-
-          <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-4 py-3">
-            <div className="text-sm text-green-700">
-              Average payment cycle improved by 3 days this month.
-            </div>
-          </div>
-        </div>
-      </div> */}
-
-      {/* Customer table - Default tax profile per customer */}
-      {/* <CustomerTaxTable /> */}
     </div>
   );
 }
+

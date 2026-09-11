@@ -10,6 +10,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 const signInSchema = z.object({
   email: z.string().trim().min(1, "Email is required"),
@@ -28,13 +29,13 @@ export default function SignIn() {
   const navigate = useNavigate();
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const loginMutation = useLoginMutation();
 
   const {
     register,
     handleSubmit,
     formState: { errors },
+    setError,
   } = useForm<SignInFormData>({
     resolver: zodResolver(signInSchema),
     defaultValues: {
@@ -44,33 +45,31 @@ export default function SignIn() {
   });
 
   const onSubmit = async (data: SignInFormData) => {
-    setErrorMessage(null);
-
     try {
-      const response = await loginMutation.mutateAsync(data);
-
-      if (!response.success) {
-        const errorMsg = response.message || "Login failed. Please try again.";
-        setErrorMessage(errorMsg);
-        
-        Sentry.captureMessage("Failed sign-in attempt", {
-          level: "warning",
-          extra: {
-            statusCode: 200,
-            authProvider: "local",
-            email: data.email,
-            responseMessage: response.message,
-          },
-        });
-        return;
-      }
+      await loginMutation.mutateAsync(data);
 
       const state = location.state as RedirectState | null;
       const nextPath = state?.from?.pathname || "/dashboard";
 
       navigate(nextPath, { replace: true });
-    } catch {
-      setErrorMessage("Unable to sign in. Please verify your credentials.");
+    } catch (error) {
+      const errorMessage = getApiErrorMessage(
+        error,
+        "Unable to sign in. Please try again",
+      );
+      setError("root", {
+        type: "manual",
+        message: errorMessage,
+      });
+      Sentry.captureMessage("Failed sign-in attempt", {
+        level: "warning",
+        extra: {
+          statusCode: 200,
+          authProvider: "local",
+          email: data.email,
+          responseMessage: errorMessage,
+        },
+      });
     }
   };
 
@@ -109,7 +108,9 @@ export default function SignIn() {
               className="mt-1.5 h-12 rounded border-gray-200 placeholder:text-gray-400"
             />
             {errors.email && (
-              <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
+              <p className="mt-1 text-xs text-red-500">
+                {errors.email.message}
+              </p>
             )}
           </div>
 
@@ -147,8 +148,8 @@ export default function SignIn() {
             )}
           </div>
 
-          {errorMessage ? (
-            <p className="text-sm text-red-500">{errorMessage}</p>
+          {errors.root?.message ? (
+            <p className="text-sm text-red-500">{errors.root?.message}</p>
           ) : null}
 
           <Button

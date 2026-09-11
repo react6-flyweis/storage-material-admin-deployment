@@ -1,57 +1,65 @@
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import Logo from "@/assets/the-steel-logo-dark.svg";
 import {
   ArrowLeft,
-  Building2,
-  MapPin,
-  Calendar,
-  DollarSign,
   FileText,
   Send,
-  Layers,
-  CheckSquare,
-  Info,
-  Truck,
-  Wrench,
+  CheckCircle2,
+  XCircle,
+  AlertTriangle,
+  Clock,
+  Download,
+  Loader2,
+  RefreshCw,
+  MessageSquare,
+  History,
+  Receipt,
 } from "lucide-react";
-import { useQuotationQuery, useSendQuotationMutation } from "@/modules/quotations/quotations.hooks";
+import {
+  useQuotationQuery,
+  useDownloadQuotationPdfMutation,
+  useQuotationHtmlPreviewQuery,
+} from "@/modules/quotations/quotations.hooks";
 import { toast } from "sonner";
-
-function statusBadge(status: string) {
-  switch (status) {
-    case "draft":
-      return <Badge className="bg-gray-100 text-gray-600 border-none">Draft</Badge>;
-    case "sent":
-      return <Badge className="bg-blue-100 text-blue-600 border-none">Sent</Badge>;
-    case "accepted":
-      return <Badge className="bg-green-100 text-green-600 border-none">Accepted</Badge>;
-    case "rejected":
-      return <Badge className="bg-red-100 text-red-600 border-none">Rejected</Badge>;
-    default:
-      return <Badge>{status}</Badge>;
-  }
-}
+import ApproveQuotationDialog from "@/components/leads/approve-quotation-dialog";
+import RejectQuotationDialog from "@/components/leads/reject-quotation-dialog";
+import SendQuotationDialog from "@/components/leads/send-quotation-dialog";
+import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
+import { ApprovalHistoryTimeline } from "@/components/timeline/approval-history-timeline";
+import {
+  getQuotationSalesSubmission,
+  formatDate,
+} from "@/modules/quotations/quotations.utils";
 
 export default function QuotationDetailsPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
 
   const { data, isLoading, isError } = useQuotationQuery(id);
-  const sendMutation = useSendQuotationMutation();
+  const {
+    data: htmlPreviewData,
+    isLoading: isHtmlLoading,
+    isError: isHtmlError,
+    refetch: refetchHtmlPreview,
+  } = useQuotationHtmlPreviewQuery(id);
+
+  const downloadPdfMutation = useDownloadQuotationPdfMutation();
+
+  const [isApproveOpen, setIsApproveOpen] = useState(false);
+  const [isRejectOpen, setIsRejectOpen] = useState(false);
+  const [isSendOpen, setIsSendOpen] = useState(false);
 
   const q = data?.data?.quotation;
-
-  const handleSend = async () => {
-    if (!id) return;
-    try {
-      await sendMutation.mutateAsync(id);
-      toast.success("Quotation sent to customer successfully!");
-    } catch {
-      toast.error("Failed to send quotation.");
-    }
-  };
+  const leadIdStr = typeof q?.leadId === "object" ? q?.leadId?._id : q?.leadId;
+  const { data: leadDetailData } = useLeadDetailQuery(leadIdStr || "");
+  const customerEmail =
+    q?.sentTo ||
+    q?.customerEmail ||
+    q?.defaultToEmail ||
+    (typeof q?.customerId === "object" ? q?.customerId?.email : undefined) ||
+    leadDetailData?.data?.customer?.email ||
+    "";
 
   if (isLoading) {
     return (
@@ -64,282 +72,438 @@ export default function QuotationDetailsPage() {
   if (isError || !q) {
     return (
       <div className="p-8 text-center">
-        <p className="text-red-500 text-lg">Quotation not found or failed to load.</p>
-        <Button variant="outline" className="mt-4" onClick={() => navigate('/leads')}>
+        <p className="text-red-500 text-lg">
+          Quotation not found or failed to load.
+        </p>
+        <Button
+          variant="outline"
+          className="mt-4"
+          onClick={() => navigate("/leads")}
+        >
           Go Back
         </Button>
       </div>
     );
   }
 
-  const isDraft = q.status === "draft";
+  const effectiveStatus =
+    q.workflowStatus || q.approval?.status || q.status || "draft";
+  const isApproved = effectiveStatus === "approved";
+  const isPending =
+    effectiveStatus === "pending" || effectiveStatus === "pending_approval";
+  const isRejected = effectiveStatus === "rejected";
+  const isSent = effectiveStatus === "sent";
+  const canSend = isApproved || isSent;
+
+  const salesSubmission = getQuotationSalesSubmission(q);
+
+  const handleDownloadPdf = async () => {
+    if (!id) return;
+    try {
+      const blob = await downloadPdfMutation.mutateAsync(id);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `Quotation-${q.quoteNumber || id}-v${q.versionNumber || 1}.pdf`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("PDF downloaded successfully!");
+    } catch {
+      toast.error("Failed to download PDF document.");
+    }
+  };
+
+  const scrollToTimeline = () => {
+    const el = document.getElementById("approval-timeline");
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
   return (
-    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
+    <div className="p-4 sm:p-6 space-y-6 ">
       {/* Top Action Bar */}
       <div className="flex items-center justify-between">
-        <Button size="sm" variant="outline" className="flex items-center gap-2" onClick={() => navigate('/leads')}>
+        <Button
+          size="sm"
+          variant="outline"
+          className="bg-white hover:bg-gray-50 border-gray-200 text-gray-600 h-9 px-4 text-sm font-normal rounded-md flex items-center gap-2"
+          onClick={() => navigate(-1)}
+        >
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
         <div className="flex items-center gap-3">
-          {statusBadge(q.status)}
-          {isDraft && (
-            <Button
-              className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
-              onClick={handleSend}
-              disabled={sendMutation.isPending}
-            >
-              <Send className="h-4 w-4" />
-              {sendMutation.isPending ? "Sending..." : "Send to Customer"}
-            </Button>
+          {/* Timeline Jump button */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="bg-white hover:bg-gray-50 border-gray-300 text-gray-700 h-9 px-3.5 text-xs font-medium rounded-md flex items-center gap-1.5"
+            onClick={scrollToTimeline}
+            title="View Workflow & Approval Timeline"
+          >
+            <History className="h-4 w-4 text-gray-500" />
+            <span>Timeline</span>
+          </Button>
+
+          {/* Download PDF button */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="bg-white hover:bg-gray-50 border-gray-300 text-gray-700 h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5"
+            onClick={handleDownloadPdf}
+            disabled={downloadPdfMutation.isPending}
+            title="Download PDF"
+          >
+            {downloadPdfMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 text-gray-600" />
+            )}
+            <span>{downloadPdfMutation.isPending ? "Downloading..." : "Download PDF"}</span>
+          </Button>
+
+          {/* Admin Approve & Reject Actions */}
+          {isPending && (
+            <>
+              <Button
+                className="bg-[#16a34a] hover:bg-green-700 text-white h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5"
+                onClick={() => setIsApproveOpen(true)}
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Approve Quote
+              </Button>
+              <Button
+                variant="outline"
+                className="border-red-200 text-red-600 hover:bg-red-50 h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5"
+                onClick={() => setIsRejectOpen(true)}
+              >
+                <XCircle className="h-4 w-4" />
+                Reject Quote
+              </Button>
+            </>
           )}
+
+          {/* Send to Customer (available once approved, or re-send if already sent) */}
+          <Button
+            className={
+              !canSend
+                ? "bg-gray-200 text-gray-400 border border-gray-200 cursor-not-allowed h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5"
+                : "bg-[#1D51A4] hover:bg-[#174287] text-white h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer"
+            }
+            onClick={() => setIsSendOpen(true)}
+            disabled={!canSend}
+            title={
+              !canSend
+                ? "Quotation must be approved before sending to customer"
+                : isSent
+                  ? "Resend quotation to customer"
+                  : "Send quotation to customer"
+            }
+          >
+            <Send className="h-4 w-4" />
+            {isSent ? "Resend Quote" : "Send to Customer"}
+          </Button>
+
+          {/* Create Invoice */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="bg-white hover:bg-blue-50 border-blue-200 text-blue-700 h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer"
+            onClick={() => {
+              navigate(
+                `/invoice?type=quotation${leadIdStr ? `&leadId=${leadIdStr}` : ""}`,
+              );
+            }}
+            title="Create Invoice from Quotation"
+          >
+            <Receipt className="h-4 w-4" />
+            Create Invoice
+          </Button>
         </div>
       </div>
 
-      {/* Main Quotation Card */}
-      <div className="bg-white rounded-2xl shadow-sm w-full p-10">
-        {/* Header */}
-        <div className="flex justify-between items-start mb-12">
-          <div className="space-y-4">
-            <img src={Logo} alt="The Steel Logo" className="w-36" />
-            <div className="text-sm text-gray-500 leading-relaxed">
-              <p>1851 Madison Ave Suite 300</p>
-              <p>Council Bluffs, IA 51503</p>
-              <p>United States</p>
-              <p>travis@storagematerials.com</p>
-              <p>www.storagematerials.com</p>
-            </div>
-          </div>
-
-          <div className="text-sm text-gray-600 text-right space-y-2">
-            <h1 className="text-2xl font-bold tracking-widest text-gray-300 mb-6">QUOTATION</h1>
-            <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-left">
-              <span className="font-medium text-gray-500">Quote #</span>
-              <span className="font-bold text-gray-900">{q.quoteNumber}</span>
-              <span className="font-medium text-gray-500">Version</span>
-              <span className="font-bold text-gray-900">v{q.versionNumber}</span>
-              <span className="font-medium text-gray-500">Date</span>
-              <span className="text-gray-800">{q.proposalDate ? new Date(q.proposalDate).toLocaleDateString() : "—"}</span>
-              <span className="font-medium text-gray-500">Valid Until</span>
-              <span className="text-gray-800">{q.validTill ? new Date(q.validTill).toLocaleDateString() : "—"}</span>
-              <span className="font-medium text-gray-500">Status</span>
-              <span>{statusBadge(q.status)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Project Info Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10 p-6 bg-gray-50 rounded-xl">
-          <div className="flex items-start gap-2">
-            <Building2 className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-xs text-gray-400">Building Type</p>
-              <p className="text-sm font-semibold text-gray-800 capitalize">{q.buildingType || "—"}</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-2">
-            <MapPin className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-xs text-gray-400">Location</p>
-              <p className="text-sm font-semibold text-gray-800">{q.location || "—"}</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-2">
-            <Layers className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-xs text-gray-400">Dimensions (W×L×H)</p>
-              <p className="text-sm font-semibold text-gray-800">
-                {q.width || "—"} × {q.length || "—"} × {q.height || "—"} ft
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-2">
-            <FileText className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-            <div>
-              <p className="text-xs text-gray-400">Roof Style</p>
-              <p className="text-sm font-semibold text-gray-800 capitalize">{q.roofStyle || "—"}</p>
-            </div>
-          </div>
-          {q.windLoad && (
-            <div className="flex items-start gap-2">
-              <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-xs text-gray-400">Wind Load</p>
-                <p className="text-sm font-semibold text-gray-800">{q.windLoad}</p>
-              </div>
-            </div>
-          )}
-          {q.snowLoad && (
-            <div className="flex items-start gap-2">
-              <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-xs text-gray-400">Snow Load</p>
-                <p className="text-sm font-semibold text-gray-800">{q.snowLoad}</p>
-              </div>
-            </div>
-          )}
-          {q.estimatedDelivery && (
-            <div className="flex items-start gap-2">
-              <Truck className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-xs text-gray-400">Est. Delivery</p>
-                <p className="text-sm font-semibold text-gray-800">{q.estimatedDelivery}</p>
-              </div>
-            </div>
-          )}
-          {q.paymentTerms && (
-            <div className="flex items-start gap-2">
-              <Calendar className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
-              <div>
-                <p className="text-xs text-gray-400">Payment Terms</p>
-                <p className="text-sm font-semibold text-gray-800">{q.paymentTerms}</p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Pricing Summary */}
-        <div className="border-t pt-6 mb-10">
-          <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <DollarSign className="h-4 w-4" /> Pricing Summary
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-blue-50 rounded-xl p-4">
-              <p className="text-xs text-blue-400 mb-1">Base Price</p>
-              <p className="text-xl font-bold text-blue-700">${(q.basePrice || 0).toLocaleString()}</p>
-            </div>
-            <div className="bg-green-50 rounded-xl p-4">
-              <p className="text-xs text-green-400 mb-1">Max Price</p>
-              <p className="text-xl font-bold text-green-700">${(q.maxPrice || 0).toLocaleString()}</p>
-            </div>
-            {(q.finalPrice ?? 0) > 0 && (
-              <div className="bg-purple-50 rounded-xl p-4">
-                <p className="text-xs text-purple-400 mb-1">Final Price</p>
-                <p className="text-xl font-bold text-purple-700">${(q.finalPrice || 0).toLocaleString()}</p>
-              </div>
-            )}
-            {(q.totalArea ?? 0) > 0 && (
-              <div className="bg-gray-50 rounded-xl p-4 border">
-                <p className="text-xs text-gray-400 mb-1">Total Area</p>
-                <p className="text-xl font-bold text-gray-700">{q.totalArea} sqft</p>
-              </div>
-            )}
-          </div>
-
-          {/* COGS breakdown if available */}
-          {(q.materialCost ?? 0) > 0 && (
-            <div className="mt-4 border rounded-xl p-4 bg-gray-50">
-              <p className="text-xs font-semibold text-gray-500 uppercase mb-3">Cost Breakdown</p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-400 text-xs">Material Cost</p>
-                  <p className="font-semibold">${(q.materialCost || 0).toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-xs">Freight Cost</p>
-                  <p className="font-semibold">${(q.freightCost || 0).toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-xs">Total COGS</p>
-                  <p className="font-semibold">${(q.totalCOGS || 0).toLocaleString()}</p>
-                </div>
-                <div>
-                  <p className="text-gray-400 text-xs">Markup ({q.markupPercent || 0}%)</p>
-                  <p className="font-semibold">${(q.markupValue || 0).toLocaleString()}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Structure & Engineering */}
-        {(q.frameType || q.girtType || q.purlinType || q.bracingType || q.roofSlope) && (
-          <div className="border-t pt-6 mb-10">
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <Wrench className="h-4 w-4" /> Structure & Engineering
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-              {q.frameType && <div><p className="text-xs text-gray-400">Frame Type</p><p className="font-semibold">{q.frameType}</p></div>}
-              {q.endwallType && <div><p className="text-xs text-gray-400">Endwall Type</p><p className="font-semibold">{q.endwallType}</p></div>}
-              {q.girtType && <div><p className="text-xs text-gray-400">Girt Type</p><p className="font-semibold">{q.girtType}</p></div>}
-              {q.purlinType && <div><p className="text-xs text-gray-400">Purlin Type</p><p className="font-semibold">{q.purlinType}</p></div>}
-              {q.bracingType && <div><p className="text-xs text-gray-400">Bracing Type</p><p className="font-semibold">{q.bracingType}</p></div>}
-              {q.roofSlope && <div><p className="text-xs text-gray-400">Roof Slope</p><p className="font-semibold">{q.roofSlope}</p></div>}
-              {q.roofPanel && <div><p className="text-xs text-gray-400">Roof Panel</p><p className="font-semibold">{q.roofPanel}</p></div>}
-              {q.wallPanelType && <div><p className="text-xs text-gray-400">Wall Panel</p><p className="font-semibold">{q.wallPanelType}</p></div>}
-            </div>
-          </div>
-        )}
-
-        {/* Included Components */}
-        {q.includedComponents && q.includedComponents.length > 0 && (
-          <div className="border-t pt-6 mb-10">
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <CheckSquare className="h-4 w-4" /> Included Components
-            </h2>
-            <div className="flex flex-wrap gap-2">
-              {q.includedComponents.map((c, i) => (
-                <span key={i} className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-sm border border-green-100">
-                  {c}
+      {/* Status Banner */}
+      {isPending && (
+        <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-5 flex items-start gap-4">
+          <Clock className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-1 w-full">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="font-semibold text-amber-900 text-sm">
+                Pending Admin Approval
+              </h4>
+              {salesSubmission.submittedAt && (
+                <span className="text-xs text-amber-700 font-medium">
+                  Submitted {formatDate(salesSubmission.submittedAt)}
                 </span>
-              ))}
+              )}
             </div>
-          </div>
-        )}
+            <p className="text-xs text-amber-700">
+              This quotation is waiting for administrative review. You can review the preview below and approve or reject it.
+            </p>
 
-        {/* Optional Add-ons */}
-        {q.optionalAddOns && q.optionalAddOns.length > 0 && (
-          <div className="border-t pt-6 mb-10">
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Optional Add-ons</h2>
-            <div className="space-y-2">
-              {q.optionalAddOns.map((addon, i) => (
-                <div key={i} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg border">
-                  <span className="text-sm font-medium text-gray-800">{addon.name}</span>
-                  <span className="text-sm font-bold text-blue-600">${(addon.price || 0).toLocaleString()}</span>
+            {/* Approval Message Sent by Sales */}
+            {salesSubmission.message && (
+              <div className="mt-3.5 p-3.5 bg-white rounded-lg border border-amber-300 shadow-2xs">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <span className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                    <MessageSquare className="h-3.5 w-3.5 text-amber-700" />
+                    Approval Message Sent by Sales
+                  </span>
+                  {salesSubmission.authorName && (
+                    <span className="text-[11px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      By {salesSubmission.authorName}
+                    </span>
+                  )}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Notes */}
-        {(q.specialNote || q.clientNotes || q.internalNotes) && (
-          <div className="border-t pt-6 mb-10 space-y-4">
-            <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2">Notes</h2>
-            {q.specialNote && (
-              <div className="bg-yellow-50 border border-yellow-100 rounded-xl p-4">
-                <p className="text-xs font-semibold text-yellow-600 mb-1">Special Note (Customer-visible)</p>
-                <p className="text-sm text-gray-700">{q.specialNote}</p>
+                <p className="text-xs text-amber-900 leading-relaxed whitespace-pre-wrap pl-3.5 border-l-2 border-amber-400 italic">
+                  "{salesSubmission.message}"
+                </p>
               </div>
             )}
-            {q.clientNotes && (
-              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-                <p className="text-xs font-semibold text-blue-600 mb-1">Client Notes</p>
-                <p className="text-sm text-gray-700">{q.clientNotes}</p>
-              </div>
-            )}
-            {q.internalNotes && (
-              <div className="bg-gray-100 border border-gray-200 rounded-xl p-4">
-                <p className="text-xs font-semibold text-gray-500 mb-1">Internal Notes (Not sent to customer)</p>
-                <p className="text-sm text-gray-700">{q.internalNotes}</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Footer */}
-        <div className="border-t pt-6 text-sm text-gray-500">
-          <p className="mb-4">Thank you for your business. Reach out with any questions.</p>
-          <p className="mb-12 text-xs">By accepting this quotation, the customer agrees to the services and conditions outlined in this document.</p>
-          <div className="flex justify-end pr-12">
-            <div className="w-64">
-              <hr className="border-gray-400 mb-3" />
-              <p className="text-xs text-gray-500 font-medium">Client Signature</p>
-            </div>
           </div>
         </div>
+      )}
+
+      {isApproved && (
+        <div className="bg-emerald-50/80 border border-emerald-200 rounded-xl p-5 flex items-start gap-4">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+          <div className="space-y-1 w-full">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="font-semibold text-emerald-900 text-sm">
+                Quotation Approved
+              </h4>
+              {q.approval?.reviewedAt && (
+                <span className="text-xs text-emerald-700 font-medium">
+                  Approved {formatDate(q.approval.reviewedAt)}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-emerald-700">
+              This quotation has been approved and is ready to be sent to the customer.
+            </p>
+            {salesSubmission.message && (
+              <div className="mt-3 p-3 bg-white/95 rounded-lg border border-emerald-200 text-xs">
+                <div className="flex items-center gap-1.5 font-semibold text-emerald-950 mb-1">
+                  <MessageSquare className="h-3.5 w-3.5 text-emerald-700" />
+                  Approval Request Message from Sales:
+                  {salesSubmission.authorName && (
+                    <span className="font-normal text-emerald-700">({salesSubmission.authorName})</span>
+                  )}
+                </div>
+                <p className="text-emerald-800 italic whitespace-pre-wrap pl-3 border-l-2 border-emerald-400">
+                  "{salesSubmission.message}"
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isRejected && (
+        <div className="bg-red-50/80 border border-red-200 rounded-xl p-5 flex items-start gap-4">
+          <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+          <div className="space-y-1 w-full">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="font-semibold text-red-900 text-sm">
+                Quotation Rejected
+              </h4>
+              {q.approval?.reviewedAt && (
+                <span className="text-xs text-red-700 font-medium">
+                  Rejected {formatDate(q.approval.reviewedAt)}
+                </span>
+              )}
+            </div>
+            {q.approval?.rejectionReason && (
+              <p className="text-sm text-red-700 mt-1">
+                <strong>Reason:</strong> {q.approval.rejectionReason}
+              </p>
+            )}
+            <p className="text-xs text-red-600 mt-1">
+              Sales team has been notified to revise this quotation and resubmit for approval.
+            </p>
+            {salesSubmission.message && (
+              <div className="mt-3 p-3 bg-white/95 rounded-lg border border-red-200 text-xs">
+                <div className="flex items-center gap-1.5 font-semibold text-red-950 mb-1">
+                  <MessageSquare className="h-3.5 w-3.5 text-red-700" />
+                  Sales Message when submitted:
+                  {salesSubmission.authorName && (
+                    <span className="font-normal text-red-700">({salesSubmission.authorName})</span>
+                  )}
+                </div>
+                <p className="text-red-800 italic whitespace-pre-wrap pl-3 border-l-2 border-red-400">
+                  "{salesSubmission.message}"
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {effectiveStatus === "sent" && (
+        <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-5 flex items-start gap-4">
+          <Send className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+          <div className="space-y-1 w-full">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-blue-900 text-sm">
+                {q.sendMethod === "manual"
+                  ? "Quotation Marked as Sent (External Email)"
+                  : "Quotation Sent to Customer"}
+              </h4>
+              {q.sentAt && (
+                <span className="text-xs text-blue-600 font-medium">
+                  {formatDate(q.sentAt)}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-blue-700">
+              {q.sendMethod === "manual"
+                ? "This quotation was emailed externally and recorded as sent in the platform."
+                : "This quotation has been successfully dispatched to the customer via platform email."}
+            </p>
+            {q.sentTo && (
+              <p className="text-xs text-blue-800 pt-0.5">
+                <span className="font-medium">To:</span> {q.sentTo}
+                {q.sentCc && q.sentCc.length > 0 && (
+                  <span className="ml-3">
+                    <span className="font-medium">CC:</span> {q.sentCc.join(", ")}
+                  </span>
+                )}
+              </p>
+            )}
+            {q.sentMessage && (
+              <p className="text-xs text-blue-700 italic pt-1 whitespace-pre-wrap">
+                "{q.sentMessage}"
+              </p>
+            )}
+            {salesSubmission.message && (
+              <div className="mt-2.5 pt-2 border-t border-blue-200/60 text-xs">
+                <span className="text-blue-900 font-medium">Sales Submission Note:</span>{" "}
+                <span className="text-blue-700 italic">"{salesSubmission.message}"</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {effectiveStatus === "accepted" && (
+        <div className="bg-green-50/80 border border-green-200 rounded-xl p-5 flex items-start gap-4">
+          <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h4 className="font-semibold text-green-900 text-sm">
+              Quotation Accepted by Customer
+            </h4>
+            <p className="text-xs text-green-700">
+              The customer has accepted this quotation.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {(effectiveStatus === "draft" || effectiveStatus === "not_submitted") && (
+        <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-5 flex items-start gap-4">
+          <FileText className="h-5 w-5 text-slate-600 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h4 className="font-semibold text-slate-900 text-sm">
+              Quotation Draft
+            </h4>
+            <p className="text-xs text-slate-600">
+              This quotation is currently a draft and has not yet been submitted for approval by sales.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Quotation HTML Preview Card */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden w-full flex flex-col">
+        {isHtmlLoading ? (
+          <div className="flex flex-col items-center justify-center py-24 text-gray-400 gap-3 min-h-100">
+            <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+            <p className="text-sm font-medium text-gray-600">
+              Loading quotation preview...
+            </p>
+          </div>
+        ) : isHtmlError || !htmlPreviewData ? (
+          <div className="flex flex-col items-center justify-center py-24 text-gray-400 gap-3 min-h-100">
+            <FileText className="w-12 h-12 text-gray-300" />
+            <p className="text-base font-semibold text-gray-600">
+              Preview not available
+            </p>
+            <p className="text-xs text-gray-400 max-w-sm text-center">
+              Unable to load quotation preview HTML directly.
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-2 text-xs flex items-center gap-1.5"
+              onClick={() => refetchHtmlPreview()}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Retry Preview
+            </Button>
+          </div>
+        ) : (
+          <div className="w-full bg-white p-4 sm:p-8">
+            <div
+              className="quotation-direct-preview w-full"
+              dangerouslySetInnerHTML={{ __html: htmlPreviewData }}
+            />
+          </div>
+        )}
       </div>
+
+      {/* Quotation Approval & Workflow Timeline */}
+      <div id="approval-timeline">
+        <ApprovalHistoryTimeline
+          history={q.approval?.history}
+          quotation={q}
+          version={q.versionNumber}
+          approvedVersion={q.approval?.approvedVersionNumber}
+          showEmpty={true}
+        />
+      </div>
+
+      {/* Extracted Approve Modal */}
+      {id && (
+        <ApproveQuotationDialog
+          open={isApproveOpen}
+          onOpenChange={setIsApproveOpen}
+          quotationId={id}
+          quoteNumber={q.quoteNumber}
+          versionNumber={q.versionNumber}
+        />
+      )}
+
+      {/* Extracted Reject Modal */}
+      {id && (
+        <RejectQuotationDialog
+          open={isRejectOpen}
+          onOpenChange={setIsRejectOpen}
+          quotationId={id}
+          quoteNumber={q.quoteNumber}
+          versionNumber={q.versionNumber}
+        />
+      )}
+
+      {/* Extracted Send Modal */}
+      {id && (
+        <SendQuotationDialog
+          open={isSendOpen}
+          onOpenChange={setIsSendOpen}
+          quotationId={id}
+          quoteNumber={q.quoteNumber}
+          versionNumber={q.versionNumber}
+          recipientEmail={customerEmail}
+          status={effectiveStatus}
+          sendMethod={q.sendMethod}
+          sentAt={q.sentAt}
+        />
+      )}
     </div>
   );
 }

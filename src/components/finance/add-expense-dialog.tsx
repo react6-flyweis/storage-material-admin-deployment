@@ -18,88 +18,178 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Upload, Loader2, Link as LinkIcon, FileText } from "lucide-react";
+import { uploadFileToS3 } from "@/lib/upload";
+import {
+  useCreateExpenseMutation,
+  useExpensesFiltersQuery,
+  useExpenseCategoriesQuery,
+} from "@/modules/financials/financials.hooks";
 
 const addExpenseSchema = z.object({
   category: z.string().min(1, "Category is required"),
-  subCategory: z.string().min(1, "Sub category is required"),
-  project: z.string().min(1, "Project is required"),
-  building: z.string().min(1, "Building is required"),
-  paymentType: z.string().min(1, "Payment type is required"),
-  amount: z.string().min(1, "Amount is required"),
-  paymentDate: z.string().min(1, "Payment date is required"),
-  transactionId: z.string().min(1, "Transaction ID is required"),
+  subcategory: z.string().min(1, "Subcategory is required"),
+  leadId: z.string().optional(),
+  buildingLabel: z.string().optional(),
+  paymentMethod: z.string().min(1, "Payment method is required"),
+  amount: z.coerce.number().positive("Amount must be greater than 0"),
+  date: z.string().min(1, "Date is required"),
+  description: z.string().optional(),
+  status: z.string().default("paid"),
+  receiptFile: z.string().optional(),
 });
+
 
 export type AddExpenseFormValues = z.infer<typeof addExpenseSchema>;
 
 type AddExpenseDialogProps = {
   open: boolean;
   onClose: () => void;
-  onSuccess?: (data: AddExpenseFormValues) => void;
+  onSuccess?: () => void;
 };
 
-const categoryOptions = [
-  "Vendor/Freight",
-  "Manual (Operations)",
-  "Miscellaneous",
-  "Salaries",
-  "Marketing",
+const paymentMethodOptions = [
+  { label: "Bank Transfer", value: "bank_transfer" },
+  { label: "Cash", value: "cash" },
+  { label: "Cheque", value: "cheque" },
+  { label: "Card", value: "card" },
 ];
-const subCategoryOptions = [
-  "Freight",
-  "Vendor",
-  "Operations",
-  "Miscellaneous",
-  "Salary",
-  "Marketing",
+
+const statusOptions = [
+  { label: "Paid", value: "paid" },
+  { label: "Pending", value: "pending" },
 ];
-const projectOptions = ["Project 1", "Project 2", "Project 3", "Project 4"];
-const buildingOptions = ["Project 1", "Project 2", "Project 3", "Project 4"];
-const paymentTypeOptions = ["Bank Transfer", "Cash", "Cheque", "Card"];
 
 export function AddExpenseDialog({
   open,
   onClose,
   onSuccess,
 }: AddExpenseDialogProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { data: filtersRes } = useExpensesFiltersQuery();
+  const { data: categoriesRes } = useExpenseCategoriesQuery();
+
+  const createExpenseMutation = useCreateExpenseMutation();
+
+  const [receiptMode, setReceiptMode] = useState<"upload" | "url">("upload");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const projects = filtersRes?.data?.projects || [];
+  const filterBuildingLabels = filtersRes?.data?.buildingLabels || [];
+  const apiCategories = categoriesRes?.data?.categories || [];
+
+  const categoryOptions =
+    apiCategories.length > 0
+      ? apiCategories.map((c) => c.name)
+      : filtersRes?.data?.categories || [
+        "Vendor/Freight",
+        "Manual (Operations)",
+        "Miscellaneous",
+        "Salaries",
+        "Marketing",
+      ];
+
+  const subcategoryOptions = [
+    "Steel Delivery",
+    "Freight",
+    "Vendor",
+    "Operations",
+    "Miscellaneous",
+    "Salary",
+    "Marketing",
+  ];
+
+  const buildingOptions =
+    filterBuildingLabels.length > 0
+      ? filterBuildingLabels
+      : ["Building A", "Building B", "Building C"];
 
   const {
     control,
     register,
     handleSubmit,
+    setValue,
     reset,
     formState: { errors },
   } = useForm<AddExpenseFormValues>({
     resolver: zodResolver(addExpenseSchema),
     defaultValues: {
       category: "Vendor/Freight",
-      subCategory: "Freight",
-      project: "Project 1",
-      building: "Project 1",
-      paymentType: "Bank Transfer",
-      amount: "$5000",
-      paymentDate: "2026-04-12",
-      transactionId: "UP0987654321",
+      subcategory: "Steel Delivery",
+      paymentMethod: "bank_transfer",
+      amount: 10000,
+      date: new Date().toISOString().split("T")[0],
+      description: "Freight charges",
+      status: "paid",
+      buildingLabel: "Building A",
     },
   });
 
   const handleCancel = () => {
     reset();
+    setSelectedFile(null);
+    setUploadedUrl(null);
+    setUploadError(null);
     onClose();
   };
 
-  const onSubmit = async (data: AddExpenseFormValues) => {
-    setIsSubmitting(true);
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 400));
-      onSuccess?.(data);
-      reset();
-      onClose();
-    } finally {
-      setIsSubmitting(false);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      setUploadedUrl(null);
+      setUploadError(null);
     }
   };
+
+
+  const onSubmit = async (data: AddExpenseFormValues) => {
+    setUploadError(null);
+    let finalReceiptUrl = receiptMode === "upload" ? (uploadedUrl || data.receiptFile) : data.receiptFile;
+
+    if (receiptMode === "upload" && selectedFile && !uploadedUrl) {
+      setIsUploading(true);
+      try {
+        finalReceiptUrl = await uploadFileToS3(selectedFile, "expenses");
+        setUploadedUrl(finalReceiptUrl);
+        setValue("receiptFile", finalReceiptUrl);
+      } catch (err) {
+        console.error("Failed to upload receipt file:", err);
+        setUploadError("Failed to upload file. Please try again or provide a direct URL.");
+        setIsUploading(false);
+        return;
+      } finally {
+        setIsUploading(false);
+      }
+    }
+
+    try {
+      await createExpenseMutation.mutateAsync({
+        category: data.category,
+        subcategory: data.subcategory,
+        date: data.date,
+        amount: Number(data.amount),
+        description: data.description || "",
+        leadId: data.leadId === "none" || !data.leadId ? undefined : data.leadId,
+        buildingLabel: data.buildingLabel === "none" || !data.buildingLabel ? undefined : data.buildingLabel,
+        paymentMethod: data.paymentMethod,
+        status: data.status || "paid",
+        receiptFile: finalReceiptUrl || undefined,
+      });
+      onSuccess?.();
+      reset();
+      setSelectedFile(null);
+      setUploadedUrl(null);
+      onClose();
+    } catch (error) {
+      console.error("Failed to create expense:", error);
+    }
+  };
+
+
+  const isSubmitting = createExpenseMutation.isPending || isUploading;
 
   return (
     <Dialog open={open} onOpenChange={(value) => !value && handleCancel()}>
@@ -111,7 +201,7 @@ export function AddExpenseDialog({
         <form onSubmit={handleSubmit(onSubmit)} className="p-5">
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <div className="space-y-2 md:col-span-2">
-              <Label className="">Select Category</Label>
+              <Label>Category</Label>
               <Controller
                 control={control}
                 name="category"
@@ -138,17 +228,17 @@ export function AddExpenseDialog({
             </div>
 
             <div className="space-y-2 md:col-span-2">
-              <Label className="">Select Sub Category</Label>
+              <Label>Sub Category</Label>
               <Controller
                 control={control}
-                name="subCategory"
+                name="subcategory"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select sub category" />
                     </SelectTrigger>
                     <SelectContent>
-                      {subCategoryOptions.map((option) => (
+                      {subcategoryOptions.map((option) => (
                         <SelectItem key={option} value={option}>
                           {option}
                         </SelectItem>
@@ -157,49 +247,51 @@ export function AddExpenseDialog({
                   </Select>
                 )}
               />
-              {errors.subCategory && (
+              {errors.subcategory && (
                 <p className="text-sm text-red-500">
-                  {errors.subCategory.message}
+                  {errors.subcategory.message}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label className="">Project (If any)</Label>
+              <Label>Project (Optional)</Label>
               <Controller
                 control={control}
-                name="project"
+                name="leadId"
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select value={field.value || "none"} onValueChange={field.onChange}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select project" />
                     </SelectTrigger>
                     <SelectContent>
-                      {projectOptions.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
+                      <SelectItem value="none">None</SelectItem>
+                      {projects.map((proj) => (
+                        <SelectItem key={proj.leadId} value={proj.leadId}>
+                          {proj.projectName} ({proj.jobId})
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 )}
               />
-              {errors.project && (
-                <p className="text-sm text-red-500">{errors.project.message}</p>
+              {errors.leadId && (
+                <p className="text-sm text-red-500">{errors.leadId.message}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label className="">Building (If any)</Label>
+              <Label>Building (Optional)</Label>
               <Controller
                 control={control}
-                name="building"
+                name="buildingLabel"
                 render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
+                  <Select value={field.value || "none"} onValueChange={field.onChange}>
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select building" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">None</SelectItem>
                       {buildingOptions.map((option) => (
                         <SelectItem key={option} value={option}>
                           {option}
@@ -209,48 +301,73 @@ export function AddExpenseDialog({
                   </Select>
                 )}
               />
-              {errors.building && (
+              {errors.buildingLabel && (
                 <p className="text-sm text-red-500">
-                  {errors.building.message}
+                  {errors.buildingLabel.message}
                 </p>
               )}
             </div>
 
-            <div className="space-y-2 md:col-span-2">
-              <Label className="">Payment Type</Label>
+            <div className="space-y-2">
+              <Label>Payment Method</Label>
               <Controller
                 control={control}
-                name="paymentType"
+                name="paymentMethod"
                 render={({ field }) => (
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select payment type" />
+                      <SelectValue placeholder="Select payment method" />
                     </SelectTrigger>
                     <SelectContent>
-                      {paymentTypeOptions.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
+                      {paymentMethodOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 )}
               />
-              {errors.paymentType && (
+              {errors.paymentMethod && (
                 <p className="text-sm text-red-500">
-                  {errors.paymentType.message}
+                  {errors.paymentMethod.message}
                 </p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="amount" className="">
-                Amount
-              </Label>
+              <Label>Status</Label>
+              <Controller
+                control={control}
+                name="status"
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statusOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.status && (
+                <p className="text-sm text-red-500">
+                  {errors.status.message}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="amount">Amount</Label>
               <Input
                 id="amount"
-                type="text"
-                className=""
+                type="number"
+                step="any"
                 {...register("amount")}
               />
               {errors.amount && (
@@ -259,34 +376,173 @@ export function AddExpenseDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="paymentDate" className="">
-                Payment Date
-              </Label>
+              <Label htmlFor="date">Date</Label>
               <Input
-                id="paymentDate"
+                id="date"
                 type="date"
-                {...register("paymentDate")}
+                {...register("date")}
               />
-              {errors.paymentDate && (
+              {errors.date && (
                 <p className="text-sm text-red-500">
-                  {errors.paymentDate.message}
+                  {errors.date.message}
                 </p>
               )}
             </div>
 
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="transactionId" className="">
-                Transaction ID
-              </Label>
+              <Label htmlFor="description">Description</Label>
               <Input
-                id="transactionId"
+                id="description"
                 type="text"
-                className=""
-                {...register("transactionId")}
+                placeholder="Enter description"
+                {...register("description")}
               />
-              {errors.transactionId && (
+              {errors.description && (
                 <p className="text-sm text-red-500">
-                  {errors.transactionId.message}
+                  {errors.description.message}
+                </p>
+              )}
+            </div>
+
+            {/* Receipt Attachment Section (Upload or Direct URL) */}
+            <div className="space-y-2 md:col-span-2">
+              <div className="flex items-center justify-between">
+                <Label>Receipt Document (Optional)</Label>
+                <div className="flex items-center gap-1 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReceiptMode("upload");
+                      setUploadError(null);
+                    }}
+                    className={`px-2 py-0.5 rounded font-medium transition-colors ${receiptMode === "upload"
+                      ? "bg-violet-100 text-violet-700"
+                      : "text-slate-500 hover:text-slate-700"
+                      }`}
+                  >
+                    Upload File
+                  </button>
+                  <span className="text-slate-300">|</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReceiptMode("url");
+                      setUploadError(null);
+                    }}
+                    className={`px-2 py-0.5 rounded font-medium transition-colors ${receiptMode === "url"
+                      ? "bg-violet-100 text-violet-700"
+                      : "text-slate-500 hover:text-slate-700"
+                      }`}
+                  >
+                    Enter URL
+                  </button>
+                </div>
+              </div>
+
+              {receiptMode === "upload" ? (
+                <div className="space-y-2">
+                  <div className="flex flex-col gap-3 rounded-lg border border-dashed border-slate-300 p-4 bg-slate-50 transition-colors sm:flex-row sm:items-center sm:justify-between">
+                    <input
+                      id="receiptFileInput"
+                      type="file"
+                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+
+                    {!selectedFile ? (
+                      <div className="flex items-center gap-3">
+                        <label
+                          htmlFor="receiptFileInput"
+                          className="flex cursor-pointer items-center justify-center rounded-md bg-white px-3 py-2 text-sm font-medium text-slate-700 border border-slate-200 shadow-sm hover:bg-slate-100"
+                        >
+                          <Upload className="mr-2 h-4 w-4 text-violet-600" />
+                          Choose File
+                        </label>
+                        <span className="text-xs text-slate-500">
+                          No file chosen (PDF, PNG, JPG)
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 overflow-hidden">
+                          <FileText className="h-5 w-5 flex-shrink-0 text-violet-600" />
+                          <div className="flex flex-col truncate">
+                            <span className="text-sm font-medium text-slate-800 truncate">
+                              {selectedFile.name}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              {(selectedFile.size / 1024).toFixed(1)} KB
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {uploadedUrl ? (
+                            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                              Uploaded ✓
+                            </span>
+                          ) : (
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="bg-violet-600 text-white hover:bg-violet-700 h-8 text-xs"
+                              onClick={async () => {
+                                setUploadError(null);
+                                setIsUploading(true);
+                                try {
+                                  const url = await uploadFileToS3(selectedFile, "expenses");
+                                  setUploadedUrl(url);
+                                  setValue("receiptFile", url);
+                                } catch (err) {
+                                  console.error(err);
+                                  setUploadError("Failed to upload file.");
+                                } finally {
+                                  setIsUploading(false);
+                                }
+                              }}
+                              disabled={isUploading}
+                            >
+                              {isUploading ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                              ) : (
+                                <Upload className="h-3.5 w-3.5 mr-1" />
+                              )}
+                              Upload
+                            </Button>
+                          )}
+
+                          <label
+                            htmlFor="receiptFileInput"
+                            className="flex cursor-pointer items-center justify-center rounded-md bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 border border-slate-200 shadow-sm hover:bg-slate-100"
+                          >
+                            Replace
+                          </label>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="relative">
+                  <LinkIcon className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                  <Input
+                    id="receiptFile"
+                    type="text"
+                    className="pl-9"
+                    placeholder="https://..."
+                    {...register("receiptFile")}
+                  />
+                </div>
+              )}
+
+
+              {uploadError && (
+                <p className="text-sm text-red-500">{uploadError}</p>
+              )}
+              {errors.receiptFile && (
+                <p className="text-sm text-red-500">
+                  {errors.receiptFile.message}
                 </p>
               )}
             </div>
@@ -302,8 +558,17 @@ export function AddExpenseDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" size="lg" disabled={isSubmitting}>
-              {isSubmitting ? "Adding..." : "Add"}
+            <Button type="submit" className="px-8" size="lg" disabled={isSubmitting}>
+              {isUploading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Uploading File...</span>
+                </div>
+              ) : createExpenseMutation.isPending ? (
+                "Adding..."
+              ) : (
+                "Add"
+              )}
             </Button>
           </div>
         </form>
@@ -311,3 +576,5 @@ export function AddExpenseDialog({
     </Dialog>
   );
 }
+
+

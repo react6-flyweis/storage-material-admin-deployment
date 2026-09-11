@@ -26,8 +26,14 @@ import {
   Download,
   Receipt,
   Truck,
+  Loader2,
 } from "lucide-react";
 import type { ReactNode } from "react";
+import {
+  usePaymentStatusQuery,
+  useExportPaymentStatusMutation,
+} from "@/modules/payments/payments.hooks";
+import type { PaymentStatusItem } from "@/modules/payments/payments.api";
 
 type SummaryCard = {
   title: string;
@@ -39,220 +45,135 @@ type SummaryCard = {
   icon: ReactNode;
 };
 
-type PaymentItem = {
-  name: string;
-  ref: string;
-  amount: string;
-  due: string;
-  icon: ReactNode;
-};
+function formatCurrency(n: number) {
+  return `$${n.toLocaleString()}`;
+}
 
-type PaymentRow = {
-  id: string;
-  entity: string;
-  entityType: "Vendor" | "Carrier";
-  invoice: string;
-  amount: number;
-  dueDate: string | null;
-  paymentDate: string | null;
-  status: "Due Soon" | "Scheduled" | "Paid" | "Overdue";
-  project: string;
-  method: "Bank Transfer" | "ACH" | "Check" | "Card";
-};
+function formatDate(dateStr?: string | null) {
+  if (!dateStr) return "-";
+  try {
+    return new Date(dateStr).toISOString().split("T")[0];
+  } catch {
+    return dateStr;
+  }
+}
 
-const summaryCards: SummaryCard[] = [
-  {
-    title: "Total Outstanding",
-    amount: "$77,200",
-    subtitle: "3 due soon, 1 overdue",
-    borderClass: "border-amber-400",
-    accentClass: "text-amber-600",
-    iconBgColor: "bg-amber-100",
-    icon: <Clock3 className="h-5 w-5 text-amber-500" />,
-  },
-  {
-    title: "Total Paid",
-    amount: "$48,300",
-    subtitle: "This period",
-    borderClass: "border-emerald-500",
-    accentClass: "text-emerald-600",
-    iconBgColor: "bg-emerald-100",
-    icon: <CheckCircle2 className="h-5 w-5 text-emerald-500" />,
-  },
-  {
-    title: "Vendor Payments",
-    amount: "$105,550",
-    subtitle: "4 vendors",
-    borderClass: "border-blue-500",
-    accentClass: "text-slate-500",
-    iconBgColor: "bg-blue-100",
-    icon: <Building2 className="h-5 w-5 text-blue-500" />,
-  },
-  {
-    title: "Carrier Payments",
-    amount: "$19,950",
-    subtitle: "4 carriers",
-    borderClass: "border-orange-500",
-    accentClass: "text-slate-500",
-    iconBgColor: "bg-orange-100",
-    icon: <Truck className="h-5 w-5 text-orange-500" />,
-  },
-];
+function getEntityName(item: PaymentStatusItem) {
+  if (typeof item.customerId === "object" && item.customerId) {
+    const name = `${item.customerId.firstName || ""} ${item.customerId.lastName || ""}`.trim();
+    if (name) return name;
+  }
+  if (typeof item.leadId === "object" && item.leadId?.projectName) {
+    return item.leadId.projectName;
+  }
+  return item.invoiceNumber || item.poNumber || "N/A";
+}
 
-const overduePayments: PaymentItem[] = [
-  {
-    name: "QuickHaul Transport",
-    ref: "CAR-2024-0091",
-    amount: "$5,200",
-    due: "Due: 2024-03-01",
-    icon: <Truck className="h-4 w-4 text-red-500" />,
-  },
-];
-
-const dueSoonPayments: PaymentItem[] = [
-  {
-    name: "ABC Concrete Shippers",
-    ref: "VND-2024-0123",
-    amount: "$15,250",
-    due: "Due: 2024-04-15",
-    icon: <Receipt className="h-4 w-4 text-amber-500" />,
-  },
-  {
-    name: "Elite Steel Supply",
-    ref: "VND-2024-0125",
-    amount: "$42,000",
-    due: "Due: 2024-04-20",
-    icon: <Receipt className="h-4 w-4 text-amber-500" />,
-  },
-  {
-    name: "Express Logistics Co",
-    ref: "CAR-2024-0095",
-    amount: "$6,750",
-    due: "Due: 2024-03-30",
-    icon: <Truck className="h-4 w-4 text-amber-500" />,
-  },
-];
+function getProjectName(item: PaymentStatusItem) {
+  if (typeof item.leadId === "object" && item.leadId?.projectName) {
+    return item.leadId.projectName;
+  }
+  if (typeof item.leadId === "string") {
+    return item.leadId;
+  }
+  return "-";
+}
 
 export default function PaymentStatusDashboardPage() {
   const [query, setQuery] = useState("");
   const [methodFilter, setMethodFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [page, setPage] = useState(1);
+  const [limit] = useState(10);
 
-  const payments: PaymentRow[] = [
-    {
-      id: "1",
-      entity: "ABC Concrete Shippers",
-      entityType: "Vendor",
-      invoice: "VND-2024-0123",
-      amount: 15250,
-      dueDate: "2024-04-15",
-      paymentDate: "2024-03-08",
-      status: "Due Soon",
-      project: "Residential Complex A",
-      method: "Bank Transfer",
-    },
-    {
-      id: "2",
-      entity: "FastTruck Logistics",
-      entityType: "Carrier",
-      invoice: "CAR-2024-0089",
-      amount: 3850,
-      dueDate: "2024-03-25",
-      paymentDate: "2024-03-25",
-      status: "Scheduled",
-      project: "Commercial Building B",
-      method: "ACH",
-    },
-    {
-      id: "3",
-      entity: "Premier Building Materials",
-      entityType: "Vendor",
-      invoice: "VND-2024-0124",
-      amount: 28500,
-      dueDate: "2024-03-10",
-      paymentDate: "2024-03-08",
-      status: "Paid",
-      project: "Infrastructure Project C",
-      method: "Check",
-    },
-    {
-      id: "4",
-      entity: "QuickHaul Transport",
-      entityType: "Carrier",
-      invoice: "CAR-2024-0091",
-      amount: 5200,
-      dueDate: "2024-03-01",
-      paymentDate: null,
-      status: "Overdue",
-      project: "Hospital Extension",
-      method: "Bank Transfer",
-    },
-    {
-      id: "5",
-      entity: "Elite Steel Supply",
-      entityType: "Vendor",
-      invoice: "VND-2024-0125",
-      amount: 42000,
-      dueDate: "2024-04-20",
-      paymentDate: null,
-      status: "Due Soon",
-      project: "School Building",
-      method: "ACH",
-    },
-    {
-      id: "6",
-      entity: "Reliable Freight Services",
-      entityType: "Carrier",
-      invoice: "CAR-2024-0093",
-      amount: 4150,
-      dueDate: "2024-04-05",
-      paymentDate: "2024-04-05",
-      status: "Scheduled",
-      project: "Commercial Building B",
-      method: "Bank Transfer",
-    },
-    {
-      id: "7",
-      entity: "Concrete Masters",
-      entityType: "Vendor",
-      invoice: "VND-2024-0126",
-      amount: 19800,
-      dueDate: "2024-02-28",
-      paymentDate: "2024-02-15",
-      status: "Paid",
-      project: "Residential Complex A",
-      method: "ACH",
-    },
-    {
-      id: "8",
-      entity: "Express Logistics Co",
-      entityType: "Carrier",
-      invoice: "CAR-2024-0095",
-      amount: 6750,
-      dueDate: "2024-03-30",
-      paymentDate: null,
-      status: "Due Soon",
-      project: "Infrastructure Project C",
-      method: "Bank Transfer",
-    },
-  ];
+  const apiPaymentMethod = useMemo(() => {
+    if (methodFilter === "All") return undefined;
+    return methodFilter.toLowerCase().replace(" ", "_");
+  }, [methodFilter]);
 
-  const filtered = useMemo(() => {
-    return payments.filter((p) => {
-      if (methodFilter !== "All" && p.method !== methodFilter) return false;
-      if (statusFilter !== "All" && p.status !== statusFilter) return false;
-      if (
-        query &&
-        !`${p.entity} ${p.invoice}`.toLowerCase().includes(query.toLowerCase())
-      )
-        return false;
-      return true;
-    });
-  }, [payments, methodFilter, statusFilter, query]);
+  const apiStatus = useMemo(() => {
+    if (statusFilter === "All") return undefined;
+    if (statusFilter === "Due Soon") return "sent";
+    return statusFilter.toLowerCase();
+  }, [statusFilter]);
 
-  function formatCurrency(n: number) {
-    return `$${n.toLocaleString()}`;
-  }
+  const { data: responseData, isLoading } = usePaymentStatusQuery({
+    paymentMethod: apiPaymentMethod,
+    status: apiStatus,
+    search: query || undefined,
+    page,
+    limit,
+  });
+
+  const exportMutation = useExportPaymentStatusMutation();
+
+  const handleExport = async () => {
+    try {
+      const blob = await exportMutation.mutateAsync({
+        paymentMethod: apiPaymentMethod,
+        status: apiStatus,
+        search: query || undefined,
+      });
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `payment-status-${new Date().toISOString().split("T")[0]}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error("Export error:", err);
+    }
+  };
+
+  const data = responseData?.data;
+  const stats = data?.stats;
+
+  const summaryCards: SummaryCard[] = useMemo(
+    () => [
+      {
+        title: "Total Outstanding",
+        amount: formatCurrency(stats?.totalOutstanding ?? 0),
+        subtitle: `${stats?.dueSoonCount ?? 0} due soon, ${stats?.overdueCount ?? 0} overdue`,
+        borderClass: "border-amber-400",
+        accentClass: "text-amber-600",
+        iconBgColor: "bg-amber-100",
+        icon: <Clock3 className="h-5 w-5 text-amber-500" />,
+      },
+      {
+        title: "Total Paid",
+        amount: formatCurrency(stats?.totalPaid ?? 0),
+        subtitle: "This period",
+        borderClass: "border-emerald-500",
+        accentClass: "text-emerald-600",
+        iconBgColor: "bg-emerald-100",
+        icon: <CheckCircle2 className="h-5 w-5 text-emerald-500" />,
+      },
+      {
+        title: "Vendor Payments",
+        amount: formatCurrency(stats?.vendorPayments ?? 0),
+        subtitle: `${stats?.vendorCount ?? 0} vendors`,
+        borderClass: "border-blue-500",
+        accentClass: "text-slate-500",
+        iconBgColor: "bg-blue-100",
+        icon: <Building2 className="h-5 w-5 text-blue-500" />,
+      },
+      {
+        title: "Carrier Payments",
+        amount: formatCurrency(stats?.carrierPayments ?? 0),
+        subtitle: `${stats?.carrierCount ?? 0} carriers`,
+        borderClass: "border-orange-500",
+        accentClass: "text-slate-500",
+        iconBgColor: "bg-orange-100",
+        icon: <Truck className="h-5 w-5 text-orange-500" />,
+      },
+    ],
+    [stats]
+  );
+
+  const overdueList = data?.overduePayments || [];
+  const dueSoonList = data?.dueSoon || [];
+  const paymentHistoryList = data?.paymentHistory || [];
 
   return (
     <div className="min-h-full bg-[#e7ecfb] p-4 lg:p-5">
@@ -267,11 +188,21 @@ export default function PaymentStatusDashboardPage() {
             </p>
           </div>
 
-          <Button variant="outline" className="h-9 w-fit bg-white px-3 text-sm">
-            <Download className="mr-2 h-4 w-4" />
+          <Button
+            variant="outline"
+            className="h-9 w-fit bg-white px-3 text-sm"
+            onClick={handleExport}
+            disabled={exportMutation.isPending}
+          >
+            {exportMutation.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
             Export
           </Button>
         </div>
+
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
           {summaryCards.map((card) => (
             <article
@@ -292,7 +223,7 @@ export default function PaymentStatusDashboardPage() {
                   className={cn(
                     "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
                     card.accentClass,
-                    card.iconBgColor,
+                    card.iconBgColor
                   )}
                 >
                   {card.icon}
@@ -301,6 +232,7 @@ export default function PaymentStatusDashboardPage() {
             </article>
           ))}
         </div>
+
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
           <Card>
             <CardHeader>
@@ -310,31 +242,35 @@ export default function PaymentStatusDashboardPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {overduePayments.map((item) => (
-                <article
-                  key={item.ref}
-                  className="rounded-lg border border-red-200 bg-red-50 px-4 py-3"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      {item.icon}
-                      <h3 className=" font-semibold text-slate-900">
-                        {item.name}
-                      </h3>
+              {overdueList.length === 0 ? (
+                <p className="text-sm text-slate-500 py-2">No overdue payments</p>
+              ) : (
+                overdueList.map((item) => (
+                  <article
+                    key={item._id}
+                    className="rounded-lg border border-red-200 bg-red-50 px-4 py-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Truck className="h-4 w-4 text-red-500" />
+                        <h3 className="font-semibold text-slate-900">
+                          {getEntityName(item)}
+                        </h3>
+                      </div>
+                      <p className="text-base font-semibold text-red-600">
+                        {formatCurrency(item.totalAmount ?? 0)}
+                      </p>
                     </div>
-                    <p className="text-base font-semibold text-red-600">
-                      {item.amount}
-                    </p>
-                  </div>
 
-                  <div className="mt-2 flex items-center justify-between">
-                    <p className="text-sm text-slate-500">{item.ref}</p>
-                    <p className="text-xs font-medium text-red-600">
-                      {item.due}
-                    </p>
-                  </div>
-                </article>
-              ))}
+                    <div className="mt-2 flex items-center justify-between">
+                      <p className="text-sm text-slate-500">{item.invoiceNumber || item.poNumber || item._id}</p>
+                      <p className="text-xs font-medium text-red-600">
+                        Due: {formatDate(item.dueDate)}
+                      </p>
+                    </div>
+                  </article>
+                ))
+              )}
             </CardContent>
           </Card>
 
@@ -346,34 +282,39 @@ export default function PaymentStatusDashboardPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {dueSoonPayments.map((item) => (
-                <article
-                  key={item.ref}
-                  className="rounded-lg border border-amber-200 bg-amber-50/70 px-4 py-3"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      {item.icon}
-                      <h3 className="font-semibold text-slate-900">
-                        {item.name}
-                      </h3>
+              {dueSoonList.length === 0 ? (
+                <p className="text-sm text-slate-500 py-2">No payments due soon</p>
+              ) : (
+                dueSoonList.map((item) => (
+                  <article
+                    key={item._id}
+                    className="rounded-lg border border-amber-200 bg-amber-50/70 px-4 py-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Receipt className="h-4 w-4 text-amber-500" />
+                        <h3 className="font-semibold text-slate-900">
+                          {getEntityName(item)}
+                        </h3>
+                      </div>
+                      <p className="text-base font-semibold text-amber-700">
+                        {formatCurrency(item.totalAmount ?? 0)}
+                      </p>
                     </div>
-                    <p className="text-base font-semibold text-amber-700">
-                      {item.amount}
-                    </p>
-                  </div>
 
-                  <div className="mt-2 flex items-center justify-between">
-                    <p className="text-sm text-slate-500">{item.ref}</p>
-                    <p className="text-xs font-medium text-amber-600">
-                      {item.due}
-                    </p>
-                  </div>
-                </article>
-              ))}
+                    <div className="mt-2 flex items-center justify-between">
+                      <p className="text-sm text-slate-500">{item.invoiceNumber || item.poNumber || item._id}</p>
+                      <p className="text-xs font-medium text-amber-600">
+                        Due: {formatDate(item.dueDate)}
+                      </p>
+                    </div>
+                  </article>
+                ))
+              )}
             </CardContent>
           </Card>
         </div>
+
         {/* Filters + Table */}
         <div>
           <Card>
@@ -383,26 +324,39 @@ export default function PaymentStatusDashboardPage() {
                   <Input
                     placeholder="Search by entity name or invoice number..."
                     value={query}
-                    onChange={(e) => setQuery(e.target.value)}
+                    onChange={(e) => {
+                      setQuery(e.target.value);
+                      setPage(1);
+                    }}
                     className="w-full max-w-lg bg-white"
                   />
 
-                  <Select value={methodFilter} onValueChange={setMethodFilter}>
+                  <Select
+                    value={methodFilter}
+                    onValueChange={(val) => {
+                      setMethodFilter(val);
+                      setPage(1);
+                    }}
+                  >
                     <SelectTrigger className="w-44 mt-0">
                       <SelectValue placeholder="Payment Method" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="All">All Methods</SelectItem>
-                      <SelectItem value="Bank Transfer">
-                        Bank Transfer
-                      </SelectItem>
+                      <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
                       <SelectItem value="ACH">ACH</SelectItem>
                       <SelectItem value="Check">Check</SelectItem>
                       <SelectItem value="Card">Card</SelectItem>
                     </SelectContent>
                   </Select>
 
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <Select
+                    value={statusFilter}
+                    onValueChange={(val) => {
+                      setStatusFilter(val);
+                      setPage(1);
+                    }}
+                  >
                     <SelectTrigger className="w-36 mt-0">
                       <SelectValue placeholder="All Status" />
                     </SelectTrigger>
@@ -417,8 +371,18 @@ export default function PaymentStatusDashboardPage() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" className="h-9">
-                    <Download className="mr-2 h-4 w-4" /> Export
+                  <Button
+                    variant="ghost"
+                    className="h-9"
+                    onClick={handleExport}
+                    disabled={exportMutation.isPending}
+                  >
+                    {exportMutation.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Download className="mr-2 h-4 w-4" />
+                    )}
+                    Export
                   </Button>
                 </div>
               </div>
@@ -463,62 +427,108 @@ export default function PaymentStatusDashboardPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex flex-col">
-                              <span className="font-medium text-slate-900">
-                                {row.entity}
-                              </span>
-                              <span className="text-xs text-slate-500">
-                                {row.entityType}
-                              </span>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-6 py-4 text-orange-500 font-medium">
-                          {row.invoice}
-                        </TableCell>
-                        <TableCell className="px-6 py-4 font-semibold">
-                          {formatCurrency(row.amount)}
-                        </TableCell>
-                        <TableCell className="px-6 py-4">
-                          {row.dueDate ?? "-"}
-                        </TableCell>
-                        <TableCell className="px-6 py-4">
-                          {row.paymentDate ?? "-"}
-                        </TableCell>
-                        <TableCell className="px-6 py-4">
-                          {row.status === "Paid" ? (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-emerald-200 px-2 py-0.5 text-xs font-semibold text-emerald-800">
-                              Paid
-                            </span>
-                          ) : row.status === "Scheduled" ? (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
-                              Scheduled
-                            </span>
-                          ) : row.status === "Overdue" ? (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
-                              Overdue
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
-                              Due Soon
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="px-6 py-4">
-                          {row.project}
-                        </TableCell>
-                        <TableCell className="px-6 py-4">
-                          {row.method}
+                    {isLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="h-32 text-center">
+                          <Loader2 className="mx-auto h-6 w-6 animate-spin text-slate-400" />
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : paymentHistoryList.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="h-32 text-center text-slate-500">
+                          No payment records found.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      paymentHistoryList.map((row) => {
+                        const statusLower = (row.status || "").toLowerCase();
+                        return (
+                          <TableRow key={row._id}>
+                            <TableCell className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                <div className="flex flex-col">
+                                  <span className="font-medium text-slate-900">
+                                    {getEntityName(row)}
+                                  </span>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="px-6 py-4 text-orange-500 font-medium">
+                              {row.invoiceNumber || row.poNumber || "-"}
+                            </TableCell>
+                            <TableCell className="px-6 py-4 font-semibold">
+                              {formatCurrency(row.totalAmount ?? 0)}
+                            </TableCell>
+                            <TableCell className="px-6 py-4">
+                              {formatDate(row.dueDate)}
+                            </TableCell>
+                            <TableCell className="px-6 py-4">
+                              {formatDate(row.paidAt)}
+                            </TableCell>
+                            <TableCell className="px-6 py-4">
+                              {statusLower === "paid" ? (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-200 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                                  Paid
+                                </span>
+                              ) : statusLower === "scheduled" ? (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                                  Scheduled
+                                </span>
+                              ) : statusLower === "overdue" ? (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">
+                                  Overdue
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                                  {row.status || "Due Soon"}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="px-6 py-4">
+                              {getProjectName(row)}
+                            </TableCell>
+                            <TableCell className="px-6 py-4">
+                              {row.paymentMethod
+                                ? row.paymentMethod.replace("_", " ").toUpperCase()
+                                : "-"}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    )}
                   </TableBody>
                 </Table>
               </div>
+
+              {/* Pagination */}
+              {data && data.total > limit && (
+                <div className="flex items-center justify-between border-t px-6 py-3 bg-white">
+                  <span className="text-sm text-slate-500">
+                    Showing {(page - 1) * limit + 1} to{" "}
+                    {Math.min(page * limit, data.total)} of {data.total} entries
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setPage((p) => (p * limit < data.total ? p + 1 : p))
+                      }
+                      disabled={page * limit >= data.total}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

@@ -7,6 +7,7 @@ import {
   getEmployeeAuditLogProvider,
   createAdminEmployeeProvider,
   updateAdminEmployeeProvider,
+  deleteAdminEmployeeProvider,
   type AdminEmployeesParams,
   type CreateEmployeeData,
   type UpdateEmployeeData,
@@ -76,3 +77,16 @@ export function useUpdateAdminEmployeeMutation() {
     },
   });
 }
+
+export function useDeleteAdminEmployeeMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (employeeId: string) => deleteAdminEmployeeProvider(employeeId),
+    onSuccess: (_, employeeId) => {
+      void queryClient.invalidateQueries({ queryKey: ["employees", "admin", "list"] });
+      void queryClient.invalidateQueries({ queryKey: ["employees", "admin", "detail", employeeId] });
+      void queryClient.invalidateQueries({ queryKey: ["employees", "admin", "stats"] });
+    },
+  });
+}
+

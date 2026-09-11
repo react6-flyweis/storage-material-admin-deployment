@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate } from "react-router";
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from "react";
 import dashboardIcon from "@/assets/icons/sidebar/dashboard.svg";
 import activityLogIcon from "@/assets/icons/sidebar/activity-log.svg";
 import aiScriptIcon from "@/assets/icons/sidebar/ai-script.svg";
@@ -39,6 +39,19 @@ import supportIcon from "@/assets/icons/sidebar/support.svg";
 import taxFilingIcon from "@/assets/icons/sidebar/tax-filing.svg";
 import terminatedProjectsIcon from "@/assets/icons/sidebar/terminated-projects.svg";
 import vendorInvoicesIcon from "@/assets/icons/sidebar/vendor-invoices.svg";
+import { useChatUnreadCountQuery } from "@/modules/team-chat/team-chat.hooks";
+import { useNotificationUnreadCountQuery } from "@/modules/notifications/notifications.hooks";
+import { useAdminsQuery } from "@/modules/admins/admins.hooks";
+import { useAuthStore } from "@/modules/auth/auth.store";
+
+// construction icon
+// project-calendar,drawings,delivery,tasks,material-requests,reports
+import projectCalendarIcon from "@/assets/icons/sidebar/project-calendar.svg";
+import drawingsIcon from "@/assets/icons/sidebar/drawings.svg";
+import deliveryIcon from "@/assets/icons/sidebar/delivery.svg";
+import tasksIcon from "@/assets/icons/sidebar/tasks.svg";
+import materialRequestsIcon from "@/assets/icons/sidebar/material-requests.svg";
+import constructionReportsIcon from "@/assets/icons/sidebar/construction-reports.svg";
 
 // Finance icons
 import WipProfitsIcon from "@/assets/icons/sidebar/wip-profit.svg";
@@ -47,6 +60,21 @@ import ProfitLossIcon from "@/assets/icons/sidebar/profit-loss.svg";
 import FreightCostIcon from "@/assets/icons/sidebar/freight-cost-tracking.svg";
 import MarginAnalysisIcon from "@/assets/icons/sidebar/margin-analysis.svg";
 import BudgetVsActualIcon from "@/assets/icons/sidebar/budget-actual.svg";
+
+// Plant section icons
+import bomIcon from "@/assets/icons/sidebar/BOM.svg";
+import quotationIcon from "@/assets/icons/sidebar/quotation.svg";
+import loadPlanningIcon from "@/assets/icons/sidebar/load-planning.svg";
+import packingListIcon from "@/assets/icons/sidebar/packing-list.svg";
+import qrLabelsIcon from "@/assets/icons/sidebar/qr-labels.svg";
+import shippersIcon from "@/assets/icons/sidebar/shippers.svg";
+import freightCarriersIcon from "@/assets/icons/sidebar/freight-carriers.svg";
+import costingSavingIcon from "@/assets/icons/sidebar/costing-saving.svg";
+import freightLoadIcon from "@/assets/icons/sidebar/freight-load.svg";
+import awardedIcon from "@/assets/icons/sidebar/awarded.svg";
+import deliveryCalendarIcon from "@/assets/icons/sidebar/delivery-calendar.svg";
+import allDeliveriesIcon from "@/assets/icons/sidebar/all-deliveries.svg";
+import notificationDetailsIcon from "@/assets/icons/sidebar/notification-details.svg";
 
 import { Button } from "./ui/button";
 import activeBgImage from "@/assets/images/active-bg.png";
@@ -76,17 +104,21 @@ type NavGroup =
   | "construction"
   | "ai-marketing";
 
+interface NavigationSubItem {
+  path: string;
+  label: string;
+  badge?: number;
+  icon?: string;
+  mainAdminOnly?: boolean;
+}
+
 interface NavigationItem {
   path: string;
   label: string;
   collapsible?: boolean;
   icon?: string;
-  subItems?: {
-    path: string;
-    label: string;
-    badge?: number;
-    icon?: string;
-  }[];
+  mainAdminOnly?: boolean;
+  subItems?: NavigationSubItem[];
 }
 
 interface NavigationGroup {
@@ -96,6 +128,7 @@ interface NavigationGroup {
   color: string; //hex string
   link: string;
   items: NavigationItem[];
+  mainAdminOnly?: boolean;
 }
 
 function SidebarItemIcon({
@@ -168,7 +201,7 @@ const navigationGroups: NavigationGroup[] = [
           },
           {
             path: "/leads/follow-up/scoring",
-            label: "Lead Scoring",
+            label: "Lead Scoring & Auto followup",
             icon: leadScoringIcon,
           },
           // {
@@ -195,12 +228,11 @@ const navigationGroups: NavigationGroup[] = [
         label: "All Purchase Orders",
         icon: purchaseOrdersIcon,
       },
-      // new quotation list
-      // {
-      //   path: "/leads/quotation-list",
-      //   label: "New Quotation List",
-      //   icon: invoiceListIcon,
-      // },
+      {
+        path: "/leads/quotation-list",
+        label: "Quotations",
+        icon: quotationIcon,
+      },
     ],
   },
   {
@@ -231,19 +263,61 @@ const navigationGroups: NavigationGroup[] = [
     color: "#0ea5e9",
     link: "/plant",
     items: [
-      { path: "/plant/uploaded-bom-files", label: "Uploaded BOM Files" },
-      { path: "/plant/shipper-quotation", label: "Shipper Quotation" },
-      { path: "/plant/load-planning", label: "Load Planning" },
-      { path: "/plant/packing-list", label: "Packing List" },
-      { path: "/plant/qr-labels", label: "QR Labels" },
-      { path: "/plant/shippers", label: "Shippers" },
-      { path: "/plant/freight-carriers", label: "Freight Carriers" },
-      { path: "/plant/costing", label: "Costing" },
-      { path: "/plant/freight-loads", label: "Freight Loads" },
-      { path: "/plant/awarded-loads", label: "Awarded Loads" },
-      { path: "/plant/delivery-calendar", label: "Deliveries Calendar" },
-      { path: "/plant/all-deliveries", label: "All Deliveries" },
-      { path: "/plant/notification-history", label: "Notification History" },
+      { path: "/plant/projects", label: "Projects", icon: productLibraryIcon },
+      {
+        path: "/plant/uploaded-bom-files",
+        label: "Uploaded BOM Files",
+        icon: bomIcon,
+      },
+      {
+        path: "/plant/shipper-quotation",
+        label: "Shipper Quotation",
+        icon: quotationIcon,
+      },
+      {
+        path: "/plant/load-planning",
+        label: "Load Planning",
+        icon: loadPlanningIcon,
+      },
+      {
+        path: "/plant/packing-list",
+        label: "Packing List",
+        icon: packingListIcon,
+      },
+      { path: "/plant/qr-labels", label: "QR Labels", icon: qrLabelsIcon },
+      { path: "/plant/shippers", label: "Shippers", icon: shippersIcon },
+      {
+        path: "/plant/freight-carriers",
+        label: "Freight Carriers",
+        icon: freightCarriersIcon,
+      },
+      { path: "/plant/costing", label: "Costing", icon: costingSavingIcon },
+      { path: "/plant/savings", label: "Savings", icon: costingSavingIcon },
+      {
+        path: "/plant/freight-loads",
+        label: "Freight Loads",
+        icon: freightLoadIcon,
+      },
+      {
+        path: "/plant/awarded-loads",
+        label: "Awarded Loads",
+        icon: awardedIcon,
+      },
+      {
+        path: "/plant/delivery-calendar",
+        label: "Deliveries Calendar",
+        icon: deliveryCalendarIcon,
+      },
+      {
+        path: "/plant/all-deliveries",
+        label: "All Deliveries",
+        icon: allDeliveriesIcon,
+      },
+      {
+        path: "/plant/notification-history",
+        label: "Notification History",
+        icon: notificationDetailsIcon,
+      },
       /*
       { path: "/plant/equipment_management", label: "Equipment" },
       {
@@ -364,10 +438,36 @@ const navigationGroups: NavigationGroup[] = [
     color: "#dc2626",
     link: "/construction",
     items: [
-      { path: "/construction/projects", label: "Project & Calendar" },
-      { path: "/construction/tasks", label: "Tasks & Progress" },
-      { path: "/construction/materials", label: "Material Request" },
-      { path: "/construction/reports", label: "Construction Reports" },
+      {
+        path: "/construction/projects",
+        label: "Project & Calendar",
+        icon: projectCalendarIcon,
+      },
+      {
+        path: "/construction/drawing-attachment",
+        label: "Drawing & Attachment",
+        icon: drawingsIcon,
+      },
+      {
+        path: "/construction/all-deliveries",
+        label: "All Deliveries",
+        icon: deliveryIcon,
+      },
+      {
+        path: "/construction/tasks",
+        label: "Tasks & Progress",
+        icon: tasksIcon,
+      },
+      {
+        path: "/construction/materials",
+        label: "Material Request",
+        icon: materialRequestsIcon,
+      },
+      {
+        path: "/construction/reports",
+        label: "Construction Reports",
+        icon: constructionReportsIcon,
+      },
     ],
   },
   {
@@ -411,6 +511,13 @@ const navigationGroups: NavigationGroup[] = [
             label: "Support",
             badge: 1,
             icon: supportIcon,
+          },
+          {
+            path: "/admins",
+            label: "Admin Management",
+            icon: employeesIcon,
+            badge: 0,
+            mainAdminOnly: true,
           },
         ],
       },
@@ -511,6 +618,41 @@ export function Sidebar({
   const location = useLocation();
   const navigate = useNavigate();
   const employeeCounts = useEmployeeCountsStore();
+  const { data: unreadData } = useChatUnreadCountQuery();
+  const unreadCount = unreadData?.count ?? unreadData?.total ?? 0;
+  const { data: notificationUnreadCount = 0 } = useNotificationUnreadCountQuery(
+    {
+      refetchInterval: 30000,
+    },
+  );
+  const currentUser = useAuthStore((state) => state.user);
+  const isMainAdmin = Boolean(currentUser?.isMainAdmin);
+
+  const { data: adminsResponse } = useAdminsQuery({ enabled: isMainAdmin });
+  const adminsCount = isMainAdmin
+    ? (adminsResponse?.data?.summary?.total ??
+      adminsResponse?.data?.admins?.length ??
+      0)
+    : 0;
+
+  const filteredNavigationGroups = useMemo(() => {
+    if (isMainAdmin) {
+      return navigationGroups;
+    }
+
+    return navigationGroups
+      .filter((group) => !group.mainAdminOnly)
+      .map((group) => ({
+        ...group,
+        items: group.items
+          .filter((item) => !item.mainAdminOnly)
+          .map((item) => ({
+            ...item,
+            subItems: item.subItems?.filter((subItem) => !subItem.mainAdminOnly),
+          })),
+      }));
+  }, [isMainAdmin]);
+
   const iconSidebarScrollRef = useRef<HTMLDivElement | null>(null);
   const [hoveredGroup, setHoveredGroup] = useState<{
     label: string;
@@ -539,6 +681,10 @@ export function Sidebar({
       return employeeCounts.total;
     }
 
+    if (path === "/admins") {
+      return isMainAdmin ? adminsCount : undefined;
+    }
+
     const teamParam = new URLSearchParams(path.split("?")[1] ?? "").get("team");
 
     if (!teamParam) {
@@ -550,7 +696,7 @@ export function Sidebar({
 
   // Determine active group based on current path
   const activeGroup =
-    navigationGroups.find((group) => {
+    filteredNavigationGroups.find((group) => {
       // If group has sub-items, check if current path matches group link or any sub-item path
       if (group.items.length > 0) {
         if (group.link !== "/" && currentPath.startsWith(group.link)) {
@@ -569,8 +715,10 @@ export function Sidebar({
         });
       }
       // For groups without sub-items (like Dashboard)
-      return group.link === "/" ? currentPath === "/" : currentPath.startsWith(group.link);
-    }) || navigationGroups[0];
+      return group.link === "/"
+        ? currentPath === "/"
+        : currentPath.startsWith(group.link);
+    }) || filteredNavigationGroups[0];
 
   useEffect(() => {
     const scrollContainer = iconSidebarScrollRef.current;
@@ -584,12 +732,18 @@ export function Sidebar({
 
       if (buttonRect.top - padding < containerRect.top) {
         scrollContainer.scrollTo({
-          top: scrollContainer.scrollTop + (buttonRect.top - containerRect.top) - padding,
+          top:
+            scrollContainer.scrollTop +
+            (buttonRect.top - containerRect.top) -
+            padding,
           behavior: "smooth",
         });
       } else if (buttonRect.bottom + padding > containerRect.bottom) {
         scrollContainer.scrollTo({
-          top: scrollContainer.scrollTop + (buttonRect.bottom - containerRect.bottom) + padding,
+          top:
+            scrollContainer.scrollTop +
+            (buttonRect.bottom - containerRect.bottom) +
+            padding,
           behavior: "smooth",
         });
       }
@@ -662,7 +816,7 @@ export function Sidebar({
   };
 
   // Get the index of the active group
-  const activeGroupIndex = navigationGroups.findIndex(
+  const activeGroupIndex = filteredNavigationGroups.findIndex(
     (group) => group.id === activeGroup.id,
   );
 
@@ -695,7 +849,7 @@ export function Sidebar({
       ? calculatedPadding
       : 10;
 
-  const handleGroupChange = (group: (typeof navigationGroups)[0]) => {
+  const handleGroupChange = (group: NavigationGroup) => {
     navigate(group.link);
     setIsMainCollapsed(false);
     // Close sidebar on mobile after navigation
@@ -761,8 +915,10 @@ export function Sidebar({
           >
             <div style={{ direction: "ltr" }}>
               <nav className="flex flex-col gap-5">
-                {navigationGroups.map((group) => {
+                {filteredNavigationGroups.map((group) => {
                   const iconSrc = group.icon as string;
+                  const isCommunication = group.id === "messages";
+                  const showBadge = isCommunication && unreadCount > 0;
 
                   return (
                     <button
@@ -792,6 +948,11 @@ export function Sidebar({
                           alt={group.label}
                           className="max-w-5 max-h-5 object-contain"
                         />
+                        {showBadge && (
+                          <span className="absolute -top-1 -right-1 z-60 bg-red-500 text-white text-[10px] font-bold rounded-full h-4.5 min-w-4.5 px-1 flex items-center justify-center shadow-xs">
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </span>
+                        )}
                       </div>
                     </button>
                   );
@@ -850,7 +1011,9 @@ export function Sidebar({
                   <h2 className="text-lg font-bold text-gray-800">
                     Admin Panel
                   </h2>
-                  <p className="text-xs text-gray-500">admin@steelpro.com</p>
+                  <p className="text-xs text-gray-500">
+                    {currentUser?.email ?? "admin@steelpro.com"}
+                  </p>
                 </div>
               </div>
               <Button
@@ -894,8 +1057,13 @@ export function Sidebar({
                 }}
                 className="block px-4 py-2 rounded-md transition-colors text-sm w-[95%] text-white"
               >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2">
                   <span>{activeGroup.label}</span>
+                  {activeGroup.id === "messages" && unreadCount > 0 && (
+                    <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-xs">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
                 </div>
               </NavLink>
 
@@ -1022,15 +1190,32 @@ export function Sidebar({
                           },
                         )}
                       >
-                        <div className="flex items-center gap-2">
-                          <SidebarItemIcon
-                            src={item.icon}
-                            alt={item.label}
-                            className={cn({
-                              "brightness-0 invert": isActive,
-                            })}
-                          />
-                          <span>{item.label}</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <SidebarItemIcon
+                              src={item.icon}
+                              alt={item.label}
+                              className={cn({
+                                "brightness-0 invert": isActive,
+                              })}
+                            />
+                            <span>{item.label}</span>
+                          </div>
+                          {item.path === "/plant/notification-history" &&
+                            notificationUnreadCount > 0 && (
+                              <span
+                                className={cn(
+                                  "text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-xs",
+                                  isActive
+                                    ? "bg-white text-blue-600"
+                                    : "bg-red-500 text-white",
+                                )}
+                              >
+                                {notificationUnreadCount > 99
+                                  ? "99+"
+                                  : notificationUnreadCount}
+                              </span>
+                            )}
                         </div>
                       </div>
                     )}

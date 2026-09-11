@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { format, isValid } from "date-fns";
+import type { DateRange as RDateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -27,15 +29,22 @@ import {
   ChevronLeft,
   ChevronRight,
   Filter,
-  MoreHorizontal,
+  Loader2,
   ReceiptText,
   Upload,
   Wallet,
 } from "lucide-react";
+import {
+  usePaymentApprovalsFiltersQuery,
+  usePaymentApprovalsQuery,
+  useExportPaymentApprovalsMutation,
+} from "@/modules/payments/payments.hooks";
+import type { PaymentApprovalItem } from "@/modules/payments/payments.api";
 
-type ApprovalStatus = "Pending" | "Approved" | "Rejected";
+type ApprovalStatus = "Pending" | "Approved" | "Rejected" | "Under Review" | "Disputed";
 
 type ApprovalRow = {
+  _id: string;
   paymentId: string;
   requestDate: string;
   payee: string;
@@ -43,151 +52,207 @@ type ApprovalRow = {
   category: string;
   requestedBy: string;
   amount: string;
-  status: ApprovalStatus;
+  rawAmount: number;
+  status: string;
+  invoiceNumber: string;
+  dueDate: string;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
 };
 
-const approvalSummary = [
-  {
-    title: "Total Requests",
-    value: "48",
-    subtitle: "All payment requests",
-    color: "purple" as const,
-    icon: <Filter className="h-4 w-4" />,
-  },
-  {
-    title: "Pending Approval",
-    value: "18",
-    subtitle: "$245,680.15",
-    color: "green" as const,
-    icon: <Clock3 className="h-4 w-4" />,
-  },
-  {
-    title: "Approved",
-    value: "22",
-    subtitle: "$582,390.75",
-    color: "yellow" as const,
-    icon: <CircleCheckBig className="h-4 w-4" />,
-  },
-  {
-    title: "Rejected",
-    value: "6",
-    subtitle: "$78,420.20",
-    color: "red" as const,
-    icon: <CircleX className="h-4 w-4" />,
-  },
-  {
-    title: "Total Amount",
-    value: "$906,491.45",
-    subtitle: "All requests",
-    color: "purple" as const,
-    icon: <Wallet className="h-4 w-4" />,
-  },
-];
-
-const approvalRows: ApprovalRow[] = [
-  {
-    paymentId: "PR-2025-00048",
-    requestDate: "May 19, 2025\n10:30 AM",
-    payee: "ABC Builders Inc.",
-    payerType: "Vendor",
-    category: "Vendor Payment",
-    requestedBy: "Riverside Plant",
-    amount: "$48,750.00",
-    status: "Pending",
-  },
-  {
-    paymentId: "PR-2025-00049",
-    requestDate: "May 19, 2025\n10:30 AM",
-    payee: "Fast freight Logistics",
-    payerType: "Shipper",
-    category: "Shipper Payment",
-    requestedBy: "Logistics Dept.",
-    amount: "$12,300.50",
-    status: "Pending",
-  },
-  {
-    paymentId: "PR-2025-00050",
-    requestDate: "May 19, 2025\n10:30 AM",
-    payee: "United Rentals",
-    payerType: "Vendor",
-    category: "Vendor Payment",
-    requestedBy: "Equipment Dept.",
-    amount: "$25,600.00",
-    status: "Approved",
-  },
-  {
-    paymentId: "PR-2025-00051",
-    requestDate: "May 19, 2025\n10:30 AM",
-    payee: "Safety Supplies Co.",
-    payerType: "Vendor",
-    category: "Other Expenses",
-    requestedBy: "Safety Dept.",
-    amount: "$3,250.75",
-    status: "Pending",
-  },
-  {
-    paymentId: "PR-2025-00052",
-    requestDate: "May 19, 2025\n10:30 AM",
-    payee: "Sunbelt Rentals",
-    payerType: "Vendor",
-    category: "Vendor Payment",
-    requestedBy: "Riverside Plant",
-    amount: "$18,900.00",
-    status: "Rejected",
-  },
-  {
-    paymentId: "PR-2025-00053",
-    requestDate: "May 19, 2025\n10:30 AM",
-    payee: "Elite Transport LLC",
-    payerType: "Shipper",
-    category: "Shipper Payment",
-    requestedBy: "Logistics Dept.",
-    amount: "$7,850.00",
-    status: "Pending",
-  },
-];
-
 const categoryStyles: Record<string, string> = {
+  vendor_payment: "bg-emerald-500",
+  shipper_payment: "bg-blue-500",
+  equipment: "bg-amber-500",
+  other_expenses: "bg-violet-600",
   "Vendor Payment": "bg-emerald-500",
   "Shipper Payment": "bg-blue-500",
   "Other Expenses": "bg-violet-600",
 };
 
-const statusStyles: Record<ApprovalStatus, string> = {
+const statusStyles: Record<string, string> = {
+  pending: "bg-amber-500",
+  under_review: "bg-blue-500",
+  approved: "bg-emerald-500",
+  disputed: "bg-orange-500",
+  rejected: "bg-rose-500",
   Pending: "bg-amber-500",
   Approved: "bg-emerald-500",
   Rejected: "bg-rose-500",
 };
 
-export default function PaymentApprovalsPage() {
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<ApprovalRow | null>(
-    null,
-  );
+const formatCategoryName = (cat: string) => {
+  if (!cat) return "";
+  return cat
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
 
-  const handleReview = (row: ApprovalRow) => {
+const formatStatusName = (st: string) => {
+  if (!st) return "";
+  return st
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+};
+
+const formatCurrency = (val: number) => {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(val || 0);
+};
+
+export default function PaymentApprovalsPage() {
+  const [dateRange, setDateRange] = useState<RDateRange | undefined>();
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedRequestedBy, setSelectedRequestedBy] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [page, setPage] = useState<number>(1);
+  const [limit, setLimit] = useState<number>(10);
+
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<ApprovalRow | null>(null);
+
+  // Filters API
+  const { data: filtersRes, isLoading: isFiltersLoading } = usePaymentApprovalsFiltersQuery();
+  const filtersData = filtersRes?.data;
+
+  // Date range formatted
+  const startDateStr = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
+  const endDateStr = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
+
+  // Approvals List API
+  const queryParams = {
+    category: selectedCategory !== "all" ? selectedCategory : undefined,
+    requestedBy: selectedRequestedBy !== "all" ? selectedRequestedBy : undefined,
+    status: selectedStatus !== "all" ? selectedStatus : undefined,
+    startDate: startDateStr,
+    endDate: endDateStr,
+    page,
+    limit,
+  };
+
+  const { data: approvalsRes, isLoading, isFetching } = usePaymentApprovalsQuery(queryParams);
+  const exportMutation = useExportPaymentApprovalsMutation();
+
+  const approvalsList: PaymentApprovalItem[] = approvalsRes?.data?.approvals || [];
+  const stats = approvalsRes?.data?.stats;
+  const total = approvalsRes?.data?.total || 0;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+
+  const approvalSummary = [
+    {
+      title: "Total Requests",
+      value: stats?.totalRequests !== undefined ? String(stats.totalRequests) : "0",
+      subtitle: "All payment requests",
+      color: "purple" as const,
+      icon: <Filter className="h-4 w-4" />,
+    },
+    {
+      title: "Pending Approval",
+      value: stats?.pendingApproval !== undefined ? String(stats.pendingApproval) : "0",
+      subtitle: formatCurrency(stats?.pendingAmount || 0),
+      color: "green" as const,
+      icon: <Clock3 className="h-4 w-4" />,
+    },
+    {
+      title: "Approved",
+      value: stats?.approved !== undefined ? String(stats.approved) : "0",
+      subtitle: formatCurrency(stats?.approvedAmount || 0),
+      color: "yellow" as const,
+      icon: <CircleCheckBig className="h-4 w-4" />,
+    },
+    {
+      title: "Rejected",
+      value: stats?.rejected !== undefined ? String(stats.rejected) : "0",
+      subtitle: "Rejected requests",
+      color: "red" as const,
+      icon: <CircleX className="h-4 w-4" />,
+    },
+    {
+      title: "Total Amount",
+      value: formatCurrency(stats?.totalAmount || 0),
+      subtitle: "All requests",
+      color: "purple" as const,
+      icon: <Wallet className="h-4 w-4" />,
+    },
+  ];
+
+  const handleReview = (item: PaymentApprovalItem) => {
+    const reqByName = typeof item.requestedBy === "object" ? item.requestedBy?.name : String(item.requestedBy || "N/A");
+    const formattedDate = item.createdAt && isValid(new Date(item.createdAt))
+      ? format(new Date(item.createdAt), "MMM dd, yyyy\nhh:mm a")
+      : "N/A";
+    const formattedDueDate = item.dueDate && isValid(new Date(item.dueDate))
+      ? format(new Date(item.dueDate), "MMM dd, yyyy")
+      : "N/A";
+
     setSelectedPayment({
-      ...row,
-      // Add additional data if needed
+      _id: item._id,
+      paymentId: item.paymentId,
+      requestDate: formattedDate,
+      payee: item.payee,
+      payerType: item.payeeType ? item.payeeType.charAt(0).toUpperCase() + item.payeeType.slice(1) : "Vendor",
+      category: item.category,
+      requestedBy: reqByName,
+      amount: formatCurrency(item.amount),
+      rawAmount: item.amount,
+      status: item.status,
+      invoiceNumber: item.invoiceNumber || item.paymentId,
+      dueDate: formattedDueDate,
+      reviewedBy: item.reviewedBy,
+      reviewedAt: item.reviewedAt,
     });
     setIsDetailOpen(true);
   };
 
-  const renderStatusBadge = (status: ApprovalStatus) => (
-    <Badge
-      className={`${statusStyles[status]} hover:${statusStyles[status]} text-white rounded px-3 py-0.5 h-auto! text-sm font-normal`}
-    >
-      {status}
-    </Badge>
-  );
+  const handleExport = async () => {
+    try {
+      const blob = await exportMutation.mutateAsync({
+        category: selectedCategory !== "all" ? selectedCategory : undefined,
+        requestedBy: selectedRequestedBy !== "all" ? selectedRequestedBy : undefined,
+        status: selectedStatus !== "all" ? selectedStatus : undefined,
+        startDate: startDateStr,
+        endDate: endDateStr,
+      });
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `Payment_Approvals_Export_${format(new Date(), "yyyyMMdd")}.xlsx`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+    } catch (err) {
+      console.error("Export failed:", err);
+    }
+  };
 
-  const renderCategoryBadge = (category: string) => (
-    <Badge
-      className={`${categoryStyles[category] ?? "bg-slate-500"} hover:${categoryStyles[category] ?? "bg-slate-500"} text-white rounded-md px-3 font-normal`}
-    >
-      {category}
-    </Badge>
-  );
+  const renderStatusBadge = (status: string) => {
+    const style = statusStyles[status] || statusStyles[status.toLowerCase()] || "bg-slate-500";
+    return (
+      <Badge
+        className={`${style} hover:${style} text-white rounded px-3 py-0.5 h-auto! text-sm font-normal`}
+      >
+        {formatStatusName(status)}
+      </Badge>
+    );
+  };
+
+  const renderCategoryBadge = (category: string) => {
+    const style = categoryStyles[category] || categoryStyles[category.toLowerCase()] || "bg-slate-500";
+    return (
+      <Badge
+        className={`${style} hover:${style} text-white rounded-md px-3 font-normal`}
+      >
+        {formatCategoryName(category)}
+      </Badge>
+    );
+  };
 
   return (
     <div className="p-5 space-y-5">
@@ -204,8 +269,14 @@ export default function PaymentApprovalsPage() {
         <Button
           variant="outline"
           className="bg-white text-slate-700 border-slate-200"
+          onClick={handleExport}
+          disabled={exportMutation.isPending}
         >
-          <Upload className="w-4 h-4 mr-2" />
+          {exportMutation.isPending ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Upload className="w-4 h-4 mr-2" />
+          )}
           Export
         </Button>
       </div>
@@ -216,22 +287,33 @@ export default function PaymentApprovalsPage() {
             <label className="text-sm font-medium text-slate-700">
               Request Date
             </label>
-            <DateRangeFilter />
+            <DateRangeFilter value={dateRange} onChange={(range) => {
+              setDateRange(range);
+              setPage(1);
+            }} />
           </div>
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">
               Category
             </label>
-            <Select defaultValue="all-categories">
+            <Select
+              value={selectedCategory}
+              onValueChange={(val) => {
+                setSelectedCategory(val);
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="bg-white w-full">
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all-categories">All Categories</SelectItem>
-                <SelectItem value="vendor-payment">Vendor Payment</SelectItem>
-                <SelectItem value="shipper-payment">Shipper Payment</SelectItem>
-                <SelectItem value="other-expenses">Other Expenses</SelectItem>
+                <SelectItem value="all">All Categories</SelectItem>
+                {filtersData?.categories?.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {formatCategoryName(cat)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -240,31 +322,49 @@ export default function PaymentApprovalsPage() {
             <label className="text-sm font-medium text-slate-700">
               Requested By
             </label>
-            <Select defaultValue="all-departments">
+            <Select
+              value={selectedRequestedBy}
+              onValueChange={(val) => {
+                setSelectedRequestedBy(val);
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="bg-white w-full">
-                <SelectValue placeholder="All Departments" />
+                <SelectValue placeholder="All Users" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all-departments">All Departments</SelectItem>
-                <SelectItem value="plant">Plants</SelectItem>
-                <SelectItem value="logistics">Logistics</SelectItem>
-                <SelectItem value="safety">Safety</SelectItem>
-                <SelectItem value="equipment">Equipment</SelectItem>
+                <SelectItem value="all">All Users</SelectItem>
+                {filtersData?.requestedBy?.map((user) => {
+                  const id = user.userId || user._id || "";
+                  return (
+                    <SelectItem key={id} value={id}>
+                      {user.name}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-slate-700">Status</label>
-            <Select defaultValue="all-status">
+            <Select
+              value={selectedStatus}
+              onValueChange={(val) => {
+                setSelectedStatus(val);
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="bg-white w-full">
                 <SelectValue placeholder="All Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all-status">All Status</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="all">All Status</SelectItem>
+                {filtersData?.statuses?.map((st) => (
+                  <SelectItem key={st} value={st}>
+                    {formatStatusName(st)}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -287,7 +387,7 @@ export default function PaymentApprovalsPage() {
       <div className="bg-white">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
           <h2 className="text-base font-semibold text-slate-900">
-            Pending Approval
+            Payment Requests
           </h2>
           <div className="flex items-center gap-2 text-sm text-slate-500">
             <ReceiptText className="h-4 w-4" />
@@ -326,50 +426,74 @@ export default function PaymentApprovalsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {approvalRows.map((row) => (
-                <TableRow
-                  key={row.paymentId}
-                  className="border-b last:border-none"
-                >
-                  <TableCell className="py-4 font-medium text-slate-900 whitespace-nowrap">
-                    {row.paymentId}
-                  </TableCell>
-                  <TableCell className="py-4 text-slate-600 whitespace-pre-line">
-                    {row.requestDate}
-                  </TableCell>
-                  <TableCell className="py-4">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-slate-900">
-                        {row.payee}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        {row.payerType}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-4">
-                    {renderCategoryBadge(row.category)}
-                  </TableCell>
-                  <TableCell className="py-4 text-slate-600">
-                    {row.requestedBy}
-                  </TableCell>
-                  <TableCell className="py-4 font-medium text-slate-900 whitespace-nowrap">
-                    {row.amount}
-                  </TableCell>
-                  <TableCell className="py-4">
-                    {renderStatusBadge(row.status)}
-                  </TableCell>
-                  <TableCell className="py-4">
-                    <Button
-                      variant="outline"
-                      className="h-8 rounded-md border-slate-200 bg-white text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                      onClick={() => handleReview(row)}
-                    >
-                      Review
-                    </Button>
+              {isLoading || isFetching ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-32 text-center">
+                    <Loader2 className="h-6 w-6 animate-spin text-slate-400 mx-auto" />
+                    <span className="text-xs text-slate-400 mt-2 block">
+                      Loading payment approvals...
+                    </span>
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : approvalsList.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-32 text-center text-slate-500">
+                    No payment approval requests found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                approvalsList.map((item) => {
+                  const reqByName = typeof item.requestedBy === "object" ? item.requestedBy?.name : String(item.requestedBy || "N/A");
+                  const formattedDate = item.createdAt && isValid(new Date(item.createdAt))
+                    ? format(new Date(item.createdAt), "MMM dd, yyyy\nhh:mm a")
+                    : "N/A";
+
+                  return (
+                    <TableRow
+                      key={item._id}
+                      className="border-b last:border-none"
+                    >
+                      <TableCell className="py-4 font-medium text-slate-900 whitespace-nowrap">
+                        {item.paymentId}
+                      </TableCell>
+                      <TableCell className="py-4 text-slate-600 whitespace-pre-line text-xs">
+                        {formattedDate}
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-slate-900">
+                            {item.payee}
+                          </span>
+                          <span className="text-xs text-slate-500 capitalize">
+                            {item.payeeType}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="py-4">
+                        {renderCategoryBadge(item.category)}
+                      </TableCell>
+                      <TableCell className="py-4 text-slate-600">
+                        {reqByName}
+                      </TableCell>
+                      <TableCell className="py-4 font-medium text-slate-900 whitespace-nowrap">
+                        {formatCurrency(item.amount)}
+                      </TableCell>
+                      <TableCell className="py-4">
+                        {renderStatusBadge(item.status)}
+                      </TableCell>
+                      <TableCell className="py-4">
+                        <Button
+                          variant="outline"
+                          className="h-8 rounded-md border-slate-200 bg-white text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          onClick={() => handleReview(item)}
+                        >
+                          Review
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </div>
@@ -377,7 +501,13 @@ export default function PaymentApprovalsPage() {
         <div className="flex flex-col gap-3 px-4 py-3 border-t border-slate-100 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center text-sm text-slate-500">
             Showing
-            <Select defaultValue="10">
+            <Select
+              value={limit.toString()}
+              onValueChange={(val) => {
+                setLimit(Number(val));
+                setPage(1);
+              }}
+            >
               <SelectTrigger className="h-8 w-16 mx-2 bg-white">
                 <SelectValue placeholder="10" />
               </SelectTrigger>
@@ -387,48 +517,30 @@ export default function PaymentApprovalsPage() {
                 <SelectItem value="50">50</SelectItem>
               </SelectContent>
             </Select>
-            Results
+            Results (Total: {total})
           </div>
 
           <div className="flex items-center gap-1">
             <Button
               variant="outline"
               size="icon"
-              className="h-8 w-8 rounded-md border-slate-200 text-slate-400"
+              className="h-8 w-8 rounded-md border-slate-200 text-slate-400 disabled:opacity-50"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <Button
-              variant="outline"
-              className="h-8 w-8 rounded-md border-violet-500 text-violet-600 p-0"
-            >
-              1
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 w-8 rounded-md border-transparent text-slate-600 p-0 hover:bg-slate-50"
-            >
-              2
-            </Button>
-            <Button
-              variant="outline"
-              className="h-8 w-8 rounded-md border-transparent text-slate-600 p-0 hover:bg-slate-50"
-            >
-              3
-            </Button>
-            <div className="px-2 text-slate-400">
-              <MoreHorizontal className="h-4 w-4" />
-            </div>
-            <Button
-              variant="outline"
-              className="h-8 w-8 rounded-md border-transparent text-slate-600 p-0 hover:bg-slate-50"
-            >
-              15
-            </Button>
+
+            <span className="text-xs text-slate-600 px-2 font-medium">
+              Page {page} of {totalPages}
+            </span>
+
             <Button
               variant="outline"
               size="icon"
-              className="h-8 w-8 rounded-md border-slate-200 text-slate-600"
+              className="h-8 w-8 rounded-md border-slate-200 text-slate-600 disabled:opacity-50"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -445,13 +557,13 @@ export default function PaymentApprovalsPage() {
             ? {
                 paymentId: selectedPayment.paymentId,
                 payee: selectedPayment.payee,
-                category: selectedPayment.category,
+                category: formatCategoryName(selectedPayment.category),
                 requestedBy: selectedPayment.requestedBy,
-                requestDate: selectedPayment.requestDate,
-                reference: "INV-78945",
-                dueDate: "May 30, 2025",
+                requestDate: selectedPayment.requestDate.replace("\n", " "),
+                reference: selectedPayment.invoiceNumber || "N/A",
+                dueDate: selectedPayment.dueDate || "N/A",
                 amount: selectedPayment.amount,
-                status: selectedPayment.status,
+                status: (formatStatusName(selectedPayment.status) as ApprovalStatus) || "Pending",
               }
             : undefined
         }

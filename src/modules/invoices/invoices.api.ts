@@ -15,6 +15,20 @@ export type CreateInvoiceLineItemPayload = {
   total: number;
 };
 
+export type CreateInvoiceDraftPayload = {
+  date?: string;
+  daysToPay?: number;
+  lineItems?: CreateInvoiceLineItemPayload[];
+  subtotal?: number;
+  markupTotal?: number;
+  tax?: number;
+  discount?: number;
+  depositAmount?: number;
+  totalAmount: number;
+  paymentScheduleId?: string;
+  paymentScheduleStageId?: string;
+};
+
 export type CreateInvoicePayload = {
   leadId: string;
   quotationId: string;
@@ -64,10 +78,111 @@ export async function markInvoicePaidProvider(invoiceId: string) {
   return response.data;
 }
 
-export async function sendInvoiceProvider(invoiceId: string) {
-  const response = await apiClient.post(
-    `/api/invoices/${invoiceId}/send`
+export type SendInvoicePayload = {
+  to?: string;
+  toEmail?: string;
+  cc?: string | string[];
+  ccEmail?: string | string[];
+  ccEmails?: string | string[];
+  message?: string;
+  note?: string;
+  emailMessage?: string;
+  coverNote?: string;
+};
+
+export type MarkInvoiceSentPayload = {
+  note?: string;
+  message?: string;
+  sentAt?: string;
+};
+
+export type SendInvoiceResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    invoice: any;
+    sendMethod?: "platform" | "manual" | null;
+    sentTo?: string;
+    sentCc?: string[];
+    sentMessage?: string;
+    messageIncluded?: boolean;
+    messageSourceKey?: string | null;
+    pdfAttached?: boolean;
+    pdfWarning?: string | null;
+  };
+};
+
+export async function sendInvoiceProvider(invoiceId: string, payload?: SendInvoicePayload) {
+  const response = await apiClient.post<SendInvoiceResponse>(
+    `/api/invoices/${invoiceId}/send`,
+    payload || {}
   );
+  return response.data;
+}
+
+export async function markInvoiceSentProvider(invoiceId: string, payload?: MarkInvoiceSentPayload) {
+  const response = await apiClient.post<SendInvoiceResponse>(
+    `/api/invoices/${invoiceId}/mark-sent`,
+    payload || {}
+  );
+  return response.data;
+}
+
+export type ApprovalStatus = "not_submitted" | "pending_approval" | "approved" | "rejected";
+export type WorkflowStatus =
+  | "draft"
+  | "pending_approval"
+  | "approved"
+  | "rejected"
+  | "sent"
+  | "paid"
+  | "overdue"
+  | "cancelled";
+
+export type ApprovalHistoryItem = {
+  status: ApprovalStatus;
+  note?: string;
+  by?: { _id?: string; name?: string; email?: string } | string;
+  at: string;
+  revision?: number;
+  version?: number;
+};
+
+export type InvoiceApprovalRequest = {
+  status: ApprovalStatus | string;
+  revision: number;
+  submittedAt?: string;
+  submittedBy?: { _id?: string; name?: string; email?: string } | string;
+  note?: string;
+  current?: boolean;
+  closedAt?: string;
+  closedNote?: string;
+};
+
+export type InvoiceApproval = {
+  status: ApprovalStatus;
+  submittedBy?: { _id?: string; name?: string; email?: string } | string;
+  submittedAt?: string;
+  reviewedBy?: { _id?: string; name?: string; email?: string } | string;
+  reviewedAt?: string;
+  rejectionReason?: string;
+  approvedRevision?: number;
+  history?: ApprovalHistoryItem[];
+  approvalRequests?: InvoiceApprovalRequest[];
+};
+
+export async function approveInvoiceProvider(invoiceId: string, payload?: { note?: string }) {
+  const response = await apiClient.put(`/api/invoices/${invoiceId}/approve`, payload || {});
+  return response.data;
+}
+
+export async function rejectInvoiceProvider(invoiceId: string, payload: { reason: string }) {
+  const response = await apiClient.put(`/api/invoices/${invoiceId}/reject`, payload);
+  return response.data;
+}
+
+export async function submitInvoiceApprovalProvider(invoiceId: string, payload?: { note?: string }) {
+  const response = await apiClient.post(`/api/invoices/${invoiceId}/submit-approval`, payload || {});
   return response.data;
 }
 
@@ -75,10 +190,19 @@ export type GetInvoicesParams = {
   startDate?: string;
   endDate?: string;
   status?: string;
+  approvalStatus?: string;
+  pending?: boolean | string;
   leadId?: string;
   search?: string;
   page?: number;
   limit?: number;
+};
+
+export async function getPendingApprovalInvoicesProvider(params?: GetInvoicesParams) {
+  const response = await apiClient.get<GetInvoicesResponse>("/api/invoices/approval/pending", {
+    params,
+  });
+  return response.data;
 };
 
 export type InvoiceListItem = {
@@ -87,6 +211,7 @@ export type InvoiceListItem = {
   dueDate: string;
   amount: number;
   status: string;
+  invoiceStatus?: string;
   invoice: any;
 };
 
@@ -213,3 +338,281 @@ export async function getAdminProjectInvoicesProvider(customerId: string, leadId
   );
   return response.data;
 }
+
+
+
+export type VendorInvoiceItem = {
+  _id: string;
+  leadId: {
+    _id: string;
+    jobId: string;
+    projectName: string;
+  } | null;
+  customerId: string | null;
+  invoiceType: string;
+  category: string;
+  vendorId: {
+    _id: string;
+    vendorName: string;
+  } | null;
+  carrierId: string | null;
+  payeeName: string;
+  quotationId: string | null;
+  createdBy: string;
+  invoiceNumber: string;
+  description: string;
+  date: string;
+  daysToPay: number;
+  dueDate: string;
+  poNumber: string;
+  subtotal: number;
+  markupTotal: number;
+  tax: number;
+  discount: number;
+  depositAmount: number;
+  totalAmount: number;
+  status: string;
+  sentAt: string | null;
+  paidBy: string | null;
+  paidAt: string | null;
+  paymentMethod: string | null;
+  paymentProof?: {
+    status: string;
+    transactionId?: string;
+    paymentDate?: string | null;
+    amount?: number | null;
+    notes?: string;
+    files?: any[];
+  };
+  lineItems?: any[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type VendorInvoiceStats = {
+  totalIncome: number;
+  productSales: number;
+  serviceRevenue: number;
+  otherIncome: number;
+};
+
+export type GetVendorInvoicesParams = {
+  status?: string;
+  projectId?: string;
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+};
+
+export type GetVendorInvoicesResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    stats: VendorInvoiceStats;
+    invoices: VendorInvoiceItem[];
+    total: number;
+    page?: number;
+    limit?: number;
+  };
+};
+
+export async function getVendorInvoicesProvider(params?: GetVendorInvoicesParams) {
+  const response = await apiClient.get<GetVendorInvoicesResponse>(
+    "/api/admin/invoices/vendor",
+    { params }
+  );
+  return response.data;
+}
+
+export async function exportVendorInvoicesProvider(params?: GetVendorInvoicesParams) {
+  const response = await apiClient.get("/api/admin/invoices/vendor/export", {
+    params,
+    responseType: "blob",
+  });
+  return response.data;
+}
+
+export type AdminInvoiceDetailData = {
+  _id: string;
+  leadId: {
+    _id: string;
+    buildingType?: string;
+    location?: string;
+    jobId: string;
+    projectName: string;
+  } | null;
+  customerId: string | null;
+  invoiceType: string;
+  category: string | null;
+  vendorId: {
+    _id: string;
+    vendorName: string;
+    email?: string;
+    phone?: string;
+  } | null;
+  carrierId: {
+    _id: string;
+    carrierName: string;
+    email?: string;
+    phone?: string;
+  } | null;
+  payeeName: string;
+  quotationId: string | null;
+  createdBy: {
+    _id: string;
+    name: string;
+  } | string | null;
+  invoiceNumber: string;
+  description: string;
+  date: string;
+  paymentScheduleId: string | null;
+  paymentScheduleStageId: string | null;
+  daysToPay: number;
+  dueDate: string;
+  poNumber: string;
+  subtotal: number;
+  markupTotal: number;
+  tax: number;
+  discount: number;
+  depositAmount: number;
+  totalAmount: number;
+  status: string;
+  sentAt: string | null;
+  paidBy: string | null;
+  paidAt: string | null;
+  paymentMethod: string | null;
+  paymentProof?: {
+    status: string;
+    transactionId?: string;
+    paymentDate?: string | null;
+    amount?: number | null;
+    notes?: string;
+    submittedAt?: string | null;
+    reviewedBy?: string | null;
+    reviewedAt?: string | null;
+    reviewNotes?: string;
+    files?: any[];
+  };
+  lineItems?: any[];
+  createdAt: string;
+  updatedAt: string;
+  __v?: number;
+};
+
+export type GetAdminInvoiceDetailResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    invoice: AdminInvoiceDetailData;
+  };
+};
+
+export async function getAdminInvoiceDetailProvider(invoiceId: string) {
+  const response = await apiClient.get<GetAdminInvoiceDetailResponse>(
+    `/api/admin/invoices/${invoiceId}`
+  );
+  return response.data;
+}
+
+export async function getAdminVendorInvoiceDetailProvider(invoiceId: string) {
+  return getAdminInvoiceDetailProvider(invoiceId);
+}
+
+
+
+export type CarrierInvoiceItem = {
+  _id: string;
+  leadId: {
+    _id: string;
+    jobId: string;
+    projectName: string;
+  } | null;
+  customerId: string | null;
+  invoiceType: string;
+  category: string | null;
+  vendorId: string | null;
+  carrierId: {
+    _id: string;
+    carrierName: string;
+  } | null;
+  payeeName: string;
+  quotationId: string | null;
+  createdBy: string;
+  invoiceNumber: string;
+  description: string;
+  date: string;
+  paymentScheduleId: string | null;
+  paymentScheduleStageId: string | null;
+  daysToPay: number;
+  dueDate: string;
+  poNumber: string;
+  subtotal: number;
+  markupTotal: number;
+  tax: number;
+  discount: number;
+  depositAmount: number;
+  totalAmount: number;
+  status: string;
+  sentAt: string | null;
+  paidBy: string | null;
+  paidAt: string | null;
+  paymentMethod: string | null;
+  paymentProof?: {
+    status: string;
+    transactionId?: string;
+    paymentDate?: string | null;
+    amount?: number | null;
+    notes?: string;
+    submittedAt?: string | null;
+    reviewedBy?: string | null;
+    reviewedAt?: string | null;
+    reviewNotes?: string;
+    files?: any[];
+  };
+  lineItems?: any[];
+  createdAt: string;
+  updatedAt: string;
+  __v?: number;
+};
+
+export type GetCarrierInvoicesParams = {
+  status?: string;
+  projectId?: string;
+  startDate?: string;
+  endDate?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+};
+
+export type GetCarrierInvoicesResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    invoices: CarrierInvoiceItem[];
+    total: number;
+    page: number;
+    limit: number;
+  };
+};
+
+export async function getCarrierInvoicesProvider(params?: GetCarrierInvoicesParams) {
+  const response = await apiClient.get<GetCarrierInvoicesResponse>(
+    "/api/admin/invoices/freight-carrier",
+    { params }
+  );
+  return response.data;
+}
+
+export async function exportCarrierInvoicesProvider(params?: GetCarrierInvoicesParams) {
+  const response = await apiClient.get("/api/admin/invoices/freight-carrier/export", {
+    params,
+    responseType: "blob",
+  });
+  return response.data;
+}
+
+
+

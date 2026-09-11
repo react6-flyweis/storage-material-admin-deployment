@@ -4,6 +4,23 @@ import {
   getFollowUpStatsProvider,
   getUpcomingFollowUpsProvider,
   createFollowUpProvider,
+  getFollowUpActivitySummaryProvider,
+  getFollowUpActivityDetailProvider,
+  getTemperatureTransitionSummaryProvider,
+  getTemperatureTransitionsListProvider,
+  getFollowUpTemplatesProvider,
+  createFollowUpTemplateProvider,
+  updateFollowUpTemplateProvider,
+  deleteFollowUpTemplateProvider,
+} from "./followups.api";
+import type {
+  FollowUpActivityDetailOptions,
+  FollowUpActivityFilters,
+  FollowUpKind,
+  TemperatureTransitionsQueryParams,
+  GetFollowUpTemplatesParams,
+  CreateFollowUpTemplatePayload,
+  UpdateFollowUpTemplatePayload,
 } from "./followups.api";
 
 export function useFollowUpStatsQuery() {
@@ -38,6 +55,7 @@ export function useCreateFollowUpMutation() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["followups", "admin", "upcoming"] });
       queryClient.invalidateQueries({ queryKey: ["followups", "admin", "stats"] });
+      queryClient.invalidateQueries({ queryKey: ["followups", "activity"] });
       if (variables.leadId) {
         queryClient.invalidateQueries({ queryKey: ["leads", "detail", variables.leadId] });
         queryClient.invalidateQueries({ queryKey: ["lead", "detail", variables.leadId] });
@@ -45,3 +63,132 @@ export function useCreateFollowUpMutation() {
     },
   });
 }
+
+export function useFollowUpActivitySummaryQuery(
+  filters: FollowUpActivityFilters = {},
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: ["followups", "activity", "summary", filters],
+    queryFn: () => getFollowUpActivitySummaryProvider(filters),
+    staleTime: 30 * 1000,
+    enabled: options?.enabled ?? true,
+    retry: 1,
+  });
+}
+
+export function useFollowUpActivityDetailQuery(
+  leadId: string,
+  kind?: FollowUpKind,
+  page = 1,
+  limit = 20,
+  optionsOrEnabled?: FollowUpActivityDetailOptions | boolean,
+  enabledParam?: boolean
+) {
+  const options =
+    typeof optionsOrEnabled === "object" ? optionsOrEnabled : undefined;
+  const enabled =
+    typeof optionsOrEnabled === "boolean"
+      ? optionsOrEnabled
+      : (enabledParam ?? true);
+
+  return useQuery({
+    queryKey: [
+      "followups",
+      "activity",
+      "detail",
+      leadId,
+      kind,
+      page,
+      limit,
+      options?.startDate,
+      options?.endDate,
+      options?.transitionState,
+    ],
+    queryFn: () =>
+      getFollowUpActivityDetailProvider(leadId, kind, page, limit, options),
+    enabled: Boolean(leadId) && enabled,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useTemperatureTransitionSummaryQuery(
+  startDate?: string,
+  endDate?: string,
+  enabled = true
+) {
+  return useQuery({
+    queryKey: ["followups", "temperature-summary", startDate, endDate],
+    queryFn: () => getTemperatureTransitionSummaryProvider(startDate, endDate),
+    enabled: enabled && Boolean(startDate || endDate),
+    staleTime: 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function useTemperatureTransitionsQuery(
+  params: TemperatureTransitionsQueryParams = {},
+  enabled = true
+) {
+  return useQuery({
+    queryKey: ["followups", "temperature-transitions", params],
+    queryFn: () => getTemperatureTransitionsListProvider(params),
+    enabled: enabled && Boolean(params.from && params.to),
+    staleTime: 60 * 1000,
+    retry: 1,
+  });
+}
+
+export function useFollowUpTemplatesQuery(
+  params: GetFollowUpTemplatesParams = { isActive: true, limit: 50 },
+  enabled = true
+) {
+  return useQuery({
+    queryKey: ["followups", "templates", params],
+    queryFn: () => getFollowUpTemplatesProvider(params),
+    staleTime: 60 * 1000,
+    enabled,
+  });
+}
+
+export function useCreateFollowUpTemplateMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreateFollowUpTemplatePayload) =>
+      createFollowUpTemplateProvider(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["followups", "templates"] });
+    },
+  });
+}
+
+export function useUpdateFollowUpTemplateMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      templateId,
+      payload,
+    }: {
+      templateId: string;
+      payload: UpdateFollowUpTemplatePayload;
+    }) => updateFollowUpTemplateProvider(templateId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["followups", "templates"] });
+    },
+  });
+}
+
+export function useDeleteFollowUpTemplateMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (templateId: string) =>
+      deleteFollowUpTemplateProvider(templateId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["followups", "templates"] });
+    },
+  });
+}
+
