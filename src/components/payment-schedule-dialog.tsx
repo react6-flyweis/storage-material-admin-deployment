@@ -22,6 +22,10 @@ type Props = {
   initialType?: "%" | "$";
   initialPayments?: Payment[];
   maxPercent?: number;
+  deposit?: {
+    type: "%" | "$";
+    value: string;
+  };
   onDone: (payload: { type: "%" | "$"; payments: Payment[] }) => void;
 };
 
@@ -30,15 +34,47 @@ export default function PaymentScheduleDialog({
   initialType = "%",
   initialPayments = [],
   maxPercent = 100,
+  deposit,
   onDone,
 }: Props) {
   type FormValues = { type: "%" | "$"; payments: Payment[] };
 
   const [open, setOpen] = React.useState(false);
 
+  const hasDeposit = Boolean(
+    deposit &&
+      deposit.value &&
+      parseFloat(deposit.value) > 0
+  );
+
+  const getNormalizedPayments = React.useCallback(() => {
+    const list = [...(initialPayments || [])];
+    if (hasDeposit && deposit) {
+      const depositIdx = list.findIndex(
+        (p) => p.name.trim().toLowerCase() === "deposit"
+      );
+      if (depositIdx >= 0) {
+        list[depositIdx] = {
+          name: "Deposit",
+          amount: deposit.value,
+        };
+        if (depositIdx !== 0) {
+          const [d] = list.splice(depositIdx, 1);
+          list.unshift(d);
+        }
+      } else {
+        list.unshift({
+          name: "Deposit",
+          amount: deposit.value,
+        });
+      }
+    }
+    return list;
+  }, [initialPayments, hasDeposit, deposit]);
+
   const { control, register, handleSubmit, reset, setValue } =
     useForm<FormValues>({
-      defaultValues: { type: initialType, payments: initialPayments },
+      defaultValues: { type: initialType, payments: getNormalizedPayments() },
       mode: "onChange",
     });
 
@@ -49,19 +85,25 @@ export default function PaymentScheduleDialog({
 
   // reset when props change
   React.useEffect(() => {
-    reset({ type: initialType, payments: initialPayments });
-  }, [initialType, initialPayments, reset]);
+    reset({ type: initialType, payments: getNormalizedPayments() });
+  }, [initialType, getNormalizedPayments, reset]);
 
   // Ensure there's at least one payment row when the dialog opens
   React.useEffect(() => {
-    if (open && fields.length === 0) {
-      // show a single empty row when opening
-      append({ name: "", amount: "" });
+    if (open) {
+      const current = getNormalizedPayments();
+      if (current.length === 0) {
+        append({ name: "", amount: "" });
+      } else if (hasDeposit && current.length === 1) {
+        append({ name: "", amount: "" });
+      }
     }
-  }, [open, fields.length, append]);
+  }, [open, append, hasDeposit, getNormalizedPayments]);
 
   const watchedPayments = useWatch({ control, name: "payments" });
   const watchedType = useWatch({ control, name: "type" }) || initialType;
+
+  const limit = watchedType === "%" ? 100 : maxPercent;
 
   const totalAmount = (watchedPayments || []).reduce(
     (sum: number, p: Payment) => sum + (parseFloat(p.amount || "0") || 0),
@@ -69,25 +111,28 @@ export default function PaymentScheduleDialog({
   );
 
   const error =
-    watchedType === "%" && totalAmount > maxPercent
-      ? `Sum of payments exceeds ${maxPercent}%`
+    watchedType === "%" && totalAmount > limit
+      ? `Sum of payments exceeds ${limit}%`
       : "";
 
   const remainingLabel = React.useMemo(() => {
     if (watchedType === "%") {
-      const rem = Math.max(0, maxPercent - totalAmount);
+      const rem = Math.max(0, limit - totalAmount);
       return `${rem.toFixed(2)}% Remaining`;
     }
     return `${totalAmount.toFixed(2)} Total`;
-  }, [totalAmount, watchedType, maxPercent]);
+  }, [totalAmount, watchedType, limit]);
 
   const onSubmit = (data: FormValues) => {
-    if (watchedType === "%" && totalAmount > maxPercent) return; // prevent submit
+    if (watchedType === "%" && totalAmount > limit) return; // prevent submit
 
-    const cleaned = data.payments.map((p) => ({
-      name: (p.name || "").trim(),
-      amount: (p.amount || "").trim(),
-    }));
+    const cleaned = data.payments
+      .map((p) => ({
+        name: (p.name || "").trim(),
+        amount: (p.amount || "").trim(),
+      }))
+      .filter((p) => p.name || p.amount);
+
     onDone({ type: data.type, payments: cleaned });
     setOpen(false);
   };
@@ -122,7 +167,13 @@ export default function PaymentScheduleDialog({
                         const current = watchedPayments || [];
                         setValue(
                           "payments",
-                          current.map((p) => ({ ...p, amount: "" }))
+                          current.map((p, idx) => ({
+                            ...p,
+                            amount:
+                              hasDeposit && idx === 0 && deposit?.type === "%"
+                                ? deposit.value
+                                : "",
+                          }))
                         );
                       }}
                       className="w-4 h-4"
@@ -141,7 +192,13 @@ export default function PaymentScheduleDialog({
                         const current = watchedPayments || [];
                         setValue(
                           "payments",
-                          current.map((p) => ({ ...p, amount: "" }))
+                          current.map((p, idx) => ({
+                            ...p,
+                            amount:
+                              hasDeposit && idx === 0 && deposit?.type === "$"
+                                ? deposit.value
+                                : "",
+                          }))
                         );
                       }}
                       className="w-4 h-4"
@@ -151,39 +208,68 @@ export default function PaymentScheduleDialog({
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  {fields.map((field, i) => (
-                    <React.Fragment key={field.id}>
-                      <div className="space-y-2">
-                        <Label>Payment Name</Label>
-                        <Input
-                          {...register(`payments.${i}.name` as const)}
-                          placeholder={i === 0 ? "Deposit" : `Payment ${i + 1}`}
-                          className="h-12 rounded-lg"
-                        />
-                      </div>
+                  {fields.map((field, i) => {
+                    const isDepositRow = hasDeposit && i === 0;
 
-                      <div className="space-y-2 relative">
-                        <Label>
-                          {watchedType === "%"
-                            ? "Payment Percentage"
-                            : "Payment Amount"}
-                        </Label>
-                        <Input
-                          {...register(`payments.${i}.amount` as const)}
-                          placeholder={watchedType === "%" ? "25%" : "0.00"}
-                          className="h-12 rounded-lg"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => remove(i)}
-                          className="absolute right-3 top-3 text-gray-400 hover:text-red-500"
-                          aria-label={`remove-payment-${i}`}
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </React.Fragment>
-                  ))}
+                    return (
+                      <React.Fragment key={field.id}>
+                        <div className="space-y-2">
+                          <Label className="flex items-center gap-1.5">
+                            Payment Name
+                            {isDepositRow && (
+                              <span className="text-xs font-normal text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                                Deposit
+                              </span>
+                            )}
+                          </Label>
+                          <Input
+                            {...register(`payments.${i}.name` as const)}
+                            readOnly={isDepositRow}
+                            placeholder={
+                              hasDeposit
+                                ? `Payment ${i + 1}`
+                                : i === 0
+                                ? "Deposit"
+                                : `Payment ${i + 1}`
+                            }
+                            className={`h-12 rounded-lg ${
+                              isDepositRow
+                                ? "bg-gray-50 text-gray-700 cursor-not-allowed border-gray-200"
+                                : ""
+                            }`}
+                          />
+                        </div>
+
+                        <div className="space-y-2 relative">
+                          <Label>
+                            {watchedType === "%"
+                              ? "Payment Percentage"
+                              : "Payment Amount"}
+                          </Label>
+                          <Input
+                            {...register(`payments.${i}.amount` as const)}
+                            readOnly={isDepositRow}
+                            placeholder={watchedType === "%" ? "25%" : "0.00"}
+                            className={`h-12 rounded-lg ${
+                              isDepositRow
+                                ? "bg-gray-50 text-gray-700 cursor-not-allowed border-gray-200"
+                                : ""
+                            }`}
+                          />
+                          {!isDepositRow && (
+                            <button
+                              type="button"
+                              onClick={() => remove(i)}
+                              className="absolute right-3 top-3 text-gray-400 hover:text-red-500"
+                              aria-label={`remove-payment-${i}`}
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
 
                 <div>
