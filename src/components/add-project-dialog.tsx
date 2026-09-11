@@ -17,9 +17,63 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 type Project = {
   id: string;
-  name: string;
-  code?: string;
+  name?: string;
+  projectName?: string;
+  customerName?: string;
+  buildingType?: string;
   location?: string;
+  code?: string;
+  jobId?: string;
+  projectId?: string;
+  status?: string;
+  lifecycleStatus?: string;
+  [key: string]: any;
+};
+
+export const getProjectDisplayName = (project: Project): string => {
+  if (project.projectName?.trim()) {
+    return project.projectName.trim();
+  }
+  const fallbackArr: string[] = [];
+  if (project.customerName && String(project.customerName).trim()) {
+    fallbackArr.push(String(project.customerName).trim());
+  }
+  if (project.buildingType && String(project.buildingType).trim()) {
+    fallbackArr.push(String(project.buildingType).trim());
+  }
+  if (project.location && String(project.location).trim()) {
+    fallbackArr.push(String(project.location).trim());
+  }
+  if (fallbackArr.length > 0) {
+    return fallbackArr.join("-");
+  }
+  if (project.name && String(project.name).trim()) {
+    return String(project.name).trim();
+  }
+  return "Project";
+};
+
+export const getProjectSecondLine = (project: Project): string => {
+  const parts: string[] = [];
+  if (project.customerName && String(project.customerName).trim()) {
+    parts.push(String(project.customerName).trim());
+  }
+  const id =
+    project.jobId ||
+    project.code ||
+    project.projectId ||
+    (project.id ? (project.id.startsWith("PRO-") ? project.id : project.id) : "");
+  if (id && String(id).trim()) {
+    parts.push(String(id).trim());
+  }
+  return parts.join(" • ");
+};
+
+export const getProjectStatus = (project: Project): string => {
+  const rawStatus = project.lifecycleStatus || project.status || "";
+  if (!rawStatus) return "";
+  const cleaned = rawStatus.replace(/_/g, " ").trim();
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 };
 
 type Props = {
@@ -31,11 +85,48 @@ type Props = {
 };
 
 const defaultProjects: Project[] = [
-  { id: "1", name: "Riverside Site A", code: "PRJ-001" },
-  { id: "2", name: "Riverside Site B", code: "PRJ-002" },
-  { id: "3", name: "Oakridge Expansion", code: "PRJ-003" },
-  { id: "4", name: "North Depot Buildout", code: "PRJ-004" },
-  { id: "5", name: "Harbor Steel Yard", code: "PRJ-005" },
+  {
+    id: "1",
+    customerName: "Anamika",
+    code: "PRO-037",
+    jobId: "PRO-037",
+    status: "Proposal sent",
+  },
+  {
+    id: "2",
+    customerName: "Umar",
+    buildingType: "commercial garage",
+    code: "PRO-036",
+    jobId: "PRO-036",
+    status: "Proposal sent",
+  },
+  {
+    id: "3",
+    name: "Oakridge Expansion",
+    projectName: "Oakridge Expansion",
+    customerName: "Acme Corp",
+    code: "PRJ-003",
+    jobId: "PRJ-003",
+    status: "Proposal sent",
+  },
+  {
+    id: "4",
+    name: "North Depot Buildout",
+    projectName: "North Depot Buildout",
+    customerName: "BuildTech",
+    code: "PRJ-004",
+    jobId: "PRJ-004",
+    status: "In progress",
+  },
+  {
+    id: "5",
+    name: "Harbor Steel Yard",
+    projectName: "Harbor Steel Yard",
+    customerName: "SteelYard LLC",
+    code: "PRJ-005",
+    jobId: "PRJ-005",
+    status: "Completed",
+  },
 ];
 
 export default function AddProjectDialog({
@@ -48,7 +139,6 @@ export default function AddProjectDialog({
   const [open, setOpen] = React.useState(false);
   const [showSuccess, setShowSuccess] = React.useState(false);
   const [search, setSearch] = React.useState("");
-  const [menuOpen, setMenuOpen] = React.useState(false);
   const [items, setItems] = React.useState<Project[]>(
     projects ?? defaultProjects,
   );
@@ -67,15 +157,20 @@ export default function AddProjectDialog({
   React.useEffect(() => {
     if (!open) {
       setSearch("");
-      setMenuOpen(false);
     }
   }, [open]);
 
   const filteredItems = items.filter((project) => {
     const query = search.trim().toLowerCase();
     if (!query) return true;
+    const firstLine = getProjectDisplayName(project).toLowerCase();
+    const secondLine = getProjectSecondLine(project).toLowerCase();
+    const status = getProjectStatus(project).toLowerCase();
     return (
-      project.name.toLowerCase().includes(query) ||
+      firstLine.includes(query) ||
+      secondLine.includes(query) ||
+      status.includes(query) ||
+      project.name?.toLowerCase().includes(query) ||
       project.code?.toLowerCase().includes(query) ||
       project.location?.toLowerCase().includes(query)
     );
@@ -85,7 +180,15 @@ export default function AddProjectDialog({
     items.find((project) => project.id === selectedId) ?? items[0] ?? null;
 
   const handleDone = () => {
-    onDone(selectedProject);
+    if (selectedProject) {
+      const displayName = getProjectDisplayName(selectedProject);
+      onDone({
+        ...selectedProject,
+        name: displayName,
+      });
+    } else {
+      onDone(null);
+    }
     setOpen(false);
     setShowSuccess(true);
   };
@@ -124,9 +227,16 @@ export default function AddProjectDialog({
                 Select Project
               </div>
 
-              <Select value={selectedId || undefined} onValueChange={(val) => setSelectedId(val)}>
+              <Select
+                value={selectedId || undefined}
+                onValueChange={(val) => setSelectedId(val)}
+              >
                 <SelectTrigger className="w-full h-11 rounded-xl border-gray-300 bg-white px-4 text-left text-sm text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-                  <SelectValue placeholder="Select a project" />
+                  <SelectValue placeholder="Select a project">
+                    {selectedProject
+                      ? getProjectDisplayName(selectedProject)
+                      : undefined}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent className="max-h-72">
                   {isLoading ? (
@@ -135,11 +245,35 @@ export default function AddProjectDialog({
                       Loading...
                     </div>
                   ) : filteredItems.length > 0 ? (
-                    filteredItems.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.name} {project.code && <span className="ml-2 text-xs text-gray-400">{project.code}</span>}
-                      </SelectItem>
-                    ))
+                    filteredItems.map((project) => {
+                      const firstLine = getProjectDisplayName(project);
+                      const secondLine = getProjectSecondLine(project);
+                      const status = getProjectStatus(project);
+
+                      return (
+                        <SelectItem
+                          key={project.id}
+                          value={project.id}
+                          className="py-2.5 px-3 cursor-pointer items-start"
+                        >
+                          <div className="flex flex-col items-start text-left gap-1 w-full">
+                            <span className="text-sm font-medium text-slate-900 leading-tight">
+                              {firstLine}
+                            </span>
+                            {secondLine && (
+                              <span className="text-sm text-slate-500 font-normal leading-tight">
+                                {secondLine}
+                              </span>
+                            )}
+                            {status && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-purple-100 text-purple-700 leading-none">
+                                {status}
+                              </span>
+                            )}
+                          </div>
+                        </SelectItem>
+                      );
+                    })
                   ) : (
                     <div className="p-3 text-sm text-gray-500 text-center">
                       Data not found
