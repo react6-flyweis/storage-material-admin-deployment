@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useParams, Link } from "react-router";
+import { useParams, useSearchParams, Link } from "react-router";
 import { AddEmployeeDialog } from "@/components/employees/add-employee-dialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,14 @@ import {
   EmployeeAssignedLeadsTab,
   type Lead,
 } from "@/pages/employees/employee-assigned-leads-tab";
-import { EmployeeAssignedProjectsTab } from "@/pages/employees/employee-assigned-projects-tab";
-import { EmployeeAssignedPlantProjectsTab } from "@/pages/employees/employee-assigned-plant-projects-tab";
+import {
+  EmployeeAssignedProjectsTab,
+  AssignedProjectsDateFilter,
+} from "@/pages/employees/employee-assigned-projects-tab";
+import {
+  EmployeeAssignedConstructionProjectsTab,
+  ConstructionProjectsDateFilter,
+} from "@/pages/employees/employee-assigned-construction-projects-tab";
 import { EmployeePersonalTab } from "@/pages/employees/employee-personal-tab";
 import { EmployeePerformanceTab } from "@/pages/employees/employee-performance-tab";
 
@@ -91,9 +97,20 @@ export default function EmployeeProfilePage() {
   const employee = profile?.employee;
   const employeeStats = profile?.stats;
 
-  const [activeTab, setActiveTab] = useState<string>("personal");
+  const [searchParams] = useSearchParams();
+  const tabFromUrl = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<string>(
+    tabFromUrl || "assignedConstructionProjects",
+  );
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [dateRange, setDateRange] = useState<RDateRange | undefined>();
+  const [plantDateRange, setPlantDateRange] = useState<RDateRange | undefined>({
+    from: new Date(2025, 4, 16),
+    to: new Date(2025, 5, 21),
+  });
+  const [constructionDateRange, setConstructionDateRange] = useState<RDateRange | undefined>({
+    from: new Date(2025, 4, 15),
+    to: new Date(2025, 4, 21),
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -103,8 +120,8 @@ export default function EmployeeProfilePage() {
   );
 
   const filteredAssignedLeads = useMemo(() => {
-    const from = dateRange?.from ? new Date(dateRange.from) : undefined;
-    const to = dateRange?.to ? new Date(dateRange.to) : from;
+    const from = plantDateRange?.from ? new Date(plantDateRange.from) : undefined;
+    const to = plantDateRange?.to ? new Date(plantDateRange.to) : from;
 
     if (!from && !to) return assignedLeads;
 
@@ -132,7 +149,7 @@ export default function EmployeeProfilePage() {
       if (Number.isNaN(leadTime)) return true;
       return leadTime >= startTime && leadTime <= endTime;
     });
-  }, [assignedLeads, dateRange]);
+  }, [assignedLeads, plantDateRange]);
 
   const totalPages = Math.max(
     1,
@@ -228,59 +245,69 @@ export default function EmployeeProfilePage() {
       </Card>
 
       <div>
-        <div className="border-b">
-          <nav className="flex -mb-px space-x-6 px-6 overflow-x-auto">
-            <button
-              className={`py-4 text-sm whitespace-nowrap ${
-                activeTab === "personal"
-                  ? "border-b-2 border-blue-500 text-blue-600"
-                  : "text-gray-600"
-              }`}
-              onClick={() => setActiveTab("personal")}
-            >
-              Personal Info
-            </button>
-            <button
-              className={`py-4 text-sm whitespace-nowrap ${
-                activeTab === "assignedLeads"
-                  ? "border-b-2 border-blue-500 text-blue-600"
-                  : "text-gray-600"
-              }`}
-              onClick={() => setActiveTab("assignedLeads")}
-            >
-              Assigned Leads
-            </button>
-            {/* <button
-              className={`py-4 text-sm whitespace-nowrap ${
-                activeTab === "assignedProjects"
-                  ? "border-b-2 border-blue-500 text-blue-600"
-                  : "text-gray-600"
-              }`}
-              onClick={() => setActiveTab("assignedProjects")}
-            >
-              Assigned Projects
-            </button>
-            <button
-              className={`py-4 text-sm whitespace-nowrap ${
-                activeTab === "assignedPlantProjects"
-                  ? "border-b-2 border-blue-500 text-blue-600"
-                  : "text-gray-600"
-              }`}
-              onClick={() => setActiveTab("assignedPlantProjects")}
-            >
-              Assigned plant projects
-            </button> */}
-            <button
-              className={`py-4 text-sm whitespace-nowrap ${
-                activeTab === "performance"
-                  ? "border-b-2 border-blue-500 text-blue-600"
-                  : "text-gray-600"
-              }`}
-              onClick={() => setActiveTab("performance")}
-            >
-              Performance
-            </button>
-          </nav>
+        <div className="border-b border-gray-200/80">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2 sm:px-6">
+            <nav className="flex -mb-px space-x-6 sm:space-x-8 overflow-x-auto">
+              <button
+                className={`py-4 text-sm whitespace-nowrap font-medium transition-colors ${
+                  activeTab === "personal"
+                    ? "border-b-2 border-blue-600 text-blue-600"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+                onClick={() => setActiveTab("personal")}
+              >
+                Personal Info
+              </button>
+              <button
+                className={`py-4 text-sm whitespace-nowrap font-medium transition-colors ${
+                  activeTab === "assignedPlantProjects" || activeTab === "assignedProjects"
+                    ? "border-b-2 border-blue-600 text-blue-600"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+                onClick={() => setActiveTab("assignedPlantProjects")}
+              >
+                Assigned plant projects
+              </button>
+              <button
+                className={`py-4 text-sm whitespace-nowrap font-medium transition-colors ${
+                  activeTab === "assignedConstructionProjects"
+                    ? "border-b-2 border-blue-600 text-blue-600"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+                onClick={() => setActiveTab("assignedConstructionProjects")}
+              >
+                Assigned construction projects
+              </button>
+              <button
+                className={`py-4 text-sm whitespace-nowrap font-medium transition-colors ${
+                  activeTab === "performance"
+                    ? "border-b-2 border-blue-600 text-blue-600"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+                onClick={() => setActiveTab("performance")}
+              >
+                Performance
+              </button>
+            </nav>
+
+            {(activeTab === "assignedPlantProjects" || activeTab === "assignedProjects") && (
+              <div className="pb-3 sm:pb-0">
+                <AssignedProjectsDateFilter
+                  value={plantDateRange}
+                  onChange={setPlantDateRange}
+                />
+              </div>
+            )}
+
+            {activeTab === "assignedConstructionProjects" && (
+              <div className="pb-3 sm:pb-0">
+                <ConstructionProjectsDateFilter
+                  value={constructionDateRange}
+                  onChange={setConstructionDateRange}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="pt-6">
@@ -291,12 +318,28 @@ export default function EmployeeProfilePage() {
             />
           )}
 
+          {(activeTab === "assignedPlantProjects" || activeTab === "assignedProjects") && (
+            <EmployeeAssignedProjectsTab
+              dateRange={plantDateRange}
+              onDateRangeChange={setPlantDateRange}
+              hideDateFilter={true}
+            />
+          )}
+
+          {activeTab === "assignedConstructionProjects" && (
+            <EmployeeAssignedConstructionProjectsTab
+              dateRange={constructionDateRange}
+              onDateRangeChange={setConstructionDateRange}
+              hideDateFilter={true}
+            />
+          )}
+
           {activeTab === "assignedLeads" && (
             <EmployeeAssignedLeadsTab
               leads={paginatedAssignedLeads}
-              dateRange={dateRange}
+              dateRange={plantDateRange}
               onDateRangeChange={(range) => {
-                setDateRange(range);
+                setPlantDateRange(range);
                 setCurrentPage(1);
               }}
               currentPage={safeCurrentPage}
@@ -308,26 +351,6 @@ export default function EmployeeProfilePage() {
               }}
             />
           )}
-
-          {/* {activeTab === "assignedProjects" && (
-            <EmployeeAssignedProjectsTab
-              dateRange={dateRange}
-              onDateRangeChange={(range) => {
-                setDateRange(range);
-                setCurrentPage(1);
-              }}
-            />
-          )}
-
-          {activeTab === "assignedPlantProjects" && (
-            <EmployeeAssignedPlantProjectsTab
-              dateRange={dateRange}
-              onDateRangeChange={(range) => {
-                setDateRange(range);
-                setCurrentPage(1);
-              }}
-            />
-          )} */}
 
           {activeTab === "performance" && (
             <EmployeePerformanceTab stats={employeeStats} />
