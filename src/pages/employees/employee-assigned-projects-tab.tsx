@@ -1,8 +1,13 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import {
   Dialog,
@@ -11,8 +16,17 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Eye, User, Calendar, Building2, MapPin, DollarSign, CheckCircle2 } from "lucide-react";
+import {
+  Eye,
+  User,
+  Calendar,
+  Building2,
+  DollarSign,
+  CheckCircle2,
+} from "lucide-react";
 import type { DateRange as RDateRange } from "react-day-picker";
+import Pagination from "@/components/Pagination";
+import type { PlantAssignedProjectItem } from "@/modules/employees/employees.api";
 
 export interface AssignedProjectItem {
   id: string;
@@ -29,65 +43,6 @@ export interface AssignedProjectItem {
   createdAt?: string;
 }
 
-export const DEFAULT_ASSIGNED_PROJECTS: AssignedProjectItem[] = [
-  {
-    id: "DEL-2001",
-    title: "ABC Constructions",
-    location: "Workshop . Texas",
-    customer: "John Doe",
-    buildings: 1,
-    status: {
-      text: "Approved",
-      bgClass: "bg-[#E8F8EE]",
-      textClass: "text-[#16A34A]",
-    },
-    value: 12500,
-    createdAt: "2025-05-18",
-  },
-  {
-    id: "DEL-2002",
-    title: "PQR Warehouse",
-    location: "Warehouse . Texas",
-    customer: "Roshan Sharma",
-    buildings: 4,
-    status: {
-      text: "BOM Ready",
-      bgClass: "bg-[#FFF4E5]",
-      textClass: "text-[#D97706]",
-    },
-    value: 12500,
-    createdAt: "2025-05-24",
-  },
-  {
-    id: "DEL-2003",
-    title: "XYZ Mall Building",
-    location: "Workshop . Texas",
-    customer: "Riyaz Verma",
-    buildings: 2,
-    status: {
-      text: "Shipper File Received",
-      bgClass: "bg-[#F4EEFB]",
-      textClass: "text-[#9333EA]",
-    },
-    value: 12500,
-    createdAt: "2025-06-02",
-  },
-  {
-    id: "DEL-2004",
-    title: "MNP Warehouse",
-    location: "Workshop . Texas",
-    customer: "Riya Wellness",
-    buildings: 1,
-    status: {
-      text: "Shipper File Received",
-      bgClass: "bg-[#F4EEFB]",
-      textClass: "text-[#9333EA]",
-    },
-    value: 12500,
-    createdAt: "2025-06-15",
-  },
-];
-
 const formatCurrency = (amount?: number) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -103,7 +58,7 @@ const formatDateToDDMMYYYY = (date: Date): string => {
 };
 
 export const formatAssignedProjectsDateRange = (range?: RDateRange): string => {
-  if (!range?.from && !range?.to) return "16/05/2025 - 21/06/2025";
+  if (!range?.from && !range?.to) return "Select date range";
   const from = range.from ? formatDateToDDMMYYYY(range.from) : "";
   const to = range.to ? formatDateToDDMMYYYY(range.to) : "";
   return from && to ? `${from} - ${to}` : from || to;
@@ -114,7 +69,10 @@ interface DatePickerButtonProps {
   onChange?: (range: RDateRange | undefined) => void;
 }
 
-export function AssignedProjectsDateFilter({ value, onChange }: DatePickerButtonProps) {
+export function AssignedProjectsDateFilter({
+  value,
+  onChange,
+}: DatePickerButtonProps) {
   const [open, setOpen] = useState(false);
   const [draftRange, setDraftRange] = useState<RDateRange | undefined>(value);
 
@@ -126,12 +84,8 @@ export function AssignedProjectsDateFilter({ value, onChange }: DatePickerButton
   };
 
   const handleReset = () => {
-    const defaultRange = {
-      from: new Date(2025, 4, 16),
-      to: new Date(2025, 5, 21),
-    };
-    setDraftRange(defaultRange);
-    onChange?.(defaultRange);
+    setDraftRange(undefined);
+    onChange?.(undefined);
     setOpen(false);
   };
 
@@ -146,7 +100,10 @@ export function AssignedProjectsDateFilter({ value, onChange }: DatePickerButton
           <span>{displayValue}</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-4 bg-white rounded-xl shadow-xl border border-gray-100" align="end">
+      <PopoverContent
+        className="w-auto p-4 bg-white rounded-xl shadow-xl border border-gray-100"
+        align="end"
+      >
         <div className="space-y-3">
           <CalendarComponent
             mode="range"
@@ -192,6 +149,12 @@ export function AssignedProjectsDateFilter({ value, onChange }: DatePickerButton
 }
 
 interface EmployeeAssignedProjectsTabProps {
+  items?: PlantAssignedProjectItem[];
+  total?: number;
+  currentPage?: number;
+  rowsPerPage?: number;
+  onPageChange?: (page: number) => void;
+  onRowsPerPageChange?: (limit: number) => void;
   projects?: AssignedProjectItem[];
   dateRange?: RDateRange;
   onDateRangeChange?: (range: RDateRange | undefined) => void;
@@ -199,33 +162,83 @@ interface EmployeeAssignedProjectsTabProps {
 }
 
 export function EmployeeAssignedProjectsTab({
-  projects = DEFAULT_ASSIGNED_PROJECTS,
+  items,
+  total,
+  currentPage,
+  rowsPerPage,
+  onPageChange,
+  onRowsPerPageChange,
+  projects,
   dateRange,
   onDateRangeChange,
   hideDateFilter = false,
 }: EmployeeAssignedProjectsTabProps) {
+  const navigate = useNavigate();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [activeProject, setActiveProject] = useState<AssignedProjectItem | null>(null);
+  const [activeProject, setActiveProject] =
+    useState<AssignedProjectItem | null>(null);
+
+  const mappedProjects = useMemo<AssignedProjectItem[]>(() => {
+    if (items) {
+      return items.map(
+        (item, idx): AssignedProjectItem => ({
+          id: item.leadId || `plant-proj-${idx}`,
+          title: item.projectName,
+          location: "Plant Project",
+          customer: item.customerName,
+          buildings: item.buildingsCount ?? 1,
+          status: {
+            text: item.statusLabel || item.status,
+            bgClass: item.statusLabel?.toLowerCase().includes("ready")
+              ? "bg-[#FFF4E5]"
+              : item.statusLabel?.toLowerCase().includes("approved")
+                ? "bg-[#E8F8EE]"
+                : "bg-[#F4EEFB]",
+            textClass: item.statusLabel?.toLowerCase().includes("ready")
+              ? "text-[#D97706]"
+              : item.statusLabel?.toLowerCase().includes("approved")
+                ? "text-[#16A34A]"
+                : "text-[#9333EA]",
+          },
+          value: item.projectValue ?? 0,
+        }),
+      );
+    }
+    return projects ?? [];
+  }, [items, projects]);
 
   const filteredProjects = useMemo(() => {
-    if (!dateRange?.from && !dateRange?.to) {
-      return projects;
+    if (items) {
+      // If server-side items are provided, they are already filtered by backend
+      return mappedProjects ?? [];
     }
-    const fromTime = dateRange.from ? new Date(dateRange.from).setHours(0, 0, 0, 0) : undefined;
-    const toTime = dateRange.to ? new Date(dateRange.to).setHours(23, 59, 59, 999) : fromTime;
+    if (!dateRange?.from && !dateRange?.to) {
+      return mappedProjects ?? [];
+    }
+    const fromTime = dateRange.from
+      ? new Date(dateRange.from).setHours(0, 0, 0, 0)
+      : undefined;
+    const toTime = dateRange.to
+      ? new Date(dateRange.to).setHours(23, 59, 59, 999)
+      : fromTime;
 
-    return projects.filter((project) => {
-      if (!project.createdAt || fromTime === undefined || toTime === undefined) {
+    return (mappedProjects ?? []).filter((project) => {
+      if (
+        !project.createdAt ||
+        fromTime === undefined ||
+        toTime === undefined
+      ) {
         return true;
       }
       const itemTime = new Date(project.createdAt).getTime();
       if (Number.isNaN(itemTime)) return true;
       return itemTime >= fromTime && itemTime <= toTime;
     });
-  }, [projects, dateRange]);
+  }, [items, mappedProjects, dateRange]);
 
   const isAllSelected =
-    filteredProjects.length > 0 && selectedIds.length === filteredProjects.length;
+    (filteredProjects ?? []).length > 0 &&
+    selectedIds.length === (filteredProjects ?? []).length;
 
   const toggleSelectAll = () => {
     if (isAllSelected) {
@@ -353,9 +366,12 @@ export function EmployeeAssignedProjectsTab({
                     <td className="py-5 pl-4 pr-6">
                       <button
                         type="button"
-                        onClick={() => setActiveProject(project)}
-                        aria-label={`View details for ${project.title}`}
-                        className="p-1 rounded-md text-[#5551FF] hover:text-[#3B38D9] hover:bg-[#F3F4FD] transition-colors focus:outline-none"
+                        onClick={() =>
+                          navigate(`/plant/projects/${project.id}`)
+                        }
+                        title="View Project Details"
+                        aria-label={`View project details for ${project.title}`}
+                        className="p-1 rounded-md text-[#5551FF] hover:text-[#3B38D9] hover:bg-[#F3F4FD] transition-colors focus:outline-none cursor-pointer"
                       >
                         <Eye className="w-5 h-5 stroke-[1.8]" />
                       </button>
@@ -378,6 +394,24 @@ export function EmployeeAssignedProjectsTab({
           </table>
         </div>
       </Card>
+
+      {total !== undefined &&
+        total > 0 &&
+        currentPage &&
+        rowsPerPage &&
+        onPageChange &&
+        onRowsPerPageChange && (
+          <div className="bg-white">
+            <Pagination
+              totalItems={total}
+              currentPage={currentPage}
+              rowsPerPage={rowsPerPage}
+              rowsPerPageOptions={[10, 20, 50]}
+              onPageChange={onPageChange}
+              onRowsPerPageChange={onRowsPerPageChange}
+            />
+          </div>
+        )}
 
       {/* Project Details Modal */}
       <Dialog
@@ -413,7 +447,8 @@ export function EmployeeAssignedProjectsTab({
                     Buildings
                   </div>
                   <div className="font-semibold text-gray-900 text-sm">
-                    {activeProject.buildings} Building{activeProject.buildings > 1 ? "s" : ""}
+                    {activeProject.buildings} Building
+                    {activeProject.buildings > 1 ? "s" : ""}
                   </div>
                 </div>
 
@@ -440,7 +475,7 @@ export function EmployeeAssignedProjectsTab({
                 </div>
               </div>
 
-              <div className="flex justify-end pt-2">
+              <div className="flex justify-end gap-2 pt-2">
                 <Button
                   type="button"
                   variant="outline"
@@ -448,6 +483,16 @@ export function EmployeeAssignedProjectsTab({
                   className="rounded-lg text-sm"
                 >
                   Close
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    navigate(`/plant/projects/${activeProject.id}`);
+                    setActiveProject(null);
+                  }}
+                  className="bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-sm"
+                >
+                  View Project Details
                 </Button>
               </div>
             </div>
