@@ -16,6 +16,8 @@ import type { DateRange as RDateRange } from "react-day-picker";
 import { DeliveryDetailsDialog } from "@/components/delivery-details-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import Pagination from "@/components/Pagination";
+import type { ConstructionAssignedDeliveryItem } from "@/modules/employees/employees.api";
 
 export interface ConstructionProjectBadge {
   text: string;
@@ -44,126 +46,6 @@ export interface ConstructionProjectItem {
   createdAt?: string;
 }
 
-export const DEFAULT_CONSTRUCTION_PROJECTS: ConstructionProjectItem[] = [
-  {
-    id: "DEL-2001",
-    title: "Primary Frame Steel",
-    location: "ABC Logistics Warehouse",
-    badges: [
-      {
-        text: "In Transit to Plant",
-        className: "bg-[#2857C5] hover:bg-[#2857C5] text-white",
-      },
-      {
-        text: "High Priority",
-        className: "bg-[#EF4444] hover:bg-[#EF4444] text-white",
-      },
-      {
-        text: "ETA 45 min",
-        className:
-          "bg-[#FFFBEB] hover:bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]",
-        icon: Clock,
-      },
-    ],
-    material: { quantity: "45,000 lbs", stagingArea: "Yard-A" },
-    schedule: { arrival: "Mar 24, 10:00 AM", departure: "Mar 24, 02:00 PM" },
-    route: {
-      carrier: "FastFreight Logistics",
-      destination: "Construction Site A",
-    },
-    truckDetails: {
-      truck: "TX-4582",
-      driver: "John Miller",
-      phone: "+1 555-812-9921",
-      destination: "Construction Site A",
-    },
-    notes: "Fragile – handle with care",
-    createdAt: "2025-05-16",
-  },
-  {
-    id: "DEL-2002",
-    title: "Glass Panels",
-    location: "Downtown Office Complex",
-    badges: [
-      {
-        text: "Staged at Plant",
-        className: "bg-[#16A34A] hover:bg-[#16A34A] text-white",
-      },
-      {
-        text: "Delayed 30 minutes",
-        className:
-          "bg-[#FFFBEB] hover:bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]",
-        icon: AlertTriangle,
-      },
-    ],
-    material: { quantity: "8,500 lbs", stagingArea: "Warehouse-2" },
-    schedule: { arrival: "Mar 24, 08:00 AM", departure: "Mar 24, 11:00 AM" },
-    route: { carrier: "Regional Freight", destination: "Construction Site B" },
-    truckDetails: {
-      truck: "TX-4582",
-      driver: "John Miller",
-      phone: "+1 555-812-9921",
-      destination: "Construction Site A",
-    },
-    notes: "Fragile – handle with care",
-    createdAt: "2025-05-18",
-  },
-  {
-    id: "DEL-2003",
-    title: "Concrete Blocks",
-    location: "Industrial Park Phase 2",
-    badges: [
-      {
-        text: "Scheduled",
-        className: "bg-[#9CA3AF] hover:bg-[#9CA3AF] text-white",
-      },
-    ],
-    material: { quantity: "15,000 lbs", stagingArea: "Yard-B" },
-    schedule: { arrival: "Mar 25, 09:00 AM", departure: "Mar 25, 01:00 PM" },
-    route: {
-      carrier: "Local Delivery Services",
-      destination: "Construction Site C",
-    },
-    truckDetails: {
-      truck: "TX-4582",
-      driver: "John Miller",
-      phone: "+1 555-812-9921",
-      destination: "Construction Site A",
-    },
-    notes: "Standard handling",
-    createdAt: "2025-05-20",
-  },
-  {
-    id: "DEL-2004",
-    title: "Roll-up Doors (3 units)",
-    location: "ABC Logistics Warehouse",
-    badges: [
-      {
-        text: "Ready for Departure",
-        className: "bg-[#F97316] hover:bg-[#F97316] text-white",
-      },
-      {
-        text: "High Priority",
-        className: "bg-[#EF4444] hover:bg-[#EF4444] text-white",
-      },
-    ],
-    material: { quantity: "2,500 lbs", stagingArea: "Warehouse-1" },
-    schedule: { arrival: "Mar 23, 03:00 PM", departure: "Mar 24, 07:00 AM" },
-    route: {
-      carrier: "QuickTransport Co.",
-      destination: "Construction Site A",
-    },
-    truckDetails: {
-      truck: "TX-4582",
-      driver: "John Miller",
-      phone: "+1 555-812-9921",
-      destination: "Construction Site A",
-    },
-    notes: "Pickup scheduled for tomorrow",
-    createdAt: "2025-05-21",
-  },
-];
-
 const formatDateToDDMMYYYY = (date: Date): string => {
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -172,7 +54,7 @@ const formatDateToDDMMYYYY = (date: Date): string => {
 };
 
 export const formatConstructionDateRange = (range?: RDateRange): string => {
-  if (!range?.from && !range?.to) return "15/05/2025 - 21/05/2025";
+  if (!range?.from && !range?.to) return "Select date range";
   const from = range.from ? formatDateToDDMMYYYY(range.from) : "";
   const to = range.to ? formatDateToDDMMYYYY(range.to) : "";
   return from && to ? `${from} - ${to}` : from || to;
@@ -196,12 +78,8 @@ export function ConstructionProjectsDateFilter({
   };
 
   const handleReset = () => {
-    const defaultRange = {
-      from: new Date(2025, 4, 15),
-      to: new Date(2025, 4, 21),
-    };
-    setDraftRange(defaultRange);
-    onChange?.(defaultRange);
+    setDraftRange(undefined);
+    onChange?.(undefined);
     setOpen(false);
   };
 
@@ -216,7 +94,10 @@ export function ConstructionProjectsDateFilter({
           <span>{displayValue}</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-4 bg-white rounded-xl shadow-xl border border-gray-100" align="end">
+      <PopoverContent
+        className="w-auto p-4 bg-white rounded-xl shadow-xl border border-gray-100"
+        align="end"
+      >
         <div className="space-y-3">
           <CalendarComponent
             mode="range"
@@ -262,6 +143,12 @@ export function ConstructionProjectsDateFilter({
 }
 
 interface EmployeeAssignedConstructionProjectsTabProps {
+  items?: ConstructionAssignedDeliveryItem[];
+  total?: number;
+  currentPage?: number;
+  rowsPerPage?: number;
+  onPageChange?: (page: number) => void;
+  onRowsPerPageChange?: (limit: number) => void;
   projects?: ConstructionProjectItem[];
   dateRange?: RDateRange;
   onDateRangeChange?: (range: RDateRange | undefined) => void;
@@ -269,29 +156,138 @@ interface EmployeeAssignedConstructionProjectsTabProps {
 }
 
 export function EmployeeAssignedConstructionProjectsTab({
-  projects = DEFAULT_CONSTRUCTION_PROJECTS,
+  items,
+  total,
+  currentPage,
+  rowsPerPage,
+  onPageChange,
+  onRowsPerPageChange,
+  projects,
   dateRange,
   onDateRangeChange,
   hideDateFilter = false,
 }: EmployeeAssignedConstructionProjectsTabProps) {
-  const [selectedProject, setSelectedProject] = useState<ConstructionProjectItem | null>(null);
+  const [selectedProject, setSelectedProject] =
+    useState<ConstructionProjectItem | null>(null);
+
+  const mappedProjects = useMemo<ConstructionProjectItem[]>(() => {
+    if (items) {
+      return items.map((item, idx): ConstructionProjectItem => {
+        const id = item.deliveryNumber || item.deliveryId || `DEL-${idx + 1}`;
+        const title =
+          item.projectName ||
+          (item.customerName ? `${item.customerName} Delivery` : `Delivery #${id}`);
+        const statusText = item.statusLabel || item.status || "Scheduled";
+        const statusLower = statusText.toLowerCase();
+
+        let badgeClass = "bg-gray-100 text-gray-700 border border-gray-200";
+        if (statusLower.includes("deliver") || statusLower.includes("complet")) {
+          badgeClass = "bg-[#E8F8EE] text-[#16A34A] border border-green-200";
+        } else if (statusLower.includes("transit") || statusLower.includes("route")) {
+          badgeClass = "bg-[#EFF6FF] text-[#2563EB] border border-blue-200";
+        } else if (statusLower.includes("delay")) {
+          badgeClass = "bg-[#FEF2F2] text-[#DC2626] border border-red-200";
+        } else if (statusLower.includes("sched") || statusLower.includes("pend")) {
+          badgeClass = "bg-[#FFF4E5] text-[#D97706] border border-amber-200";
+        }
+
+        return {
+          id,
+          title,
+          location:
+            item.customerName ||
+            (typeof item.destination === "string" ? item.destination : "Site Location"),
+          badges: [
+            {
+              text: statusText,
+              className: badgeClass,
+              icon: Truck,
+            },
+          ],
+          material: {
+            quantity:
+              item.weight ||
+              item.material ||
+              (typeof item.quantity === "string" ? item.quantity : "N/A"),
+            stagingArea:
+              typeof item.stagingArea === "string" ? item.stagingArea : "N/A",
+          },
+          schedule: {
+            arrival: item.deliveryDate
+              ? new Date(item.deliveryDate).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : typeof item.arrival === "string"
+                ? item.arrival
+                : "Pending",
+            departure:
+              typeof item.departure === "string" ? item.departure : "Dispatched",
+          },
+          route: {
+            carrier:
+              item.transporter ||
+              (typeof item.carrier === "string"
+                ? item.carrier
+                : "Standard Freight"),
+            destination:
+              typeof item.destination === "string"
+                ? item.destination
+                : item.customerName || "Construction Site",
+          },
+          truckDetails: {
+            truck:
+              item.truckNo ||
+              (typeof item.truck === "string" ? item.truck : "N/A"),
+            driver: item.driver || "N/A",
+            phone: typeof item.phone === "string" ? item.phone : "N/A",
+            destination:
+              typeof item.destination === "string"
+                ? item.destination
+                : item.customerName || "Construction Site",
+          },
+          notes:
+            typeof item.notes === "string"
+              ? item.notes
+              : item.material
+                ? `Material: ${item.material}`
+                : "Standard delivery instructions apply.",
+          createdAt: item.deliveryDate,
+        };
+      });
+    }
+    return projects ?? [];
+  }, [items, projects]);
 
   const filteredProjects = useMemo(() => {
-    if (!dateRange?.from && !dateRange?.to) {
-      return projects;
+    if (items) {
+      // Server-side items are already filtered by backend
+      return mappedProjects;
     }
-    const fromTime = dateRange.from ? new Date(dateRange.from).setHours(0, 0, 0, 0) : undefined;
-    const toTime = dateRange.to ? new Date(dateRange.to).setHours(23, 59, 59, 999) : fromTime;
+    if (!dateRange?.from && !dateRange?.to) {
+      return mappedProjects ?? [];
+    }
+    const fromTime = dateRange.from
+      ? new Date(dateRange.from).setHours(0, 0, 0, 0)
+      : undefined;
+    const toTime = dateRange.to
+      ? new Date(dateRange.to).setHours(23, 59, 59, 999)
+      : fromTime;
 
-    return projects.filter((project) => {
-      if (!project.createdAt || fromTime === undefined || toTime === undefined) {
+    return (mappedProjects ?? []).filter((project) => {
+      if (
+        !project.createdAt ||
+        fromTime === undefined ||
+        toTime === undefined
+      ) {
         return true;
       }
       const itemTime = new Date(project.createdAt).getTime();
       if (Number.isNaN(itemTime)) return true;
       return itemTime >= fromTime && itemTime <= toTime;
     });
-  }, [projects, dateRange]);
+  }, [items, mappedProjects, dateRange]);
 
   return (
     <div className="space-y-5">
@@ -305,7 +301,7 @@ export function EmployeeAssignedConstructionProjectsTab({
       )}
 
       <div className="space-y-4">
-        {filteredProjects.map((project) => (
+        {(filteredProjects ?? []).map((project) => (
           <Card
             key={project.id}
             className="p-6 bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-gray-100/90"
@@ -321,7 +317,7 @@ export function EmployeeAssignedConstructionProjectsTab({
                     <h3 className="text-lg font-bold text-gray-900 tracking-tight">
                       {project.title}
                     </h3>
-                    {project.badges.map((badge, idx) => (
+                    {project.badges?.map((badge, idx) => (
                       <Badge
                         key={idx}
                         className={`${badge.className} rounded-full text-xs font-semibold px-2.5 py-0.5 shadow-none flex items-center gap-1`}
@@ -510,12 +506,30 @@ export function EmployeeAssignedConstructionProjectsTab({
           </Card>
         ))}
 
-        {filteredProjects.length === 0 && (
+        {(!filteredProjects || filteredProjects.length === 0) && (
           <Card className="p-12 text-center text-sm text-gray-500 font-medium bg-white rounded-2xl border border-gray-100">
             No assigned construction projects found for the selected date range.
           </Card>
         )}
       </div>
+
+      {total !== undefined &&
+        total > 0 &&
+        currentPage &&
+        rowsPerPage &&
+        onPageChange &&
+        onRowsPerPageChange && (
+          <div className="bg-white">
+            <Pagination
+              totalItems={total}
+              currentPage={currentPage}
+              rowsPerPage={rowsPerPage}
+              rowsPerPageOptions={[10, 20, 50]}
+              onPageChange={onPageChange}
+              onRowsPerPageChange={onRowsPerPageChange}
+            />
+          </div>
+        )}
 
       <DeliveryDetailsDialog
         open={!!selectedProject}
