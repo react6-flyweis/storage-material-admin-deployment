@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,86 +11,153 @@ import {
   useVerifyOtpMutation,
 } from "@/modules/auth/auth.hooks";
 import authBg from "@/assets/images/auth-bg.jpg";
+import { ADMIN_USER_ROLE } from "@/modules/auth/auth.types";
+import { getApiErrorMessage } from "@/lib/api-error";
+
+const forgotPasswordSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, "Email is required")
+    .email("Please enter a valid email address"),
+});
+
+const verifyOtpSchema = z.object({
+  otp: z
+    .string()
+    .trim()
+    .min(1, "Please enter a valid OTP")
+    .length(6, "OTP must be 6 digits"),
+});
+
+type ForgotPasswordFormData = z.infer<typeof forgotPasswordSchema>;
+type VerifyOtpFormData = z.infer<typeof verifyOtpSchema>;
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
   const [step, setStep] = useState<"request" | "verify">("request");
-  const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [submittedEmail, setSubmittedEmail] = useState("");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const forgotPasswordMutation = useForgotPasswordMutation();
   const verifyOtpMutation = useVerifyOtpMutation();
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
+  const requestForm = useForm<ForgotPasswordFormData>({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      email: "",
+    },
+  });
+
+  const verifyForm = useForm<VerifyOtpFormData>({
+    resolver: zodResolver(verifyOtpSchema),
+    defaultValues: {
+      otp: "",
+    },
+  });
+
+  const handleEmailSubmit = async (data: ForgotPasswordFormData) => {
     setSuccessMessage(null);
+    requestForm.clearErrors();
 
     try {
-      const response = await forgotPasswordMutation.mutateAsync({ email });
+      const response = await forgotPasswordMutation.mutateAsync({
+        email: data.email,
+        role: ADMIN_USER_ROLE,
+      });
+
       if (response.success) {
-        setSuccessMessage(response.message || "If that email exists, an OTP has been sent");
+        setSubmittedEmail(data.email);
+        setSuccessMessage(
+          response.message || "If that email exists, an OTP has been sent",
+        );
+        verifyForm.reset();
         setStep("verify");
       } else {
-        setErrorMessage(response.message || "Failed to send OTP. Please try again.");
+        requestForm.setError("root", {
+          type: "manual",
+          message: response.message || "Failed to send OTP. Please try again.",
+        });
       }
-    } catch (err: any) {
-      setErrorMessage(
-        err?.response?.data?.message || "Failed to send OTP. Please try again."
+    } catch (err: unknown) {
+      const message = getApiErrorMessage(
+        err,
+        "Failed to send OTP. Please try again.",
       );
+      requestForm.setError("root", {
+        type: "manual",
+        message,
+      });
     }
   };
 
-  const handleOtpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
+  const handleOtpSubmit = async (data: VerifyOtpFormData) => {
     setSuccessMessage(null);
-
-    if (!otp || otp.trim().length === 0) {
-      setErrorMessage("Please enter a valid OTP.");
-      return;
-    }
+    verifyForm.clearErrors();
 
     try {
       const response = await verifyOtpMutation.mutateAsync({
-        email,
-        otp: otp.trim(),
+        email: submittedEmail,
+        otp: data.otp.trim(),
+        role: ADMIN_USER_ROLE,
       });
 
       if (response.success && response.data?.resetToken) {
         navigate("/reset-password", {
-          state: { resetToken: response.data.resetToken, email },
+          state: {
+            resetToken: response.data.resetToken,
+            email: submittedEmail,
+            role: ADMIN_USER_ROLE,
+          },
         });
       } else {
-        setErrorMessage(response.message || "Invalid OTP");
+        verifyForm.setError("root", {
+          type: "manual",
+          message: response.message || "Invalid OTP",
+        });
       }
-    } catch (err: any) {
-      setErrorMessage(
-        err?.response?.data?.message || "Invalid OTP"
-      );
+    } catch (err: unknown) {
+      const message = getApiErrorMessage(err, "Invalid OTP");
+      verifyForm.setError("root", {
+        type: "manual",
+        message,
+      });
     }
   };
 
   const handleResendOtp = async () => {
-    if (!email) return;
-    setErrorMessage(null);
+    if (!submittedEmail) return;
     setSuccessMessage(null);
+    verifyForm.clearErrors();
 
     try {
-      const response = await forgotPasswordMutation.mutateAsync({ email });
+      const response = await forgotPasswordMutation.mutateAsync({
+        email: submittedEmail,
+        role: ADMIN_USER_ROLE,
+      });
+
       if (response.success) {
         setSuccessMessage(response.message || "OTP resent successfully");
       } else {
-        setErrorMessage(response.message || "Failed to resend OTP.");
+        verifyForm.setError("root", {
+          type: "manual",
+          message: response.message || "Failed to resend OTP.",
+        });
       }
-    } catch (err: any) {
-      setErrorMessage(
-        err?.response?.data?.message || "Failed to resend OTP."
-      );
+    } catch (err: unknown) {
+      const message = getApiErrorMessage(err, "Failed to resend OTP.");
+      verifyForm.setError("root", {
+        type: "manual",
+        message,
+      });
     }
   };
+
+  const requestRootError = requestForm.formState.errors.root?.message;
+  const requestEmailError = requestForm.formState.errors.email?.message;
+
+  const verifyRootError = verifyForm.formState.errors.root?.message;
+  const verifyOtpError = verifyForm.formState.errors.otp?.message;
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden">
@@ -112,7 +182,10 @@ export default function ForgotPassword() {
               </p>
             </div>
 
-            <form onSubmit={handleEmailSubmit} className="space-y-6">
+            <form
+              onSubmit={requestForm.handleSubmit(handleEmailSubmit)}
+              className="space-y-6"
+            >
               <div>
                 <Label
                   htmlFor="email"
@@ -124,27 +197,30 @@ export default function ForgotPassword() {
                   id="email"
                   type="email"
                   placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  {...requestForm.register("email")}
                   className="mt-1.5 h-12 rounded border-gray-200 placeholder:text-gray-400"
-                  required
                 />
+                {requestEmailError && (
+                  <p className="mt-1 text-sm text-red-500">{requestEmailError}</p>
+                )}
               </div>
 
-              {errorMessage ? (
-                <p className="text-sm text-red-500">{errorMessage}</p>
-              ) : null}
+              {requestRootError && (
+                <p className="text-sm text-red-500">{requestRootError}</p>
+              )}
 
-              {successMessage ? (
+              {successMessage && (
                 <p className="text-sm text-green-600">{successMessage}</p>
-              ) : null}
+              )}
 
               <Button
                 type="submit"
                 disabled={forgotPasswordMutation.isPending}
                 className="h-12 w-full bg-blue-500 text-base font-medium hover:bg-blue-600"
               >
-                {forgotPasswordMutation.isPending ? "Sending OTP..." : "Send OTP"}
+                {forgotPasswordMutation.isPending
+                  ? "Sending OTP..."
+                  : "Send OTP"}
               </Button>
 
               <div className="text-center">
@@ -165,11 +241,16 @@ export default function ForgotPassword() {
               </h1>
               <p className="mt-2 text-sm text-gray-500">
                 Enter the OTP sent to{" "}
-                <span className="font-medium text-gray-900">{email}</span>
+                <span className="font-medium text-gray-900">
+                  {submittedEmail}
+                </span>
               </p>
             </div>
 
-            <form onSubmit={handleOtpSubmit} className="space-y-6">
+            <form
+              onSubmit={verifyForm.handleSubmit(handleOtpSubmit)}
+              className="space-y-6"
+            >
               <div>
                 <Label
                   htmlFor="otp"
@@ -179,27 +260,25 @@ export default function ForgotPassword() {
                 </Label>
                 <Input
                   id="otp"
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
                   placeholder="Enter 6-digit OTP"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  onInput={(e: React.FormEvent<HTMLInputElement>) => {
-                    if (e.currentTarget.value.length > 6) {
-                      e.currentTarget.value = e.currentTarget.value.slice(0, 6);
-                    }
-                  }}
+                  {...verifyForm.register("otp")}
                   className="mt-1.5 h-12 rounded border-gray-200 placeholder:text-gray-400"
-                  required
                 />
+                {verifyOtpError && (
+                  <p className="mt-1 text-sm text-red-500">{verifyOtpError}</p>
+                )}
               </div>
 
-              {errorMessage ? (
-                <p className="text-sm text-red-500">{errorMessage}</p>
-              ) : null}
+              {verifyRootError && (
+                <p className="text-sm text-red-500">{verifyRootError}</p>
+              )}
 
-              {successMessage ? (
+              {successMessage && (
                 <p className="text-sm text-green-600">{successMessage}</p>
-              ) : null}
+              )}
 
               <Button
                 type="submit"
@@ -214,8 +293,8 @@ export default function ForgotPassword() {
                   type="button"
                   onClick={() => {
                     setStep("request");
-                    setErrorMessage(null);
                     setSuccessMessage(null);
+                    requestForm.clearErrors();
                   }}
                   className="text-sm text-gray-500 hover:text-gray-700"
                 >
