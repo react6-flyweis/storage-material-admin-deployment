@@ -1,351 +1,504 @@
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import {
   Eye,
-  Package,
-  MapPin,
+  User,
   Calendar,
-  Clock,
-  Truck,
   Building2,
-  AlertTriangle,
+  DollarSign,
+  CheckCircle2,
 } from "lucide-react";
-import DateRangeFilter from "@/components/ui/date-range-filter";
 import type { DateRange as RDateRange } from "react-day-picker";
-import { useState } from "react";
-import { DeliveryDetailsDialog } from "@/components/delivery-details-dialog";
+import Pagination from "@/components/Pagination";
+import type { PlantAssignedProjectItem } from "@/modules/employees/employees.api";
 
-const ASSIGNED_PROJECTS = [
-  {
-    id: "DEL-2001",
-    title: "Primary Frame Steel",
-    location: "ABC Logistics Warehouse",
-    badges: [
-      {
-        text: "In Transit to Plant",
-        className: "bg-[#4669C1] hover:bg-[#4669C1] text-white",
-      },
-      {
-        text: "High Priority",
-        className: "bg-[#FF4D4F] hover:bg-[#FF4D4F] text-white",
-      },
-      {
-        text: "ETA 45 min",
-        className:
-          "bg-[#FFFBE6] hover:bg-[#FFFBE6] text-[#D4B106] border border-[#FFF1B8]",
-        icon: Clock,
-      },
-    ],
-    material: { quantity: "45,000 lbs", stagingArea: "Yard-A" },
-    schedule: { arrival: "Mar 24, 10:00 AM", departure: "Mar 24, 02:00 PM" },
-    route: {
-      carrier: "FastFreight Logistics",
-      destination: "Construction Site A",
-    },
-    truckDetails: {
-      truck: "TX-4582",
-      driver: "John Miller",
-      phone: "+1 555-812-9921",
-      destination: "Construction Site A",
-    },
-    notes: "Fragile - handle with care",
-  },
-  {
-    id: "DEL-2002",
-    title: "Glass Panels",
-    location: "Downtown Office Complex",
-    badges: [
-      {
-        text: "Staged at Plant",
-        className: "bg-[#52C41A] hover:bg-[#52C41A] text-white px-3",
-      },
-      {
-        text: "Delayed 30 minutes",
-        className:
-          "bg-[#FFFBE6] hover:bg-[#FFFBE6] text-[#D4B106] border border-[#FFF1B8] px-3",
-        icon: AlertTriangle,
-      },
-    ],
-    material: { quantity: "8,500 lbs", stagingArea: "Warehouse-2" },
-    schedule: { arrival: "Mar 24, 08:00 AM", departure: "Mar 24, 11:00 AM" },
-    route: { carrier: "Regional Freight", destination: "Construction Site B" },
-    truckDetails: {
-      truck: "TX-4582",
-      driver: "John Miller",
-      phone: "+1 555-812-9921",
-      destination: "Construction Site A",
-    },
-    notes: "Fragile - handle with care",
-  },
-  {
-    id: "DEL-2003",
-    title: "Concrete Blocks",
-    location: "Industrial Park Phase 2",
-    badges: [
-      {
-        text: "Scheduled",
-        className: "bg-[#9CA3AF] hover:bg-[#9CA3AF] text-white px-3",
-      },
-    ],
-    material: { quantity: "15,000 lbs", stagingArea: "Yard-B" },
-    schedule: { arrival: "Mar 25, 09:00 AM", departure: "Mar 25, 01:00 PM" },
-    route: {
-      carrier: "Local Delivery Services",
-      destination: "Construction Site C",
-    },
-    truckDetails: {
-      truck: "TX-4582",
-      driver: "John Miller",
-      phone: "+1 555-812-9921",
-      destination: "Construction Site A",
-    },
-    notes: "Standard handling",
-  },
-  {
-    id: "DEL-2004",
-    title: "Roll-up Doors (3 units)",
-    location: "ABC Logistics Warehouse",
-    badges: [
-      {
-        text: "Ready for Departure",
-        className: "bg-[#F97316] hover:bg-[#F97316] text-white px-3",
-      },
-      {
-        text: "High Priority",
-        className: "bg-[#FF4D4F] hover:bg-[#FF4D4F] text-white px-3",
-      },
-    ],
-    material: { quantity: "2,500 lbs", stagingArea: "Warehouse-1" },
-    schedule: { arrival: "Mar 23, 03:00 PM", departure: "Mar 24, 07:00 AM" },
-    route: {
-      carrier: "QuickTransport Co.",
-      destination: "Construction Site A",
-    },
-    truckDetails: {
-      truck: "TX-4582",
-      driver: "John Miller",
-      phone: "+1 555-812-9921",
-      destination: "Construction Site A",
-    },
-    notes: "Pickup scheduled for tomorrow",
-  },
-];
+export interface AssignedProjectItem {
+  id: string;
+  title: string;
+  location: string;
+  customer: string;
+  buildings: number;
+  status: {
+    text: string;
+    bgClass: string;
+    textClass: string;
+  };
+  value: number;
+  createdAt?: string;
+}
 
-export function EmployeeAssignedProjectsTab({
-  dateRange,
-  onDateRangeChange,
-}: {
-  dateRange?: RDateRange;
-  onDateRangeChange?: (range: RDateRange | undefined) => void;
-}) {
-  const [selectedProject, setSelectedProject] = useState<any>(null);
+const formatCurrency = (amount?: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(amount ?? 0);
+
+const formatDateToDDMMYYYY = (date: Date): string => {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+export const formatAssignedProjectsDateRange = (range?: RDateRange): string => {
+  if (!range?.from && !range?.to) return "Select date range";
+  const from = range.from ? formatDateToDDMMYYYY(range.from) : "";
+  const to = range.to ? formatDateToDDMMYYYY(range.to) : "";
+  return from && to ? `${from} - ${to}` : from || to;
+};
+
+interface DatePickerButtonProps {
+  value?: RDateRange;
+  onChange?: (range: RDateRange | undefined) => void;
+}
+
+export function AssignedProjectsDateFilter({
+  value,
+  onChange,
+}: DatePickerButtonProps) {
+  const [open, setOpen] = useState(false);
+  const [draftRange, setDraftRange] = useState<RDateRange | undefined>(value);
+
+  const displayValue = formatAssignedProjectsDateRange(value);
+
+  const handleApply = () => {
+    onChange?.(draftRange);
+    setOpen(false);
+  };
+
+  const handleReset = () => {
+    setDraftRange(undefined);
+    onChange?.(undefined);
+    setOpen(false);
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="w-full flex justify-end">
-        <DateRangeFilter
-          value={dateRange}
-          onChange={onDateRangeChange!}
-          className="bg-white max-w-60"
-        />
-      </div>
-
-      <div className="space-y-4">
-        {ASSIGNED_PROJECTS.map((project) => (
-          <Card key={project.id} className="p-6 shadow-sm border-gray-100">
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-6">
-              <div className="flex gap-4">
-                <div className="w-12 h-12 rounded-xl bg-[#3B5998] flex items-center justify-center text-white shrink-0">
-                  <Package className="w-6 h-6" />
-                </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <h3 className="text-xl font-bold text-gray-900">
-                      {project.title}
-                    </h3>
-                    {project.badges.map((badge, idx) => (
-                      <Badge
-                        key={idx}
-                        className={`${badge.className} rounded-full font-medium`}
-                      >
-                        {badge.icon && <badge.icon className="w-3 h-3 mr-1" />}
-                        {badge.text}
-                      </Badge>
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <Building2 className="w-4 h-4" />
-                      {project.location}
-                    </div>
-                    <div className="font-bold text-gray-900">
-                      Delivery ID: {project.id}
-                    </div>
-                  </div>
-                </div>
-              </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-white border border-gray-200/90 text-xs font-medium text-gray-700 shadow-sm hover:border-gray-300 hover:bg-gray-50/50 transition-colors focus:outline-none"
+        >
+          <Calendar className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+          <span>{displayValue}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-auto p-4 bg-white rounded-xl shadow-xl border border-gray-100"
+        align="end"
+      >
+        <div className="space-y-3">
+          <CalendarComponent
+            mode="range"
+            selected={draftRange}
+            onSelect={setDraftRange}
+            numberOfMonths={2}
+            initialFocus
+          />
+          <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleReset}
+              className="text-xs text-gray-500 hover:text-gray-700"
+            >
+              Reset to Default
+            </Button>
+            <div className="flex items-center gap-2">
               <Button
+                type="button"
                 variant="outline"
-                className="shrink-0 flex items-center gap-2 rounded-lg font-medium"
-                onClick={() => setSelectedProject(project)}
+                size="sm"
+                onClick={() => setOpen(false)}
+                className="text-xs"
               >
-                <Eye className="w-4 h-4" />
-                View Details
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleApply}
+                className="text-xs bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Apply
               </Button>
             </div>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div>
-                <h4 className="font-bold text-gray-900 mb-4 px-1">
-                  Material Details
-                </h4>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-pink-50 text-fuchsia-600 flex items-center justify-center shrink-0">
-                      <Package className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-[11px] text-gray-500 font-medium">
-                        Quantity
+interface EmployeeAssignedProjectsTabProps {
+  items?: PlantAssignedProjectItem[];
+  total?: number;
+  currentPage?: number;
+  rowsPerPage?: number;
+  onPageChange?: (page: number) => void;
+  onRowsPerPageChange?: (limit: number) => void;
+  projects?: AssignedProjectItem[];
+  dateRange?: RDateRange;
+  onDateRangeChange?: (range: RDateRange | undefined) => void;
+  hideDateFilter?: boolean;
+}
+
+export function EmployeeAssignedProjectsTab({
+  items,
+  total,
+  currentPage,
+  rowsPerPage,
+  onPageChange,
+  onRowsPerPageChange,
+  projects,
+  dateRange,
+  onDateRangeChange,
+  hideDateFilter = false,
+}: EmployeeAssignedProjectsTabProps) {
+  const navigate = useNavigate();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [activeProject, setActiveProject] =
+    useState<AssignedProjectItem | null>(null);
+
+  const mappedProjects = useMemo<AssignedProjectItem[]>(() => {
+    if (items) {
+      return items.map(
+        (item, idx): AssignedProjectItem => ({
+          id: item.leadId || `plant-proj-${idx}`,
+          title: item.projectName,
+          location: "Plant Project",
+          customer: item.customerName,
+          buildings: item.buildingsCount ?? 1,
+          status: {
+            text: item.statusLabel || item.status,
+            bgClass: item.statusLabel?.toLowerCase().includes("ready")
+              ? "bg-[#FFF4E5]"
+              : item.statusLabel?.toLowerCase().includes("approved")
+                ? "bg-[#E8F8EE]"
+                : "bg-[#F4EEFB]",
+            textClass: item.statusLabel?.toLowerCase().includes("ready")
+              ? "text-[#D97706]"
+              : item.statusLabel?.toLowerCase().includes("approved")
+                ? "text-[#16A34A]"
+                : "text-[#9333EA]",
+          },
+          value: item.projectValue ?? 0,
+        }),
+      );
+    }
+    return projects ?? [];
+  }, [items, projects]);
+
+  const filteredProjects = useMemo(() => {
+    if (items) {
+      // If server-side items are provided, they are already filtered by backend
+      return mappedProjects ?? [];
+    }
+    if (!dateRange?.from && !dateRange?.to) {
+      return mappedProjects ?? [];
+    }
+    const fromTime = dateRange.from
+      ? new Date(dateRange.from).setHours(0, 0, 0, 0)
+      : undefined;
+    const toTime = dateRange.to
+      ? new Date(dateRange.to).setHours(23, 59, 59, 999)
+      : fromTime;
+
+    return (mappedProjects ?? []).filter((project) => {
+      if (
+        !project.createdAt ||
+        fromTime === undefined ||
+        toTime === undefined
+      ) {
+        return true;
+      }
+      const itemTime = new Date(project.createdAt).getTime();
+      if (Number.isNaN(itemTime)) return true;
+      return itemTime >= fromTime && itemTime <= toTime;
+    });
+  }, [items, mappedProjects, dateRange]);
+
+  const isAllSelected =
+    (filteredProjects ?? []).length > 0 &&
+    selectedIds.length === (filteredProjects ?? []).length;
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredProjects.map((p) => p.id));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      {!hideDateFilter && (
+        <div className="flex justify-end">
+          <AssignedProjectsDateFilter
+            value={dateRange}
+            onChange={onDateRangeChange}
+          />
+        </div>
+      )}
+
+      {/* Main Table Card matching design */}
+      <Card className="bg-white rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.03)] border border-gray-100/90 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-gray-100/80 bg-white">
+                <th className="w-12 py-4 pl-6 pr-2">
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    onChange={toggleSelectAll}
+                    aria-label="Select all projects"
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                  />
+                </th>
+                <th className="py-4 px-4 text-[11px] font-semibold tracking-wider text-[#8C95A6] uppercase">
+                  PROJECT NAME
+                </th>
+                <th className="py-4 px-4 text-[11px] font-semibold tracking-wider text-[#8C95A6] uppercase">
+                  CUSTOMER
+                </th>
+                <th className="py-4 px-4 text-[11px] font-semibold tracking-wider text-[#8C95A6] uppercase">
+                  BUILDINGS
+                </th>
+                <th className="py-4 px-4 text-[11px] font-semibold tracking-wider text-[#8C95A6] uppercase">
+                  STATUS
+                </th>
+                <th className="py-4 px-4 text-[11px] font-semibold tracking-wider text-[#8C95A6] uppercase">
+                  PROJECT VALUE
+                </th>
+                <th className="py-4 pl-4 pr-6 text-[11px] font-semibold tracking-wider text-[#8C95A6] uppercase">
+                  ACTIONS
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100/80 bg-white">
+              {filteredProjects.map((project) => {
+                const isSelected = selectedIds.includes(project.id);
+                return (
+                  <tr
+                    key={project.id}
+                    className={`group transition-colors ${
+                      isSelected ? "bg-blue-50/20" : "hover:bg-gray-50/50"
+                    }`}
+                  >
+                    {/* Checkbox */}
+                    <td className="py-5 pl-6 pr-2">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectOne(project.id)}
+                        aria-label={`Select ${project.title}`}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-0 focus:ring-offset-0 cursor-pointer"
+                      />
+                    </td>
+
+                    {/* Project Name & Location */}
+                    <td className="py-5 px-4">
+                      <div className="font-bold text-gray-900 text-sm tracking-tight">
+                        {project.title}
                       </div>
-                      <div className="text-sm font-bold text-gray-900">
-                        {project.material.quantity}
+                      <div className="text-xs text-gray-400 font-normal mt-0.5">
+                        {project.location}
                       </div>
-                    </div>
+                    </td>
+
+                    {/* Customer with Avatar */}
+                    <td className="py-5 px-4">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-[#1D61E7] flex items-center justify-center shrink-0 shadow-sm">
+                          <User className="w-3.5 h-3.5 text-white fill-white" />
+                        </div>
+                        <span className="text-sm font-medium text-gray-700">
+                          {project.customer}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Buildings */}
+                    <td className="py-5 px-4 font-bold text-gray-900 text-sm">
+                      {project.buildings}
+                    </td>
+
+                    {/* Status Badge */}
+                    <td className="py-5 px-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center justify-center px-4 py-1 rounded-full text-xs font-semibold ${project.status.bgClass} ${project.status.textClass}`}
+                      >
+                        {project.status.text}
+                      </span>
+                    </td>
+
+                    {/* Project Value */}
+                    <td className="py-5 px-4 font-bold text-gray-900 text-sm">
+                      {formatCurrency(project.value)}
+                    </td>
+
+                    {/* Actions */}
+                    <td className="py-5 pl-4 pr-6">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigate(`/plant/projects/${project.id}`)
+                        }
+                        title="View Project Details"
+                        aria-label={`View project details for ${project.title}`}
+                        className="p-1 rounded-md text-[#5551FF] hover:text-[#3B38D9] hover:bg-[#F3F4FD] transition-colors focus:outline-none cursor-pointer"
+                      >
+                        <Eye className="w-5 h-5 stroke-[1.8]" />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {filteredProjects.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={7}
+                    className="py-12 text-center text-sm text-gray-500 font-medium"
+                  >
+                    No assigned projects found for the selected date range.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {total !== undefined &&
+        total > 0 &&
+        currentPage &&
+        rowsPerPage &&
+        onPageChange &&
+        onRowsPerPageChange && (
+          <div className="bg-white">
+            <Pagination
+              totalItems={total}
+              currentPage={currentPage}
+              rowsPerPage={rowsPerPage}
+              rowsPerPageOptions={[10, 20, 50]}
+              onPageChange={onPageChange}
+              onRowsPerPageChange={onRowsPerPageChange}
+            />
+          </div>
+        )}
+
+      {/* Project Details Modal */}
+      <Dialog
+        open={!!activeProject}
+        onOpenChange={(open) => !open && setActiveProject(null)}
+      >
+        <DialogContent className="sm:max-w-lg p-6 bg-white rounded-2xl shadow-xl">
+          <DialogHeader className="space-y-1">
+            <DialogTitle className="text-xl font-bold text-gray-900">
+              {activeProject?.title}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500">
+              {activeProject?.location}
+            </DialogDescription>
+          </DialogHeader>
+
+          {activeProject && (
+            <div className="space-y-5 pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-100">
+                  <div className="text-xs text-gray-500 mb-1 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-blue-600" />
+                    Customer
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center shrink-0">
-                      <Building2 className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-[11px] text-gray-500 font-medium">
-                        Staging Area
-                      </div>
-                      <div className="text-sm font-bold text-gray-900">
-                        {project.material.stagingArea}
-                      </div>
-                    </div>
+                  <div className="font-semibold text-gray-900 text-sm">
+                    {activeProject.customer}
                   </div>
+                </div>
+
+                <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-100">
+                  <div className="text-xs text-gray-500 mb-1 flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                    Buildings
+                  </div>
+                  <div className="font-semibold text-gray-900 text-sm">
+                    {activeProject.buildings} Building
+                    {activeProject.buildings > 1 ? "s" : ""}
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-100">
+                  <div className="text-xs text-gray-500 mb-1 flex items-center gap-1.5">
+                    <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                    Project Value
+                  </div>
+                  <div className="font-bold text-gray-900 text-sm">
+                    {formatCurrency(activeProject.value)}
+                  </div>
+                </div>
+
+                <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-100">
+                  <div className="text-xs text-gray-500 mb-1 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-purple-600" />
+                    Status
+                  </div>
+                  <Badge
+                    className={`${activeProject.status.bgClass} ${activeProject.status.textClass} border-none shadow-none font-semibold px-2.5 py-0.5 rounded-full`}
+                  >
+                    {activeProject.status.text}
+                  </Badge>
                 </div>
               </div>
 
-              <div>
-                <h4 className="font-bold text-gray-900 mb-4 px-1">Schedule</h4>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-green-50 text-emerald-500 flex items-center justify-center shrink-0">
-                      <Calendar className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-[11px] text-gray-500 font-medium">
-                        Arrival at Plant
-                      </div>
-                      <div className="text-sm font-bold text-gray-900">
-                        {project.schedule.arrival}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-orange-50 text-orange-500 flex items-center justify-center shrink-0">
-                      <Calendar className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="text-[11px] text-gray-500 font-medium">
-                        Departure from Plant
-                      </div>
-                      <div className="text-sm font-bold text-gray-900">
-                        {project.schedule.departure}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-gray-900 mb-4 px-1">
-                  Carrier & Route
-                </h4>
-                <div className="flex flex-col xl:flex-row gap-4">
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center shrink-0 border border-blue-100">
-                        <Truck className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-[11px] text-gray-500 font-medium">
-                          Carrier
-                        </div>
-                        <div className="text-sm font-bold text-gray-900">
-                          {project.route.carrier}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-red-50 text-rose-500 flex items-center justify-center shrink-0">
-                        <MapPin className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-[11px] text-gray-500 font-medium">
-                          Final Destination
-                        </div>
-                        <div className="text-sm font-bold text-gray-900">
-                          {project.route.destination}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3 mt-1 xl:ml-4">
-                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center shrink-0 border border-blue-100">
-                      <Truck className="w-4 h-4" />
-                    </div>
-                    <div className="text-[11px] space-y-1 mt-0.5 leading-tight">
-                      <div className="text-gray-500 font-medium">
-                        Truck:{" "}
-                        <span className="font-bold text-gray-900 ml-1">
-                          {project.truckDetails.truck}
-                        </span>
-                      </div>
-                      <div className="text-gray-500 font-medium">
-                        Driver:{" "}
-                        <span className="font-bold text-gray-900 ml-1">
-                          {project.truckDetails.driver}
-                        </span>
-                      </div>
-                      <div className="text-gray-500 font-medium">
-                        Phone:{" "}
-                        <span className="font-bold text-gray-900 ml-1">
-                          {project.truckDetails.phone}
-                        </span>
-                      </div>
-                      <div className="text-gray-500 font-medium mt-2">
-                        Destination:{" "}
-                        <span className="font-bold text-gray-900 block mt-0.5">
-                          {project.truckDetails.destination}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-gray-900 mb-4 px-1">Notes</h4>
-                <div className="bg-[#FFFBE6] border border-[#FFF1B8] rounded-[10px] p-4 text-sm text-gray-700 font-medium flex items-center min-h-[64px]">
-                  {project.notes}
-                </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setActiveProject(null)}
+                  className="rounded-lg text-sm"
+                >
+                  Close
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    navigate(`/plant/projects/${activeProject.id}`);
+                    setActiveProject(null);
+                  }}
+                  className="bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-sm"
+                >
+                  View Project Details
+                </Button>
               </div>
             </div>
-          </Card>
-        ))}
-      </div>
-
-      <DeliveryDetailsDialog
-        open={!!selectedProject}
-        onOpenChange={(open) => !open && setSelectedProject(null)}
-        project={selectedProject}
-      />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
