@@ -85,8 +85,8 @@ export function EmployeeAssignedLeadsTab({
   onDateRangeChange,
   temperature,
   onTemperatureChange,
-  scoreState,
-  onScoreStateChange,
+  // scoreState,
+  // onScoreStateChange,
   currentPage,
   rowsPerPage,
   onPageChange,
@@ -94,7 +94,9 @@ export function EmployeeAssignedLeadsTab({
 }: AssignedLeadsTabProps) {
   const navigate = useNavigate();
   const [dateOpen, setDateOpen] = useState(false);
-  const [draftRange, setDraftRange] = useState<RDateRange | undefined>(dateRange);
+  const [draftRange, setDraftRange] = useState<RDateRange | undefined>(
+    dateRange,
+  );
 
   return (
     <div className="space-y-6">
@@ -102,7 +104,7 @@ export function EmployeeAssignedLeadsTab({
       <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
         <div className="flex flex-wrap items-center gap-4">
           {/* Score State Filter */}
-          <div className="flex flex-col gap-1.5">
+          {/* <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-gray-700">Score State</label>
             <div className="relative">
               <select
@@ -121,11 +123,13 @@ export function EmployeeAssignedLeadsTab({
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
             </div>
-          </div>
+          </div> */}
 
           {/* Lead Score / Temperature Filter */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-gray-700">Lead Score</label>
+            <label className="text-xs font-medium text-gray-700">
+              Lead Score
+            </label>
             <div className="relative">
               <select
                 value={temperature || "all"}
@@ -133,7 +137,7 @@ export function EmployeeAssignedLeadsTab({
                   onTemperatureChange(
                     e.target.value === "all"
                       ? undefined
-                      : (e.target.value as "hot" | "warm" | "cold")
+                      : (e.target.value as "hot" | "warm" | "cold"),
                   )
                 }
                 className="appearance-none bg-white border border-gray-200 rounded-lg px-3.5 py-2 pr-9 text-xs font-normal text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer min-w-35"
@@ -254,7 +258,7 @@ export function EmployeeAssignedLeadsTab({
                     <span
                       className={cn(
                         "inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-normal",
-                        getStatusStyle(item.statusLabel || item.status)
+                        getStatusStyle(item.statusLabel || item.status),
                       )}
                     >
                       {item.statusLabel || item.status}
