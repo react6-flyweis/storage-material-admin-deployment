@@ -45,6 +45,7 @@ export interface LogoutResponse {
 
 export interface ForgotPasswordRequest {
   email: string;
+  role: string;
 }
 
 export interface ForgotPasswordResponse {
@@ -52,9 +53,11 @@ export interface ForgotPasswordResponse {
   message: string;
 }
 
+export const ADMIN_USER_ROLE = "admin"
 export interface VerifyOtpRequest {
   email: string;
   otp: string;
+  role: string;
 }
 
 export interface VerifyOtpResponse {
