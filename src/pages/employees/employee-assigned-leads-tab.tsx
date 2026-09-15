@@ -1,4 +1,5 @@
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { useNavigate } from "react-router";
 import {
   Table,
   TableBody,
@@ -8,132 +9,291 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Pagination from "@/components/Pagination";
-import DateRangeFilter from "@/components/ui/date-range-filter";
-import { Eye } from "lucide-react";
-import type { DateRange as RDateRange } from "react-day-picker";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
-import LeadDetailDialog from "@/components/leads/lead-detail-dialog";
+import { Eye, Calendar, ChevronDown } from "lucide-react";
+import type { DateRange as RDateRange } from "react-day-picker";
+import type { SalesAssignedLeadItem } from "@/modules/employees/employees.api";
+import { cn } from "@/lib/utils";
 
-export type Lead = {
-  id: string;
-  name: string;
-  code?: string;
-  location?: string;
-  status?: string;
-  quoteValue?: string;
-  createdAt?: string;
-};
+export type { SalesAssignedLeadItem as Lead };
 
 type AssignedLeadsTabProps = {
-  leads: Lead[];
+  items: SalesAssignedLeadItem[];
+  total: number;
   dateRange: RDateRange | undefined;
   onDateRangeChange: (range: RDateRange | undefined) => void;
+  temperature?: "hot" | "warm" | "cold";
+  onTemperatureChange: (temp: "hot" | "warm" | "cold" | undefined) => void;
+  scoreState?: string;
+  onScoreStateChange?: (state: string | undefined) => void;
   currentPage: number;
   rowsPerPage: number;
   onPageChange: (page: number) => void;
   onRowsPerPageChange: (count: number) => void;
 };
 
-const getStatusBadgeClasses = (status?: string) => {
-  if (!status) return "bg-slate-100 text-slate-700";
+const formatCurrency = (amount?: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(amount ?? 0);
+
+const formatDateToDDMMYYYY = (date: Date): string => {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+const formatDateRange = (range?: RDateRange): string => {
+  if (!range?.from && !range?.to) return "Select date range";
+  const from = range.from ? formatDateToDDMMYYYY(range.from) : "";
+  const to = range.to ? formatDateToDDMMYYYY(range.to) : "";
+  return from && to ? `${from} - ${to}` : from || to;
+};
+
+const getStatusStyle = (status?: string) => {
+  if (!status) return "bg-gray-100 text-gray-700";
   const normalized = status.toLowerCase();
-  if (normalized.includes("payment")) return "bg-violet-100 text-violet-700";
-  if (normalized.includes("quotation") || normalized.includes("quote"))
-    return "bg-amber-100 text-amber-700";
-  if (normalized.includes("closed") || normalized.includes("won"))
-    return "bg-emerald-100 text-emerald-700";
-  return "bg-slate-100 text-slate-700";
+  if (normalized.includes("payment")) {
+    return "bg-[#F4EEFB] text-[#9333EA]";
+  }
+  if (
+    normalized.includes("quotation") ||
+    normalized.includes("proposal") ||
+    normalized.includes("quote")
+  ) {
+    return "bg-[#FFF4E5] text-[#D97706]";
+  }
+  if (normalized.includes("closed") || normalized.includes("won")) {
+    return "bg-[#E8F8EE] text-[#16A34A]";
+  }
+  return "bg-gray-100 text-gray-700";
 };
 
 export function EmployeeAssignedLeadsTab({
-  leads,
+  items,
+  total,
   dateRange,
   onDateRangeChange,
+  temperature,
+  onTemperatureChange,
+  scoreState,
+  onScoreStateChange,
   currentPage,
   rowsPerPage,
   onPageChange,
   onRowsPerPageChange,
 }: AssignedLeadsTabProps) {
+  const navigate = useNavigate();
+  const [dateOpen, setDateOpen] = useState(false);
+  const [draftRange, setDraftRange] = useState<RDateRange | undefined>(dateRange);
+
   return (
-    <div>
-      <div className="w-full flex sm:justify-end">
-        <DateRangeFilter
-          value={dateRange}
-          onChange={onDateRangeChange}
-          className="bg-white max-w-60"
-        />
+    <div className="space-y-6">
+      {/* Top Filter Bar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Score State Filter */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-gray-700">Score State</label>
+            <div className="relative">
+              <select
+                value={scoreState || "all"}
+                onChange={(e) =>
+                  onScoreStateChange?.(
+                    e.target.value === "all" ? undefined : e.target.value
+                  )
+                }
+                className="appearance-none bg-white border border-gray-200 rounded-lg px-3.5 py-2 pr-9 text-xs font-normal text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer min-w-35"
+              >
+                <option value="all">All State</option>
+                <option value="Warm → Hot">Warm → Hot</option>
+                <option value="Cold → Warm">Cold → Warm</option>
+                <option value="Hot → Cold">Hot → Cold</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Lead Score / Temperature Filter */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-gray-700">Lead Score</label>
+            <div className="relative">
+              <select
+                value={temperature || "all"}
+                onChange={(e) =>
+                  onTemperatureChange(
+                    e.target.value === "all"
+                      ? undefined
+                      : (e.target.value as "hot" | "warm" | "cold")
+                  )
+                }
+                className="appearance-none bg-white border border-gray-200 rounded-lg px-3.5 py-2 pr-9 text-xs font-normal text-gray-700 hover:border-gray-300 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer min-w-35"
+              >
+                <option value="all">All</option>
+                <option value="hot">Hot</option>
+                <option value="warm">Warm</option>
+                <option value="cold">Cold</option>
+              </select>
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+        </div>
+
+        {/* Date Range Filter Button */}
+        <div>
+          <Popover open={dateOpen} onOpenChange={setDateOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                className="flex items-center gap-2.5 px-3.5 py-2 rounded-lg border border-gray-200 bg-white text-xs font-normal text-gray-700 hover:bg-gray-50 focus:outline-none cursor-pointer transition-colors"
+              >
+                <Calendar className="w-3.5 h-3.5 text-gray-500" />
+                <span>{formatDateRange(dateRange)}</span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              className="w-auto p-4 bg-white rounded-xl shadow-lg border border-gray-100"
+              align="end"
+            >
+              <CalendarComponent
+                mode="range"
+                selected={draftRange}
+                onSelect={setDraftRange}
+                numberOfMonths={1}
+              />
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100 mt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setDraftRange(undefined);
+                    onDateRangeChange(undefined);
+                    setDateOpen(false);
+                  }}
+                  className="text-xs text-gray-600"
+                >
+                  Clear
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    onDateRangeChange(draftRange);
+                    setDateOpen(false);
+                  }}
+                  className="text-xs bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  Apply
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
 
-      <div className="overflow-x-auto bg-gray-50 mt-5">
-        <Table className="w-full">
+      {/* Main Table */}
+      <div className="overflow-x-auto bg-white rounded-lg border border-gray-100">
+        <Table className="w-full text-left border-collapse">
           <TableHeader>
-            <TableRow className="border-b border-gray-200 bg-[#ECEEF2] hover:bg-[#ECEEF2]">
-              <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500 sm:px-6">
-                Lead Info
+            <TableRow className="border-b border-gray-100 bg-white hover:bg-white">
+              <TableHead className="py-4 px-6 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                LEAD INFO
               </TableHead>
-              <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500 sm:px-6">
-                Status
+              <TableHead className="py-4 px-6 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                STATUS
               </TableHead>
-              <TableHead className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500 sm:px-6">
-                Quote Value
+              <TableHead className="py-4 px-6 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                QUOTE VALUE
               </TableHead>
-              <TableHead className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500 sm:px-6">
-                Actions
+              <TableHead className="py-4 px-6 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                SCORE STATE
+              </TableHead>
+              <TableHead className="py-4 px-6 text-[11px] font-semibold uppercase tracking-wider text-gray-400 text-right">
+                ACTIONS
               </TableHead>
             </TableRow>
           </TableHeader>
-          <TableBody>
-            {leads.length > 0 ? (
-              leads.map((lead) => (
+          <TableBody className="divide-y divide-gray-100 bg-white">
+            {items && items.length > 0 ? (
+              items.map((item) => (
                 <TableRow
-                  key={lead.id}
-                  className="border-b border-gray-200 hover:bg-gray-50/70"
+                  key={item.leadId}
+                  className="hover:bg-gray-50/50 transition-colors"
                 >
-                  <TableCell className="px-4 py-4 align-top sm:px-6">
-                    <div className="text-sm font-medium text-gray-900">
-                      {lead.name}
-                    </div>
-                    <div className="mt-1 text-xs text-gray-500">
-                      {lead.code}
-                    </div>
-                    <div className="mt-1 text-xs text-gray-500">
-                      {lead.location}
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-4 py-4 align-top sm:px-6">
-                    <Badge
-                      className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusBadgeClasses(lead.status)}`}
+                  {/* Lead Info */}
+                  <TableCell className="py-4 px-6 align-middle">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/leads/${item.leadId}`)}
+                      className="text-left text-sm font-semibold text-gray-900 leading-snug hover:text-blue-600 transition-colors cursor-pointer"
                     >
-                      {lead.status ?? "N/A"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="px-4 py-4 align-top sm:px-6">
-                    <div className="text-sm font-semibold text-gray-900">
-                      {lead.quoteValue}
+                      {item.customerName}
+                    </button>
+                    <div className="text-xs text-gray-400 font-normal mt-0.5">
+                      {item.jobId || "Q-2025-1047"}
+                    </div>
+                    <div className="text-xs text-gray-400 font-normal mt-0.5">
+                      {[item.projectName, item.location]
+                        .filter(Boolean)
+                        .join(" . ") || "Workshop . Texas"}
                     </div>
                   </TableCell>
-                  <TableCell className="px-4 py-4 text-right align-top sm:px-6">
-                    <LeadDetailDialog
-                      lead={lead}
-                      trigger={
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          type="button"
-                          aria-label="View lead"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      }
-                    />
+
+                  {/* Status */}
+                  <TableCell className="py-4 px-6 align-middle whitespace-nowrap">
+                    <span
+                      className={cn(
+                        "inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-normal",
+                        getStatusStyle(item.statusLabel || item.status)
+                      )}
+                    >
+                      {item.statusLabel || item.status}
+                    </span>
+                  </TableCell>
+
+                  {/* Quote Value */}
+                  <TableCell className="py-4 px-6 align-middle">
+                    <span className="text-sm font-bold text-gray-900">
+                      {item.quoteValue !== undefined
+                        ? formatCurrency(item.quoteValue)
+                        : "$12,500"}
+                    </span>
+                  </TableCell>
+
+                  {/* Score State */}
+                  <TableCell className="py-4 px-6 align-middle text-sm font-normal text-gray-700">
+                    {item.scoreStateLabel || "Warm → Hot"}
+                  </TableCell>
+
+                  {/* Actions */}
+                  <TableCell className="py-4 px-6 align-middle text-right">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/leads/${item.leadId}`)}
+                      aria-label="View lead details"
+                      title="View Lead Details"
+                      className="p-1 text-[#5551FF] hover:text-[#3B38D9] transition-colors inline-flex items-center justify-center focus:outline-none cursor-pointer"
+                    >
+                      <Eye className="w-4 h-4 stroke-[1.8]" />
+                    </button>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
-              <TableRow className="border-b border-gray-200">
+              <TableRow>
                 <TableCell
-                  colSpan={4}
-                  className="px-4 py-10 text-center text-sm text-gray-500 sm:px-6"
+                  colSpan={5}
+                  className="py-12 text-center text-sm text-gray-500 font-medium"
                 >
                   No assigned leads found for this employee.
                 </TableCell>
@@ -143,18 +303,19 @@ export function EmployeeAssignedLeadsTab({
         </Table>
       </div>
 
-      <div className="bg-white">
-        {leads.length > 0 && (
+      {/* Pagination */}
+      {total > 0 && (
+        <div className="bg-white">
           <Pagination
-            totalItems={leads.length}
+            totalItems={total}
             currentPage={currentPage}
             rowsPerPage={rowsPerPage}
             rowsPerPageOptions={[10, 20, 50]}
             onPageChange={onPageChange}
             onRowsPerPageChange={onRowsPerPageChange}
           />
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
