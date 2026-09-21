@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import steelLogo from "@/assets/steel-building-depot-logo.png";
 import { useNavigate, useSearchParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
   useCreateInvoiceMutation,
@@ -136,6 +137,7 @@ export default function InvoiceForm({
   const watchedValues = useWatch({ control }) as InvoiceFormValues;
 
   const navigate = useNavigate();
+  const { goBack } = useAppBack("/invoices");
   const [searchParams] = useSearchParams();
   const typeParam = searchParams.get("type");
   const leadIdParam = searchParams.get("leadId");
@@ -721,6 +723,7 @@ export default function InvoiceForm({
     }));
 
     navigate("/invoice/preview", {
+      replace: true,
       state: {
         invoiceId: savedInvoice?._id,
         invoiceNumber:
@@ -744,7 +747,7 @@ export default function InvoiceForm({
         <div className="flex items-center gap-3 ml-auto">
           <Button
             variant="outline"
-            onClick={() => navigate("/invoices")}
+            onClick={() => goBack()}
             className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200"
           >
             Cancel

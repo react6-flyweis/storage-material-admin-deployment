@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, AlertTriangle, RotateCcw, Edit3 } from "lucide-react";
 import RescheduleDeliveryDialog from "@/plant/components/RescheduleDeliveryDialog";
@@ -30,7 +30,7 @@ export default function DeliveryDetailsView({
   showQuickActions = true,
   refetch,
 }: DeliveryDetailsViewProps) {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack("/plant/all-deliveries");
 
   // Modal / Dialog States
   const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
@@ -68,7 +68,7 @@ export default function DeliveryDetailsView({
         </p>
         <Button
           className="px-6 font-semibold bg-blue-600 hover:bg-blue-700 text-white"
-          onClick={() => navigate(-1)}
+          onClick={() => goBack()}
         >
           Go Back
         </Button>
@@ -150,7 +150,7 @@ export default function DeliveryDetailsView({
       {/* Header */}
       <div className="flex flex-wrap md:items-center justify-between gap-4 mt-2">
         <div className="flex items-center gap-4">
-          <ArrowLeft size={18} strokeWidth={2.5} className="cursor-pointer" onClick={() => navigate(-1)} />
+          <ArrowLeft size={18} strokeWidth={2.5} className="cursor-pointer" onClick={() => goBack()} />
           <div>
             <h1 className="text-xl md:text-2xl font-bold tracking-tight text-[#212B36]">
               Delivery Details

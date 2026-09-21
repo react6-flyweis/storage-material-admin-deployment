@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import {
   Table,
   TableBody,
@@ -93,6 +93,7 @@ export function EmployeeAssignedLeadsTab({
   onRowsPerPageChange,
 }: AssignedLeadsTabProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [dateOpen, setDateOpen] = useState(false);
   const [draftRange, setDraftRange] = useState<RDateRange | undefined>(
     dateRange,
@@ -238,7 +239,7 @@ export function EmployeeAssignedLeadsTab({
                   <TableCell className="py-4 px-6 align-middle">
                     <button
                       type="button"
-                      onClick={() => navigate(`/leads/${item.leadId}`)}
+                      onClick={() => navigate(`/leads/${item.leadId}`, { state: { from: location.pathname + location.search } })}
                       className="text-left text-sm font-semibold text-gray-900 leading-snug hover:text-blue-600 transition-colors cursor-pointer"
                     >
                       {item.customerName}
@@ -283,7 +284,7 @@ export function EmployeeAssignedLeadsTab({
                   <TableCell className="py-4 px-6 align-middle text-right">
                     <button
                       type="button"
-                      onClick={() => navigate(`/leads/${item.leadId}`)}
+                      onClick={() => navigate(`/leads/${item.leadId}`, { state: { from: location.pathname + location.search } })}
                       aria-label="View lead details"
                       title="View Lead Details"
                       className="p-1 text-[#5551FF] hover:text-[#3B38D9] transition-colors inline-flex items-center justify-center focus:outline-none cursor-pointer"

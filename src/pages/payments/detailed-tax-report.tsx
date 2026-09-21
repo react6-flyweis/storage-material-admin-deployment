@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -110,7 +110,7 @@ const rows: Row[] = [
 ];
 
 export default function DetailedTaxReportPage() {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack("/payments");
   const [reportPeriod, setReportPeriod] = useState("");
   const [stateFilter, setStateFilter] = useState("");
   const [reportType, setReportType] = useState("Monthly Summary");
@@ -193,7 +193,7 @@ export default function DetailedTaxReportPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button onClick={() => navigate('/payments')} className="">
+          <Button onClick={() => goBack()} className="">
             <ArrowLeft className="h-5 w-5" />
             Back
           </Button>

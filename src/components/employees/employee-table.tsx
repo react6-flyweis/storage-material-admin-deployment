@@ -21,7 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Trash2, Search, Eye, Users, PenLine } from "lucide-react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useLocation } from "react-router";
 import { EditEmployeeDialog } from "@/components/employees/edit-employee-dialog";
 import { DeleteEmployeeDialog } from "@/components/employees/delete-employee-dialog";
 import SuccessDialog from "@/components/success-dialog";
@@ -65,6 +65,7 @@ export function EmployeeTable({
   setStatusFilter,
 }: EmployeeTableProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
   const [isConfirmDeleteDialogOpen, setIsConfirmDeleteDialogOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
@@ -276,7 +277,7 @@ export function EmployeeTable({
                 : filteredEmployees.map((employee) => (
                     <TableRow
                       key={employee.id}
-                      onClick={() => navigate(`/employees/${employee.id}`)}
+                      onClick={() => navigate(`/employees/${employee.id}`, { state: { from: location.pathname + location.search } })}
                       className="hover:bg-gray-50 cursor-pointer"
                     >
                       <TableCell>
@@ -290,6 +291,7 @@ export function EmployeeTable({
                           <div>
                             <Link
                               to={`/employees/${employee.id}`}
+                              state={{ from: location.pathname + location.search }}
                               onClick={(e) => e.stopPropagation()}
                               className="font-medium text-blue-600 hover:underline"
                             >
@@ -341,6 +343,7 @@ export function EmployeeTable({
                         <div className="flex justify-end gap-2">
                           <Link
                             to={`/employees/${employee.id}`}
+                            state={{ from: location.pathname + location.search }}
                             onClick={(e) => e.stopPropagation()}
                             className="inline-flex h-8 w-8 items-center justify-center text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md"
                           >

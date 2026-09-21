@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import SuccessModal from "../components/common_component/SuccessModal";
 import ShipperForm from "./ShipperForm";
 import { type VendorFormValues, type VendorFormInput } from "./vendorSchema";
@@ -18,6 +19,7 @@ const PageWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const AddNewShipper: React.FC = () => {
   const navigate = useNavigate();
+  const { goBack } = useAppBack("/plant/shippers");
   const createPlantVendorMutation = useCreatePlantVendorMutation();
   const isLoading = createPlantVendorMutation.isPending;
 
@@ -66,7 +68,7 @@ const AddNewShipper: React.FC = () => {
       <div className="flex items-center justify-between mb-6 pt-2">
         <div
           className="flex items-center gap-3 cursor-pointer text-gray-800 hover:text-black transition-colors select-none"
-          onClick={() => navigate(-1)}
+          onClick={() => goBack("/plant/shippers")}
         >
           <ArrowLeft className="w-5 h-5" />
           <h1 className="text-lg md:text-xl font-semibold">Add New Shipper</h1>
@@ -83,7 +85,7 @@ const AddNewShipper: React.FC = () => {
         isOpen={isSuccessOpen}
         onClose={() => {
           setIsSuccessOpen(false);
-          navigate("/plant/shippers");
+          navigate("/plant/shippers", { replace: true });
         }}
         title="Shipper Added Successfully"
         subTitle={createdVendorName ? `Name: ${createdVendorName}` : undefined}

@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import {
   ArrowLeft,
   Package,
@@ -16,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 export default function CreateFreightRequest() {
   const navigate = useNavigate();
+  const { goBack } = useAppBack("/plant/freight-loads");
   const { id } = useParams();
   const isEditing = !!id;
 
@@ -27,7 +29,7 @@ export default function CreateFreightRequest() {
           <Button
             variant="ghost"
             className="p-2 h-10 w-10 bg-white shadow-sm border border-gray-200 rounded-full hover:bg-gray-50 mt-1"
-            onClick={() => navigate("/plant")}
+            onClick={() => goBack("/plant/freight-loads")}
           >
             <ArrowLeft className="w-5 h-5 text-gray-700" />
           </Button>
@@ -44,7 +46,7 @@ export default function CreateFreightRequest() {
           <Button
             className="bg-[#2563EB] hover:bg-blue-700 text-white h-11 px-8 rounded-lg shadow-sm border-none"
             onClick={() =>
-              navigate("/plant/freight-loads/details/" + (id || "FRQ-2001"))
+              navigate("/plant/freight-loads/details/" + (id || "FRQ-2001"), { replace: true })
             }
           >
             Save Changes

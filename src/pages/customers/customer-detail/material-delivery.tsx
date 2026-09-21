@@ -1,4 +1,5 @@
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { useProjectDeliveryQuery, useDeliveryDetailQuery } from "@/modules/plant/freight.hooks";
 import DeliveryDetailsView from "@/plant/pages/DeliveryDetailsView";
 import { DeliveryDetailsSkeleton } from "@/plant/pages/delivery-details/components/DeliverySkeleton";
@@ -6,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, PackageX } from "lucide-react";
 
 const MaterialDeliveryView = () => {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack();
   const { projectId, deliveryId, id } = useParams<{
     projectId?: string;
     deliveryId?: string;
@@ -55,7 +56,7 @@ const MaterialDeliveryView = () => {
           </p>
         </div>
         <Button
-          onClick={() => navigate(-1)}
+          onClick={() => goBack()}
           className="px-6 h-11 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl flex items-center gap-2"
         >
           <ArrowLeft size={16} />

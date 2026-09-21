@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import {
   Eye,
   Send,
@@ -116,6 +116,7 @@ function getStatusBadge(quotation: Quotation) {
 
 export default function QuotationListPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [selectedFilters, setSelectedFilters] = useState({
@@ -499,6 +500,7 @@ export default function QuotationListPage() {
                           onClick={() =>
                             navigate(
                               `/leads/quotation-details/${quotation._id}`,
+                              { state: { from: location.pathname + location.search } }
                             )
                           }
                           className="hover:text-blue-600 hover:underline text-left cursor-pointer font-medium"
@@ -578,6 +580,7 @@ export default function QuotationListPage() {
                             onClick={() =>
                               navigate(
                                 `/leads/quotation-details/${quotation._id}`,
+                                { state: { from: location.pathname + location.search } }
                               )
                             }
                             className="text-gray-500 hover:text-[#1D51A4] inline-block p-1 cursor-pointer"

@@ -4,106 +4,109 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
-  Package,
-  Ruler,
-  Clock,
-  Paperclip,
+  // Package,
+  // Ruler,
+  // Clock,
+  // Paperclip,
   MapPin,
-  Calendar,
-  User,
-  FileText,
+  // Calendar,
+  // User,
+  // FileText,
 } from "lucide-react";
 import Modal from "./Modal";
 import { Button } from "@/components/ui/button";
-import { UploadFileDialog } from "@/components/upload-file-dialog";
+// import { UploadFileDialog } from "@/components/upload-file-dialog";
+import LocationSelector from "@/plant/components/common_component/LocationSelector";
 import { useUpdateDeliveryDetailsMutation } from "@/modules/plant/freight.hooks";
-import { type DeliveryDetails } from "@/modules/plant/freight.api";
+import { type DeliveryDetails, type UpdateDeliveryDetailsBody } from "@/modules/plant/freight.api";
 
-export const parseDimensions = (input: string) => {
-  const parts = input.replace(/['"]/g, "").split(/x/i);
-  if (parts.length === 3) {
-    const lengthFeet = parseFloat(parts[0].trim());
-    const widthFeet = parseFloat(parts[1].trim());
-    const heightFeet = parseFloat(parts[2].trim());
-    if (!isNaN(lengthFeet) && !isNaN(widthFeet) && !isNaN(heightFeet)) {
-      return { lengthFeet, widthFeet, heightFeet };
-    }
-  }
-  return { lengthFeet: 0, widthFeet: 0, heightFeet: 0 };
-};
-
-export const getLocalTodayString = () => {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, '0');
-  const day = String(today.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
-export const getMinDateTime = () => {
-  const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  return now.toISOString().slice(0, 16);
-};
+// [Commented out - kept for reference]
+// export const parseDimensions = (input: string) => {
+//   const parts = input.replace(/['"]/g, "").split(/x/i);
+//   if (parts.length === 3) {
+//     const lengthFeet = parseFloat(parts[0].trim());
+//     const widthFeet = parseFloat(parts[1].trim());
+//     const heightFeet = parseFloat(parts[2].trim());
+//     if (!isNaN(lengthFeet) && !isNaN(widthFeet) && !isNaN(heightFeet)) {
+//       return { lengthFeet, widthFeet, heightFeet };
+//     }
+//   }
+//   return { lengthFeet: 0, widthFeet: 0, heightFeet: 0 };
+// };
+//
+// export const getLocalTodayString = () => {
+//   const today = new Date();
+//   const year = today.getFullYear();
+//   const month = String(today.getMonth() + 1).padStart(2, '0');
+//   const day = String(today.getDate()).padStart(2, '0');
+//   return `${year}-${month}-${day}`;
+// };
+//
+// export const getMinDateTime = () => {
+//   const now = new Date();
+//   now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+//   return now.toISOString().slice(0, 16);
+// };
 
 export const freightFormSchema = z.object({
-  description: z.string().default("Project outbound freight"),
-  loadDescription: z.string().trim().min(1, "Load description is required"),
-  weight: z.preprocess(
-    (val) => (val === "" || val === undefined || val === null ? undefined : Number(val)),
-    z.number({ error: "Weight must be a number" }).positive("Weight must be a positive number")
-  ),
-  weightUnit: z.string().default("Lbs"),
-  dimensionsInput: z.string().trim().refine(
-    (val) => {
-      if (!val) return true;
-      const parts = val.replace(/['"]/g, "").split(/x/i);
-      if (parts.length !== 3) return false;
-      return parts.every(part => {
-        const num = parseFloat(part.trim());
-        return !isNaN(num) && num > 0;
-      });
-    },
-    { message: "Dimensions must be in format: Length' x Width' x Height' (e.g. 51' x 8.5' x 8')" }
-  ).optional().or(z.literal("")),
-  metalType: z.string().trim().min(1, "Material type is required"),
-  packageCount: z.preprocess(
-    (val) => (val === "" || val === undefined || val === null ? undefined : Number(val)),
-    z.number({ error: "Package count must be a number" })
-      .int("Package count must be an integer")
-      .positive("Package count must be a positive number")
-  ),
-  loadingEquipment: z.array(z.string()).default(["Crane"]),
-  bidDeadline: z.string().min(1, "Bid deadline is required"),
+  // description: z.string().default("Project outbound freight"),
+  // loadDescription: z.string().trim().min(1, "Load description is required"),
+  // weight: z.preprocess(
+  //   (val) => (val === "" || val === undefined || val === null ? undefined : Number(val)),
+  //   z.number({ error: "Weight must be a number" }).positive("Weight must be a positive number")
+  // ),
+  // weightUnit: z.string().default("Lbs"),
+  // dimensionsInput: z.string().trim().refine(
+  //   (val) => {
+  //     if (!val) return true;
+  //     const parts = val.replace(/['"]/g, "").split(/x/i);
+  //     if (parts.length !== 3) return false;
+  //     return parts.every(part => {
+  //       const num = parseFloat(part.trim());
+  //       return !isNaN(num) && num > 0;
+  //     });
+  //   },
+  //   { message: "Dimensions must be in format: Length' x Width' x Height' (e.g. 51' x 8.5' x 8')" }
+  // ).optional().or(z.literal("")),
+  // metalType: z.string().trim().min(1, "Material type is required"),
+  // packageCount: z.preprocess(
+  //   (val) => (val === "" || val === undefined || val === null ? undefined : Number(val)),
+  //   z.number({ error: "Package count must be a number" })
+  //     .int("Package count must be an integer")
+  //     .positive("Package count must be a positive number")
+  // ),
+  // loadingEquipment: z.array(z.string()).default(["Crane"]),
+  // bidDeadline: z.string().min(1, "Bid deadline is required"),
   pickupLocation: z.string().trim().min(1, "Pickup location is required"),
   deliveryLocation: z.string().trim().min(1, "Delivery location is required"),
-  pickupDate: z.string().min(1, "Pickup date is required").refine(
-    (val) => !val || val >= getLocalTodayString(),
-    { message: "Pickup date must be today or in the future" }
-  ),
-  pickupTime: z.string().optional().or(z.literal("")),
-  deliveryDate: z.string().min(1, "Delivery date is required"),
-  deliveryTime: z.string().optional().or(z.literal("")),
-  receivingPoc: z.string().trim().min(1, "Receiving POC is required"),
-  pickupContactPhone: z.string().trim().min(1, "Pickup contact phone is required").refine(
-    (val) => {
-      const normalized = val.replace(/[\s()-]/g, "");
-      return /^\+?\d{7,15}$/.test(normalized);
-    },
-    { message: "Enter a valid phone number" }
-  ),
-  specialRequirements: z.string().optional().or(z.literal("")),
-  additionalNotes: z.string().optional().or(z.literal("")),
-}).refine(
-  (data) => {
-    if (!data.pickupDate || !data.deliveryDate) return true;
-    return data.deliveryDate >= data.pickupDate;
-  },
-  {
-    message: "Delivery date must be greater than or equal to pickup date",
-    path: ["deliveryDate"],
-  }
-);
+  // pickupDate: z.string().min(1, "Pickup date is required").refine(
+  //   (val) => !val || val >= getLocalTodayString(),
+  //   { message: "Pickup date must be today or in the future" }
+  // ),
+  // pickupTime: z.string().optional().or(z.literal("")),
+  // deliveryDate: z.string().min(1, "Delivery date is required"),
+  // deliveryTime: z.string().optional().or(z.literal("")),
+  // receivingPoc: z.string().trim().min(1, "Receiving POC is required"),
+  // pickupContactPhone: z.string().trim().min(1, "Pickup contact phone is required").refine(
+  //   (val) => {
+  //     const normalized = val.replace(/[\s()-]/g, "");
+  //     return /^\+?\d{7,15}$/.test(normalized);
+  //   },
+  //   { message: "Enter a valid phone number" }
+  // ),
+  // specialRequirements: z.string().optional().or(z.literal("")),
+  // additionalNotes: z.string().optional().or(z.literal("")),
+});
+// .refine(
+//   (data) => {
+//     if (!data.pickupDate || !data.deliveryDate) return true;
+//     return data.deliveryDate >= data.pickupDate;
+//   },
+//   {
+//     message: "Delivery date must be greater than or equal to pickup date",
+//     path: ["deliveryDate"],
+//   }
+// );
 
 export type FreightFormValues = z.infer<typeof freightFormSchema>;
 
@@ -135,46 +138,6 @@ const CardHeader: React.FC<{
   );
 };
 
-interface LocationSelectorProps {
-  value: string;
-  onChange: (val: string) => void;
-  label: string;
-  placeholder: string;
-  required?: boolean;
-  error?: string;
-  iconColor?: string;
-}
-
-const LocationSelector: React.FC<LocationSelectorProps> = ({
-  value,
-  onChange,
-  label,
-  placeholder,
-  required,
-  error,
-}) => {
-  return (
-    <div className="space-y-2">
-      <label className="text-sm font-inter font-semibold text-[#212B36]">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      <div className="relative">
-        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-          <MapPin size={18} />
-        </span>
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="w-full pl-12 pr-4 py-3 bg-white border border-[#E2E4E6] rounded-xl text-base font-inter focus:outline-none focus:ring-1 focus:ring-[#0043CE]"
-        />
-      </div>
-      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
-    </div>
-  );
-};
-
 const EditDeliveryModal: React.FC<EditDeliveryModalProps> = ({
   isOpen,
   onClose,
@@ -184,105 +147,114 @@ const EditDeliveryModal: React.FC<EditDeliveryModalProps> = ({
 }) => {
   const { mutateAsync: updateDeliveryDetails, isPending: isLoading } = useUpdateDeliveryDetailsMutation();
   const [errorMsg, setErrorMsg] = useState("");
-  const [uploadedFiles, setUploadedFiles] = useState<{ url: string; name: string }[]>([]);
-  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  // const [uploadedFiles, setUploadedFiles] = useState<{ url: string; name: string }[]>([]);
+  // const [isUploadOpen, setIsUploadOpen] = useState(false);
 
   const {
     control,
     handleSubmit,
     formState: { errors },
     reset,
-    watch,
-  } = useForm({
+    // watch,
+  } = useForm<FreightFormValues>({
     resolver: zodResolver(freightFormSchema),
     defaultValues: {
-      description: "Project outbound freight",
-      loadDescription: "",
-      weight: undefined,
-      weightUnit: "Lbs",
-      dimensionsInput: "",
-      metalType: "",
-      packageCount: undefined,
-      loadingEquipment: ["Crane"],
-      bidDeadline: "",
       pickupLocation: "",
       deliveryLocation: "",
-      pickupDate: "",
-      pickupTime: "",
-      deliveryDate: "",
-      deliveryTime: "",
-      receivingPoc: "",
-      pickupContactPhone: "",
-      specialRequirements: "",
-      additionalNotes: "",
+      // description: "Project outbound freight",
+      // loadDescription: "",
+      // weight: undefined,
+      // weightUnit: "Lbs",
+      // dimensionsInput: "",
+      // metalType: "",
+      // packageCount: undefined,
+      // loadingEquipment: ["Crane"],
+      // bidDeadline: "",
+      // pickupDate: "",
+      // pickupTime: "",
+      // deliveryDate: "",
+      // deliveryTime: "",
+      // receivingPoc: "",
+      // pickupContactPhone: "",
+      // specialRequirements: "",
+      // additionalNotes: "",
     },
   });
 
-  const pickupDateValue = watch("pickupDate");
+  // const pickupDateValue = watch("pickupDate");
 
   useEffect(() => {
     if (isOpen && delivery) {
       // Parse dimensions if nested
-      let dimensionsStr = "";
-      if (delivery.formDetails?.dimensions) {
-        dimensionsStr = `${delivery.formDetails.dimensions.lengthFeet || 0}' x ${delivery.formDetails.dimensions.widthFeet || 0}' x ${delivery.formDetails.dimensions.heightFeet || 0}'`;
-      }
+      // let dimensionsStr = "";
+      // if (delivery.formDetails?.dimensions) {
+      //   dimensionsStr = `${delivery.formDetails.dimensions.lengthFeet || 0}' x ${delivery.formDetails.dimensions.widthFeet || 0}' x ${delivery.formDetails.dimensions.heightFeet || 0}'`;
+      // }
 
-      const weightVal = delivery.formDetails?.loadWeight || undefined;
-      const pkgCount = delivery.formDetails?.packageCount || undefined;
+      // const weightVal = delivery.formDetails?.loadWeight || undefined;
+      // const pkgCount = delivery.formDetails?.packageCount || undefined;
 
-      const pickupDateStr = delivery.formDetails?.pickupDate
-        ? new Date(delivery.formDetails.pickupDate).toISOString().split("T")[0]
-        : "";
+      // const pickupDateStr = delivery.formDetails?.pickupDate
+      //   ? new Date(delivery.formDetails.pickupDate).toISOString().split("T")[0]
+      //   : "";
 
-      const deliveryDateStr = delivery.formDetails?.deliveryDate
-        ? new Date(delivery.formDetails.deliveryDate).toISOString().split("T")[0]
-        : delivery.deliverySchedule?.deliveryDate
-          ? new Date(delivery.deliverySchedule.deliveryDate).toISOString().split("T")[0]
-          : "";
+      // const deliveryDateStr = delivery.formDetails?.deliveryDate
+      //   ? new Date(delivery.formDetails.deliveryDate).toISOString().split("T")[0]
+      //   : delivery.deliverySchedule?.deliveryDate
+      //     ? new Date(delivery.deliverySchedule.deliveryDate).toISOString().split("T")[0]
+      //     : "";
 
-      const deadlineStr = delivery.formDetails?.bidDeadline
-        ? new Date(delivery.formDetails.bidDeadline).toISOString().slice(0, 16)
-        : "";
+      // const deadlineStr = delivery.formDetails?.bidDeadline
+      //   ? new Date(delivery.formDetails.bidDeadline).toISOString().slice(0, 16)
+      //   : "";
 
-      const pickupTimeStr = delivery.formDetails?.pickupTime ||
-        delivery.formDetails?.timeWindowStart ||
-        (delivery.formDetails?.timings || delivery.formDetails?.deliveryTime || delivery.deliverySchedule?.timeWindow || "").split(/\s*[-–]\s*/)[0] ||
-        "";
+      // const pickupTimeStr = delivery.formDetails?.pickupTime ||
+      //   delivery.formDetails?.timeWindowStart ||
+      //   (delivery.formDetails?.timings || delivery.formDetails?.deliveryTime || delivery.deliverySchedule?.timeWindow || "").split(/\s*[-–]\s*/)[0] ||
+      //   "";
 
-      const deliveryTimeStr = delivery.formDetails?.deliveryTime ||
-        delivery.formDetails?.timeWindowEnd ||
-        (delivery.formDetails?.timings || delivery.formDetails?.deliveryTime || delivery.deliverySchedule?.timeWindow || "").split(/\s*[-–]\s*/)[1] ||
-        "";
+      // const deliveryTimeStr = delivery.formDetails?.deliveryTime ||
+      //   delivery.formDetails?.timeWindowEnd ||
+      //   (delivery.formDetails?.timings || delivery.formDetails?.deliveryTime || delivery.deliverySchedule?.timeWindow || "").split(/\s*[-–]\s*/)[1] ||
+      //   "";
 
       reset({
-        description: delivery.formDetails?.description || "Project outbound freight",
-        loadDescription: delivery.formDetails?.loadDescription || "",
-        weight: weightVal,
-        weightUnit: "Lbs",
-        dimensionsInput: dimensionsStr,
-        metalType: delivery.formDetails?.materialType || "",
-        packageCount: pkgCount,
-        loadingEquipment: delivery.formDetails?.loadingEquipment || ["Crane"],
-        bidDeadline: deadlineStr,
-        pickupLocation: delivery.formDetails?.pickupLocation || "",
-        deliveryLocation: delivery.formDetails?.deliveryLocation || "",
-        pickupDate: pickupDateStr,
-        pickupTime: pickupTimeStr,
-        deliveryDate: deliveryDateStr,
-        deliveryTime: deliveryTimeStr,
-        receivingPoc: delivery.formDetails?.receivingPoc || "",
-        pickupContactPhone: delivery.formDetails?.pickupContactPhone || "",
-        specialRequirements: delivery.formDetails?.specialRequirements || "",
-        additionalNotes: delivery.formDetails?.additionalNotes || "",
+        pickupLocation:
+          delivery.formDetails?.pickupLocation ||
+          delivery.formDetails?.pickupLocationData?.address ||
+          delivery.deliverySchedule?.pickupAddress ||
+          "",
+        deliveryLocation:
+          delivery.formDetails?.deliveryLocation ||
+          delivery.formDetails?.deliveryLocationData?.address ||
+          delivery.deliverySchedule?.dropoffAddress ||
+          "",
+        // description: delivery.formDetails?.description || "Project outbound freight",
+        // loadDescription: delivery.formDetails?.loadDescription || "",
+        // weight: weightVal,
+        // weightUnit: "Lbs",
+        // dimensionsInput: dimensionsStr,
+        // metalType: delivery.formDetails?.materialType || "",
+        // packageCount: pkgCount,
+        // loadingEquipment: delivery.formDetails?.loadingEquipment || ["Crane"],
+        // bidDeadline: deadlineStr,
+        // pickupDate: pickupDateStr,
+        // pickupTime: pickupTimeStr,
+        // deliveryDate: deliveryDateStr,
+        // deliveryTime: deliveryTimeStr,
+        // receivingPoc: delivery.formDetails?.receivingPoc || "",
+        // pickupContactPhone: delivery.formDetails?.pickupContactPhone || "",
+        // specialRequirements: delivery.formDetails?.specialRequirements || "",
+        // additionalNotes: delivery.formDetails?.additionalNotes || "",
       });
 
-      const docUrl = delivery.formDetails?.documentUrl;
-      const expectedFile = docUrl ? [{ url: docUrl, name: docUrl.split("/").pop() || "document.pdf" }] : [];
-      setTimeout(() => {
-        setUploadedFiles(expectedFile);
-        setErrorMsg("");
-      }, 0);
+      // const docUrl = delivery.formDetails?.documentUrl;
+      // const expectedFile = docUrl ? [{ url: docUrl, name: docUrl.split("/").pop() || "document.pdf" }] : [];
+      // setTimeout(() => {
+      //   setUploadedFiles(expectedFile);
+      //   setErrorMsg("");
+      // }, 0);
+      setErrorMsg("");
     }
   }, [isOpen, delivery, reset]);
 
@@ -291,16 +263,31 @@ const EditDeliveryModal: React.FC<EditDeliveryModalProps> = ({
   const handleSave = async (values: FreightFormValues) => {
     setErrorMsg("");
     try {
-      const payload = {
-        description: values.description,
-        loadDescription: values.loadDescription,
-        weight: values.weight,
-        dimensions: parseDimensions(values.dimensionsInput || ""),
-        metalType: values.metalType,
-        packageCount: values.packageCount,
-        loadingEquipment: values.loadingEquipment,
-        bidDeadline: values.bidDeadline ? new Date(values.bidDeadline).toISOString() : "",
-        documentUrl: uploadedFiles[0]?.url || "",
+      const payload: UpdateDeliveryDetailsBody = {
+        ...(delivery?.formDetails
+          ? {
+              description: delivery.formDetails.description,
+              loadDescription: delivery.formDetails.loadDescription,
+              weight: delivery.formDetails.loadWeight,
+              dimensions: delivery.formDetails.dimensions,
+              metalType: delivery.formDetails.materialType,
+              packageCount: delivery.formDetails.packageCount,
+              loadingEquipment: delivery.formDetails.loadingEquipment,
+              bidDeadline: delivery.formDetails.bidDeadline,
+              documentUrl: delivery.formDetails.documentUrl,
+              pickupDate: delivery.formDetails.pickupDate,
+              pickupTime: delivery.formDetails.pickupTime,
+              deliveryDate: delivery.formDetails.deliveryDate,
+              deliveryTime: delivery.formDetails.deliveryTime,
+              timeWindowStart: delivery.formDetails.timeWindowStart,
+              timeWindowEnd: delivery.formDetails.timeWindowEnd,
+              timings: delivery.formDetails.timings,
+              receivingPoc: delivery.formDetails.receivingPoc,
+              pickupContactPhone: delivery.formDetails.pickupContactPhone,
+              specialRequirements: delivery.formDetails.specialRequirements,
+              additionalNotes: delivery.formDetails.additionalNotes,
+            }
+          : {}),
         pickupLocation: values.pickupLocation,
         pickupLocationData: {
           address: values.pickupLocation,
@@ -311,17 +298,27 @@ const EditDeliveryModal: React.FC<EditDeliveryModalProps> = ({
           address: values.deliveryLocation,
           coordinates: delivery?.formDetails?.deliveryLocationData?.coordinates || { lat: 0, lng: 0 },
         },
-        pickupDate: values.pickupDate ? new Date(values.pickupDate + "T00:00:00Z").toISOString() : "",
-        pickupTime: values.pickupTime || undefined,
-        deliveryDate: values.deliveryDate ? new Date(values.deliveryDate + "T00:00:00Z").toISOString() : "",
-        deliveryTime: values.deliveryTime || undefined,
-        timeWindowStart: values.pickupTime || undefined,
-        timeWindowEnd: values.deliveryTime || undefined,
-        timings: values.pickupTime && values.deliveryTime ? `${values.pickupTime} - ${values.deliveryTime}` : undefined,
-        receivingPoc: values.receivingPoc,
-        pickupContactPhone: values.pickupContactPhone,
-        specialRequirements: values.specialRequirements || undefined,
-        additionalNotes: values.additionalNotes || undefined,
+        // [Commented out - kept for reference]
+        // description: values.description,
+        // loadDescription: values.loadDescription,
+        // weight: values.weight,
+        // dimensions: parseDimensions(values.dimensionsInput || ""),
+        // metalType: values.metalType,
+        // packageCount: values.packageCount,
+        // loadingEquipment: values.loadingEquipment,
+        // bidDeadline: values.bidDeadline ? new Date(values.bidDeadline).toISOString() : "",
+        // documentUrl: uploadedFiles[0]?.url || "",
+        // pickupDate: values.pickupDate ? new Date(values.pickupDate + "T00:00:00Z").toISOString() : "",
+        // pickupTime: values.pickupTime || undefined,
+        // deliveryDate: values.deliveryDate ? new Date(values.deliveryDate + "T00:00:00Z").toISOString() : "",
+        // deliveryTime: values.deliveryTime || undefined,
+        // timeWindowStart: values.pickupTime || undefined,
+        // timeWindowEnd: values.deliveryTime || undefined,
+        // timings: values.pickupTime && values.deliveryTime ? `${values.pickupTime} - ${values.deliveryTime}` : undefined,
+        // receivingPoc: values.receivingPoc,
+        // pickupContactPhone: values.pickupContactPhone,
+        // specialRequirements: values.specialRequirements || undefined,
+        // additionalNotes: values.additionalNotes || undefined,
       };
 
       await updateDeliveryDetails({
@@ -338,26 +335,31 @@ const EditDeliveryModal: React.FC<EditDeliveryModalProps> = ({
     }
   };
 
-  const materialOptions = [
-    { label: "Steel & Metal", value: "Steel & Metal" },
-    ...(delivery?.formDetails?.materialType && delivery.formDetails.materialType !== "Steel & Metal"
-      ? [{ label: delivery.formDetails.materialType, value: delivery.formDetails.materialType }]
-      : []),
-  ];
+  // const materialOptions = [
+  //   { label: "Steel & Metal", value: "Steel & Metal" },
+  //   ...(delivery?.formDetails?.materialType && delivery.formDetails.materialType !== "Steel & Metal"
+  //     ? [{ label: delivery.formDetails.materialType, value: delivery.formDetails.materialType }]
+  //     : []),
+  // ];
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} hideHeader width="max-w-[800px]">
-      <div className="space-y-6 font-inter ">
+    <Modal isOpen={isOpen} onClose={onClose} hideHeader width="max-w-[700px]">
+      <div className="space-y-6 font-inter">
         {/* Header */}
         <div className="flex justify-between items-center border-b border-gray-100 pb-4">
           <div>
-            <h2 className="text-xl font-semibold text-[#212B36]">Edit Delivery Details</h2>
-            <p className="text-sm text-[#637381]">Modify parameters for delivery #{delivery?.deliveryNumber || deliveryId}</p>
+            <h2 className="text-xl font-semibold text-[#212B36]">Edit Delivery Locations</h2>
+            <p className="text-sm text-[#637381]">
+              Modify pickup and delivery locations for delivery #{delivery?.deliveryNumber || deliveryId}
+            </p>
           </div>
         </div>
 
         <div className="space-y-8">
-          {/* Load Details Card */}
+          {/* ========================================================================= */}
+          {/* LOAD DETAILS CARD (COMMENTED OUT - KEPT FOR REFERENCE)                    */}
+          {/* ========================================================================= */}
+          {/*
           <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-8">
             <CardHeader
               icon={<Package />}
@@ -610,11 +612,14 @@ const EditDeliveryModal: React.FC<EditDeliveryModalProps> = ({
               </div>
             </div>
           </div>
+          */}
 
-          {/* Locations Card */}
-          <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-8">
+          {/* ========================================================================= */}
+          {/* LOCATIONS CARD (ACTIVE)                                                   */}
+          {/* ========================================================================= */}
+          <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-6">
             <CardHeader
-              icon={<MapPin size={24} />}
+              icon={<MapPin size={22} />}
               title="Locations"
               subtitle="Pickup and delivery addresses"
               iconBgColor="bg-[#E8F1FF]"
@@ -631,7 +636,7 @@ const EditDeliveryModal: React.FC<EditDeliveryModalProps> = ({
                     label="Pickup Location"
                     placeholder="e.g., Steel Mill, Pittsburgh, PA"
                     required
-                    error={errors.pickupLocation?.message as string}
+                    error={errors.pickupLocation?.message}
                     iconColor="text-[#22C55E]"
                   />
                 )}
@@ -646,7 +651,7 @@ const EditDeliveryModal: React.FC<EditDeliveryModalProps> = ({
                     label="Delivery Location"
                     placeholder="e.g., Construction Site, Austin, TX"
                     required
-                    error={errors.deliveryLocation?.message as string}
+                    error={errors.deliveryLocation?.message}
                     iconColor="text-[#EF4444]"
                   />
                 )}
@@ -654,7 +659,10 @@ const EditDeliveryModal: React.FC<EditDeliveryModalProps> = ({
             </div>
           </div>
 
-          {/* Timing Card */}
+          {/* ========================================================================= */}
+          {/* TIMING CARD (COMMENTED OUT - KEPT FOR REFERENCE)                          */}
+          {/* ========================================================================= */}
+          {/*
           <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-8">
             <CardHeader
               icon={<Calendar />}
@@ -768,8 +776,12 @@ const EditDeliveryModal: React.FC<EditDeliveryModalProps> = ({
               />
             </div>
           </div>
+          */}
 
-          {/* Coordination Card */}
+          {/* ========================================================================= */}
+          {/* COORDINATION CARD (COMMENTED OUT - KEPT FOR REFERENCE)                    */}
+          {/* ========================================================================= */}
+          {/*
           <div className="bg-white rounded-[20px] border border-gray-100 shadow-sm p-4 md:p-6 space-y-8">
             <CardHeader
               icon={<User />}
@@ -877,11 +889,12 @@ const EditDeliveryModal: React.FC<EditDeliveryModalProps> = ({
               />
             </div>
           </div>
+          */}
         </div>
 
         {/* Error Message */}
         {errorMsg && (
-          <div className="p-3 mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+          <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
             {errorMsg}
           </div>
         )}
@@ -891,7 +904,11 @@ const EditDeliveryModal: React.FC<EditDeliveryModalProps> = ({
           <Button variant="outline" onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleSubmit(handleSave)} disabled={isLoading}>
+          <Button
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={handleSubmit(handleSave)}
+            disabled={isLoading}
+          >
             {isLoading ? "Saving Changes..." : "Save Changes"}
           </Button>
         </div>

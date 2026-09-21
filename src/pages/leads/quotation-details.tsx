@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -34,6 +35,8 @@ import {
 
 export default function QuotationDetailsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { goBack } = useAppBack("/leads");
   const { id } = useParams<{ id: string }>();
 
   const { data, isLoading, isError } = useQuotationQuery(id);
@@ -78,7 +81,7 @@ export default function QuotationDetailsPage() {
         <Button
           variant="outline"
           className="mt-4"
-          onClick={() => navigate("/leads")}
+          onClick={() => goBack("/leads")}
         >
           Go Back
         </Button>
@@ -133,7 +136,7 @@ export default function QuotationDetailsPage() {
           size="sm"
           variant="outline"
           className="bg-white hover:bg-gray-50 border-gray-200 text-gray-600 h-9 px-4 text-sm font-normal rounded-md flex items-center gap-2"
-          onClick={() => navigate(-1)}
+          onClick={() => goBack()}
         >
           <ArrowLeft className="h-4 w-4" />
           Back
@@ -218,6 +221,7 @@ export default function QuotationDetailsPage() {
             onClick={() => {
               navigate(
                 `/invoice?type=quotation${leadIdStr ? `&leadId=${leadIdStr}` : ""}`,
+                { state: { from: location.pathname + location.search } },
               );
             }}
             title="Create Invoice from Quotation"

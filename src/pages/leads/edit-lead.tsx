@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Minus, Plus, Loader2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getLeadDetailProvider, updateLeadProvider } from "@/modules/leads/leads.api";
 import SuccessDialog from "@/components/success-dialog";
@@ -114,6 +115,7 @@ function CounterInput({ id, label, value, onChange }: CounterInputProps) {
 
 export default function EditLeadPage() {
   const navigate = useNavigate();
+  const { goBack } = useAppBack("/leads");
   const { leadId } = useParams();
   const [showSuccess, setShowSuccess] = useState(false);
   const [formData, setFormData] = useState<LeadFormData>(getInitialFormData());
@@ -198,7 +200,7 @@ export default function EditLeadPage() {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       queryClient.invalidateQueries({ queryKey: ["lead", "detail", leadId] });
       setShowSuccess(true);
-      setTimeout(() => navigate('/leads'), 1500);
+      setTimeout(() => navigate('/leads', { replace: true }), 1500);
     },
   });
 
@@ -243,7 +245,7 @@ export default function EditLeadPage() {
         <Button
           type="button"
           className="h-8 bg-blue-600 px-4 text-xs font-medium hover:bg-blue-700"
-          onClick={() => navigate("/leads")}
+          onClick={() => goBack("/leads")}
         >
           <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
           Back
@@ -516,7 +518,7 @@ export default function EditLeadPage() {
               type="button"
               variant="outline"
               className="h-10 min-w-24"
-              onClick={() => navigate("/leads")}
+              onClick={() => goBack("/leads")}
             >
               Cancel
             </Button>

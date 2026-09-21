@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -165,9 +166,17 @@ const statusClasses: Record<string, string> = {
 
 export default function MaterialDeliveryListPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id, projectId } = useParams<{ id: string; projectId: string }>();
   const customerId = id || "";
   const currentProjectId = projectId || "";
+
+  const defaultFallback = customerId
+    ? currentProjectId
+      ? `/customers/${customerId}/project-details/${currentProjectId}`
+      : `/customers/${customerId}`
+    : "/customers";
+  const { goBack } = useAppBack(defaultFallback);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -201,15 +210,12 @@ export default function MaterialDeliveryListPage() {
   );
 
   const handleRowClick = (deliveryId: string) => {
-    if (customerId) {
-      if (currentProjectId) {
-        navigate(`/customers/${customerId}/material-delivery/${deliveryId}`);
-      } else {
-        navigate(`/customers/${customerId}/material-delivery/${deliveryId}`);
-      }
-    } else {
-      navigate(`/customers/1/material-delivery/${deliveryId}`);
-    }
+    const targetUrl = customerId
+      ? `/customers/${customerId}/material-delivery/${deliveryId}`
+      : `/customers/1/material-delivery/${deliveryId}`;
+    navigate(targetUrl, {
+      state: { from: location.pathname + location.search },
+    });
   };
 
   return (
@@ -219,15 +225,7 @@ export default function MaterialDeliveryListPage() {
         <div className="flex items-center gap-3">
           <Button
             variant="default"
-            onClick={() =>
-              navigate(
-                customerId
-                  ? currentProjectId
-                    ? `/customers/${customerId}/project-details/${currentProjectId}`
-                    : `/customers/${customerId}`
-                  : "/customers"
-              )
-            }
+            onClick={() => goBack()}
             className="px-4 bg-[#3B82F6] hover:bg-[#2563EB] text-white"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />

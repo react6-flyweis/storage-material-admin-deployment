@@ -1,4 +1,5 @@
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import {
   ArrowLeft,
   Clock3,
@@ -50,8 +51,10 @@ function cleanProjectName(name?: string) {
 
 export default function CustomerDetailLayout() {
   const navigate = useNavigate();
+  const location = useLocation();
   const params = useParams();
   const id = params.id ?? "unknown";
+  const { goBack } = useAppBack("/customers");
 
   const {
     data: customerDetailResponse,
@@ -127,7 +130,7 @@ export default function CustomerDetailLayout() {
         <div className="flex items-center gap-3">
           <Button
             variant="default"
-            onClick={() => navigate('/customers')}
+            onClick={() => goBack()}
             className="px-4"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
@@ -137,7 +140,7 @@ export default function CustomerDetailLayout() {
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           <Button asChild className="w-full sm:w-auto bg-black px-4">
-            <Link to={`/customers/${id}/edit`}>Edit</Link>
+            <Link to={`/customers/${id}/edit`} state={{ from: location.pathname + location.search }}>Edit</Link>
           </Button>
           <Link to={`/customers/${id}/projects/new`}>
             <Button className="w-full sm:w-auto bg-[#1F86D5] hover:bg-[#1769A7]">
@@ -291,7 +294,11 @@ export default function CustomerDetailLayout() {
             <Button
               variant="link"
               className="text-blue-600 text-sm"
-              onClick={() => navigate(`/customers/${id}/projects`)}
+              onClick={() =>
+                navigate(`/customers/${id}/projects`, {
+                  state: { from: location.pathname + location.search },
+                })
+              }
             >
               View All
             </Button>

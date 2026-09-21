@@ -52,7 +52,7 @@ export default function ResetPassword() {
       if (response.success) {
         setSuccessMessage(response.message || "Password reset successfully. Redirecting to login...");
         setTimeout(() => {
-          navigate("/sign-in");
+          navigate("/sign-in", { replace: true });
         }, 2000);
       } else {
         setErrorMessage(response.message || "Failed to reset password. Please try again.");

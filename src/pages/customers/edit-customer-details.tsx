@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import SuccessDialog from "@/components/success-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,8 @@ type CustomerFormData = {
 export default function EditCustomerDetailsPage() {
   const navigate = useNavigate();
   const params = useParams();
-  const customerId = params.id ?? "";
+  const customerId = params.id ?? "unknown";
+  const { goBack } = useAppBack(`/customers/${customerId}`);
   const [showSuccess, setShowSuccess] = useState(false);
 
   const { data: customerData, isLoading, error } = useCustomerDetailQuery(customerId);
@@ -100,7 +102,7 @@ export default function EditCustomerDetailsPage() {
 
   const handleSuccessClose = () => {
     setShowSuccess(false);
-    navigate(`/customers/${customerId}`);
+    navigate(`/customers/${customerId}`, { replace: true });
   };
 
   if (isLoading) {
@@ -118,7 +120,7 @@ export default function EditCustomerDetailsPage() {
       <div className="p-4 sm:p-6 space-y-6 min-h-screen">
         <div className="flex items-start gap-3">
           <Button
-            onClick={() => navigate(`/customers/${customerId}`)}
+            onClick={() => goBack(`/customers/${customerId}`)}
             className="px-4"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
@@ -136,7 +138,7 @@ export default function EditCustomerDetailsPage() {
     <div className="p-4 sm:p-6 space-y-6 min-h-screen">
       <div className="flex items-start gap-3">
         <Button
-          onClick={() => navigate(`/customers/${customerId}`)}
+          onClick={() => goBack(`/customers/${customerId}`)}
           className="px-4"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
@@ -230,7 +232,7 @@ export default function EditCustomerDetailsPage() {
           <Button
             type="button"
             variant="secondary"
-            onClick={() => navigate(`/customers/${customerId}`)}
+            onClick={() => goBack(`/customers/${customerId}`)}
             className="min-w-28"
             disabled={updateCustomerMutation.isPending}
           >

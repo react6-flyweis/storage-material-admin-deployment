@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { useLogoutMutation } from "@/modules/auth/auth.hooks";
 import {
   DropdownMenu,
@@ -14,18 +14,19 @@ type UserMenuProps = PropsWithChildren & { onOpenProfile?: () => void };
 
 export function UserMenu({ children, onOpenProfile }: UserMenuProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { mutateAsync: logout } = useLogoutMutation();
-  const goProfile = () => navigate("/profile");
-  const goSettings = () => navigate("/settings");
+  const goProfile = () => navigate("/profile", { state: { from: location.pathname + location.search } });
+  const goSettings = () => navigate("/settings", { state: { from: location.pathname + location.search } });
   const signOut = () => {
     // Call logout mutation then navigate to sign-in
     void (async () => {
       try {
         await logout();
-      } catch (e) {
+      } catch {
         // ignore error and still navigate to sign-in
       } finally {
-        navigate("/sign-in");
+        navigate("/sign-in", { replace: true });
       }
     })();
   };

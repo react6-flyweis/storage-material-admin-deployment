@@ -81,6 +81,7 @@ export function VendorInvoiceTable({
   onRefetch,
 }: VendorInvoiceTableProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const markPaidMutation = useMarkInvoicePaidMutation();
 
   // Internal selection state
@@ -109,6 +110,7 @@ export function VendorInvoiceTable({
   const handleView = (invoice: VendorInvoiceItem) => {
     navigate(`/invoice/vendor-preview/${invoice._id}`, {
       state: {
+        from: location.pathname + location.search,
         invoiceId: invoice._id,
         invoiceNumber: invoice.invoiceNumber,
         status: invoice.status,

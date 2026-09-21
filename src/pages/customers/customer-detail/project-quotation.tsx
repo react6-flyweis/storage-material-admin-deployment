@@ -1,11 +1,11 @@
-import { useNavigate } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export default function ProjectQuotationPage() {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack("/customers");
 
   return (
     <div className="space-y-6 p-6">
@@ -13,7 +13,7 @@ export default function ProjectQuotationPage() {
       <div className="flex items-center gap-3">
         <Button
           variant="default"
-          onClick={() => navigate('/customers')}
+          onClick={() => goBack()}
           className="px-4 bg-[#3B82F6] hover:bg-[#2563EB] text-white"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />

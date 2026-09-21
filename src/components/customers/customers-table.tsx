@@ -36,7 +36,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import DateRangeFilter from "@/components/ui/date-range-filter";
 
 export type CustomerListItem = {
@@ -89,6 +89,7 @@ export default function CustomersTable({
   const deactivateCustomerMutation = useDeactivateCustomerMutation();
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   const totalPages = Math.max(1, Math.ceil(totalItems / rowsPerPage));
 
@@ -101,13 +102,17 @@ export default function CustomersTable({
   };
 
   const handleViewCustomer = (customerId: string) => {
-    navigate(`/customers/${customerId}`);
+    navigate(`/customers/${customerId}`, {
+      state: { from: location.pathname + location.search },
+    });
   };
 
   const [isAssignPlantDialogOpen, setIsAssignPlantDialogOpen] = useState(false);
 
   const handleViewProjects = (customerId: string) => {
-    navigate(`/customers/${customerId}/projects`);
+    navigate(`/customers/${customerId}/projects`, {
+      state: { from: location.pathname + location.search },
+    });
   };
 
   // const handleAssignToPlant = (customerId: string) => {
@@ -120,7 +125,9 @@ export default function CustomersTable({
   // };
 
   const handleEditCustomer = (customerId: string) => {
-    navigate(`/customers/${customerId}/edit`);
+    navigate(`/customers/${customerId}/edit`, {
+      state: { from: location.pathname + location.search },
+    });
   };
 
   const handleDeactivateAccount = async (customerId: string) => {

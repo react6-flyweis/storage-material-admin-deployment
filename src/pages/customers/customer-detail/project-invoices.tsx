@@ -1,4 +1,5 @@
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { toast } from "sonner";
 import {
   useGetProjectInvoiceStatsQuery,
@@ -35,7 +36,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getApiErrorMessage } from "@/lib/api-error";
 
 export default function ProjectInvoicesPage() {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { id, projectId } = useParams<{ id: string; projectId: string }>();
   // Use projectId if available, otherwise fallback to id (for backwards compatibility if needed)
@@ -44,6 +44,8 @@ export default function ProjectInvoicesPage() {
   const { data: leadData, isLoading: isLeadLoading } =
     useLeadDetailQuery(leadId);
   const customerId = leadData?.data?.lead?.customerId || "";
+  const defaultFallback = customerId && leadId ? `/customers/${customerId}/project-details/${leadId}` : "/customers";
+  const { goBack } = useAppBack(defaultFallback);
 
   const { data: statsData, isLoading: isStatsLoading } =
     useGetProjectInvoiceStatsQuery(customerId, leadId);
@@ -123,9 +125,7 @@ export default function ProjectInvoicesPage() {
       <div className="flex items-center gap-4">
         <Button
           variant="default"
-          onClick={() =>
-            navigate(`/customers/${customerId}/project-details/${leadId}`)
-          }
+          onClick={() => goBack()}
           className="px-4 bg-[#3B82F6] hover:bg-[#2563EB] text-white"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />

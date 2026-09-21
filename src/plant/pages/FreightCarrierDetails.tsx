@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import {
   ArrowLeft,
   PencilLine,
@@ -252,6 +253,8 @@ const VerifyIcon = () => (
 const FreightCarrierDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { goBack } = useAppBack("/plant/freight-carriers");
 
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -393,7 +396,7 @@ const FreightCarrierDetails: React.FC = () => {
         {/* Header */}
         <div className="flex items-center gap-3 mt-2">
           <button
-            onClick={() => navigate("/plant/freight-carriers")}
+            onClick={() => goBack()}
             className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <ArrowLeft size={20} className="text-[#051321]" />
@@ -433,7 +436,11 @@ const FreightCarrierDetails: React.FC = () => {
                 <Button
                   variant="outline"
                   className="flex items-center gap-2 border-gray-200 shadow-sm text-gray-700 bg-white hover:bg-gray-50 h-10 px-4"
-                  onClick={() => navigate(`/plant/freight-carriers/${id}/edit`)}
+                  onClick={() =>
+                    navigate(`/plant/freight-carriers/${id}/edit`, {
+                      state: { from: location.pathname + location.search },
+                    })
+                  }
                 >
                   <PencilLine size={16} /> Edit Profile
                 </Button>

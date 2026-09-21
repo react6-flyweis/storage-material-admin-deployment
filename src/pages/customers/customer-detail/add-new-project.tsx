@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Minus, Plus } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import SuccessDialog from "@/components/success-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ export default function AddNewProjectPage() {
   const navigate = useNavigate();
   const params = useParams();
   const customerId = params.id ?? "unknown";
+  const { goBack } = useAppBack(`/customers/${customerId}/projects`);
   const [showSuccess, setShowSuccess] = useState(false);
 
   const { data: customerData, isLoading: isLoadingCustomer } = useCustomerDetailQuery(customerId);
@@ -95,7 +97,7 @@ export default function AddNewProjectPage() {
   };
 
   const handleCancel = () => {
-    navigate(`/customers/${customerId}`);
+    goBack(`/customers/${customerId}/projects`);
   };
 
   const validateForm = () => {
@@ -144,13 +146,13 @@ export default function AddNewProjectPage() {
 
   const handleSuccessClose = () => {
     setShowSuccess(false);
-    navigate(`/customers/${customerId}`);
+    navigate(`/customers/${customerId}`, { replace: true });
   };
 
   return (
     <div className="p-4 sm:p-6 space-y-6 min-h-screen">
       <div className="space-y-2 flex gap-2">
-        <Button onClick={() => navigate('/customers')} className="px-4">
+        <Button onClick={() => goBack(`/customers/${customerId}/projects`)} className="px-4">
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back
         </Button>

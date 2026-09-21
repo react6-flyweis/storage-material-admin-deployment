@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import SuccessModal from "../components/common_component/SuccessModal";
 import CarrierForm from "./CarrierForm";
 import { type CarrierFormValues, type CarrierFormInput } from "./carrierSchema";
@@ -23,6 +24,7 @@ const PageWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const EditFreightCarrier: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { goBack } = useAppBack("/plant/freight-carriers");
 
   const { data: carrierResponse, isLoading: isCarrierLoading } = usePlantCarrierQuery(id ?? "", {
     enabled: !!id,
@@ -138,7 +140,7 @@ const EditFreightCarrier: React.FC = () => {
       <div className="flex items-center justify-between mb-6 pt-2">
         <div
           className="flex items-center gap-3 cursor-pointer text-gray-800 hover:text-black transition-colors select-none"
-          onClick={() => navigate(-1)}
+          onClick={() => goBack("/plant/freight-carriers")}
         >
           <ArrowLeft className="w-5 h-5" />
           <h1 className="text-lg md:text-xl font-semibold">Edit Freight Courier</h1>
@@ -156,7 +158,7 @@ const EditFreightCarrier: React.FC = () => {
         isOpen={isSuccessOpen}
         onClose={() => {
           setIsSuccessOpen(false);
-          navigate(`/plant/freight-carriers/${id}`);
+          navigate(`/plant/freight-carriers/${id}`, { replace: true });
         }}
         title="Courier Updated Successfully"
         subTitle={initialValues?.vendorName ? `Name: ${initialValues.vendorName}` : undefined}

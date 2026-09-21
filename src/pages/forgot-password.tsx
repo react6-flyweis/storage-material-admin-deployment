@@ -104,6 +104,7 @@ export default function ForgotPassword() {
 
       if (response.success && response.data?.resetToken) {
         navigate("/reset-password", {
+          replace: true,
           state: {
             resetToken: response.data.resetToken,
             email: submittedEmail,

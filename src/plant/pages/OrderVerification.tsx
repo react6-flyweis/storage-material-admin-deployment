@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { ArrowLeft, UploadCloud, Scale, Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import { truncateMiddle } from "@/lib/utils";
 
 export default function OrderVerification() {
   const navigate = useNavigate();
+  const { goBack } = useAppBack();
   const queryClient = useQueryClient();
   const { leadId, projectId, requestId } = useParams();
 
@@ -140,12 +142,12 @@ export default function OrderVerification() {
     const targetLeadId = effectiveLeadId || shipperRequestsData?.leadId || shipperRequestsData?.projectId;
     if (targetLeadId && activeRequestId) {
       queryClient.invalidateQueries({ queryKey: ["plant", "shipper", "document", activeRequestId] });
-      navigate(`/plant/shipper-quotation/${targetLeadId}/file/${activeRequestId}`);
+      navigate(`/plant/shipper-quotation/${targetLeadId}/file/${activeRequestId}`, { replace: true });
     } else if (targetLeadId) {
       queryClient.invalidateQueries({ queryKey: ["plant", "shipper", "project-requests", targetLeadId] });
-      navigate(`/plant/shipper-quotation/${targetLeadId}`);
+      navigate(`/plant/shipper-quotation/${targetLeadId}`, { replace: true });
     } else {
-      navigate("/plant/shippers");
+      navigate("/plant/shippers", { replace: true });
     }
   };
 
@@ -157,7 +159,7 @@ export default function OrderVerification() {
         <Button 
           variant="default" 
           className="bg-blue-600 hover:bg-blue-700 text-white rounded-md shadow-sm h-9 px-4 mr-4"
-          onClick={() => navigate(-1)}
+          onClick={() => goBack()}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back
