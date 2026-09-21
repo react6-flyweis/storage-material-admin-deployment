@@ -1,4 +1,5 @@
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, FileDown } from "lucide-react";
 import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
@@ -20,8 +21,8 @@ const OPTIONAL_ADDONS = [
 ];
 
 export default function RFQPage() {
-  const navigate = useNavigate();
   const { leadId } = useParams<{ leadId: string }>();
+  const { goBack } = useAppBack(leadId ? `/leads/${leadId}` : "/leads");
 
   const { data: leadQueryData, isLoading } = useLeadDetailQuery(leadId || "");
   const lead = leadQueryData?.data?.lead;
@@ -62,7 +63,7 @@ export default function RFQPage() {
           variant="ghost"
           size="sm"
           className="flex items-center gap-2 text-blue-600 bg-blue-600 hover:bg-blue-700 text-white rounded-md px-4"
-          onClick={() => navigate('/leads')}
+          onClick={() => goBack()}
         >
           <ArrowLeft className="h-4 w-4" />
           Back
@@ -156,7 +157,7 @@ export default function RFQPage() {
           <Button
             variant="outline"
             className="w-44 border-blue-600 text-blue-600 hover:bg-blue-50"
-            onClick={() => navigate('/leads')}
+            onClick={() => goBack()}
           >
             Back
           </Button>

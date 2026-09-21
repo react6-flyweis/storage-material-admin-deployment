@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import steelLogo from "@/assets/steel-building-depot-logo.png";
 import { useNavigate, useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
   useCreateInvoiceMutation,
@@ -112,6 +113,7 @@ export default function EditInvoice() {
   const watchedValues = useWatch({ control }) as InvoiceFormValues;
 
   const navigate = useNavigate();
+  const { goBack } = useAppBack("/invoice/list");
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -504,6 +506,7 @@ export default function EditInvoice() {
     }));
 
     navigate("/invoice/preview", {
+      replace: true,
       state: {
         invoiceId: savedInvoice?._id || id,
         invoiceNumber: savedInvoice?.invoiceNumber || values.invoiceNumber || invoiceNumber,
@@ -526,14 +529,14 @@ export default function EditInvoice() {
         <div className="flex items-center gap-3 ml-auto">
           <Button
             variant="outline"
-            onClick={() => navigate('/invoice/list')}
+            onClick={() => goBack()}
             className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200"
           >
             Back
           </Button>
           <Button
             variant="outline"
-            onClick={() => navigate('/invoice/list')}
+            onClick={() => goBack()}
             className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200"
           >
             Cancel

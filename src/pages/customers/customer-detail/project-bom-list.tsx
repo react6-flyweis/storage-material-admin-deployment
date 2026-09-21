@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import {
   ArrowLeft,
   Eye,
@@ -108,8 +109,11 @@ const statusStyles: Record<string, string> = {
 
 export default function ProjectBomListPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id, projectId } = useParams<{ id: string; projectId: string }>();
   const leadId = projectId || id || "";
+  const defaultFallback = leadId ? `/customers/${leadId}` : "/customers";
+  const { goBack } = useAppBack(defaultFallback);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -142,7 +146,7 @@ export default function ProjectBomListPage() {
         <div className="flex items-center gap-4">
           <Button
             variant="default"
-            onClick={() => navigate('/customers')}
+            onClick={() => goBack()}
             className="px-4 bg-[#3B82F6] hover:bg-[#2563EB] text-white"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -257,7 +261,8 @@ export default function ProjectBomListPage() {
                       navigate(
                         leadId
                           ? `/customers/${leadId}/project-bom`
-                          : "/customers"
+                          : "/customers",
+                        { state: { from: location.pathname + location.search } }
                       )
                     }
                   >

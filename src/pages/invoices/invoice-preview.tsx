@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from "react-router";
 import { useState } from "react";
+import { useAppBack } from "@/modules/navigation";
 import {
   useGetInvoiceDetailQuery,
   useMarkInvoicePaidMutation,
@@ -27,6 +28,7 @@ import { toast } from "sonner";
 export default function InvoicePreview() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { goBack } = useAppBack("/invoice/list");
   const [showSuccess, setShowSuccess] = useState(false);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
@@ -203,7 +205,7 @@ export default function InvoicePreview() {
             <Button
               variant="outline"
               className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200 min-w-[100px] gap-1.5"
-              onClick={() => navigate("/invoice/list")}
+              onClick={() => goBack()}
             >
               <ArrowLeft className="w-4 h-4" />
               Back
@@ -211,7 +213,7 @@ export default function InvoicePreview() {
             {/* <Button
               variant="outline"
               className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200 min-w-[100px]"
-              onClick={() => navigate("/invoice/list")}
+              onClick={() => goBack()}
             >
               Cancel
             </Button> */}
@@ -246,6 +248,7 @@ export default function InvoicePreview() {
                   invoiceId
                     ? `/invoice/${invoiceId}/edit`
                     : `/invoice/${invoiceNumber}/edit`,
+                  { state: { from: location.pathname + location.search } },
                 )
               }
             >

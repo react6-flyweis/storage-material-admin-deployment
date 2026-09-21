@@ -1,10 +1,11 @@
 import React from "react";
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
 import { Button } from "@/components/ui/button";
+import { useAppBack } from "@/modules/navigation";
 
 export default function CallHistory() {
-  const navigate = useNavigate();
   const { leadId } = useParams();
+  const { goBack } = useAppBack(leadId ? `/leads/${leadId}` : "/leads");
 
   return (
     <div className="flex-1 bg-[#f8fafc] min-h-screen p-6">
@@ -29,7 +30,7 @@ export default function CallHistory() {
         <div className="p-6 border-t bg-gray-50 flex justify-end">
           <Button 
             className="w-24 bg-gray-500 hover:bg-gray-600 text-white"
-            onClick={() => navigate(`/leads/${leadId}`)}
+            onClick={() => goBack()}
           >
             Close
           </Button>

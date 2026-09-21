@@ -1,4 +1,5 @@
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { ArrowLeft, Scale, FileDown, Eye, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +47,8 @@ const getDisplayStatus = (status: string) => {
 
 const ShipperFileDetailsView: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { goBack } = useAppBack("/plant/shippers");
   const { fileId: requestId } = useParams();
 
   const { data: shipperDoc, isLoading, error, refetch } = useShipperDocumentQuery(requestId || "");
@@ -132,7 +135,7 @@ const ShipperFileDetailsView: React.FC = () => {
           <Button
             variant="default"
             size="sm"
-            onClick={() => navigate(-1)}
+            onClick={() => goBack()}
             className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
           >
             <ArrowLeft size={18} strokeWidth={2.5} /> Back
@@ -166,7 +169,7 @@ const ShipperFileDetailsView: React.FC = () => {
           <Button
             variant="default"
             size="sm"
-            onClick={() => navigate(-1)}
+            onClick={() => goBack()}
             className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
           >
             <ArrowLeft size={18} strokeWidth={2.5} /> Back
@@ -191,7 +194,7 @@ const ShipperFileDetailsView: React.FC = () => {
             <Button
               variant="default"
               size="sm"
-              onClick={() => navigate(`/plant/order-verification/${requestId}`)}
+              onClick={() => navigate(`/plant/order-verification/${requestId}`, { state: { from: location.pathname + location.search } })}
               className="flex items-center gap-2 font-inter font-bold bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
               disabled={shipperDoc?.fileStatus === "comparison_processing"}
             >
@@ -202,7 +205,7 @@ const ShipperFileDetailsView: React.FC = () => {
             <Button
               variant="default"
               size="sm"
-              onClick={() => navigate(`/plant/load_planning/${requestId}/comparison-result`)}
+              onClick={() => navigate(`/plant/load_planning/${requestId}/comparison-result`, { state: { from: location.pathname + location.search } })}
               className="flex items-center gap-2 font-inter font-bold bg-[#1E51A4] hover:bg-[#154085] text-white"
             >
               <Eye size={18} /> View Comparison Detail
@@ -212,7 +215,7 @@ const ShipperFileDetailsView: React.FC = () => {
             <Button
               variant="default"
               size="sm"
-              onClick={() => navigate(`/plant/load-planning/${shipperDoc.leadId}`)}
+              onClick={() => navigate(`/plant/load-planning/${shipperDoc.leadId}`, { state: { from: location.pathname + location.search } })}
               className="flex items-center gap-2 font-inter font-bold bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
             >
               Start Load Planning

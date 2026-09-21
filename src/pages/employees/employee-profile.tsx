@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { useParams, useSearchParams, Link } from "react-router";
+import { useParams, useSearchParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { AddEmployeeDialog } from "@/components/employees/add-employee-dialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -149,6 +150,7 @@ function EmployeeAssignedInvoicesTab({
 export default function EmployeeProfilePage() {
   const { id } = useParams();
   const employeeId = id ?? "";
+  const { goBack } = useAppBack("/employees");
 
   const [searchParams] = useSearchParams();
   const tabFromUrl = searchParams.get("tab");
@@ -248,11 +250,11 @@ export default function EmployeeProfilePage() {
     return (
       <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <Button asChild size="sm">
-            <Link to="/employees" className="inline-flex items-center gap-2">
+          <Button size="sm" onClick={() => goBack()}>
+            <span className="inline-flex items-center gap-2">
               <ArrowLeft />
               Back
-            </Link>
+            </span>
           </Button>
           <h2 className="text-lg sm:text-xl font-semibold">Employee Profile</h2>
         </div>
@@ -266,11 +268,11 @@ export default function EmployeeProfilePage() {
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-        <Button asChild size="sm">
-          <Link to="/employees" className="inline-flex items-center gap-2">
+        <Button size="sm" onClick={() => goBack()}>
+          <span className="inline-flex items-center gap-2">
             <ArrowLeft />
             Back
-          </Link>
+          </span>
         </Button>
         <h2 className="text-lg sm:text-xl font-semibold">Employee Profile</h2>
       </div>

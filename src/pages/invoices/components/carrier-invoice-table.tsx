@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import {
   Eye,
   Download,
@@ -62,6 +62,7 @@ export function CarrierInvoiceTable({
   onRowsPerPageChange,
 }: CarrierInvoiceTableProps) {
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Internal selection state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -89,6 +90,7 @@ export function CarrierInvoiceTable({
   const handleView = (invoice: CarrierInvoiceItem) => {
     navigate(`/invoice/carrier-preview/${invoice._id}`, {
       state: {
+        from: location.pathname + location.search,
         invoiceId: invoice._id,
         invoiceNumber: invoice.invoiceNumber,
         status: invoice.status,

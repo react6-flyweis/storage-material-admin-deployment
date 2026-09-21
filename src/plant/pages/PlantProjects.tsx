@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import type { DateRange } from "react-day-picker";
 import {
   Search,
@@ -103,6 +103,7 @@ const getScoreTextColorClass = (score: number) => {
 
 export default function PlantProjects() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [buildingType, setBuildingType] = useState("all");
@@ -574,7 +575,9 @@ export default function PlantProjects() {
                               variant="ghost"
                               size="sm"
                               onClick={() =>
-                                navigate(`/plant/projects/${project.backendId}`)
+                                navigate(`/plant/projects/${project.backendId}`, {
+                                  state: { from: location.pathname + location.search },
+                                })
                               }
                               className="h-8 w-8 p-0 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-full"
                               title="View Project Details"

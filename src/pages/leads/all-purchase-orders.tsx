@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { Eye } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,7 @@ export default function AllPurchaseOrdersPage() {
   const [assignPlantDialogOpen, setAssignPlantDialogOpen] = useState(false);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { data: purchaseOrdersData, isLoading } = usePurchaseOrdersQuery();
   const updateStatusMutation = useUpdatePurchaseOrderStatusMutation();
@@ -232,7 +233,9 @@ export default function AllPurchaseOrdersPage() {
                           aria-label={`View ${leadName}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/leads/purchase-orders/${order._id}`);
+                            navigate(`/leads/purchase-orders/${order._id}`, {
+                              state: { from: location.pathname + location.search },
+                            });
                           }}
                           className="text-purple-600"
                         >

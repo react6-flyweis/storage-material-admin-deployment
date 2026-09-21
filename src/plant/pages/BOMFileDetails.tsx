@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { ArrowLeft, ArrowUpDown, Inbox } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import steelLogo from "@/assets/steel-building-depot-logo.png";
@@ -8,6 +9,8 @@ import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
 
 const BOMFilesDetailsView: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { goBack } = useAppBack("/plant/uploaded-bom-files");
   const { id } = useParams<{ id: string }>();
   const [filter, setFilter] = useState<"all" | "unpriced" | "frames" | "matched" | "bom_priced">("all");
   const [page, setPage] = useState(1);
@@ -70,7 +73,7 @@ const BOMFilesDetailsView: React.FC = () => {
           <Button
             variant="outline"
             className="h-9 px-4 gap-2"
-            onClick={() => navigate(-1)}
+            onClick={() => goBack()}
           >
             <ArrowLeft size={18} /> Back
           </Button>
@@ -79,7 +82,7 @@ const BOMFilesDetailsView: React.FC = () => {
         <div className="p-8 text-center bg-white rounded-[14px] border border-gray-100 space-y-4">
           <h3 className="text-lg font-bold text-red-600">Error Loading BOM Details</h3>
           <p className="text-sm text-gray-500">Could not retrieve details for BOM Job ID: {id}</p>
-          <Button variant="default" onClick={() => navigate(-1)}>
+          <Button variant="default" onClick={() => goBack()}>
             Go Back
           </Button>
         </div>
@@ -115,7 +118,7 @@ const BOMFilesDetailsView: React.FC = () => {
           <Button
             variant="outline"
             className="bg-white hover:bg-slate-50 text-slate-700 border-slate-200 rounded-lg h-10 px-4 font-medium shadow-sm gap-2"
-            onClick={() => navigate(-1)}
+            onClick={() => goBack()}
           >
             <ArrowLeft size={18} /> Back
           </Button>
@@ -195,7 +198,7 @@ const BOMFilesDetailsView: React.FC = () => {
                     variant="default"
                     size="sm"
                     className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white"
-                    onClick={() => navigate("missing-items")}
+                    onClick={() => navigate("missing-items", { state: { from: location.pathname + location.search } })}
                   >
                     Add Item in Cost List
                   </Button>

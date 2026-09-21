@@ -39,7 +39,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import AssignSalesDialog from "@/components/leads/assign-sales-dialog";
 import DeleteLeadDialog from "@/components/leads/delete-lead-dialog";
 import QuoteSummaryDialog from "@/components/leads/quote-summary-dialog";
@@ -77,6 +78,8 @@ const LEAD_DETAILS_TABS = [
 
 export default function LeadDetails() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { goBack } = useAppBack("/leads");
   const { leadId } = useParams();
   const queryClient = useQueryClient();
   const [isStatusOpen, setIsStatusOpen] = useState(false);
@@ -151,7 +154,7 @@ export default function LeadDetails() {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center gap-3">
-        <Button className="" onClick={() => navigate("/leads")}>
+        <Button className="" onClick={() => goBack("/leads")}>
           <ArrowLeft className="h-5 w-5" />
           Back
         </Button>
@@ -177,7 +180,11 @@ export default function LeadDetails() {
             RFQ
           </Button> */}
                 <Button
-                  onClick={() => navigate(`/leads/${leadId}/edit`)}
+                  onClick={() =>
+                    navigate(`/leads/${leadId}/edit`, {
+                      state: { from: location.pathname + location.search },
+                    })
+                  }
                   className="bg-[#3b82f6] hover:bg-blue-600 text-white h-7 px-3 text-xs rounded font-medium ml-2"
                 >
                   Edit Lead
@@ -208,7 +215,7 @@ export default function LeadDetails() {
                         ? `${customer.firstName} ${customer.lastName || ""}`.trim()
                         : lead?.projectName
                     }
-                    onSuccess={() => navigate("/leads")}
+                    onSuccess={() => navigate("/leads", { replace: true })}
                     trigger={
                       <Button
                         variant="outline"

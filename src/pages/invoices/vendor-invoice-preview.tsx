@@ -1,5 +1,6 @@
 import { useNavigate, useLocation, useParams } from "react-router";
 import { useState } from "react";
+import { useAppBack } from "@/modules/navigation";
 import {
   useGetAdminVendorInvoiceDetailQuery,
   useMarkInvoicePaidMutation,
@@ -16,6 +17,7 @@ export default function VendorInvoicePreview() {
   const navigate = useNavigate();
   const location = useLocation();
   const params = useParams();
+  const { goBack } = useAppBack("/invoice/invoices-management");
   const [showSuccess, setShowSuccess] = useState(false);
 
   const locationState = location.state || {};
@@ -120,7 +122,7 @@ export default function VendorInvoicePreview() {
             <Button
               variant="outline"
               className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200 min-w-25"
-              onClick={() => navigate("/invoice/invoices-management")}
+              onClick={() => goBack()}
             >
               Back
             </Button>

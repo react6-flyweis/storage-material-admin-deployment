@@ -1,14 +1,14 @@
 import { MoveLeft } from "lucide-react";
 import React, { useState } from "react";
-import { useNavigate } from "react-router";
 import TitleSubtitle from "../common_components/TitleSubtitle";
+import { useAppBack } from "@/modules/navigation";
 
 interface SettingsViewProps {
   onNavigate?: (view: "profile") => void;
 }
 
 const SettingsView: React.FC<SettingsViewProps> = () => {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack("/accounts");
   const [accountSettings, setAccountSettings] = useState({
     twoFactorAuth: true,
     emailNotifications: true,
@@ -44,7 +44,7 @@ const SettingsView: React.FC<SettingsViewProps> = () => {
       <div className="flex flex-wrap md:items-center items-start justify-between">
         <div className="flex items-start gap-4 flex-wrap">
           <button
-            onClick={() => navigate('/accounts')}
+            onClick={() => goBack()}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-medium"
           >
             <MoveLeft className="w-4 h-4" />

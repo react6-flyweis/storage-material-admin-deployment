@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import {
   Card,
   CardContent,
@@ -20,7 +20,7 @@ interface Note {
 }
 
 export default function SingleLeadNotes() {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack("/leads");
   //   const { leadId } = useParams();
   const [newNote, setNewNote] = useState("");
 
@@ -74,7 +74,7 @@ export default function SingleLeadNotes() {
     <div className="w-full">
       {/* Header */}
       <div className="bg-[#4ECDC4] text-white px-6 py-3 flex items-center gap-3">
-        <Button onClick={() => navigate('/leads')}>
+        <Button onClick={() => goBack()}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>

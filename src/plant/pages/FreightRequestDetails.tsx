@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ArrowLeft, Truck, TrendingDown, BarChart3, Zap } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import {
   AwardLoadModal,
   AwardSuccessModal,
@@ -62,6 +63,7 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
 // --- Main Component ---
 const FreightRequestDetailsView: React.FC = () => {
   const navigate = useNavigate();
+  const { goBack } = useAppBack("/plant/freight-loads");
   const { id } = useParams(); // 'id' from route matching plant/freight-loads/details/:id
   const [activeTab, setActiveTab] = useState("Bid Comparison");
   const [isAwardModalOpen, setIsAwardModalOpen] = useState(false);
@@ -204,7 +206,7 @@ const FreightRequestDetailsView: React.FC = () => {
 
   const handleSuccessOk = () => {
     setIsSuccessModalOpen(false);
-    navigate(`/plant/freight-loads`);
+    navigate(`/plant/freight-loads`, { replace: true });
   };
 
   const tabs = [
@@ -220,7 +222,7 @@ const FreightRequestDetailsView: React.FC = () => {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 md:gap-6">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => goBack()}
             className="w-8 h-8 md:w-8 md:h-8 bg-[#000000] rounded-full flex items-center justify-center text-white hover:bg-[#212B36] transition-all shadow-sm shrink-0"
           >
             <ArrowLeft size={16} strokeWidth={3} />

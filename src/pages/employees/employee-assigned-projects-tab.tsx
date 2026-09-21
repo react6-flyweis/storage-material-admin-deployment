@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -174,6 +174,7 @@ export function EmployeeAssignedProjectsTab({
   hideDateFilter = false,
 }: EmployeeAssignedProjectsTabProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeProject, setActiveProject] =
     useState<AssignedProjectItem | null>(null);
@@ -367,7 +368,9 @@ export function EmployeeAssignedProjectsTab({
                       <button
                         type="button"
                         onClick={() =>
-                          navigate(`/plant/projects/${project.id}`)
+                          navigate(`/plant/projects/${project.id}`, {
+                            state: { from: location.pathname + location.search },
+                          })
                         }
                         title="View Project Details"
                         aria-label={`View project details for ${project.title}`}
@@ -487,7 +490,9 @@ export function EmployeeAssignedProjectsTab({
                 <Button
                   type="button"
                   onClick={() => {
-                    navigate(`/plant/projects/${activeProject.id}`);
+                    navigate(`/plant/projects/${activeProject.id}`, {
+                      state: { from: location.pathname + location.search },
+                    });
                     setActiveProject(null);
                   }}
                   className="bg-blue-600 text-white hover:bg-blue-700 rounded-lg text-sm"

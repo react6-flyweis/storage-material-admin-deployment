@@ -1,14 +1,14 @@
 import { Camera, CircleAlert, MoveLeft } from "lucide-react";
 import React, { useState, useRef } from "react";
-import { useNavigate } from "react-router";
 import TitleSubtitle from "../common_components/TitleSubtitle";
+import { useAppBack } from "@/modules/navigation";
 
 interface ProfileViewProps {
   onNavigate?: (view: "settings") => void;
 }
 
 const ProfileView: React.FC<ProfileViewProps> = () => {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack("/accounts");
   const [profilePicture, setProfilePicture] = useState(
     "https://imgs.search.brave.com/C6AU3hqShumrOuZaswKHOeZBwOo-XeuuJnf7XZ-5QW4/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9tZWRp/YS5pc3RvY2twaG90/by5jb20vaWQvMTAx/Njc0NDAzNC92ZWN0/b3IvcHJvZmlsZS1w/bGFjZWhvbGRlci1p/bWFnZS1ncmF5LXNp/bGhvdWV0dGUtbm8t/cGhvdG8uanBnP3M9/NjEyeDYxMiZ3PTAm/az0yMCZjPVJxdGky/NlZRal9mcy1faEwx/NW1KajZiODRGRVpO/YTAwRkpnWlJhRzVQ/RDQ9"
   );
@@ -62,7 +62,7 @@ const ProfileView: React.FC<ProfileViewProps> = () => {
       <div className="flex flex-wrap md:items-center items-start justify-between mt-2 xl:mt-0">
         <div className="flex items-start gap-4 flex-wrap">
           <button
-            onClick={() => navigate('/accounts')}
+            onClick={() => goBack()}
             className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-medium"
           >
             <MoveLeft className="w-4 h-4" />

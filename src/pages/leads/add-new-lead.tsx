@@ -9,6 +9,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -144,6 +145,7 @@ type AddLeadFormValues = z.infer<typeof addLeadSchema>;
 
 export default function AddNewLead() {
   const navigate = useNavigate();
+  const { goBack } = useAppBack("/leads");
   const [showSuccess, setShowSuccess] = useState(false);
   const [customerSearch, setCustomerSearch] = useState("");
   const [debouncedCustomerSearch, setDebouncedCustomerSearch] = useState("");
@@ -254,7 +256,7 @@ export default function AddNewLead() {
 
       setShowSuccess(true);
       setTimeout(() => {
-        navigate("/leads");
+        navigate("/leads", { replace: true });
       }, 1500);
     } catch (err: unknown) {
       const apiMessage = getApiErrorMessage(
@@ -266,7 +268,7 @@ export default function AddNewLead() {
   };
 
   const handleCancel = () => {
-    navigate("/leads");
+    goBack("/leads");
   };
 
   return (

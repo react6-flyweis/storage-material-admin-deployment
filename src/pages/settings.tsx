@@ -1,11 +1,11 @@
 import { MoveLeft } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router";
 import TitleSubtitle from "@/components/TitleSubtitle";
 import { Button } from "@/components/ui/button";
+import { useAppBack } from "@/modules/navigation";
 
 export default function Settings() {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack("/");
   const [accountSettings, setAccountSettings] = useState({
     twoFactorAuth: true,
     emailNotifications: true,
@@ -40,7 +40,7 @@ export default function Settings() {
       {/* Header */}
       <div className="flex flex-wrap md:items-center items-start justify-between">
         <div className="flex items-start gap-4 flex-wrap">
-          <Button onClick={() => navigate('/')}>
+          <Button onClick={() => goBack()}>
             <MoveLeft className="w-4 h-4" />
             <p className="font-normal md:text-sm text-xs">Back</p>
           </Button>

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import SuccessModal from "../components/common_component/SuccessModal";
 import ShipperForm from "./ShipperForm";
 import { type VendorFormValues, type VendorFormInput } from "./vendorSchema";
@@ -23,6 +24,7 @@ const PageWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const EditShipper: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { goBack } = useAppBack("/plant/shippers");
 
   const { data: vendorResponse, isLoading: isVendorLoading } = usePlantVendorQuery(id ?? "", {
     enabled: !!id,
@@ -119,7 +121,7 @@ const EditShipper: React.FC = () => {
       <div className="flex items-center justify-between mb-6 pt-2">
         <div
           className="flex items-center gap-3 cursor-pointer text-gray-800 hover:text-black transition-colors"
-          onClick={() => navigate(-1)}
+          onClick={() => goBack("/plant/shippers")}
         >
           <ArrowLeft className="w-5 h-5" />
           <h1 className="text-lg md:text-xl font-semibold">Edit Shipper</h1>
@@ -137,7 +139,7 @@ const EditShipper: React.FC = () => {
         isOpen={isSuccessOpen}
         onClose={() => {
           setIsSuccessOpen(false);
-          navigate(`/plant/shippers/${id}`);
+          navigate(`/plant/shippers/${id}`, { replace: true });
         }}
         title="Shipper Updated Successfully"
         subTitle={initialValues?.vendorName ? `Name: ${initialValues.vendorName}` : undefined}

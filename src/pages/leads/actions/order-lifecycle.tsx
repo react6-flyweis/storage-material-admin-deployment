@@ -1,9 +1,10 @@
 import React from "react";
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Check, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getLeadDetailProvider } from "@/modules/leads/leads.api";
+import { useAppBack } from "@/modules/navigation";
 
 const LIFECYCLE_STEPS = [
   { id: 'initial_contact', label: 'Initial Contact' },
@@ -17,8 +18,8 @@ const LIFECYCLE_STEPS = [
 ];
 
 export default function OrderLifecycle() {
-  const navigate = useNavigate();
   const { leadId } = useParams();
+  const { goBack } = useAppBack(leadId ? `/leads/${leadId}` : "/leads");
 
   const { data: response, isLoading } = useQuery({
     queryKey: ["lead", "detail", leadId],
@@ -111,7 +112,7 @@ export default function OrderLifecycle() {
         <div className="p-6 pt-0 flex justify-end">
           <Button 
             className="w-24 bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={() => navigate(`/leads/${leadId}`)}
+            onClick={() => goBack()}
           >
             Close
           </Button>

@@ -13,7 +13,8 @@ import {
   Hourglass,
   ArrowUpDown,
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { Button } from "@/components/ui/button";
 import Pagination from "@/components/Pagination";
 import { usePlantVendorQuery } from "@/modules/plant/vendor.hooks";
@@ -175,6 +176,8 @@ const CommonStatusBadge: React.FC<CommonStatusBadgeProps> = ({
 
 const ShipperDetails: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { goBack } = useAppBack("/plant/shippers");
   const { id } = useParams<{ id: string }>();
   const [currentPage, setCurrentPage] = useState(1);
   const [docSort, setDocSort] = useState("Docs Type");
@@ -394,7 +397,7 @@ const ShipperDetails: React.FC = () => {
       {/* Header */}
       <div className="flex items-center gap-3 mb-2">
         <button
-          onClick={() => navigate("/plant/shippers")}
+          onClick={() => goBack()}
           className="p-1.5 hover:bg-gray-100 rounded-full transition-colors shrink-0"
         >
           <ArrowLeft size={20} className="text-[#051321]" />
@@ -437,7 +440,11 @@ const ShipperDetails: React.FC = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate(`/plant/shippers/${id}/edit`)}
+                  onClick={() =>
+                    navigate(`/plant/shippers/${id}/edit`, {
+                      state: { from: location.pathname + location.search },
+                    })
+                  }
                   className="flex items-center gap-2 border-gray-200 shadow-sm text-gray-700 bg-white hover:bg-gray-50"
                 >
                   <PencilLine size={16} /> Edit Profile

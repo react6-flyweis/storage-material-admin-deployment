@@ -24,7 +24,8 @@ import SuccessDialog from "@/components/success-dialog";
 import UpdateStatusDialog from "./update-status-dialog";
 import TerminateProjectDialog from "./terminate-project-dialog";
 import { AddNotesDialog, type AddNotesFormValues } from "./add-notes-dialog";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import {
@@ -63,6 +64,8 @@ const plantLifecycleSteps = PLANT_LIFECYCLE_STAGES.map((stageKey, idx) => {
 
 export default function ProjectDetailsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { goBack } = useAppBack();
   const { id, projectId } = useParams<{ id: string; projectId: string }>();
   // Use projectId if available, otherwise fallback to id
   const leadId = projectId || id || "";
@@ -129,7 +132,7 @@ export default function ProjectDetailsPage() {
         <div className="flex items-center gap-3">
           <Button
             variant="default"
-            onClick={() => navigate(-1)}
+            onClick={() => goBack()}
             className="px-4 bg-[#1D51A4] hover:bg-[#1D51A4]/90 text-white"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
@@ -167,7 +170,11 @@ export default function ProjectDetailsPage() {
               key={btn.label}
               variant="default"
               className="bg-[#1D51A4] hover:bg-[#1D51A4]/90 text-white rounded-[6px] shadow-sm"
-              onClick={() => navigate(`${basePath}/${btn.path}/${leadId}`)}
+              onClick={() =>
+                navigate(`${basePath}/${btn.path}/${leadId}`, {
+                  state: { from: location.pathname + location.search },
+                })
+              }
             >
               {btn.label}
             </Button>
@@ -180,8 +187,10 @@ export default function ProjectDetailsPage() {
               variant="default"
               className="bg-[#1D51A4] hover:bg-[#1D51A4]/90 text-white rounded-[6px] shadow-sm"
               onClick={() => {
-                if (btn.path.startsWith("/")) navigate(btn.path);
-                else navigate(`${basePath}/${btn.path}/${leadId}`);
+                const target = btn.path.startsWith("/") ? btn.path : `${basePath}/${btn.path}/${leadId}`;
+                navigate(target, {
+                  state: { from: location.pathname + location.search },
+                });
               }}
             >
               {btn.label}
@@ -224,7 +233,11 @@ export default function ProjectDetailsPage() {
           <div className="flex items-center gap-3">
             <Button
               className="bg-[#F5B700] hover:bg-[#F5B700]/90 text-white rounded-[6px]"
-              onClick={() => navigate(`${basePath}/budget-planning/${leadId}`)}
+              onClick={() =>
+                navigate(`${basePath}/budget-planning/${leadId}`, {
+                  state: { from: location.pathname + location.search },
+                })
+              }
             >
               Budget Planning
             </Button>

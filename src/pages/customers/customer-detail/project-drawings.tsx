@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import {
   ArrowLeft,
   ArrowDown,
@@ -149,11 +150,12 @@ const FileCard: React.FC<{
 // --- Main Page Component ---
 
 export default function ProjectDrawingsPage() {
-  const navigate = useNavigate();
   const { id, projectId } = useParams<{ id?: string; projectId?: string }>();
 
   const cusotmerId = id || ""
   const leadId = projectId || ""
+  const defaultFallback = cusotmerId && leadId ? `/customers/${cusotmerId}/project-details/${leadId}` : "/customers";
+  const { goBack } = useAppBack(defaultFallback);
 
 
   const { data: leadData } = useLeadDetailQuery(leadId);
@@ -319,7 +321,7 @@ export default function ProjectDrawingsPage() {
         <div className="flex items-center gap-4">
           <Button
             variant="default"
-            onClick={() => navigate(`/customers/${cusotmerId}/project-details/${leadId}`)}
+            onClick={() => goBack()}
             className="bg-[#3B82F6] hover:bg-[#3B82F6]/90 text-white rounded-md px-4 py-2"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />

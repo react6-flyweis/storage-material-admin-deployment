@@ -1,4 +1,5 @@
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import {
   ArrowLeft,
   Hammer,
@@ -19,19 +20,20 @@ import {
 } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import StatCard from "@/components/ui/stat-card";
-import { useGetAdminProjectInvoicesQuery } from "@/modules/invoices/invoices.hooks";
 import { Loader2 } from "lucide-react";
 import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
+import { useGetAdminProjectInvoicesQuery } from "@/modules/invoices/invoices.hooks";
 import { useGetProjectInvoiceStatsQuery } from "@/modules/invoices/invoices.hooks";
 
 export default function ProjectPayments() {
-  const navigate = useNavigate();
   const { id, projectId } = useParams();
   const actualProjectId = projectId || id;
 
   // Fetch project details to get customerId
   const { data: leadData, isLoading: isLeadLoading } = useLeadDetailQuery(actualProjectId || "");
   const actualCustomerId = leadData?.data?.lead?.customerId || (id !== actualProjectId ? id : "");
+  const defaultFallback = actualCustomerId && actualProjectId ? `/customers/${actualCustomerId}/project-details/${actualProjectId}` : "/customers";
+  const { goBack } = useAppBack(defaultFallback);
 
   const { data: statsResponse, isLoading: isStatsLoading } = useGetProjectInvoiceStatsQuery(
     actualCustomerId || "",
@@ -102,7 +104,7 @@ export default function ProjectPayments() {
       <div className="flex items-center gap-4">
         <Button
           variant="default"
-          onClick={() => navigate('/customers')}
+          onClick={() => goBack()}
           className="px-4 bg-[#3B82F6] hover:bg-[#2563EB] text-white"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />

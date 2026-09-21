@@ -1,11 +1,11 @@
 import { Camera, CircleAlert, MoveLeft } from "lucide-react";
 import React, { useState, useRef } from "react";
-import { useNavigate } from "react-router";
 import TitleSubtitle from "@/components/TitleSubtitle";
 import { Button } from "@/components/ui/button";
+import { useAppBack } from "@/modules/navigation";
 
 export default function ProfileView() {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack("/");
   const [profilePicture, setProfilePicture] = useState(
     "https://imgs.search.brave.com/C6AU3hqShumrOuZaswKHOeZBwOo-XeuuJnf7XZ-5QW4/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9tZWRp/YS5pc3RvY2twaG90/by5jb20vaWQvMTAx/Njc0NDAzNC92ZWN0/b3IvcHJvZmlsZS1w/bGFjZWhvbGRlci1p/bWFnZS1ncmF5LXNp/bGhvdWV0dGUtbm8t/cGhvdG8uanBnP3M9/NjEyeDYxMiZ3PTAm/az0yMCZjPVJxdGky/NlZRal9mcy1faEwx/NW1KajZiODRGRVpO/YTAwRkpnWlJhRzVQ/RDQ9"
   );
@@ -58,7 +58,7 @@ export default function ProfileView() {
       {/* Header */}
       <div className="flex flex-wrap md:items-center items-start justify-between mt-2 xl:mt-0">
         <div className="flex items-start gap-4 flex-wrap">
-          <Button onClick={() => navigate('/')}>
+          <Button onClick={() => goBack()}>
             <MoveLeft className="w-4 h-4" />
             <p className="font-normal">Back</p>
           </Button>

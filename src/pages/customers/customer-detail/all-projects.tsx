@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import {
   ArrowLeft,
   ArrowUpDown,
@@ -172,6 +173,8 @@ function TableSkeleton() {
 
 export default function AllProjectsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { goBack } = useAppBack("/customers");
   const params = useParams();
   const id = params.id ?? "unknown";
   const [searchTerm, setSearchTerm] = useState("");
@@ -296,7 +299,7 @@ export default function AllProjectsPage() {
         <div className="flex items-center gap-3">
           <Button
             variant="default"
-            onClick={() => navigate('/customers')}
+            onClick={() => goBack("/customers")}
             className="px-4"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
@@ -460,6 +463,7 @@ export default function AllProjectsPage() {
                           onClick={() =>
                             navigate(
                               `/customers/${id}/project-details/${project.id}`,
+                              { state: { from: location.pathname + location.search } },
                             )
                           }
                           className="h-6 w-6 rounded-full p-0 text-[#3B82F6] hover:bg-blue-50 hover:text-blue-700"

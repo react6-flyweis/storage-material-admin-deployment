@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { format } from "date-fns";
 import type { DateRange } from "react-day-picker";
 import {
@@ -40,6 +41,7 @@ function formatPercent(val?: number) {
 
 export default function BudgetActualProject() {
   const navigate = useNavigate();
+  const { goBack } = useAppBack("/finance/budget-actual");
   const { projectId } = useParams();
 
   const [groupBy, setGroupBy] = useState("costHead");
@@ -129,7 +131,7 @@ export default function BudgetActualProject() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => navigate("/finance/budget-actual")}
+            onClick={() => goBack()}
             className="gap-2 bg-white"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -170,7 +172,7 @@ export default function BudgetActualProject() {
               topMetrics={topMetrics}
               projectInfo={projectInfo}
               allProjects={allProjects}
-              onSelectProject={(selectedId) => navigate(`/finance/budget-actual/${selectedId}`)}
+              onSelectProject={(selectedId) => navigate(`/finance/budget-actual/${selectedId}`, { replace: true })}
             />
 
             <BudgetActualFilters
