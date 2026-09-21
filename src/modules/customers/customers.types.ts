@@ -1,21 +1,23 @@
 export type AdminCustomerPhone = {
-  number?: string;
-  countryCode?: string;
+  number: string;
+  countryCode: string;
 };
 
 export type AdminCustomer = {
   _id: string;
   customerId: string;
+  customerName: string;
+  email: string;
+  phone: AdminCustomerPhone;
+  totalProjects: number;
+  status: string;
   firstName?: string;
   lastName?: string;
-  email?: string;
-  phone?: AdminCustomerPhone;
   isActive?: boolean;
   source?: string;
   inquiryFor?: string;
   createdAt?: string;
   isReturning?: boolean;
-  totalProjects?: number;
   companyName?: string;
   jobTitle?: string;
   leadStatus?: string;
@@ -253,7 +255,7 @@ export type CreateCustomerLeadRequest = {
 export type CreateCustomerLeadResponse = {
   success: boolean;
   message: string;
-  data: any;
+  data: unknown;
 };
 
 export type GetCustomersProjectsListResponse = {
