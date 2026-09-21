@@ -1,9 +1,21 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Minus, Plus, Search, Check, ChevronDown } from "lucide-react";
+import {
+  ArrowLeft,
+  Minus,
+  Plus,
+  Search,
+  Check,
+  ChevronDown,
+  AlertCircle,
+} from "lucide-react";
 import { useNavigate } from "react-router";
-import { toast } from "sonner";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import SuccessDialog from "@/components/success-dialog";
-import AddBasicCustomerDialog from "@/components/customers/add-basic-customer-dialog";
+import AddBasicCustomerDialog, {
+  type BasicCustomer,
+} from "@/components/customers/add-basic-customer-dialog";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,28 +27,140 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-
-
-import { useCustomersQuery, useSalesEmployeesQuery } from "@/modules/customers/customers.hooks";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { getApiErrorMessage } from "@/lib/api-error";
+import {
+  useCustomersQuery,
+  useSalesEmployeesQuery,
+} from "@/modules/customers/customers.hooks";
 import { useCreateLeadMutation } from "@/modules/leads/leads.hooks";
+
+const addLeadSchema = z.object({
+  customerId: z.string().trim().min(1, "Customer is required"),
+  assignedSales: z
+    .string()
+    .trim()
+    .min(1, "Assigned sales representative is required"),
+  projectName: z.string().trim().min(1, "Project name is required"),
+  location: z.string().trim().min(1, "Location is required"),
+  source: z.string().trim().min(1, "Lead source is required"),
+  quoteValue: z
+    .union([z.number(), z.string()])
+    .refine(
+      (val) =>
+        val !== "" &&
+        val !== undefined &&
+        val !== null &&
+        !isNaN(Number(val)) &&
+        Number(val) > 0,
+      {
+        message: "Quote value is required and must be greater than 0",
+      },
+    ),
+  width: z
+    .union([z.number(), z.string()])
+    .refine(
+      (val) =>
+        val !== "" &&
+        val !== undefined &&
+        val !== null &&
+        !isNaN(Number(val)) &&
+        Number(val) > 0,
+      {
+        message: "Width is required and must be greater than 0",
+      },
+    ),
+  length: z
+    .union([z.number(), z.string()])
+    .refine(
+      (val) =>
+        val !== "" &&
+        val !== undefined &&
+        val !== null &&
+        !isNaN(Number(val)) &&
+        Number(val) > 0,
+      {
+        message: "Length is required and must be greater than 0",
+      },
+    ),
+  height: z
+    .union([z.number(), z.string()])
+    .refine(
+      (val) =>
+        val !== "" &&
+        val !== undefined &&
+        val !== null &&
+        !isNaN(Number(val)) &&
+        Number(val) > 0,
+      {
+        message: "Height is required and must be greater than 0",
+      },
+    ),
+  roofStyle: z.string().trim().min(1, "Roof style is required"),
+  buildingType: z.string().trim().min(1, "Building type is required"),
+  doors: z
+    .union([z.number(), z.string()])
+    .optional()
+    .refine(
+      (val) =>
+        val === undefined ||
+        val === "" ||
+        (!isNaN(Number(val)) && Number(val) >= 0),
+      {
+        message: "Doors must be 0 or greater",
+      },
+    ),
+  windows: z
+    .union([z.number(), z.string()])
+    .optional()
+    .refine(
+      (val) =>
+        val === undefined ||
+        val === "" ||
+        (!isNaN(Number(val)) && Number(val) >= 0),
+      {
+        message: "Windows must be 0 or greater",
+      },
+    ),
+  insulation: z
+    .union([z.number(), z.string()])
+    .optional()
+    .refine(
+      (val) =>
+        val === undefined ||
+        val === "" ||
+        (!isNaN(Number(val)) && Number(val) >= 0),
+      {
+        message: "Insulation must be 0 or greater",
+      },
+    ),
+});
+
+type AddLeadFormValues = z.infer<typeof addLeadSchema>;
 
 export default function AddNewLead() {
   const navigate = useNavigate();
   const [showSuccess, setShowSuccess] = useState(false);
-  const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [customerSearch, setCustomerSearch] = useState("");
   const [debouncedCustomerSearch, setDebouncedCustomerSearch] = useState("");
   const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
   const [isAddCustomerOpen, setIsAddCustomerOpen] = useState(false);
-  const [newlyAddedCustomer, setNewlyAddedCustomer] = useState<any>(null);
+  const [newlyAddedCustomer, setNewlyAddedCustomer] =
+    useState<BasicCustomer | null>(null);
 
   const [salesSearch, setSalesSearch] = useState("");
   const [debouncedSalesSearch, setDebouncedSalesSearch] = useState("");
   const [salesPopoverOpen, setSalesPopoverOpen] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedCustomerSearch(customerSearch), 300);
+    const timer = setTimeout(
+      () => setDebouncedCustomerSearch(customerSearch),
+      300,
+    );
     return () => clearTimeout(timer);
   }, [customerSearch]);
 
@@ -45,87 +169,100 @@ export default function AddNewLead() {
     return () => clearTimeout(timer);
   }, [salesSearch]);
 
-  const { data: customersData, isLoading: isLoadingCustomers } = useCustomersQuery(1, 100, { search: debouncedCustomerSearch });
-  const { data: salesData, isLoading: isLoadingSales } = useSalesEmployeesQuery({ search: debouncedSalesSearch });
+  const { data: customersData, isLoading: isLoadingCustomers } =
+    useCustomersQuery(1, 100, { search: debouncedCustomerSearch });
+  const { data: salesData, isLoading: isLoadingSales } = useSalesEmployeesQuery(
+    { search: debouncedSalesSearch },
+  );
   const createLead = useCreateLeadMutation();
 
-  // Form state
-  const [formData, setFormData] = useState({
-    customerId: "",
-    projectName: "",
-    buildingType: "",
-    location: "",
-    source: "manual",
-    quoteValue: 0,
-    roofStyle: "",
-    width: 0,
-    length: 0,
-    height: 0,
-    doors: 0,
-    windows: 0,
-    insulation: 0,
-    assignedSales: "",
+  const {
+    register,
+    handleSubmit,
+    control,
+    setValue,
+    getValues,
+    watch,
+    setError,
+    clearErrors,
+    formState: { errors, isSubmitting },
+  } = useForm<AddLeadFormValues>({
+    resolver: zodResolver(addLeadSchema),
+    defaultValues: {
+      customerId: "",
+      assignedSales: "",
+      projectName: "",
+      location: "",
+      source: "",
+      quoteValue: "",
+      width: "",
+      length: "",
+      height: "",
+      roofStyle: "",
+      buildingType: "",
+      doors: 0,
+      windows: 0,
+      insulation: 0,
+    },
   });
 
-  const filteredCustomers = customersData?.data?.customers || [];
+  const selectedCustomerId = watch("customerId");
+  const selectedAssignedSales = watch("assignedSales");
+
+  const filteredCustomers = (customersData?.data?.customers || []).filter(
+    (c) => {
+      if (!customerSearch.trim()) return true;
+      const q = customerSearch.toLowerCase();
+      return (
+        c.customerName.toLowerCase().includes(q) ||
+        c.email.toLowerCase().includes(q) ||
+        c.customerId.toLowerCase().includes(q)
+      );
+    },
+  );
   const filteredSales = salesData?.data?.employees || [];
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  const handleNumberStep = (
+    field: "width" | "length" | "height" | "doors" | "windows" | "insulation",
+    delta: number,
   ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    if (value) {
-      setErrors((prev) => ({ ...prev, [name]: false }));
-    }
+    const current = Number(getValues(field)) || 0;
+    const nextVal = Math.max(0, current + delta);
+    setValue(field, nextVal, { shouldValidate: true });
+    clearErrors("root");
   };
 
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    if (value) {
-      setErrors((prev) => ({ ...prev, [name]: false }));
+  const onSubmit = async (data: AddLeadFormValues) => {
+    clearErrors("root");
+    try {
+      await createLead.mutateAsync({
+        customerId: data.customerId,
+        projectName: data.projectName.trim(),
+        buildingType: data.buildingType,
+        location: data.location.trim(),
+        source: data.source,
+        quoteValue: Number(data.quoteValue),
+        roofStyle: data.roofStyle,
+        width: Number(data.width),
+        length: Number(data.length),
+        height: Number(data.height),
+        doors: Number(data.doors) || 0,
+        windows: Number(data.windows) || 0,
+        insulation: Number(data.insulation) || 0,
+        assignedSales: data.assignedSales,
+      });
+
+      setShowSuccess(true);
+      setTimeout(() => {
+        navigate("/leads");
+      }, 1500);
+    } catch (err: unknown) {
+      const apiMessage = getApiErrorMessage(
+        err,
+        "Failed to create lead. Please check the form and try again.",
+      );
+      setError("root", { message: apiMessage });
     }
-  };
-
-  const handleNumberChange = (field: string, delta: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: Math.max(
-        0,
-        (prev[field as keyof typeof prev] as number) + delta
-      ),
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    const newErrors: Record<string, boolean> = {};
-    if (!formData.customerId) newErrors.customerId = true;
-    if (!formData.projectName) newErrors.projectName = true;
-    if (!formData.assignedSales) newErrors.assignedSales = true;
-    if (!formData.buildingType) newErrors.buildingType = true;
-    if (!formData.roofStyle) newErrors.roofStyle = true;
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      toast.error("Please fill all required fields");
-      return;
-    }
-
-    setErrors({});
-    
-    createLead.mutate(formData, {
-      onSuccess: () => {
-        setShowSuccess(true);
-        setTimeout(() => {
-          navigate("/leads");
-        }, 1500);
-      },
-      onError: (err: any) => {
-        toast.error(err?.response?.data?.message || "Failed to create lead");
-      }
-    });
   };
 
   const handleCancel = () => {
@@ -140,44 +277,69 @@ export default function AddNewLead() {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Button>
-        <h1 className="text-2xl font-bold">Add New Lead</h1>
+        <h1 className="text-2xl font-bold mt-2">Add New Lead</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Create a new lead record and assign it to your pipeline
         </p>
       </div>
 
       <form
-        onSubmit={handleSubmit}
+        onSubmit={handleSubmit(onSubmit)}
         noValidate
         className="space-y-6 p-5 rounded-lg shadow bg-white"
       >
+        {/* API / Root Error Banner */}
+        {errors.root && (
+          <div className="flex items-start gap-2.5 p-3.5 rounded-md border border-red-200 bg-red-50 text-sm text-red-700">
+            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <div className="flex-1 font-medium">{errors.root.message}</div>
+          </div>
+        )}
+
         {/* Customer & Project Details */}
-        <div className="">
-          <h2 className="text-lg font-semibold mb-4">Customer & Project Details</h2>
+        <div>
+          <h2 className="text-lg font-semibold mb-4">
+            Customer & Project Details
+          </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Customer Select Combobox */}
             <div className="space-y-2">
               <Label htmlFor="customerId">
                 Select Customer <span className="text-red-500">*</span>
               </Label>
-              <Popover open={customerPopoverOpen} onOpenChange={setCustomerPopoverOpen}>
+              <Popover
+                open={customerPopoverOpen}
+                onOpenChange={setCustomerPopoverOpen}
+              >
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     role="combobox"
                     aria-expanded={customerPopoverOpen}
-                    className={cn("w-full justify-between font-normal", errors.customerId ? "border-red-500 ring-1 ring-red-500" : "")}
+                    className={cn(
+                      "w-full justify-between font-normal",
+                      errors.customerId
+                        ? "border-red-500 ring-1 ring-red-500"
+                        : "",
+                    )}
                   >
-                    {formData.customerId
+                    {selectedCustomerId
                       ? (() => {
-                          if (newlyAddedCustomer && newlyAddedCustomer.id === formData.customerId) {
-                            return `${newlyAddedCustomer.customerName} (${newlyAddedCustomer.email || 'No email'})`;
+                          if (
+                            newlyAddedCustomer &&
+                            newlyAddedCustomer.id === selectedCustomerId
+                          ) {
+                            return `${newlyAddedCustomer.customerName} (${newlyAddedCustomer.email || "No email"})`;
                           }
-                          const c = customersData?.data?.customers?.find((x: any) => x._id === formData.customerId);
-                          return c ? `${c.customerName} (${c.email})` : "Select customer";
+                          const c = customersData?.data?.customers?.find(
+                            (x) => x._id === selectedCustomerId,
+                          );
+                          if (!c) return "Select customer";
+                          return `${c.customerName} (${c.email})`;
                         })()
                       : isLoadingCustomers
-                      ? "Loading customers..."
-                      : "Select a customer"}
+                        ? "Loading customers..."
+                        : "Select a customer"}
                     <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -192,8 +354,8 @@ export default function AddNewLead() {
                     />
                   </div>
                   <div className="p-1 border-b border-gray-100">
-                    <Button 
-                      type="button" 
+                    <Button
+                      type="button"
                       variant="ghost"
                       className="w-full justify-start text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-medium h-9 px-2"
                       onClick={() => {
@@ -206,55 +368,81 @@ export default function AddNewLead() {
                   </div>
                   <div className="max-h-[300px] overflow-y-auto p-1">
                     {filteredCustomers.length === 0 ? (
-                      <div className="p-4 text-center text-sm text-muted-foreground">No customer found.</div>
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        No customer found.
+                      </div>
                     ) : (
                       filteredCustomers.map((c) => (
                         <div
                           key={c._id}
                           className={cn(
                             "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-slate-100 hover:text-slate-900",
-                            formData.customerId === c._id ? "bg-slate-100" : ""
+                            selectedCustomerId === c._id ? "bg-slate-100" : "",
                           )}
                           onClick={() => {
-                            handleSelectChange("customerId", c._id);
+                            setValue("customerId", c._id, {
+                              shouldValidate: true,
+                            });
+                            clearErrors("root");
                             setCustomerPopoverOpen(false);
                           }}
                         >
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              formData.customerId === c._id ? "opacity-100" : "opacity-0"
+                              selectedCustomerId === c._id
+                                ? "opacity-100"
+                                : "opacity-0",
                             )}
                           />
-                          {c.customerName} <span className="ml-1 text-muted-foreground">({c.email})</span>
+                          <span>{c.customerName}</span>
+                          <span className="ml-1 text-muted-foreground">
+                            ({c.email})
+                          </span>
                         </div>
                       ))
                     )}
                   </div>
                 </PopoverContent>
               </Popover>
+              {errors.customerId && (
+                <p className="text-xs text-red-500">
+                  {errors.customerId.message}
+                </p>
+              )}
             </div>
-            
+
+            {/* Assigned Sales Combobox */}
             <div className="space-y-2">
               <Label htmlFor="assignedSales">
                 Assigned Sales <span className="text-red-500">*</span>
               </Label>
-              <Popover open={salesPopoverOpen} onOpenChange={setSalesPopoverOpen}>
+              <Popover
+                open={salesPopoverOpen}
+                onOpenChange={setSalesPopoverOpen}
+              >
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     role="combobox"
                     aria-expanded={salesPopoverOpen}
-                    className={cn("w-full justify-between font-normal", errors.assignedSales ? "border-red-500 ring-1 ring-red-500" : "")}
+                    className={cn(
+                      "w-full justify-between font-normal",
+                      errors.assignedSales
+                        ? "border-red-500 ring-1 ring-red-500"
+                        : "",
+                    )}
                   >
-                    {formData.assignedSales
+                    {selectedAssignedSales
                       ? (() => {
-                          const s = salesData?.data?.employees?.find((x) => x._id === formData.assignedSales);
+                          const s = salesData?.data?.employees?.find(
+                            (x) => x._id === selectedAssignedSales,
+                          );
                           return s ? s.name : "Assign to sales";
                         })()
                       : isLoadingSales
-                      ? "Loading sales..."
-                      : "Assign to sales"}
+                        ? "Loading sales..."
+                        : "Assign to sales"}
                     <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
@@ -270,24 +458,33 @@ export default function AddNewLead() {
                   </div>
                   <div className="max-h-[300px] overflow-y-auto p-1">
                     {filteredSales.length === 0 ? (
-                      <div className="p-4 text-center text-sm text-muted-foreground">No sales found.</div>
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        No sales found.
+                      </div>
                     ) : (
                       filteredSales.map((s) => (
                         <div
                           key={s._id}
                           className={cn(
                             "relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-slate-100 hover:text-slate-900",
-                            formData.assignedSales === s._id ? "bg-slate-100" : ""
+                            selectedAssignedSales === s._id
+                              ? "bg-slate-100"
+                              : "",
                           )}
                           onClick={() => {
-                            handleSelectChange("assignedSales", s._id);
+                            setValue("assignedSales", s._id, {
+                              shouldValidate: true,
+                            });
+                            clearErrors("root");
                             setSalesPopoverOpen(false);
                           }}
                         >
                           <Check
                             className={cn(
                               "mr-2 h-4 w-4",
-                              formData.assignedSales === s._id ? "opacity-100" : "opacity-0"
+                              selectedAssignedSales === s._id
+                                ? "opacity-100"
+                                : "opacity-0",
                             )}
                           />
                           {s.name}
@@ -297,246 +494,393 @@ export default function AddNewLead() {
                   </div>
                 </PopoverContent>
               </Popover>
+              {errors.assignedSales && (
+                <p className="text-xs text-red-500">
+                  {errors.assignedSales.message}
+                </p>
+              )}
             </div>
 
+            {/* Project Name */}
             <div className="space-y-2">
               <Label htmlFor="projectName">
                 Project Name <span className="text-red-500">*</span>
               </Label>
               <Input
                 id="projectName"
-                name="projectName"
                 placeholder="Enter Project Name"
-                value={formData.projectName}
-                onChange={handleInputChange}
-                className={errors.projectName ? "border-red-500 ring-1 ring-red-500" : ""}
-                required
+                {...register("projectName")}
+                onChange={(e) => {
+                  register("projectName").onChange(e);
+                  clearErrors("root");
+                }}
+                className={
+                  errors.projectName ? "border-red-500 ring-1 ring-red-500" : ""
+                }
               />
+              {errors.projectName && (
+                <p className="text-xs text-red-500">
+                  {errors.projectName.message}
+                </p>
+              )}
             </div>
-            
+
+            {/* Location */}
             <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
+              <Label htmlFor="location">
+                Location <span className="text-red-500">*</span>
+              </Label>
               <Input
                 id="location"
-                name="location"
                 placeholder="Enter Location"
-                value={formData.location}
-                onChange={handleInputChange}
+                {...register("location")}
+                onChange={(e) => {
+                  register("location").onChange(e);
+                  clearErrors("root");
+                }}
+                className={
+                  errors.location ? "border-red-500 ring-1 ring-red-500" : ""
+                }
               />
+              {errors.location && (
+                <p className="text-xs text-red-500">
+                  {errors.location.message}
+                </p>
+              )}
             </div>
           </div>
         </div>
 
         {/* Lead Details */}
-        <div className="">
+        <div>
           <h2 className="text-lg font-semibold mb-4">Lead Details</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Lead Source */}
             <div className="space-y-2">
               <Label htmlFor="source">
-                Lead Source
+                Lead Source <span className="text-red-500">*</span>
               </Label>
-              <Select
-                value={formData.source}
-                onValueChange={(value) => handleSelectChange("source", value)}
-              >
-                <SelectTrigger id="source">
-                  <SelectValue placeholder="Select lead source" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="chat">Chat</SelectItem>
-                  <SelectItem value="manual">Manual</SelectItem>
-                  <SelectItem value="import">Import</SelectItem>
-                  <SelectItem value="customer_portal">Customer Portal</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="quoteValue">Quote Value</Label>
-              <Input
-                id="quoteValue"
-                name="quoteValue"
-                type="number"
-                placeholder="Enter Quote Value"
-                value={formData.quoteValue || ""}
-                onChange={(e) => setFormData(p => ({ ...p, quoteValue: Number(e.target.value) }))}
+              <Controller
+                control={control}
+                name="source"
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={(val) => {
+                      field.onChange(val);
+                      clearErrors("root");
+                    }}
+                  >
+                    <SelectTrigger
+                      id="source"
+                      className={cn(
+                        "w-full",
+                        errors.source
+                          ? "border-red-500 ring-1 ring-red-500"
+                          : "",
+                      )}
+                    >
+                      <SelectValue placeholder="Select lead source" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="chat">Chat</SelectItem>
+                      <SelectItem value="manual">Manual</SelectItem>
+                      <SelectItem value="import">Import</SelectItem>
+                      <SelectItem value="customer_portal">
+                        Customer Portal
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               />
+              {errors.source && (
+                <p className="text-xs text-red-500">{errors.source.message}</p>
+              )}
             </div>
 
+            {/* Quote Value */}
+            <div className="space-y-2">
+              <Label htmlFor="quoteValue">
+                Quote Value <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="quoteValue"
+                type="number"
+                min="0"
+                step="any"
+                placeholder="Enter Quote Value"
+                {...register("quoteValue")}
+                onChange={(e) => {
+                  register("quoteValue").onChange(e);
+                  clearErrors("root");
+                }}
+                className={
+                  errors.quoteValue ? "border-red-500 ring-1 ring-red-500" : ""
+                }
+              />
+              {errors.quoteValue && (
+                <p className="text-xs text-red-500">
+                  {errors.quoteValue.message}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
         {/* Project Specification */}
-        <div className="">
+        <div>
           <h2 className="text-lg font-semibold mb-4">Project Specification</h2>
           <div className="space-y-4">
             {/* Dimensions */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Width */}
               <div className="space-y-2">
-                <Label htmlFor="width">Width (ft/m)</Label>
+                <Label htmlFor="width">
+                  Width (ft/m) <span className="text-red-500">*</span>
+                </Label>
                 <div className="flex items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 shrink-0"
-                    onClick={() => handleNumberChange("width", -1)}
+                    onClick={() => handleNumberStep("width", -1)}
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
                   <Input
                     id="width"
-                    name="width"
                     type="number"
-                    value={formData.width}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        width: Math.max(0, parseInt(e.target.value) || 0),
-                      }))
-                    }
-                    className="text-center"
+                    min="0"
+                    placeholder="0"
+                    {...register("width")}
+                    onChange={(e) => {
+                      register("width").onChange(e);
+                      clearErrors("root");
+                    }}
+                    className={cn(
+                      "text-center",
+                      errors.width ? "border-red-500 ring-1 ring-red-500" : "",
+                    )}
                   />
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 shrink-0"
-                    onClick={() => handleNumberChange("width", 1)}
+                    onClick={() => handleNumberStep("width", 1)}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+                {errors.width && (
+                  <p className="text-xs text-red-500">{errors.width.message}</p>
+                )}
               </div>
+
+              {/* Length */}
               <div className="space-y-2">
-                <Label htmlFor="length">Length (ft/m)</Label>
+                <Label htmlFor="length">
+                  Length (ft/m) <span className="text-red-500">*</span>
+                </Label>
                 <div className="flex items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 shrink-0"
-                    onClick={() => handleNumberChange("length", -1)}
+                    onClick={() => handleNumberStep("length", -1)}
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
                   <Input
                     id="length"
-                    name="length"
                     type="number"
-                    value={formData.length}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        length: Math.max(0, parseInt(e.target.value) || 0),
-                      }))
-                    }
-                    className="text-center"
+                    min="0"
+                    placeholder="0"
+                    {...register("length")}
+                    onChange={(e) => {
+                      register("length").onChange(e);
+                      clearErrors("root");
+                    }}
+                    className={cn(
+                      "text-center",
+                      errors.length ? "border-red-500 ring-1 ring-red-500" : "",
+                    )}
                   />
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 shrink-0"
-                    onClick={() => handleNumberChange("length", 1)}
+                    onClick={() => handleNumberStep("length", 1)}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+                {errors.length && (
+                  <p className="text-xs text-red-500">
+                    {errors.length.message}
+                  </p>
+                )}
               </div>
+
+              {/* Height */}
               <div className="space-y-2">
-                <Label htmlFor="height">Height (ft/m)</Label>
+                <Label htmlFor="height">
+                  Height (ft/m) <span className="text-red-500">*</span>
+                </Label>
                 <div className="flex items-center gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 shrink-0"
-                    onClick={() => handleNumberChange("height", -1)}
+                    onClick={() => handleNumberStep("height", -1)}
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
                   <Input
                     id="height"
-                    name="height"
                     type="number"
-                    value={formData.height}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        height: Math.max(0, parseInt(e.target.value) || 0),
-                      }))
-                    }
-                    className="text-center"
+                    min="0"
+                    placeholder="0"
+                    {...register("height")}
+                    onChange={(e) => {
+                      register("height").onChange(e);
+                      clearErrors("root");
+                    }}
+                    className={cn(
+                      "text-center",
+                      errors.height ? "border-red-500 ring-1 ring-red-500" : "",
+                    )}
                   />
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 shrink-0"
-                    onClick={() => handleNumberChange("height", 1)}
+                    onClick={() => handleNumberStep("height", 1)}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+                {errors.height && (
+                  <p className="text-xs text-red-500">
+                    {errors.height.message}
+                  </p>
+                )}
               </div>
             </div>
 
             {/* Roof Style and Building Type */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Roof Style */}
               <div className="space-y-2">
                 <Label htmlFor="roofStyle">
                   Roof Style <span className="text-red-500">*</span>
                 </Label>
-                <Select
-                  value={formData.roofStyle}
-                  onValueChange={(value) =>
-                    handleSelectChange("roofStyle", value)
-                  }
-                >
-                  <SelectTrigger id="roofStyle" className={errors.roofStyle ? "border-red-500 ring-1 ring-red-500" : ""}>
-                    <SelectValue placeholder="Select Roof Style" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gable">Gable</SelectItem>
-                    <SelectItem value="hip">Hip</SelectItem>
-                    <SelectItem value="flat">Flat</SelectItem>
-                    <SelectItem value="mansard">Mansard</SelectItem>
-                    <SelectItem value="gambrel">Gambrel</SelectItem>
-                    <SelectItem value="shed">Shed</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  control={control}
+                  name="roofStyle"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={(val) => {
+                        field.onChange(val);
+                        clearErrors("root");
+                      }}
+                    >
+                      <SelectTrigger
+                        id="roofStyle"
+                        className={cn(
+                          "w-full",
+                          errors.roofStyle
+                            ? "border-red-500 ring-1 ring-red-500"
+                            : "",
+                        )}
+                      >
+                        <SelectValue placeholder="Select Roof Style" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="gable">Gable</SelectItem>
+                        <SelectItem value="hip">Hip</SelectItem>
+                        <SelectItem value="flat">Flat</SelectItem>
+                        <SelectItem value="mansard">Mansard</SelectItem>
+                        <SelectItem value="gambrel">Gambrel</SelectItem>
+                        <SelectItem value="shed">Shed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.roofStyle && (
+                  <p className="text-xs text-red-500">
+                    {errors.roofStyle.message}
+                  </p>
+                )}
               </div>
+
+              {/* Building Type */}
               <div className="space-y-2">
                 <Label htmlFor="buildingType">
                   Building Type <span className="text-red-500">*</span>
                 </Label>
-                <Select
-                  value={formData.buildingType}
-                  onValueChange={(value) =>
-                    handleSelectChange("buildingType", value)
-                  }
-                >
-                  <SelectTrigger id="buildingType" className={errors.buildingType ? "border-red-500 ring-1 ring-red-500" : ""}>
-                    <SelectValue placeholder="Select Building Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="arch-buildings">Arch Buildings</SelectItem>
-                    <SelectItem value="aviation">Aviation</SelectItem>
-                    <SelectItem value="carports">Carports</SelectItem>
-                    <SelectItem value="workshops">Workshops</SelectItem>
-                    <SelectItem value="agricultural">Agricultural</SelectItem>
-                    <SelectItem value="warehouses">Warehouses</SelectItem>
-                    <SelectItem value="commercial">Commercial</SelectItem>
-                    <SelectItem value="sales-storage">Sales Storage</SelectItem>
-                    <SelectItem value="barndominiums">Barndominiums</SelectItem>
-                    <SelectItem value="garages">Garages</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  control={control}
+                  name="buildingType"
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={(val) => {
+                        field.onChange(val);
+                        clearErrors("root");
+                      }}
+                    >
+                      <SelectTrigger
+                        id="buildingType"
+                        className={cn(
+                          "w-full",
+                          errors.buildingType
+                            ? "border-red-500 ring-1 ring-red-500"
+                            : "",
+                        )}
+                      >
+                        <SelectValue placeholder="Select Building Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="arch-buildings">
+                          Arch Buildings
+                        </SelectItem>
+                        <SelectItem value="aviation">Aviation</SelectItem>
+                        <SelectItem value="carports">Carports</SelectItem>
+                        <SelectItem value="workshops">Workshops</SelectItem>
+                        <SelectItem value="agricultural">
+                          Agricultural
+                        </SelectItem>
+                        <SelectItem value="warehouses">Warehouses</SelectItem>
+                        <SelectItem value="commercial">Commercial</SelectItem>
+                        <SelectItem value="sales-storage">
+                          Sales Storage
+                        </SelectItem>
+                        <SelectItem value="barndominiums">
+                          Barndominiums
+                        </SelectItem>
+                        <SelectItem value="garages">Garages</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.buildingType && (
+                  <p className="text-xs text-red-500">
+                    {errors.buildingType.message}
+                  </p>
+                )}
               </div>
             </div>
 
-            {/* Additional Specs */}
+            {/* Additional Specs (Optional: Doors, Windows, Insulation) */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Doors */}
               <div className="space-y-2">
                 <Label htmlFor="doors">Doors</Label>
                 <div className="flex items-center gap-2">
@@ -545,21 +889,20 @@ export default function AddNewLead() {
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 shrink-0"
-                    onClick={() => handleNumberChange("doors", -1)}
+                    onClick={() => handleNumberStep("doors", -1)}
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
                   <Input
                     id="doors"
-                    name="doors"
                     type="number"
-                    value={formData.doors}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        doors: Math.max(0, parseInt(e.target.value) || 0),
-                      }))
-                    }
+                    min="0"
+                    placeholder="0"
+                    {...register("doors")}
+                    onChange={(e) => {
+                      register("doors").onChange(e);
+                      clearErrors("root");
+                    }}
                     className="text-center"
                   />
                   <Button
@@ -567,12 +910,17 @@ export default function AddNewLead() {
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 shrink-0"
-                    onClick={() => handleNumberChange("doors", 1)}
+                    onClick={() => handleNumberStep("doors", 1)}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+                {errors.doors && (
+                  <p className="text-xs text-red-500">{errors.doors.message}</p>
+                )}
               </div>
+
+              {/* Windows */}
               <div className="space-y-2">
                 <Label htmlFor="windows">Windows</Label>
                 <div className="flex items-center gap-2">
@@ -581,21 +929,20 @@ export default function AddNewLead() {
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 shrink-0"
-                    onClick={() => handleNumberChange("windows", -1)}
+                    onClick={() => handleNumberStep("windows", -1)}
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
                   <Input
                     id="windows"
-                    name="windows"
                     type="number"
-                    value={formData.windows}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        windows: Math.max(0, parseInt(e.target.value) || 0),
-                      }))
-                    }
+                    min="0"
+                    placeholder="0"
+                    {...register("windows")}
+                    onChange={(e) => {
+                      register("windows").onChange(e);
+                      clearErrors("root");
+                    }}
                     className="text-center"
                   />
                   <Button
@@ -603,12 +950,19 @@ export default function AddNewLead() {
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 shrink-0"
-                    onClick={() => handleNumberChange("windows", 1)}
+                    onClick={() => handleNumberStep("windows", 1)}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+                {errors.windows && (
+                  <p className="text-xs text-red-500">
+                    {errors.windows.message}
+                  </p>
+                )}
               </div>
+
+              {/* Insulation */}
               <div className="space-y-2">
                 <Label htmlFor="insulation">Insulation</Label>
                 <div className="flex items-center gap-2">
@@ -617,21 +971,20 @@ export default function AddNewLead() {
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 shrink-0"
-                    onClick={() => handleNumberChange("insulation", -1)}
+                    onClick={() => handleNumberStep("insulation", -1)}
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
                   <Input
                     id="insulation"
-                    name="insulation"
                     type="number"
-                    value={formData.insulation}
-                    onChange={(e) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        insulation: Math.max(0, parseInt(e.target.value) || 0),
-                      }))
-                    }
+                    min="0"
+                    placeholder="0"
+                    {...register("insulation")}
+                    onChange={(e) => {
+                      register("insulation").onChange(e);
+                      clearErrors("root");
+                    }}
                     className="text-center"
                   />
                   <Button
@@ -639,37 +992,56 @@ export default function AddNewLead() {
                     variant="outline"
                     size="icon"
                     className="h-9 w-9 shrink-0"
-                    onClick={() => handleNumberChange("insulation", 1)}
+                    onClick={() => handleNumberStep("insulation", 1)}
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
                 </div>
+                {errors.insulation && (
+                  <p className="text-xs text-red-500">
+                    {errors.insulation.message}
+                  </p>
+                )}
               </div>
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-end gap-3">
-          <Button type="button" variant="outline" onClick={handleCancel}>
+        <div className="flex justify-end gap-3 pt-4 border-t">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleCancel}
+            disabled={isSubmitting || createLead.isPending}
+          >
             Cancel
           </Button>
-          <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-            Save Lead
+          <Button
+            type="submit"
+            className="bg-blue-600 hover:bg-blue-700"
+            disabled={isSubmitting || createLead.isPending}
+          >
+            {isSubmitting || createLead.isPending
+              ? "Saving Lead..."
+              : "Save Lead"}
           </Button>
         </div>
       </form>
+
       <SuccessDialog
         open={showSuccess}
         onClose={() => setShowSuccess(false)}
         title="Lead Added Successfully!"
       />
-      <AddBasicCustomerDialog 
+
+      <AddBasicCustomerDialog
         open={isAddCustomerOpen}
         onOpenChange={setIsAddCustomerOpen}
         onAdd={(newCustomer) => {
           setNewlyAddedCustomer(newCustomer);
-          handleSelectChange("customerId", newCustomer.id);
+          setValue("customerId", newCustomer.id, { shouldValidate: true });
+          clearErrors("root");
           setIsAddCustomerOpen(false);
         }}
       />
