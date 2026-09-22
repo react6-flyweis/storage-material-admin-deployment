@@ -744,7 +744,7 @@ export const adminRoutes: RouteObject[] = [
                 element: <CarrierInvoices />,
               },
               { path: "new", element: <InvoiceForm /> },
-              { path: ":id", element: <EditInvoice /> },
+              { path: ":id", element: <InvoicePreviewPage /> },
               { path: ":id/edit", element: <EditInvoice /> },
               // { path: "sales-growth", element: <SalesGrowth /> },
             ],
