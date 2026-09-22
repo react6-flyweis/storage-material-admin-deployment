@@ -3,6 +3,7 @@ import {
   getSmdtStatsProvider,
   getSmdtCategoriesProvider,
   getSmdtItemsProvider,
+  getSmdtItemByIdProvider,
   createSmdtItemProvider,
   updateSmdtItemProvider,
   exportSmdtExcelProvider,
@@ -35,11 +36,20 @@ export function useSmdtItemsQuery(params?: GetSmdtParams) {
   });
 }
 
+export function useSmdtItemQuery(itemId?: string | null) {
+  return useQuery({
+    queryKey: ["plant", "costing", "item", itemId],
+    queryFn: () => getSmdtItemByIdProvider(itemId!),
+    enabled: !!itemId,
+  });
+}
+
 export function useCreateSmdtItemMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreateSmdtItemRequest) => createSmdtItemProvider(payload),
     onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["plant", "costing"] });
       void queryClient.invalidateQueries({ queryKey: ["plant", "smdt"] });
     },
   });
@@ -56,6 +66,7 @@ export function useUpdateSmdtItemMutation() {
       body: UpdateSmdtItemRequest;
     }) => updateSmdtItemProvider(itemId, body),
     onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["plant", "costing"] });
       void queryClient.invalidateQueries({ queryKey: ["plant", "smdt"] });
     },
   });
