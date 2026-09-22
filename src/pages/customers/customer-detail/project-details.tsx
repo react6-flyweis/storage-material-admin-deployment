@@ -73,13 +73,13 @@ export default function ProjectDetailsPage() {
   const { data: leadData, isLoading: isLeadLoading } =
     useLeadDetailQuery(leadId);
   const project = leadData?.data?.lead;
+  const customer = leadData?.data?.customer;
 
   const customerId =
     id ||
-    (typeof project?.customerId === "object" && project?.customerId !== null
-      ? (project.customerId as { _id?: string; id?: string })?._id ||
-        (project.customerId as { _id?: string; id?: string })?.id
-      : (project?.customerId as string)) ||
+    customer?._id ||
+    customer?.customerId ||
+    project?.customerId ||
     leadId;
   const basePath = `/customers/${customerId}`;
 
@@ -313,24 +313,15 @@ export default function ProjectDetailsPage() {
               <div className="bg-[#F8FAFC] rounded-[8px] p-4 flex gap-4">
                 <div className="flex-1 space-y-2">
                   <p className="text-[14px] font-medium text-slate-800 mb-1">
-                    {typeof project?.customerId === "object" &&
-                    project?.customerId !== null
-                      ? `${project.customerId.firstName || ""} ${project.customerId.lastName || ""}`.trim() ||
-                        project.customerId.company ||
-                        "Unknown Customer"
-                      : "Unknown Customer"}
+                    {customer?.firstName || customer?.company || "Unknown Customer"}
                   </p>
                   <div className="flex items-start gap-2">
                     <Phone className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
                     <div className="flex text-[13px]">
                       <span className="text-slate-500 w-16">Phone</span>
                       <span className="font-medium text-slate-800">
-                        {typeof project?.customerId === "object" &&
-                        project?.customerId !== null &&
-                        project.customerId.phone
-                          ? typeof project.customerId.phone === "object"
-                            ? `${project.customerId.phone.countryCode || ""} ${project.customerId.phone.number || ""}`.trim()
-                            : String(project.customerId.phone)
+                        {customer?.phone?.number
+                          ? `${customer.phone.countryCode || ""} ${customer.phone.number}`.trim()
                           : "N/A"}
                       </span>
                     </div>
@@ -340,19 +331,10 @@ export default function ProjectDetailsPage() {
                     <div className="flex text-[13px]">
                       <span className="text-slate-500 w-16">Email</span>
                       <a
-                        href={
-                          typeof project?.customerId === "object" &&
-                          project?.customerId !== null &&
-                          project.customerId.email
-                            ? `mailto:${project.customerId.email}`
-                            : "#"
-                        }
+                        href={customer?.email ? `mailto:${customer.email}` : "#"}
                         className="font-medium text-[#1D51A4] hover:underline"
                       >
-                        {typeof project?.customerId === "object" &&
-                        project?.customerId !== null
-                          ? project.customerId.email || "N/A"
-                          : "N/A"}
+                        {customer?.email || "N/A"}
                       </a>
                     </div>
                   </div>
@@ -361,15 +343,7 @@ export default function ProjectDetailsPage() {
                     <div className="flex flex-col text-[13px]">
                       <span className="text-slate-500 w-16">Address</span>
                       <span className="font-medium text-slate-800">
-                        {typeof project?.customerId === "object" &&
-                        project?.customerId !== null &&
-                        project.customerId.address
-                          ? typeof project.customerId.address === "object"
-                            ? project.customerId.address.street ||
-                              project.customerId.address.city ||
-                              "N/A"
-                            : String(project.customerId.address)
-                          : project?.location || "N/A"}
+                        {customer?.location || project?.location || "N/A"}
                       </span>
                     </div>
                   </div>
