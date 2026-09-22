@@ -1,4 +1,4 @@
-import { useNavigate, useLocation } from "react-router";
+import { useNavigate, useLocation, useParams } from "react-router";
 import { useState } from "react";
 import { useAppBack } from "@/modules/navigation";
 import {
@@ -28,6 +28,7 @@ import { toast } from "sonner";
 export default function InvoicePreview() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { id } = useParams<{ id: string }>();
   const { goBack } = useAppBack("/invoice/list");
   const [showSuccess, setShowSuccess] = useState(false);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
@@ -61,7 +62,8 @@ export default function InvoicePreview() {
     },
   ];
 
-  const { invoiceId, ...fallbackState } = location.state || {};
+  const { invoiceId: stateInvoiceId, ...fallbackState } = location.state || {};
+  const invoiceId = id || stateInvoiceId;
 
   const queryClient = useQueryClient();
   const markPaidMutation = useMarkInvoicePaidMutation();
