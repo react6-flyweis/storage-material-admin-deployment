@@ -14,12 +14,22 @@ import {
   Briefcase,
   History,
   FileText,
+  ImageIcon,
+  Download,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Pagination from "@/components/Pagination";
 import pdfIcon from "@/modules/construction/assets/pdficon.svg";
 import { usePlantCarrierQuery } from "@/modules/plant/carrier.hooks";
 import { type GetPlantCarrierResponse } from "@/modules/plant/carrier.api";
+import { downloadFile } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 interface CarrierViewData {
   id: string;
@@ -57,14 +67,38 @@ interface CarrierViewData {
     date: string;
     status: string;
   }>;
-  complianceDocs: Array<{
-    name: string;
-    size: string;
-    type: string;
-    expiry: string;
-    url: string;
-  }>;
+  complianceDocs: ComplianceDocItem[];
 }
+
+export interface ComplianceDocItem {
+  name: string;
+  size: string;
+  type: string;
+  expiry: string;
+  url: string;
+  isImage?: boolean;
+  isPdf?: boolean;
+}
+
+const isImageFile = (name?: string, url?: string) => {
+  const check = (str?: string) => {
+    if (!str) return false;
+    const clean = str.split("?")[0].toLowerCase();
+    return [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".bmp", ".avif"].some(
+      (ext) => clean.endsWith(ext)
+    );
+  };
+  return check(name) || check(url);
+};
+
+const isPdfFile = (name?: string, url?: string) => {
+  const check = (str?: string) => {
+    if (!str) return false;
+    const clean = str.split("?")[0].toLowerCase();
+    return clean.endsWith(".pdf");
+  };
+  return check(name) || check(url);
+};
 
 const toTitleCase = (value: string) =>
   value
@@ -129,17 +163,18 @@ const mapCarrierDetail = (
       : "—",
   }));
 
-  const complianceDocs = (carrier?.documents ?? []).map((document) => {
-    const isPdf =
-      document.name.toLowerCase().endsWith(".pdf") ||
-      document.url.toLowerCase().includes(".pdf");
+  const complianceDocs: ComplianceDocItem[] = (carrier?.documents ?? []).map((document) => {
+    const isPdf = isPdfFile(document.name, document.url);
+    const isImage = isImageFile(document.name, document.url);
 
     return {
       name: document.name,
       size: "—",
-      type: isPdf ? "PDF" : "Document",
+      type: isPdf ? "PDF" : isImage ? "Image" : "Document",
       expiry: "—",
       url: document.url,
+      isImage,
+      isPdf,
     };
   });
 
@@ -264,6 +299,7 @@ const FreightCarrierDetails: React.FC = () => {
   const [docSort, setDocSort] = useState("Docs Type");
   const [docSearch, setDocSearch] = useState("");
   const [docsOpen, setDocsOpen] = useState(true);
+  const [selectedDoc, setSelectedDoc] = useState<ComplianceDocItem | null>(null);
 
   const { data: carrierResponse, isLoading: carrierLoading } = usePlantCarrierQuery(id ?? "", {
     enabled: !!id,
@@ -289,11 +325,12 @@ const FreightCarrierDetails: React.FC = () => {
   };
 
   const sortedAssigned = useMemo(() => {
-    let items = [...carrierData.assignedProjects];
+    const items = [...carrierData.assignedProjects];
     if (assignedSort) {
-      items.sort((a: any, b: any) => {
-        if (a[assignedSort.key] < b[assignedSort.key]) return assignedSort.direction === "asc" ? -1 : 1;
-        if (a[assignedSort.key] > b[assignedSort.key]) return assignedSort.direction === "asc" ? 1 : -1;
+      items.sort((a, b) => {
+        const key = assignedSort.key as keyof typeof a;
+        if (a[key] < b[key]) return assignedSort.direction === "asc" ? -1 : 1;
+        if (a[key] > b[key]) return assignedSort.direction === "asc" ? 1 : -1;
         return 0;
       });
     }
@@ -301,11 +338,12 @@ const FreightCarrierDetails: React.FC = () => {
   }, [assignedSort, carrierData.assignedProjects]);
 
   const sortedHistory = useMemo(() => {
-    let items = [...carrierData.freightHistory];
+    const items = [...carrierData.freightHistory];
     if (historySort) {
-      items.sort((a: any, b: any) => {
-        if (a[historySort.key] < b[historySort.key]) return historySort.direction === "asc" ? -1 : 1;
-        if (a[historySort.key] > b[historySort.key]) return historySort.direction === "asc" ? 1 : -1;
+      items.sort((a, b) => {
+        const key = historySort.key as keyof typeof a;
+        if (a[key] < b[key]) return historySort.direction === "asc" ? -1 : 1;
+        if (a[key] > b[key]) return historySort.direction === "asc" ? 1 : -1;
         return 0;
       });
     }
@@ -334,9 +372,12 @@ const FreightCarrierDetails: React.FC = () => {
 
     // Secondary sort from table header
     if (complianceSort) {
-      docs.sort((a: any, b: any) => {
-        if (a[complianceSort.key] < b[complianceSort.key]) return complianceSort.direction === "asc" ? -1 : 1;
-        if (a[complianceSort.key] > b[complianceSort.key]) return complianceSort.direction === "asc" ? 1 : -1;
+      docs.sort((a, b) => {
+        const key = complianceSort.key as keyof typeof a;
+        const valA = a[key] ?? "";
+        const valB = b[key] ?? "";
+        if (valA < valB) return complianceSort.direction === "asc" ? -1 : 1;
+        if (valA > valB) return complianceSort.direction === "asc" ? 1 : -1;
         return 0;
       });
     }
@@ -812,18 +853,36 @@ const FreightCarrierDetails: React.FC = () => {
                             <tr key={i} className="hover:bg-gray-50/50 transition-colors">
                               <td className="px-6 py-4 border-r border-[#E2E4E6]">
                                 <div className="flex items-center gap-3">
-                                  <div className="p-2 bg-[#F8F9FA] rounded-md shrink-0 border border-gray-100">
-                                    <img src={pdfIcon} alt="PDF" className="size-5" />
-                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => doc.url && setSelectedDoc(doc)}
+                                    disabled={!doc.url}
+                                    className={`p-1.5 bg-[#F8F9FA] rounded-md shrink-0 border border-gray-100 flex items-center justify-center size-9 ${
+                                      doc.url ? "cursor-pointer hover:bg-gray-100 transition-colors" : ""
+                                    }`}
+                                    title={doc.url ? "Preview document" : undefined}
+                                  >
+                                    {doc.isImage && doc.url ? (
+                                      <img
+                                        src={doc.url}
+                                        alt={doc.name}
+                                        className="size-6 object-cover rounded"
+                                      />
+                                    ) : doc.isPdf ? (
+                                      <img src={pdfIcon} alt="PDF" className="size-5" />
+                                    ) : (
+                                      <FileText size={18} className="text-gray-500" />
+                                    )}
+                                  </button>
                                   {doc.url ? (
-                                    <a
-                                      href={doc.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-sm font-medium text-blue-600 hover:underline truncate"
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedDoc(doc)}
+                                      className="text-sm font-medium text-blue-600 hover:underline truncate text-left cursor-pointer"
+                                      title="Preview document"
                                     >
                                       {doc.name}
-                                    </a>
+                                    </button>
                                   ) : (
                                     <span className="text-sm font-medium text-[#111827] truncate">
                                       {doc.name}
@@ -864,6 +923,119 @@ const FreightCarrierDetails: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Document / Image Preview Modal */}
+      <Dialog
+        open={Boolean(selectedDoc)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedDoc(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-4xl max-h-[92vh] p-0 flex flex-col overflow-hidden rounded-2xl bg-white shadow-2xl border-0 gap-0">
+          <DialogTitle className="sr-only">
+            {selectedDoc?.name || "Document Preview"}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            Preview of {selectedDoc?.name}
+          </DialogDescription>
+
+          {/* Modal Header */}
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4 bg-white shrink-0 pr-14">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="p-2 bg-gray-50 rounded-lg shrink-0 border border-gray-100">
+                {selectedDoc?.isImage ? (
+                  <ImageIcon className="size-5 text-blue-600" />
+                ) : selectedDoc?.isPdf ? (
+                  <img src={pdfIcon} alt="PDF" className="size-5" />
+                ) : (
+                  <FileText className="size-5 text-gray-500" />
+                )}
+              </div>
+              <div className="min-w-0">
+                <h3
+                  className="text-base font-bold text-[#051321] leading-tight truncate"
+                  title={selectedDoc?.name}
+                >
+                  {selectedDoc?.name}
+                </h3>
+                <span className="text-xs text-gray-500 font-medium">
+                  {selectedDoc?.type || "Document"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Preview Area */}
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#f8fafc] flex items-center justify-center min-h-[300px]">
+            {selectedDoc?.isImage && selectedDoc.url ? (
+              <img
+                src={selectedDoc.url}
+                alt={selectedDoc.name}
+                className="max-w-full max-h-[65vh] object-contain rounded-lg shadow-xs"
+              />
+            ) : selectedDoc?.isPdf && selectedDoc.url ? (
+              <iframe
+                src={`${selectedDoc.url}#toolbar=0`}
+                title={selectedDoc.name}
+                className="w-full h-[65vh] border-0 bg-white rounded-lg shadow-xs"
+              />
+            ) : selectedDoc?.url ? (
+              <div className="flex flex-col items-center justify-center py-12 text-gray-500 gap-3">
+                <FileText className="size-12 text-gray-400" />
+                <p className="text-sm font-medium">
+                  Preview not available for this file type
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-2">
+                <FileText className="size-10 text-gray-300" />
+                <p className="text-xs font-medium">File not available</p>
+              </div>
+            )}
+          </div>
+
+          {/* Modal Footer */}
+          <div className="px-6 py-3 border-t border-gray-100 flex items-center justify-between gap-3 bg-white shrink-0">
+            <div>
+              {selectedDoc?.url && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    window.open(selectedDoc.url, "_blank", "noopener,noreferrer")
+                  }
+                  className="flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-800 transition-colors cursor-pointer"
+                >
+                  <ExternalLink size={13} />
+                  <span>Open in new tab</span>
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {selectedDoc?.url && (
+                <Button
+                  type="button"
+                  onClick={() =>
+                    downloadFile(selectedDoc.url, selectedDoc.name)
+                  }
+                  className="flex items-center gap-2 bg-[#006CE4] hover:bg-[#0057B8] text-white text-xs md:text-sm font-medium rounded-lg h-9 px-4 cursor-pointer shadow-xs"
+                >
+                  <Download size={15} />
+                  <span>Download</span>
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setSelectedDoc(null)}
+                className="text-xs md:text-sm h-9 px-4 border-gray-200 text-gray-700 hover:bg-gray-50 cursor-pointer"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </PageWrapper>
   );
 };
