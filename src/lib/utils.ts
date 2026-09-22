@@ -24,13 +24,54 @@ export function truncateMiddle(str: string, maxLength: number = 30, frontLength:
   return str.slice(0, frontLength) + "..." + str.slice(-backLength);
 }
 
-export const downloadFile = (url: string, filename: string) => {
-  const link = document.createElement("a");
-  link.href = url;
-  link.setAttribute("download", filename);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+export const downloadFile = async (url: string, filename: string) => {
+  if (!url) return;
+  try {
+    // S3 returns Access-Control-Allow-Origin: * when requested with CORS,
+    // but if an <img src="..."> loaded the same URL without CORS first,
+    // the browser caches the non-CORS response. Appending a cache-buster
+    // guarantees a clean CORS fetch that successfully returns a Blob.
+    const downloadUrl = url.includes("?")
+      ? `${url}&_dl=${Date.now()}`
+      : `${url}?_dl=${Date.now()}`;
+
+    const response = await fetch(downloadUrl);
+    if (!response.ok) throw new Error(`Fetch failed with status ${response.status}`);
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+
+    let finalFilename = filename || "download";
+    if (!finalFilename.includes(".") && url) {
+      try {
+        const cleanUrl = url.split("?")[0].split("#")[0];
+        const ext = cleanUrl.split(".").pop();
+        if (ext && ext.length <= 5) {
+          finalFilename = `${finalFilename}.${ext}`;
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    link.setAttribute("download", finalFilename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => {
+      window.URL.revokeObjectURL(blobUrl);
+    }, 5000);
+  } catch (error) {
+    console.error("Direct blob download failed:", error);
+    // Never open in a new tab
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", filename || "download");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 };
 
 export const getQRCodeUrl = (data: string | object, size = "250x250") => {

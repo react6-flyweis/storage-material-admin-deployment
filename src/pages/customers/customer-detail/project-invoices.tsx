@@ -1,4 +1,4 @@
-import { useParams } from "react-router";
+import { useParams, useNavigate } from "react-router";
 import { useAppBack } from "@/modules/navigation";
 import { toast } from "sonner";
 import {
@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   DollarSign,
   CheckCircle2,
+  Eye,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getApiErrorMessage } from "@/lib/api-error";
 
 export default function ProjectInvoicesPage() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { id, projectId } = useParams<{ id: string; projectId: string }>();
   // Use projectId if available, otherwise fallback to id (for backwards compatibility if needed)
@@ -235,7 +237,9 @@ export default function ProjectInvoicesPage() {
               <TableHead className="font-semibold text-slate-800">
                 Status
               </TableHead>
-              <TableHead className="w-40"></TableHead>
+              <TableHead className="font-semibold text-slate-800 text-right pr-6">
+                Action
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -284,6 +288,7 @@ export default function ProjectInvoicesPage() {
                       : invoice.invoiceStatus === "draft"
                         ? "Draft"
                         : "Pending";
+                const targetInvoiceId = invoice.invoice?._id || invoice.invoice?.id || invoice.invoiceId;
                 return (
                   <TableRow key={index} className="hover:bg-slate-50/50">
                     <TableCell className="text-center py-4">
@@ -318,27 +323,43 @@ export default function ProjectInvoicesPage() {
                         sendMethod={invoice.invoice?.sendMethod}
                       />
                     </TableCell>
-                    <TableCell>
-                      {status === "Pending" && (
+                    <TableCell className="text-right pr-6 py-4">
+                      <div className="flex items-center justify-end gap-2">
                         <Button
+                          variant="ghost"
                           size="sm"
-                          className="bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-md px-4 h-8"
-                          onClick={() => handleMarkAsPaid(invoice.invoiceId)}
-                          disabled={markAsPaidMutation.isPending}
+                          className="h-8 px-2.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1.5"
+                          title="View Invoice"
+                          onClick={() => {
+                            if (targetInvoiceId) {
+                              navigate(`/invoice/${targetInvoiceId}`);
+                            }
+                          }}
                         >
-                          {markAsPaidMutation.isPending
-                            ? "Marking..."
-                            : "Mark as Paid"}
+                          <Eye className="w-4 h-4" />
+                          <span>View</span>
                         </Button>
-                      )}
-                      {status === "Overdue" && (
-                        <Button
-                          size="sm"
-                          className="bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-md px-4 h-8"
-                        >
-                          Follow up
-                        </Button>
-                      )}
+                        {status === "Pending" && (
+                          <Button
+                            size="sm"
+                            className="bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-md px-3 h-8 text-xs"
+                            onClick={() => handleMarkAsPaid(invoice.invoiceId)}
+                            disabled={markAsPaidMutation.isPending}
+                          >
+                            {markAsPaidMutation.isPending
+                              ? "Marking..."
+                              : "Mark as Paid"}
+                          </Button>
+                        )}
+                        {status === "Overdue" && (
+                          <Button
+                            size="sm"
+                            className="bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-md px-3 h-8 text-xs"
+                          >
+                            Follow up
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

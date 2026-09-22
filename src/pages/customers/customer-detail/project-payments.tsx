@@ -1,4 +1,4 @@
-import { useParams } from "react-router";
+import { useParams, useNavigate } from "react-router";
 import { useAppBack } from "@/modules/navigation";
 import {
   ArrowLeft,
@@ -26,6 +26,7 @@ import { useGetAdminProjectInvoicesQuery } from "@/modules/invoices/invoices.hoo
 import { useGetProjectInvoiceStatsQuery } from "@/modules/invoices/invoices.hooks";
 
 export default function ProjectPayments() {
+  const navigate = useNavigate();
   const { id, projectId } = useParams();
   const actualProjectId = projectId || id;
 
@@ -189,12 +190,22 @@ export default function ProjectPayments() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Button
-                      size="sm"
-                      className="bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-md px-4 h-8 text-xs font-medium"
-                    >
-                      View
-                    </Button>
+                    {(() => {
+                      const targetInvoiceId = payment.invoice?._id || payment.invoice?.id || payment.invoiceId;
+                      return (
+                        <Button
+                          size="sm"
+                          className="bg-[#4F46E5] hover:bg-[#4338CA] text-white rounded-md px-4 h-8 text-xs font-medium"
+                          onClick={() => {
+                            if (targetInvoiceId) {
+                              navigate(`/invoice/${targetInvoiceId}`);
+                            }
+                          }}
+                        >
+                          View
+                        </Button>
+                      );
+                    })()}
                   </TableCell>
                 </TableRow>
               ))}
