@@ -155,6 +155,23 @@ export async function createSmdtItemProvider(
   return response.data;
 }
 
+export async function getSmdtItemByIdProvider(
+  itemId: string
+): Promise<SmdtItem> {
+  const response = await apiClient.get<{
+    success: boolean;
+    data: { item: SmdtItem } | SmdtItem;
+  }>(`/api/admin/plant/costing/${encodeURIComponent(itemId)}`);
+
+  if (response.data?.data && typeof response.data.data === "object") {
+    if ("item" in response.data.data) {
+      return response.data.data.item;
+    }
+    return response.data.data as SmdtItem;
+  }
+  return response.data as unknown as SmdtItem;
+}
+
 export async function updateSmdtItemProvider(
   itemId: string,
   payload: UpdateSmdtItemRequest
