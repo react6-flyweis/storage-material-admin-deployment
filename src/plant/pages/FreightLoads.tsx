@@ -20,6 +20,7 @@ import {
   useFreightLoadsQuery,
 } from "@/modules/plant/freight.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatStatusLabel, getStatusBadgeStyle } from "./deliveryStatusConstants";
 import {
   Select,
   SelectContent,
@@ -81,7 +82,20 @@ export default function FreightLoads() {
   const loads = loadsResponse?.data?.requests || [];
   const total = loadsResponse?.data?.total || 0;
 
-  const statusesList = filtersResponse?.data?.statuses || [];
+  const fallbackFreightStatuses = [
+    "requested",
+    "bids_received",
+    "awarded",
+    "in_transit",
+    "delivered",
+    "resubmit_requested",
+    "rejected",
+    "expired",
+  ];
+  const statusesList =
+    filtersResponse?.data?.statuses && filtersResponse.data.statuses.length > 0
+      ? filtersResponse.data.statuses
+      : fallbackFreightStatuses;
   const projectsList = filtersResponse?.data?.projects || [];
   const customersList = filtersResponse?.data?.customers || [];
   const carriersList = filtersResponse?.data?.carriers || [];
@@ -108,7 +122,8 @@ export default function FreightLoads() {
     search !== "";
 
   const getStatusBadge = (statusStr: string) => {
-    switch (statusStr?.toLowerCase()) {
+    const s = (statusStr || "").toLowerCase();
+    switch (s) {
       case "awarded":
       case "selected":
         return (
@@ -153,18 +168,22 @@ export default function FreightLoads() {
             Requested
           </span>
         );
+      case "material_prepared":
+      case "loaded":
+      case "picked_up":
       case "in_transit":
+      case "staged":
+      case "dispatched_to_site":
+      case "delivered": {
+        const style = getStatusBadgeStyle(s);
         return (
-          <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full border border-indigo-200">
-            In Transit
+          <span
+            className={`px-3 py-1 text-xs font-semibold rounded-full border ${style.bg} ${style.text} ${style.border}`}
+          >
+            {formatStatusLabel(statusStr)}
           </span>
         );
-      case "delivered":
-        return (
-          <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200">
-            Delivered
-          </span>
-        );
+      }
       default:
         return (
           <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-full uppercase">
@@ -289,9 +308,9 @@ export default function FreightLoads() {
       </div>
 
       {/* Main Content Area */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-[14px] shadow-sm border border-gray-200 overflow-hidden flex flex-col font-inter">
         {/* Toolbar */}
-        <div className="p-6 border-b border-gray-100 flex flex-col space-y-4">
+        <div className="p-6 border-b border-gray-200 flex flex-col space-y-4">
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div className="relative w-full max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -470,48 +489,48 @@ export default function FreightLoads() {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-white text-gray-500 text-xs font-semibold uppercase tracking-wider border-b border-gray-100">
-              <tr>
-                <th className="px-6 py-4">REQUEST ID</th>
-                <th className="px-6 py-4">PROJECT</th>
-                <th className="px-6 py-4">DESCRIPTION</th>
-                <th className="px-6 py-4">ROUTE</th>
-                <th className="px-6 py-4">DATES</th>
-                <th className="px-6 py-4">AWARDED BID</th>
-                <th className="px-6 py-4">STATUS</th>
-                <th className="px-6 py-4">ACTIONS</th>
+        <div className="overflow-x-auto flex-1">
+          <table className="w-full text-left border-collapse border border-gray-200 text-nowrap font-inter text-sm">
+            <thead className="bg-[linear-gradient(90deg,_#DBEAFE_0%,_#F3E8FF_100%)]">
+              <tr className="border-b border-gray-200">
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">REQUEST ID</th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">PROJECT</th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">DESCRIPTION</th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap text-center">ROUTE</th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">DATES</th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">AWARDED BID</th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap text-center">STATUS</th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap text-center">ACTIONS</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-200 bg-white">
               {isLoadsLoading ? (
                 // Table Skeletons
                 Array.from({ length: 5 }).map((_, idx) => (
                   <tr key={idx}>
-                    <td className="px-6 py-6">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-24" />
                     </td>
-                    <td className="px-6 py-6">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-32" />
                     </td>
-                    <td className="px-6 py-6">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-40" />
                     </td>
-                    <td className="px-6 py-6">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-10 w-24" />
                     </td>
-                    <td className="px-6 py-6">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-10 w-24" />
                     </td>
-                    <td className="px-6 py-6">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-16" />
                     </td>
-                    <td className="px-6 py-6">
-                      <Skeleton className="h-6 w-20" />
+                    <td className="px-4 py-3 border border-gray-200 text-center">
+                      <Skeleton className="h-6 w-20 mx-auto" />
                     </td>
-                    <td className="px-6 py-6">
-                      <Skeleton className="h-8 w-20" />
+                    <td className="px-4 py-3 border border-gray-200 text-center">
+                      <Skeleton className="h-8 w-20 mx-auto" />
                     </td>
                   </tr>
                 ))
@@ -519,28 +538,35 @@ export default function FreightLoads() {
                 <tr>
                   <td
                     colSpan={8}
-                    className="px-6 py-12 text-center text-gray-500 font-medium"
+                    className="px-6 py-12 text-center text-gray-500 font-medium border border-gray-200"
                   >
                     No freight loads found matching filters.
                   </td>
                 </tr>
               ) : (
                 loads.map((load) => (
-                  <tr key={load._id} className="hover:bg-gray-50/50">
-                    <td className="px-6 py-6 align-top">
+                  <tr
+                    key={load._id}
+                    className="hover:bg-gray-50/60 transition-colors group cursor-pointer"
+                    onClick={() =>
+                      navigate(
+                        `/plant/freight-loads/details/${load._id || load.requestId}`,
+                      )
+                    }
+                  >
+                    <td className="px-4 py-3 border border-gray-200 align-top">
                       <p className="font-bold text-slate-900 text-sm mb-1">
                         {load.deliveryNumber || "N/A"}
                       </p>
                       <p className="text-xs text-gray-400">
-                        Requested:
-                        <br />
+                        Requested:{" "}
                         {load.createdAt
                           ? new Date(load.createdAt).toLocaleDateString()
                           : "N/A"}
                       </p>
                     </td>
-                    <td className="px-6 py-6 align-top text-slate-900 font-medium">
-                      <div className="max-w-[120px] leading-tight">
+                    <td className="px-4 py-3 border border-gray-200 align-top text-slate-900 font-medium">
+                      <div className="max-w-[160px] leading-tight">
                         {load.project?.projectName || "N/A"}
                         {load.project?.jobId && (
                           <span className="block text-xs text-gray-400 font-normal mt-0.5">
@@ -549,23 +575,23 @@ export default function FreightLoads() {
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-6 align-top text-gray-500">
+                    <td className="px-4 py-3 border border-gray-200 align-top text-gray-500">
                       <div
-                        className="max-w-[150px] line-clamp-2"
+                        className="max-w-[200px] line-clamp-2"
                         title={load.description}
                       >
                         {load.description || "No description"}
                       </div>
                     </td>
-                    <td className="px-6 py-6 align-top">
-                      <div className="flex flex-col text-xs text-gray-500 space-y-1 max-w-[120px]">
+                    <td className="px-4 py-3 border border-gray-200 align-top text-center">
+                      <div className="flex flex-col text-xs text-gray-500 space-y-1 max-w-[150px] mx-auto">
                         <span
                           className="truncate font-medium text-slate-700"
                           title={load.pickupLocation}
                         >
                           {load.pickupLocation || "N/A"}
                         </span>
-                        <span className="text-gray-300">↓</span>
+                        <span className="text-gray-400">↓</span>
                         <span
                           className="truncate font-medium text-slate-700"
                           title={load.deliveryLocation}
@@ -574,20 +600,18 @@ export default function FreightLoads() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-6 align-top">
-                      <div className="flex flex-col text-xs text-gray-500 space-y-1 max-w-[120px]">
+                    <td className="px-4 py-3 border border-gray-200 align-top">
+                      <div className="flex flex-col text-xs text-gray-500 space-y-1 max-w-[130px]">
                         <span>
-                          Pickup:
-                          <br />
+                          Pickup:{" "}
                           <span className="font-medium text-slate-700">
                             {load.pickupDate
                               ? new Date(load.pickupDate).toLocaleDateString()
                               : "N/A"}
                           </span>
                         </span>
-                        <span className="mt-1">
-                          Delivery:
-                          <br />
+                        <span className="mt-0.5">
+                          Delivery:{" "}
                           <span className="font-medium text-slate-700">
                             {load.deliveryDate
                               ? new Date(load.deliveryDate).toLocaleDateString()
@@ -596,26 +620,29 @@ export default function FreightLoads() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-6 align-top font-semibold text-slate-900">
+                    <td className="px-4 py-3 border border-gray-200 align-top font-semibold text-slate-900">
                       {load.awardedBidAmount !== undefined &&
                       load.awardedBidAmount !== null
                         ? `$${load.awardedBidAmount.toLocaleString()}`
                         : "-"}
                     </td>
-                    <td className="px-6 py-6 align-top">
+                    <td className="px-4 py-3 border border-gray-200 align-top text-center">
                       {getStatusBadge(load.status)}
                     </td>
-                    <td className="px-6 py-6 align-top">
+                    <td
+                      className="px-4 py-3 border border-gray-200 align-top text-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Button
                         variant="outline"
-                        className="bg-white border-gray-200 text-gray-700 h-9 px-4 rounded-md font-medium text-xs shadow-sm hover:bg-gray-50"
+                        className="bg-white border-gray-200 text-gray-700 h-8 px-3 rounded-md font-medium text-xs shadow-sm hover:bg-gray-50"
                         onClick={() =>
                           navigate(
                             `/plant/freight-loads/details/${load._id || load.requestId}`,
                           )
                         }
                       >
-                        <Eye className="w-4 h-4 mr-2" />
+                        <Eye className="w-3.5 h-3.5 mr-1.5" />
                         View
                       </Button>
                     </td>
@@ -628,7 +655,7 @@ export default function FreightLoads() {
 
         {/* Pagination */}
         {!isLoadsLoading && total > 0 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-white">
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-white">
             <div className="flex flex-1 items-center justify-between">
               <div>
                 <p className="text-sm text-gray-700">
