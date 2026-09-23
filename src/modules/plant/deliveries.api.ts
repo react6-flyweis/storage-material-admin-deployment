@@ -213,3 +213,18 @@ export async function getCalendarDeliveries(
   return response.data;
 }
 
+export type ExportDeliveriesParams = Omit<GetDeliveriesParams, "page" | "limit">;
+
+export async function exportDeliveries(
+  params?: ExportDeliveriesParams
+): Promise<Blob> {
+  const response = await apiClient.get(
+    "/api/admin/plant/deliveries/export",
+    {
+      params,
+      responseType: "blob",
+    }
+  );
+  return response.data;
+}
+
