@@ -71,18 +71,23 @@ const BOMFilesDetailsView: React.FC = () => {
       <div className="xl:pr-2 md:px-4 px-2 pb-10 space-y-6 font-inter">
         <div className="flex items-center gap-4 pt-1">
           <Button
-            variant="outline"
-            className="h-9 px-4 gap-2"
+            variant="default"
+            size="sm"
             onClick={() => goBack()}
+            className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
           >
-            <ArrowLeft size={18} /> Back
+            <ArrowLeft size={18} strokeWidth={2.5} /> Back
           </Button>
           <h1 className="text-2xl font-bold text-slate-950">BOM Files Details</h1>
         </div>
         <div className="p-8 text-center bg-white rounded-[14px] border border-gray-100 space-y-4">
           <h3 className="text-lg font-bold text-red-600">Error Loading BOM Details</h3>
           <p className="text-sm text-gray-500">Could not retrieve details for BOM Job ID: {id}</p>
-          <Button variant="default" onClick={() => goBack()}>
+          <Button
+            variant="default"
+            className="bg-[#1E51A4] hover:bg-[#154085] text-white"
+            onClick={() => goBack()}
+          >
             Go Back
           </Button>
         </div>
@@ -116,11 +121,12 @@ const BOMFilesDetailsView: React.FC = () => {
       <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
         <div className="flex items-center gap-4">
           <Button
-            variant="outline"
-            className="bg-white hover:bg-slate-50 text-slate-700 border-slate-200 rounded-lg h-10 px-4 font-medium shadow-sm gap-2"
+            variant="default"
+            size="sm"
             onClick={() => goBack()}
+            className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
           >
-            <ArrowLeft size={18} /> Back
+            <ArrowLeft size={18} strokeWidth={2.5} /> Back
           </Button>
           <h1 className="text-[28px] font-normal text-slate-900 tracking-tight">BOM Files Details</h1>
         </div>

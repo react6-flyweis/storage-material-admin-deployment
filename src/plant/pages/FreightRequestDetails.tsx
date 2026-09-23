@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { ArrowLeft, Truck, TrendingDown, BarChart3, Zap } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import { useAppBack } from "@/modules/navigation";
+import { Button } from "@/components/ui/button";
 import {
   AwardLoadModal,
   AwardSuccessModal,
@@ -221,12 +222,14 @@ const FreightRequestDetailsView: React.FC = () => {
       {/* Header Section */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 md:gap-6">
         <div className="flex items-center gap-4">
-          <button
+          <Button
+            variant="default"
+            size="sm"
             onClick={() => goBack()}
-            className="w-8 h-8 md:w-8 md:h-8 bg-[#000000] rounded-full flex items-center justify-center text-white hover:bg-[#212B36] transition-all shadow-sm shrink-0"
+            className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
           >
-            <ArrowLeft size={16} strokeWidth={3} />
-          </button>
+            <ArrowLeft size={18} strokeWidth={2.5} /> Back
+          </Button>
           <div>
             <h1 className="text-lg md:text-[25px] font-semibold text-[#212B36] tracking-tight">
               Freight Request Details
