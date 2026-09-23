@@ -298,14 +298,8 @@ const ShipperDetails: React.FC = () => {
   if (isVendorLoading) {
     return (
       <PageWrapper>
-        <div className="flex items-center gap-3 mb-2">
-          <button
-            disabled
-            className="p-1.5 rounded-full transition-colors shrink-0 bg-gray-100 animate-pulse"
-            aria-label="Loading back button"
-          >
-            <ArrowLeft size={20} className="text-transparent" />
-          </button>
+        <div className="flex items-center gap-4 mb-2">
+          <div className="h-9 w-20 rounded-md bg-gray-200 animate-pulse" />
           <div className="h-7 w-28 rounded-full bg-gray-200 animate-pulse" />
         </div>
 
@@ -395,13 +389,15 @@ const ShipperDetails: React.FC = () => {
   return (
     <PageWrapper>
       {/* Header */}
-      <div className="flex items-center gap-3 mb-2">
-        <button
+      <div className="flex items-center gap-4 mb-2">
+        <Button
+          variant="default"
+          size="sm"
           onClick={() => goBack()}
-          className="p-1.5 hover:bg-gray-100 rounded-full transition-colors shrink-0"
+          className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
         >
-          <ArrowLeft size={20} className="text-[#051321]" />
-        </button>
+          <ArrowLeft size={18} strokeWidth={2.5} /> Back
+        </Button>
         <h1 className="text-xl md:text-2xl font-bold text-[#051321]">
           Vendors
         </h1>

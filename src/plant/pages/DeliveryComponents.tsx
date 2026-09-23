@@ -8,15 +8,20 @@ import {
   AlertTriangle,
   Van,
   CalendarSync,
-  ClipboardCheck
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  formatStatusLabel,
+  isFinalStatus,
+  type DeliveryStatusType,
+} from "./deliveryStatusConstants";
 
 export interface Delivery {
   id: string;
   title: string;
   projectId: string;
-  status: "Scheduled" | "Confirmed" | "In Transit" | "Delivered" | "Delayed" | "Cancelled" | "Draft" | "Bidding Sent" | "Carrier Selected";
+  status: string;
   badges?: { text: string; type: "critical" | "warning" }[];
   project: string;
   customer: string;
@@ -37,27 +42,42 @@ export const statusConfig: Record<string, { color: string; bgColor: string; dotC
   "Carrier Selected": { color: "#155DFC", bgColor: "#E6F0FF", dotColor: "#155DFC" },
   Scheduled: { color: "#2B7FFF", bgColor: "#DCFCE7", dotColor: "#2B7FFF" },
   Confirmed: { color: "#22C55E", bgColor: "#F0FDF4", dotColor: "#22C55E" },
-  "In Transit": { color: "#FFAB00", bgColor: "#FFF9EA", dotColor: "#FFAB00" },
+  "In Transit": { color: "#2563EB", bgColor: "#EFF6FF", dotColor: "#2563EB" },
   Delivered: { color: "#00B8D9", bgColor: "#E6FBFE", dotColor: "#00A76F" },
   Delayed: { color: "#FF5630", bgColor: "#FFE9D5", dotColor: "#FF8C00" },
   Cancelled: { color: "#FF5630", bgColor: "#FFE9D5", dotColor: "#FF5630" },
+  material_prepared: { color: "#4F46E5", bgColor: "#EEF2FF", dotColor: "#4F46E5" },
+  loaded: { color: "#C026D3", bgColor: "#FDF4FF", dotColor: "#C026D3" },
+  picked_up: { color: "#EA580C", bgColor: "#FFF7ED", dotColor: "#EA580C" },
+  in_transit: { color: "#2563EB", bgColor: "#EFF6FF", dotColor: "#2563EB" },
+  staged: { color: "#CA8A04", bgColor: "#FEFCE8", dotColor: "#CA8A04" },
+  dispatched_to_site: { color: "#059669", bgColor: "#ECFDF5", dotColor: "#059669" },
+  delivered: { color: "#00A76F", bgColor: "#E6FFEF", dotColor: "#00A76F" },
 };
 
 export const Badge = ({ text, type }: { text: string; type: "critical" | "warning" }) => (
-  <span className={`px-2 py-0.5 rounded-full text-xs font-normal tracking-wider flex items-center gap-1 ${type === "critical" ? "bg-[#FFE4DE] text-[#822900]" : "bg-[#FFF5CC] text-[#CC8D10]"
-    }`}>
+  <span
+    className={`px-2 py-0.5 rounded-full text-xs font-normal tracking-wider flex items-center gap-1 ${
+      type === "critical" ? "bg-[#FFE4DE] text-[#822900]" : "bg-[#FFF5CC] text-[#CC8D10]"
+    }`}
+  >
     {type === "warning" && <AlertTriangle size={12} />}
     {text}
   </span>
 );
 
 export const DetailItem = ({ label, value, icon: Icon, subValue }: any) => (
-  <div className="space-y-1.5 text-left">
+  <div className="space-y-1.5 text-left font-inter">
     <p className="text-[10px] font-bold text-[#919EAB] tracking-wider">{label}</p>
     <div className="flex items-start gap-2">
       {Icon && <Icon size={16} className="text-[#637381] mt-0.5 shrink-0" />}
       <div>
-        <p className="text-sm font-normal text-[#212B36] leading-tight " style={{ overflowWrap: "break-word", wordBreak: "break-word", whiteSpace: "normal" }}>{value}</p>
+        <p
+          className="text-sm font-normal text-[#212B36] leading-tight"
+          style={{ overflowWrap: "break-word", wordBreak: "break-word", whiteSpace: "normal" }}
+        >
+          {value}
+        </p>
         {subValue && <p className="text-xs text-[#637381] mt-0.5">{subValue}</p>}
       </div>
     </div>
@@ -67,7 +87,8 @@ export const DetailItem = ({ label, value, icon: Icon, subValue }: any) => (
 interface DeliveryCardProps {
   delivery: Delivery;
   onReschedule?: (id: string) => void;
-  onMarkInTransit?: (id: string) => void;
+  onOpenStatusModal?: (id: string) => void;
+  onStatusUpdate?: (id: string, targetStatus?: DeliveryStatusType) => void;
   onMarkDelivered?: (id: string) => void;
   onViewDetails?: (id: string) => void;
   onSendReminder?: (id: string) => void;
@@ -76,31 +97,71 @@ interface DeliveryCardProps {
 export const DeliveryCard = ({
   delivery,
   onReschedule,
-  onMarkInTransit,
+  onOpenStatusModal,
+  onStatusUpdate,
   onMarkDelivered,
   onViewDetails,
   onSendReminder,
 }: DeliveryCardProps) => {
-  const config = statusConfig[delivery.status];
+  const normalizedKey = delivery.status?.toLowerCase().replace(/\s+/g, "_") || "";
+  const config =
+    statusConfig[delivery.status] ||
+    statusConfig[normalizedKey] || {
+      color: "#2563EB",
+      bgColor: "#EFF6FF",
+      dotColor: "#2563EB",
+    };
   const navigate = useNavigate();
 
-  const currentStatus = (delivery.status || "").toLowerCase();
-  const isDelivered = currentStatus === "delivered";
-  const isInTransit = currentStatus === "in_transit" || currentStatus === "in transit";
+  const isDelivered = isFinalStatus(delivery.status);
+
+  const handleStatusClick = () => {
+    if (onOpenStatusModal) {
+      onOpenStatusModal(delivery.id);
+    } else if (onStatusUpdate) {
+      onStatusUpdate(delivery.id);
+    } else if (onMarkDelivered) {
+      onMarkDelivered(delivery.id);
+    }
+  };
 
   const actions = [
-    { label: "View Details", icon: Van, onClick: () => onViewDetails ? onViewDetails(delivery.id) : navigate(`/plant/delivery-details/${delivery.id}`), disabled: false },
-    { label: "Reschedule Delivery", icon: CalendarSync, onClick: () => onReschedule ? onReschedule(delivery.id) : navigate(`/plant/reschedule-delivery/${delivery.id}`), disabled: isDelivered },
-    { label: "Mark In Transit", icon: Truck, onClick: () => onMarkInTransit?.(delivery.id), disabled: isInTransit || isDelivered },
-    { label: "Mark Delivered", icon: ClipboardCheck, onClick: () => onMarkDelivered ? onMarkDelivered(delivery.id) : navigate(`/plant/mark-delivered/${delivery.id}`), disabled: isDelivered },
-    { label: "Send Reminder Now", icon: Bell, onClick: () => onSendReminder?.(delivery.id), disabled: false },
+    {
+      label: `Status: ${formatStatusLabel(delivery.status)} (Update)`,
+      icon: RotateCcw,
+      onClick: handleStatusClick,
+      disabled: isDelivered,
+    },
+    {
+      label: "View Details",
+      icon: Van,
+      onClick: () =>
+        onViewDetails ? onViewDetails(delivery.id) : navigate(`/plant/delivery-details/${delivery.id}`),
+      disabled: false,
+    },
+    {
+      label: "Reschedule Delivery",
+      icon: CalendarSync,
+      onClick: () =>
+        onReschedule ? onReschedule(delivery.id) : navigate(`/plant/reschedule-delivery/${delivery.id}`),
+      disabled: isDelivered,
+    },
+    {
+      label: "Send Reminder Now",
+      icon: Bell,
+      onClick: () => onSendReminder?.(delivery.id),
+      disabled: false,
+    },
   ];
 
   return (
-    <div className="bg-white rounded-[14px] border border-gray-100  overflow-hidden transition-all mb-3 text-left">
+    <div className="bg-white rounded-[14px] border border-gray-100 overflow-hidden transition-all mb-3 text-left font-inter">
       <div className="p-2 md:p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-start gap-3 text-left">
-          <div className="mt-1.5 w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: config.dotColor }} />
+          <div
+            className="mt-1.5 w-3 h-3 rounded-full shrink-0"
+            style={{ backgroundColor: config.dotColor }}
+          />
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-base md:text-lg font-semibold text-[#212B36]">{delivery.title}</h3>
@@ -111,8 +172,15 @@ export const DeliveryCard = ({
             <p className="text-sm font-medium text-[#637381]">{delivery.projectId}</p>
           </div>
         </div>
-        <div className={`px-4 py-1.5 rounded-full text-xs font-normal ${config.bgColor} border self-start md:self-center`} style={{ borderColor: `${config.color}20`, color: config.color }}>
-          {delivery.status}
+        <div
+          className="px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider border self-start md:self-center"
+          style={{
+            backgroundColor: config.bgColor,
+            borderColor: `${config.color}20`,
+            color: config.color,
+          }}
+        >
+          {formatStatusLabel(delivery.status)}
         </div>
       </div>
 
@@ -128,14 +196,20 @@ export const DeliveryCard = ({
         <DetailItem label="SITE LOCATION" value={delivery.siteLocation} />
         <DetailItem label="REQUIRED EQUIPMENT" value={delivery.requiredEquipment} />
         <DetailItem label="INTERNAL OWNER" value={delivery.internalOwner} />
-        {/* <DetailItem label="CARRIER" value={delivery.carrier} subValue={`Freight Load: ${delivery.freightLoad}`} /> */}
         <DetailItem label="CARRIER" value={delivery.carrier} />
       </div>
 
       <div className="border-t border-gray-50 flex gap-3 flex-wrap items-center p-3">
         {actions.map((action, idx) => (
-          <Button key={idx} variant="white" size="sm" onClick={action.onClick} disabled={action.disabled}>
-            <action.icon size={18} className="text-[#454F5B] mr-2" />
+          <Button
+            key={idx}
+            variant="outline"
+            size="sm"
+            onClick={action.onClick}
+            disabled={action.disabled}
+            className="bg-white border-gray-200 text-[#454F5B] text-xs font-medium h-9"
+          >
+            <action.icon size={16} className="text-[#454F5B] mr-2" />
             {action.label}
           </Button>
         ))}

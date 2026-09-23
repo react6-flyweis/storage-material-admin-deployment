@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Filter,
-  Download,
   Search,
   Ribbon,
   Truck,
@@ -30,6 +29,7 @@ import {
   useFreightFiltersQuery,
 } from "@/modules/plant/freight.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatStatusLabel, getStatusBadgeStyle } from "./deliveryStatusConstants";
 
 export default function AwardedLoads() {
   const navigate = useNavigate();
@@ -79,7 +79,16 @@ export default function AwardedLoads() {
   const requests = loadsResponse?.data?.requests || [];
   const total = loadsResponse?.data?.total || 0;
 
-  const statusesList = filtersResponse?.data?.statuses || [];
+  const fallbackAwardedStatuses = [
+    "awarded",
+    "in_transit",
+    "delivered",
+    "dispatched_to_site",
+  ];
+  const statusesList =
+    filtersResponse?.data?.statuses && filtersResponse.data.statuses.length > 0
+      ? filtersResponse.data.statuses
+      : fallbackAwardedStatuses;
   const projectsList = filtersResponse?.data?.projects || [];
   const customersList = filtersResponse?.data?.customers || [];
   const carriersList = filtersResponse?.data?.carriers || [];
@@ -137,7 +146,7 @@ export default function AwardedLoads() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {/* Total Awarded */}
         <Card className="rounded-2xl border-[2px] border-green-500 shadow-sm bg-white overflow-hidden">
           <CardContent className="p-5 flex items-center justify-between">
@@ -204,9 +213,9 @@ export default function AwardedLoads() {
       </div>
 
       {/* Search and Table Area */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm">
-        {/* Search Bar & Filter Controls */}
-        <div className="flex flex-col space-y-4 mb-6">
+      <div className="bg-white rounded-[14px] shadow-sm border border-gray-200 overflow-hidden flex flex-col font-inter">
+        {/* Toolbar */}
+        <div className="p-6 border-b border-gray-200 flex flex-col space-y-4">
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -385,75 +394,75 @@ export default function AwardedLoads() {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-100">
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Request ID
+        <div className="overflow-x-auto flex-1">
+          <table className="w-full text-left border-collapse border border-gray-200 text-nowrap font-inter text-sm">
+            <thead className="bg-[linear-gradient(90deg,_#DBEAFE_0%,_#F3E8FF_100%)]">
+              <tr className="border-b border-gray-200">
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  REQUEST ID
                 </th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Project
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  PROJECT
                 </th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Description
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  DESCRIPTION
                 </th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Pickup Location
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  PICKUP LOCATION
                 </th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Delivery Location
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  DELIVERY LOCATION
                 </th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Dates
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  DATES
                 </th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Carrier
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  CARRIER
                 </th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Awarded Amount
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  AWARDED AMOUNT
                 </th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Status
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap text-center">
+                  STATUS
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-gray-200 bg-white">
               {isLoadsLoading ? (
                 Array.from({ length: 5 }).map((_, index) => (
                   <tr key={index}>
-                    <td className="py-5">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-24" />
                     </td>
-                    <td className="py-5">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-32" />
                     </td>
-                    <td className="py-5">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-40" />
                     </td>
-                    <td className="py-5">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-28" />
                     </td>
-                    <td className="py-5">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-28" />
                     </td>
-                    <td className="py-5">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-10 w-24" />
                     </td>
-                    <td className="py-5">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-8 w-32" />
                     </td>
-                    <td className="py-5">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-20" />
                     </td>
-                    <td className="py-5">
-                      <Skeleton className="h-6 w-16" />
+                    <td className="px-4 py-3 border border-gray-200 text-center">
+                      <Skeleton className="h-6 w-16 mx-auto" />
                     </td>
                   </tr>
                 ))
               ) : requests.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-slate-500">
+                  <td colSpan={9} className="py-8 text-center text-slate-500 border border-gray-200">
                     No awarded loads found
                   </td>
                 </tr>
@@ -461,14 +470,14 @@ export default function AwardedLoads() {
                 requests.map((load, index) => (
                   <tr
                     key={load._id || index}
-                    className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
+                    className="hover:bg-gray-50/60 transition-colors group cursor-pointer"
                     onClick={() =>
                       navigate(
                         `/plant/freight-loads/details/${load._id || load.requestId}`,
                       )
                     }
                   >
-                    <td className="py-5 align-top">
+                    <td className="px-4 py-3 border border-gray-200 align-top">
                       <p className="font-bold text-slate-900 mb-1">
                         {load.deliveryNumber}
                       </p>
@@ -487,46 +496,50 @@ export default function AwardedLoads() {
                         {load.status.replace("_", " ")}
                       </Badge>
                     </td>
-                    <td className="py-5 align-top">
+                    <td className="px-4 py-3 border border-gray-200 align-top">
                       <p className="text-sm font-medium text-slate-700">
                         {load.project?.projectName ||
                           load.project?.jobId ||
                           "-"}
                       </p>
                     </td>
-                    <td className="py-5 align-top">
+                    <td className="px-4 py-3 border border-gray-200 align-top">
                       <p className="text-sm text-slate-600 max-w-[150px]">
                         {load.description}
                       </p>
                     </td>
-                    <td className="py-5 align-top">
-                      <p className="text-sm text-slate-600 w-20">
+                    <td className="px-4 py-3 border border-gray-200 align-top">
+                      <p className="text-sm text-slate-600 max-w-[150px] truncate" title={load.pickupLocation || undefined}>
                         {load.pickupLocation || "-"}
                       </p>
                     </td>
-                    <td className="py-5 align-top">
-                      <p className="text-sm text-slate-600 w-20">
+                    <td className="px-4 py-3 border border-gray-200 align-top">
+                      <p className="text-sm text-slate-600 max-w-[150px] truncate" title={load.deliveryLocation || undefined}>
                         {load.deliveryLocation || "-"}
                       </p>
                     </td>
-                    <td className="py-5 align-top">
-                      <p className="text-[12px] text-slate-500 w-24">
-                        Pickup:
-                        <br />
-                        {load.pickupDate
-                          ? new Date(load.pickupDate).toLocaleDateString()
-                          : "-"}
-                      </p>
-                      <p className="text-[12px] text-slate-500 w-24 mt-1">
-                        Delivery:
-                        <br />
-                        {load.deliveryDate
-                          ? new Date(load.deliveryDate).toLocaleDateString()
-                          : "-"}
-                      </p>
+                    <td className="px-4 py-3 border border-gray-200 align-top">
+                      <div className="flex flex-col text-xs text-slate-500 space-y-1 max-w-[130px]">
+                        <span>
+                          Pickup:{" "}
+                          <span className="font-medium text-slate-700">
+                            {load.pickupDate
+                              ? new Date(load.pickupDate).toLocaleDateString()
+                              : "-"}
+                          </span>
+                        </span>
+                        <span className="mt-0.5">
+                          Delivery:{" "}
+                          <span className="font-medium text-slate-700">
+                            {load.deliveryDate
+                              ? new Date(load.deliveryDate).toLocaleDateString()
+                              : "-"}
+                          </span>
+                        </span>
+                      </div>
                     </td>
-                    <td className="py-5 align-top">
-                      <p className="text-sm font-semibold text-slate-900 mb-1 w-28">
+                    <td className="px-4 py-3 border border-gray-200 align-top">
+                      <p className="text-sm font-semibold text-slate-900 mb-1 max-w-[160px]">
                         {load.carrier?.carrierName || "-"}
                       </p>
                       {load.poc?.pickupContactPhone && (
@@ -540,17 +553,20 @@ export default function AwardedLoads() {
                         </a>
                       )}
                     </td>
-                    <td className="py-5 align-top">
-                      <p className="text-sm font-bold text-slate-900 mb-1">
-                        {load.awardedBidAmount !== undefined &&
-                        load.awardedBidAmount !== null
-                          ? `$${load.awardedBidAmount.toLocaleString()}`
-                          : "-"}
-                      </p>
+                    <td className="px-4 py-3 border border-gray-200 align-top font-semibold text-slate-900">
+                      {load.awardedBidAmount !== undefined &&
+                      load.awardedBidAmount !== null
+                        ? `$${load.awardedBidAmount.toLocaleString()}`
+                        : "-"}
                     </td>
-                    <td className="py-5 align-top">
-                      <Badge className="bg-green-100 hover:bg-green-100 text-green-700 border border-green-200 rounded-full px-3 font-medium uppercase text-[10px]">
-                        {load.status === "delivered" ? "Delivered" : "Awarded"}
+                    <td className="px-4 py-3 border border-gray-200 align-top text-center">
+                      <Badge
+                        variant="outline"
+                        className={`rounded-full px-3 py-1 font-semibold uppercase text-[10px] tracking-wider border ${
+                          getStatusBadgeStyle(load.status || "awarded").bg
+                        } ${getStatusBadgeStyle(load.status || "awarded").text} ${getStatusBadgeStyle(load.status || "awarded").border}`}
+                      >
+                        {formatStatusLabel(load.status || "awarded")}
                       </Badge>
                     </td>
                   </tr>
@@ -562,7 +578,7 @@ export default function AwardedLoads() {
 
         {/* Pagination */}
         {!isLoadsLoading && total > 0 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-white">
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-white">
             <div className="flex flex-1 items-center justify-between">
               <div>
                 <p className="text-sm text-gray-700">

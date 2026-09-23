@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router";
-import { Eye, Plus, Send } from "lucide-react";
+import { Link, useNavigate, useLocation } from "react-router";
+import { Eye, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,7 +13,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import CreateQuotationDialog from "@/components/leads/create-quotation-dialog";
 import QuotationDetailsDialog from "@/components/leads/quotation-details-dialog";
 import SendQuotationDialog from "@/components/leads/send-quotation-dialog";
 import {
@@ -77,7 +76,9 @@ function getWorkflowBadge(quotation: Quotation) {
   }
 }
 
-export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotationsTabProps) {
+export default function LeadQuotationsTab({ leadId }: LeadQuotationsTabProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { data: response, isLoading, isError } = useLeadQuotationsQuery(leadId);
   const quotations = response?.data?.quotations || [];
 
@@ -171,16 +172,8 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* Quotations Summary Box */}
       <div className="bg-[#f4f8fb] rounded-xl p-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6">
           <h3 className="text-base font-bold text-gray-900">Quotations Summary</h3>
-          <CreateQuotationDialog
-            leadData={{ id: leadId, name: customerName || "Lead" }}
-            trigger={
-              <Button className="bg-[#1D51A4] hover:bg-[#174287] text-white h-8 px-3 text-xs rounded font-medium flex items-center gap-1.5">
-                <Plus className="w-3.5 h-3.5" /> Create Quotation
-              </Button>
-            }
-          />
         </div>
         <div className="flex flex-col md:flex-row justify-between gap-6 pr-12">
           <div>
@@ -207,10 +200,10 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
       {/* Quotations List Table */}
       <div>
         <h3 className="text-base font-bold text-gray-900 mb-4 px-1">Quotations List</h3>
-        <div className="bg-white">
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="bg-[#f8fafc] text-gray-600 text-xs font-bold border-b border-t border-gray-100 uppercase">
+              <thead className="bg-[#f8fafc] text-gray-600 text-xs font-bold border-b border-gray-100 uppercase">
                 <tr>
                   <th className="px-6 py-4 whitespace-nowrap">QUOTE #</th>
                   <th className="px-6 py-4 whitespace-nowrap">VERSION</th>
@@ -234,7 +227,8 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
                         <td className="px-6 py-4 text-gray-900 font-medium">
                           <Link
                             to={`/leads/quotation-details/${q._id}`}
-                            className="text-blue-600 hover:underline"
+                            state={{ from: location.pathname + location.search }}
+                            className="text-blue-600 hover:underline font-medium"
                           >
                             {q.quoteNumber}
                           </Link>
@@ -295,8 +289,12 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
                             })()}
                             <button
                               type="button"
-                              onClick={() => setViewDialogQuote(q)}
-                              className="text-gray-500 hover:text-[#1D51A4] inline-block p-1 cursor-pointer"
+                              onClick={() =>
+                                navigate(`/leads/quotation-details/${q._id}`, {
+                                  state: { from: location.pathname + location.search },
+                                })
+                              }
+                              className="text-gray-500 hover:text-[#1D51A4] inline-block p-1 cursor-pointer transition-colors"
                               title="View Quotation Details"
                             >
                               <Eye className="w-4 h-4" />

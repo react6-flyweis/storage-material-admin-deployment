@@ -3,12 +3,14 @@ import { Link, useParams } from "react-router";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Download, CheckCircle2, Clock, Eye } from "lucide-react";
+import { Search, Download, CheckCircle2, Clock, Eye, ArrowLeft } from "lucide-react";
 import { usePackingListPlanQuery } from "@/modules/plant/packing-list.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAppBack } from "@/modules/navigation";
 
 export default function PackingListProject() {
   const { projectId } = useParams(); // Holds packingListPlanId from URL
+  const { goBack } = useAppBack("/plant/packing-list");
   const [search, setSearch] = useState("");
 
   const { data, isLoading, error } = usePackingListPlanQuery(projectId || "");
@@ -40,26 +42,36 @@ export default function PackingListProject() {
 
   return (
     <div className="flex-1 space-y-6 p-6 bg-[#fafafa] min-h-screen font-sans">
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#0f172a]">
-            {isLoading ? (
-              <Skeleton className="h-8 w-64" />
-            ) : project ? (
-              `Packing List - ${project.projectName}`
-            ) : (
-              "Packing List"
-            )}
-          </h1>
-          <p className="text-sm text-gray-500 mt-1 max-w-xl">
-            {isLoading ? (
-              <Skeleton className="h-4 w-96 mt-2" />
-            ) : project ? (
-              `Project ID: ${project.projectId} | Location: ${project.location} | Customer: ${project.customer.name}`
-            ) : (
-              "View and manage packing lists generated from load planning for plant loading and shipment verification."
-            )}
-          </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => goBack()}
+            className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
+          >
+            <ArrowLeft size={18} strokeWidth={2.5} /> Back
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-[#0f172a]">
+              {isLoading ? (
+                <Skeleton className="h-8 w-64" />
+              ) : project ? (
+                `Packing List - ${project.projectName}`
+              ) : (
+                "Packing List"
+              )}
+            </h1>
+            <p className="text-sm text-gray-500 mt-1 max-w-xl">
+              {isLoading ? (
+                <Skeleton className="h-4 w-96 mt-2" />
+              ) : project ? (
+                `Project ID: ${project.projectId} | Location: ${project.location} | Customer: ${project.customer.name}`
+              ) : (
+                "View and manage packing lists generated from load planning for plant loading and shipment verification."
+              )}
+            </p>
+          </div>
         </div>
         <Button variant="outline" className="bg-white text-gray-700 shadow-sm border-gray-200">
           <Download className="w-4 h-4 mr-2" />

@@ -16,7 +16,12 @@ import {Button} from "@/components/ui/button";
 import Modal from "../components/Modal";
 import { type Delivery, statusConfig, DeliveryCard } from "./DeliveryComponents";
 import DailyDeliveriesModal from "./DailyDeliveriesModal";
-import { RescheduleSuccessModal } from "./DeliveryActionModals";
+import { RescheduleSuccessModal, StatusUpdatedSuccessModal } from "./DeliveryActionModals";
+import StatusConfirmationModal from "./StatusConfirmationModal";
+import {
+  formatStatusLabel,
+  type DeliveryStatusType,
+} from "./deliveryStatusConstants";
 import SuccessModal from "../components/common_component/SuccessModal";
 import TitleSubtitle from "../components/common_component/TitleSubtitle";
 import DeliveryFilterModal from "./DeliveryFilterModal";
@@ -34,7 +39,7 @@ const getLeadProjectName = (project: any, customer: any) => {
 };
 
 const mapApiDeliveryToDelivery = (item: CalendarDeliveryItem, dateStr: string): Delivery => {
-  const statusMap: Record<string, Delivery["status"]> = {
+  const statusMap: Record<string, string> = {
     scheduled: "Scheduled",
     confirmed: "Confirmed",
     in_transit: "In Transit",
@@ -44,8 +49,13 @@ const mapApiDeliveryToDelivery = (item: CalendarDeliveryItem, dateStr: string): 
     draft: "Draft",
     bidding_sent: "Bidding Sent",
     carrier_selected: "Carrier Selected",
+    material_prepared: "material_prepared",
+    loaded: "loaded",
+    picked_up: "picked_up",
+    staged: "staged",
+    dispatched_to_site: "dispatched_to_site",
   };
-  const uiStatus = statusMap[item.status] || "Scheduled";
+  const uiStatus = statusMap[item.status] || item.status || "Scheduled";
 
   return {
     id: item._id || item.delivery?._id || item.requestId || "",
@@ -68,9 +78,10 @@ const mapApiDeliveryToDelivery = (item: CalendarDeliveryItem, dateStr: string): 
 };
 
 const MiniDeliveryCard = ({ delivery, onClick }: { delivery: Delivery; onClick?: () => void }) => {
-  const config = statusConfig[delivery.status];
+  const normalizedKey = delivery.status?.toLowerCase().replace(/\s+/g, "_") || "";
+  const config = statusConfig[delivery.status] || statusConfig[normalizedKey] || { dotColor: "#2563EB" };
   return (
-    <div onClick={onClick} className="bg-white p-3 rounded-xl border-l-4 shadow-sm border border-gray-100 space-y-2 text-left cursor-pointer" style={{ borderLeftColor: config.dotColor }}>
+    <div onClick={onClick} className="bg-white p-3 rounded-xl border-l-4 shadow-sm border border-gray-100 space-y-2 text-left cursor-pointer font-inter" style={{ borderLeftColor: config.dotColor }}>
       <div className="flex items-center gap-2">
         <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: config.dotColor }} />
         <p className="text-[11px] font-semibold text-[#212B36] truncate">{delivery.project}</p>
@@ -80,7 +91,7 @@ const MiniDeliveryCard = ({ delivery, onClick }: { delivery: Delivery; onClick?:
         <div className="flex items-center gap-1.5 text-[9px] text-[#637381]"><Truck size={10} /> {delivery.vendor}</div>
         <div className="flex items-center gap-1.5 text-[9px] text-[#637381]"><Clock size={10} /> {delivery.timeWindow}</div>
       </div>
-      <p className="text-[9px] font-semibold pt-1" style={{ color: config.dotColor }}>{delivery.status}</p>
+      <p className="text-[9px] font-semibold pt-1" style={{ color: config.dotColor }}>{formatStatusLabel(delivery.status)}</p>
     </div>
   );
 };
@@ -278,6 +289,10 @@ const DeliveryCalendarView: React.FC = () => {
   const [activeDeliveryId, setActiveDeliveryId] = useState<string>("");
   const [selectedDeliveryForModal, setSelectedDeliveryForModal] = useState<Delivery | null>(null);
   const [rescheduleData, setRescheduleData] = useState<{ date: string; timeWindowStart: string; timeWindowEnd: string } | null>(null);
+  const [isStatusConfirmModalOpen, setIsStatusConfirmModalOpen] = useState(false);
+  const [isStatusSuccessOpen, setIsStatusSuccessOpen] = useState(false);
+  const [lastUpdatedStatusLabel, setLastUpdatedStatusLabel] = useState<string>("");
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   const { updateDeliveryStatus, toastMessage } = useDeliveryStatusUpdate();
 
@@ -418,9 +433,21 @@ const DeliveryCalendarView: React.FC = () => {
     setIsRescheduleSuccessOpen(true);
   };
 
-  const handleMarkInTransit = (id: string) => {
+  const handleStatusUpdate = (id: string) => {
     setActiveDeliveryId(id);
-    updateDeliveryStatus(id, "in_transit");
+    setIsStatusConfirmModalOpen(true);
+  };
+
+  const confirmStatusUpdate = (targetStatus: DeliveryStatusType) => {
+    if (!activeDeliveryId || !targetStatus) return;
+    const label = formatStatusLabel(targetStatus);
+    setLastUpdatedStatusLabel(label);
+    setIsUpdatingStatus(true);
+    updateDeliveryStatus(activeDeliveryId, targetStatus, () => {
+      setIsUpdatingStatus(false);
+      setIsStatusConfirmModalOpen(false);
+      setIsStatusSuccessOpen(true);
+    });
   };
 
   const handleMarkDelivered = (id: string) => {
@@ -442,7 +469,7 @@ const DeliveryCalendarView: React.FC = () => {
         <DeliveryCard
           delivery={delivery}
           onReschedule={handleReschedule}
-          onMarkInTransit={handleMarkInTransit}
+          onStatusUpdate={handleStatusUpdate}
           onMarkDelivered={handleMarkDelivered}
           onSendReminder={handleSendReminder}
         />
@@ -572,7 +599,7 @@ const DeliveryCalendarView: React.FC = () => {
         date={selectedDay}
         deliveries={filteredDeliveries}
         onReschedule={handleReschedule}
-        onMarkInTransit={handleMarkInTransit}
+        onStatusUpdate={handleStatusUpdate}
         onMarkDelivered={handleMarkDelivered}
         onSendReminder={handleSendReminder}
       />
@@ -602,9 +629,9 @@ const DeliveryCalendarView: React.FC = () => {
                 setSelectedDeliveryForModal(null);
                 handleReschedule(id);
               }}
-              onMarkInTransit={(id) => {
+              onStatusUpdate={(id) => {
                 setSelectedDeliveryForModal(null);
-                handleMarkInTransit(id);
+                handleStatusUpdate(id);
               }}
               onMarkDelivered={(id) => {
                 setSelectedDeliveryForModal(null);
@@ -630,16 +657,33 @@ const DeliveryCalendarView: React.FC = () => {
       />
 
       {(() => {
-        const matchedDelivery = deliveries.find(d => d.id === activeDeliveryId);
+        const matchedDelivery = deliveries.find(d => d.id === activeDeliveryId) || selectedDeliveryForModal;
         return (
-          <RescheduleSuccessModal
-            isOpen={isRescheduleSuccessOpen}
-            onClose={() => setIsRescheduleSuccessOpen(false)}
-            projectName={matchedDelivery?.title || "Delivery"}
-            newDate={rescheduleData ? new Date(rescheduleData.date + "T00:00:00Z").toLocaleDateString("en-US", { month: "long", day: "numeric" }) : undefined}
-            timeWindow={rescheduleData ? `${rescheduleData.timeWindowStart} – ${rescheduleData.timeWindowEnd}` : undefined}
-            contact={matchedDelivery?.receivingContact || "Site Manager"}
-          />
+          <>
+            <StatusConfirmationModal
+              isOpen={isStatusConfirmModalOpen}
+              onClose={() => setIsStatusConfirmModalOpen(false)}
+              projectName={matchedDelivery?.title || "Delivery"}
+              deliveryId={activeDeliveryId}
+              currentStatus={matchedDelivery?.status || "material_prepared"}
+              isLoading={isUpdatingStatus}
+              onConfirm={confirmStatusUpdate}
+            />
+            <StatusUpdatedSuccessModal
+              isOpen={isStatusSuccessOpen}
+              onClose={() => setIsStatusSuccessOpen(false)}
+              projectName={matchedDelivery?.title || "Delivery"}
+              statusLabel={lastUpdatedStatusLabel}
+            />
+            <RescheduleSuccessModal
+              isOpen={isRescheduleSuccessOpen}
+              onClose={() => setIsRescheduleSuccessOpen(false)}
+              projectName={matchedDelivery?.title || "Delivery"}
+              newDate={rescheduleData ? new Date(rescheduleData.date + "T00:00:00Z").toLocaleDateString("en-US", { month: "long", day: "numeric" }) : undefined}
+              timeWindow={rescheduleData ? `${rescheduleData.timeWindowStart} – ${rescheduleData.timeWindowEnd}` : undefined}
+              contact={matchedDelivery?.receivingContact || "Site Manager"}
+            />
+          </>
         );
       })()}
 

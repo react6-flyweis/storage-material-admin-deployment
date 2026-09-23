@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import { useAppBack } from "@/modules/navigation";
+import { Button } from "@/components/ui/button";
 import SuccessModal from "../components/common_component/SuccessModal";
 import CarrierForm from "./CarrierForm";
 import { type CarrierFormValues, type CarrierFormInput } from "./carrierSchema";
@@ -138,11 +139,15 @@ const EditFreightCarrier: React.FC = () => {
   return (
     <PageWrapper>
       <div className="flex items-center justify-between mb-6 pt-2">
-        <div
-          className="flex items-center gap-3 cursor-pointer text-gray-800 hover:text-black transition-colors select-none"
-          onClick={() => goBack("/plant/freight-carriers")}
-        >
-          <ArrowLeft className="w-5 h-5" />
+        <div className="flex items-center gap-4">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => goBack("/plant/freight-carriers")}
+            className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
+          >
+            <ArrowLeft size={18} strokeWidth={2.5} /> Back
+          </Button>
           <h1 className="text-lg md:text-xl font-semibold">Edit Freight Courier</h1>
         </div>
       </div>

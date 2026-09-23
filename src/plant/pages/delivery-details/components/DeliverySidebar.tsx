@@ -2,14 +2,18 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Phone,
   CalendarDays,
-  Truck,
-  CheckSquare,
   Bell,
   Download,
-  FileText
+  FileText,
+  RotateCcw,
+  SquarePen,
 } from "lucide-react";
 import { QuickActionButton, TimelineItem } from "./LayoutCards";
-import { formatStatusText } from "../utils";
+import {
+  formatStatusLabel,
+  getStatusBadgeStyle,
+  isFinalStatus,
+} from "../../deliveryStatusConstants";
 
 interface ReceivingPocCardProps {
   receivingPocName: string;
@@ -47,43 +51,77 @@ export const ReceivingPocCard = ({ receivingPocName, receivingPocPhone }: Receiv
   );
 };
 
+export const DeliveryStatusActionButton = ({
+  status,
+  onClick,
+  disabled,
+}: {
+  status: string;
+  onClick?: () => void;
+  disabled?: boolean;
+}) => {
+  const currentLabel = formatStatusLabel(status || "material_prepared");
+  const isDelivered = isFinalStatus(status);
+  const badgeStyle = getStatusBadgeStyle(status);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || isDelivered}
+      className="w-full flex items-center justify-between px-4 py-2.5 bg-white border-[0.7px] border-[#0000001A] rounded-[8px] transition-all group shadow-xs text-left disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50/80 cursor-pointer"
+    >
+      <div className="flex items-center gap-3 min-w-0">
+        <RotateCcw size={18} className="text-[#0A0A0A] shrink-0" />
+        <span className={`text-sm font-medium ${badgeStyle.text} truncate`}>
+          Status: {currentLabel}
+        </span>
+      </div>
+
+      <div className="shrink-0 flex items-center ml-2">
+        {!isDelivered ? (
+          <SquarePen
+            size={16}
+            className="text-[#637381] group-hover:text-blue-600 group-hover:scale-110 transition-all shrink-0"
+          />
+        ) : (
+          <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+            Completed
+          </span>
+        )}
+      </div>
+    </button>
+  );
+};
+
 interface QuickActionsCardProps {
   currentStatus: string;
+  onOpenStatusModal?: () => void;
   onReschedule: () => void;
-  onMarkInTransit: () => void;
-  onMarkDelivered: () => void;
+  isUpdatingStatus?: boolean;
 }
 
 export const QuickActionsCard = ({
   currentStatus,
+  onOpenStatusModal,
   onReschedule,
-  onMarkInTransit,
-  onMarkDelivered
+  isUpdatingStatus = false,
 }: QuickActionsCardProps) => {
-  const statusLower = currentStatus.toLowerCase();
-  const isDelivered = statusLower === "delivered";
-  const isInTransit = statusLower === "in_transit" || statusLower === "in transit";
+  const isDelivered = isFinalStatus(currentStatus);
 
   return (
     <div className="bg-white border border-[#0000001A] rounded-[14px] p-5 shadow-sm space-y-4">
       <h2 className="text-base font-semibold text-[#212B36]">Quick Actions</h2>
-      <div className="space-y-2">
+      <div className="space-y-2.5">
+        <DeliveryStatusActionButton
+          status={currentStatus}
+          onClick={onOpenStatusModal}
+          disabled={isUpdatingStatus}
+        />
         <QuickActionButton
           icon={CalendarDays}
           label="Reschedule Delivery"
           onClick={onReschedule}
-          disabled={isDelivered}
-        />
-        <QuickActionButton
-          icon={Truck}
-          label="Mark In Transit"
-          onClick={onMarkInTransit}
-          disabled={isInTransit || isDelivered}
-        />
-        <QuickActionButton
-          icon={CheckSquare}
-          label="Mark Delivered"
-          onClick={onMarkDelivered}
           disabled={isDelivered}
         />
         <QuickActionButton icon={Bell} label="Send Reminder Now" />
@@ -93,6 +131,7 @@ export const QuickActionsCard = ({
     </div>
   );
 };
+
 
 interface StatusHistoryCardProps {
   displayStatusHistory: Array<{
@@ -112,7 +151,7 @@ export const StatusHistoryCard = ({ displayStatusHistory }: StatusHistoryCardPro
             displayStatusHistory.map((historyItem, idx) => (
               <TimelineItem
                 key={idx}
-                status={formatStatusText(historyItem.status)}
+                status={formatStatusLabel(historyItem.status)}
                 date={new Date(historyItem.changedAt).toLocaleString("en-US", {
                   month: "short",
                   day: "numeric",
@@ -120,7 +159,7 @@ export const StatusHistoryCard = ({ displayStatusHistory }: StatusHistoryCardPro
                   hour: "numeric",
                   minute: "2-digit"
                 })}
-                description={`Delivery status changed to ${formatStatusText(historyItem.status)}`}
+                description={`Delivery status changed to ${formatStatusLabel(historyItem.status)}`}
                 isLast={idx === displayStatusHistory.length - 1}
               />
             ))

@@ -4,8 +4,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Download, AlertTriangle } from "lucide-react";
+import { Search, Download, AlertTriangle, ArrowLeft } from "lucide-react";
 import { useLoadPlanningProjectsQuery, useBundlePlanDetailsQuery } from "@/modules/plant/load-planning.hooks";
+import { useAppBack } from "@/modules/navigation";
 import Pagination from "@/components/Pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import QRCodeDataModal from "../components/common_component/QRCodeDataModal";
@@ -31,6 +32,7 @@ interface Bundle {
 
 export default function QrLabelsProject() {
   const { projectId } = useParams();
+  const { goBack } = useAppBack("/plant/qr-labels");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBundle, setSelectedBundle] = useState<Bundle | null>(null);
 
@@ -143,14 +145,24 @@ export default function QrLabelsProject() {
 
   return (
     <div className="flex-1 space-y-6 p-6 bg-[#fafafa] min-h-screen font-sans">
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#0f172a]">
-            QR Labels {currentProject ? `- ${currentProject.projectName}` : ""}
-          </h1>
-          <p className="text-sm text-gray-500 mt-1 max-w-xl">
-            Generate, manage, and print QR labels for bundles and pallets to enable tracking and verification across plant and field operations.
-          </p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => goBack()}
+            className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
+          >
+            <ArrowLeft size={18} strokeWidth={2.5} /> Back
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-[#0f172a]">
+              QR Labels {currentProject ? `- ${currentProject.projectName}` : ""}
+            </h1>
+            <p className="text-sm text-gray-500 mt-1 max-w-xl">
+              Generate, manage, and print QR labels for bundles and pallets to enable tracking and verification across plant and field operations.
+            </p>
+          </div>
         </div>
         <Button variant="outline" className="bg-white text-gray-700 shadow-sm border-gray-200 font-semibold">
           <Download className="w-4 h-4 mr-2" />
