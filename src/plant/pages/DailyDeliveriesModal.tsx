@@ -2,6 +2,7 @@ import React from "react";
 import Modal from "../components/Modal";
 import { format } from "date-fns";
 import { type Delivery, DeliveryCard } from "./DeliveryComponents";
+import { type DeliveryStatusType } from "./deliveryStatusConstants";
 
 interface DailyDeliveriesModalProps {
   isOpen: boolean;
@@ -9,7 +10,8 @@ interface DailyDeliveriesModalProps {
   date: Date | null;
   deliveries: Delivery[];
   onReschedule?: (id: string) => void;
-  onMarkInTransit?: (id: string) => void;
+  onStatusUpdate?: (id: string, targetStatus?: DeliveryStatusType) => void;
+  onOpenStatusModal?: (id: string) => void;
   onMarkDelivered?: (id: string) => void;
   onViewDetails?: (id: string) => void;
   onSendReminder?: (id: string) => void;
@@ -21,7 +23,8 @@ const DailyDeliveriesModal: React.FC<DailyDeliveriesModalProps> = ({
   date,
   deliveries,
   onReschedule,
-  onMarkInTransit,
+  onStatusUpdate,
+  onOpenStatusModal,
   onMarkDelivered,
   onViewDetails,
   onSendReminder,
@@ -30,7 +33,7 @@ const DailyDeliveriesModal: React.FC<DailyDeliveriesModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} hideHeader width="max-w-[1000px] max-h-[85vh] overflow-y-auto">
-      <div className="p-4 md:p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6 font-inter">
         <h2 className="text-xl md:text-2xl font-bold text-[#212B36]">
           {format(date, "EEEE, MMMM d, yyyy")}
         </h2>
@@ -42,7 +45,8 @@ const DailyDeliveriesModal: React.FC<DailyDeliveriesModalProps> = ({
                 key={delivery.id}
                 delivery={delivery}
                 onReschedule={onReschedule}
-                onMarkInTransit={onMarkInTransit}
+                onStatusUpdate={onStatusUpdate}
+                onOpenStatusModal={onOpenStatusModal}
                 onMarkDelivered={onMarkDelivered}
                 onViewDetails={onViewDetails}
                 onSendReminder={onSendReminder}
