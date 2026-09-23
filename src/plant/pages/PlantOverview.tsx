@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import type { DateRange } from "react-day-picker";
 import DateRangeFilter from "@/components/ui/date-range-filter";
 import {
@@ -11,6 +11,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAdminEmployeesQuery } from "@/modules/employees/employees.hooks";
+import { exportPlantOverview, type DashboardFilterParams } from "@/modules/plant/dashboard.api";
+import { toast } from "sonner";
 
 // Extracted Subcomponents
 import OrderProgressOverview from "../components/dashboard/OrderProgressOverview";
@@ -30,6 +32,7 @@ export default function PlantOverview() {
   });
   
   const [assignedTo, setAssignedTo] = useState<string>("all");
+  const [isExporting, setIsExporting] = useState(false);
 
   // Fetch active plant employees to populate the filters
   const { data: employeesData } = useAdminEmployeesQuery({
@@ -38,8 +41,8 @@ export default function PlantOverview() {
     role: "plant",
   });
 
-  // Format dates for backend API
-  const formattedFilters = useMemo(() => {
+  // Format dates & employee params for backend API
+  const formattedFilters: DashboardFilterParams = useMemo(() => {
     const formatDate = (d: Date) => {
       const yyyy = d.getFullYear();
       const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -47,12 +50,46 @@ export default function PlantOverview() {
       return `${yyyy}-${mm}-${dd}`;
     };
 
+    const empId = assignedTo === "all" ? undefined : assignedTo;
+
     return {
       startDate: dateRange?.from ? formatDate(dateRange.from) : undefined,
       endDate: dateRange?.to ? formatDate(dateRange.to) : undefined,
-      assignedTo: assignedTo === "all" ? undefined : assignedTo,
+      assignedTo: empId,
+      employeeId: empId,
+      plantEmployeeId: empId,
     };
   }, [dateRange, assignedTo]);
+
+  // Selected employee's display name for subcomponents / report dialog
+  const selectedEmployeeName = useMemo(() => {
+    if (assignedTo === "all") return undefined;
+    const emp = employeesData?.data?.employees?.find((e) => e._id === assignedTo);
+    return emp ? emp.name : undefined;
+  }, [assignedTo, employeesData]);
+
+  // Handle Plant Overview export (plant-overview.xlsx)
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      const blob = await exportPlantOverview(formattedFilters);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", "plant-overview.xlsx");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success("Plant overview exported successfully");
+    } catch (err: unknown) {
+      console.error("Export error:", err);
+      const axiosErr = err as { response?: { data?: { message?: string } } };
+      toast.error(axiosErr?.response?.data?.message || "Failed to export plant overview");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <div className="flex-1 space-y-6 p-6 bg-[#eff3f8] min-h-screen">
@@ -93,10 +130,15 @@ export default function PlantOverview() {
           <Button
             variant="outline"
             className="bg-white gap-2"
-            onClick={() => alert("Exporting dashboard reports...")}
+            disabled={isExporting}
+            onClick={handleExport}
           >
-            <Download className="w-4 h-4" />
-            Export
+            {isExporting ? (
+              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
+            {isExporting ? "Exporting..." : "Export"}
           </Button>
         </div>
       </div>
@@ -104,16 +146,18 @@ export default function PlantOverview() {
       {/* Top Row: Charts & Missing Items */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <OrderProgressOverview filters={formattedFilters} />
-        <LoadPlanningStatus />
-        <MissingMismatchedItems />
+        <LoadPlanningStatus filters={formattedFilters} />
+        <MissingMismatchedItems
+          filters={formattedFilters}
+          employeeName={selectedEmployeeName}
+        />
       </div>
 
       {/* Middle Row: Summary Cards */}
-      <DashboardSummaryCards />
+      <DashboardSummaryCards filters={formattedFilters} />
 
       {/* Bottom Table: Upcoming Shipments */}
       <UpcomingShipmentsTable filters={formattedFilters} />
     </div>
   );
 }
-
