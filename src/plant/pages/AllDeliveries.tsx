@@ -45,6 +45,7 @@ import { useDeliveryStatusUpdate } from "./useDeliveryStatusUpdate";
 import EditDeliveryModal from "@/plant/components/EditDeliveryModal";
 import RescheduleDeliveryDialog from "@/plant/components/RescheduleDeliveryDialog";
 import MarkDeliveredSuccessDialog from "@/plant/components/MarkDeliveredSuccessDialog";
+import SendReminderDialog from "@/plant/components/SendReminderDialog";
 import { RescheduleSuccessModal, StatusUpdatedSuccessModal } from "./DeliveryActionModals";
 import StatusConfirmationModal from "./StatusConfirmationModal";
 import {
@@ -113,6 +114,9 @@ export default function AllDeliveries() {
   const [isStatusSuccessOpen, setIsStatusSuccessOpen] = useState(false);
   const [lastUpdatedStatusLabel, setLastUpdatedStatusLabel] = useState("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+
+  const [selectedDeliveryForReminder, setSelectedDeliveryForReminder] = useState<PlantDelivery | null>(null);
+  const [isSendReminderOpen, setIsSendReminderOpen] = useState(false);
 
   const { updateDeliveryStatus, toastMessage } = useDeliveryStatusUpdate();
 
@@ -908,6 +912,8 @@ export default function AllDeliveries() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setActiveMenu(null);
+                              setSelectedDeliveryForReminder(row);
+                              setIsSendReminderOpen(true);
                             }}
                           >
                             Send Reminder
@@ -1056,6 +1062,25 @@ export default function AllDeliveries() {
         onClose={() => setIsStatusSuccessOpen(false)}
         projectName={selectedDeliveryForStatus?.project?.projectName || selectedDeliveryForStatus?.description || "Delivery"}
         statusLabel={lastUpdatedStatusLabel}
+      />
+
+      <SendReminderDialog
+        open={isSendReminderOpen}
+        onOpenChange={setIsSendReminderOpen}
+        deliveryId={
+          selectedDeliveryForReminder?._id ||
+          selectedDeliveryForReminder?.requestId ||
+          ""
+        }
+        deliveryNumber={selectedDeliveryForReminder?.deliveryNumber}
+        projectName={
+          selectedDeliveryForReminder?.project?.projectName ||
+          selectedDeliveryForReminder?.description
+        }
+        customerName={
+          selectedDeliveryForReminder?.customer?.name ||
+          selectedDeliveryForReminder?.poc?.receivingPoc
+        }
       />
     </div>
   );
