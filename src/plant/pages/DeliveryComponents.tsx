@@ -91,7 +91,7 @@ interface DeliveryCardProps {
   onStatusUpdate?: (id: string, targetStatus?: DeliveryStatusType) => void;
   onMarkDelivered?: (id: string) => void;
   onViewDetails?: (id: string) => void;
-  onSendReminder?: (id: string) => void;
+  onSendReminder?: (id: string, delivery?: Delivery) => void;
 }
 
 export const DeliveryCard = ({
@@ -149,7 +149,7 @@ export const DeliveryCard = ({
     {
       label: "Send Reminder Now",
       icon: Bell,
-      onClick: () => onSendReminder?.(delivery.id),
+      onClick: () => onSendReminder?.(delivery.id, delivery),
       disabled: false,
     },
   ];

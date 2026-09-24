@@ -61,8 +61,9 @@ function StatCard({
   );
 }
 
-function formatCurrency(n: number) {
-  return `$${n.toLocaleString()}`;
+function formatCurrency(n?: number | null) {
+  if (n === undefined || n === null || isNaN(Number(n))) return "$0";
+  return `$${Number(n).toLocaleString()}`;
 }
 
 export type InvoiceStatCardsProps = {

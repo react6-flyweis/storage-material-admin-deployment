@@ -22,7 +22,6 @@ import {
   formatStatusLabel,
   type DeliveryStatusType,
 } from "./deliveryStatusConstants";
-import SuccessModal from "../components/common_component/SuccessModal";
 import TitleSubtitle from "../components/common_component/TitleSubtitle";
 import DeliveryFilterModal from "./DeliveryFilterModal";
 import { useCalendarDeliveriesQuery } from "@/modules/plant/deliveries.hooks";
@@ -30,6 +29,7 @@ import { type CalendarDeliveryItem } from "@/modules/plant/deliveries.api";
 import { useDeliveryStatusUpdate } from "./useDeliveryStatusUpdate";
 import RescheduleDeliveryDialog from "@/plant/components/RescheduleDeliveryDialog";
 import MarkDeliveredSuccessDialog from "@/plant/components/MarkDeliveredSuccessDialog";
+import SendReminderDialog from "@/plant/components/SendReminderDialog";
 
 
 const getLeadProjectName = (project: any, customer: any) => {
@@ -284,7 +284,8 @@ const DeliveryCalendarView: React.FC = () => {
   const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
   const [isMarkDeliveredModalOpen, setIsMarkDeliveredModalOpen] = useState(false);
   const [isRescheduleSuccessOpen, setIsRescheduleSuccessOpen] = useState(false);
-  const [isReminderSuccessOpen, setIsReminderSuccessOpen] = useState(false);
+  const [selectedDeliveryForReminder, setSelectedDeliveryForReminder] = useState<Delivery | null>(null);
+  const [isSendReminderOpen, setIsSendReminderOpen] = useState(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [activeDeliveryId, setActiveDeliveryId] = useState<string>("");
   const [selectedDeliveryForModal, setSelectedDeliveryForModal] = useState<Delivery | null>(null);
@@ -457,9 +458,16 @@ const DeliveryCalendarView: React.FC = () => {
     });
   };
 
-  const handleSendReminder = (id: string) => {
-    setIsReminderSuccessOpen(!!id);
+  const handleSendReminder = (id: string, deliveryObj?: Delivery) => {
+    const matched =
+      deliveryObj ||
+      deliveries.find((d) => d.id === id) ||
+      selectedDeliveryForModal ||
+      ({ id } as Delivery);
+    setSelectedDeliveryForReminder(matched);
+    setIsSendReminderOpen(true);
   };
+
 
   const renderEventContent = (eventInfo: { event: { extendedProps: Delivery } }) => {
     const delivery = eventInfo.event.extendedProps;
@@ -638,7 +646,7 @@ const DeliveryCalendarView: React.FC = () => {
                 handleMarkDelivered(id);
               }}
               onSendReminder={(id) => {
-                handleSendReminder(id);
+                handleSendReminder(id, selectedDeliveryForModal);
               }}
               onViewDetails={() => {
                 setSelectedDeliveryForModal(null);
@@ -687,13 +695,15 @@ const DeliveryCalendarView: React.FC = () => {
         );
       })()}
 
-      <SuccessModal
-        isLogoBottom={false}
-        isOpen={isReminderSuccessOpen}
-        onClose={() => setIsReminderSuccessOpen(false)}
-        title="Reminder Sent Successfully"
-        buttonText="Ok"
+      <SendReminderDialog
+        open={isSendReminderOpen}
+        onOpenChange={setIsSendReminderOpen}
+        deliveryId={selectedDeliveryForReminder?.id || ""}
+        deliveryNumber={selectedDeliveryForReminder?.projectId}
+        projectName={selectedDeliveryForReminder?.project || selectedDeliveryForReminder?.title}
+        customerName={selectedDeliveryForReminder?.customer || selectedDeliveryForReminder?.receivingContact}
       />
+
 
       <style>{`
         .calendar-custom .fc { font-family: 'Inter', sans-serif; border: none; }

@@ -16,6 +16,8 @@ export type VendorInvoiceFiltersProps = {
   setDateRange: (range: RDateRange | undefined) => void;
   statusFilter: string;
   setStatusFilter: (status: string) => void;
+  payableStatusFilter?: string;
+  setPayableStatusFilter?: (status: string) => void;
   projectFilter: string;
   setProjectFilter: (project: string) => void;
 };
@@ -25,6 +27,8 @@ export function VendorInvoiceFilters({
   setDateRange,
   statusFilter,
   setStatusFilter,
+  payableStatusFilter = "All",
+  setPayableStatusFilter,
   projectFilter,
   setProjectFilter,
 }: VendorInvoiceFiltersProps) {
@@ -49,10 +53,37 @@ export function VendorInvoiceFilters({
           <DateRangePicker value={dateRange} onChange={setDateRange} />
         </div>
 
-        {/* Status Filter */}
+        {/* Payable Status Filter (New AP workflow) */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Status
+            Payable Status
+          </label>
+          <Select
+            value={payableStatusFilter}
+            onValueChange={(val) => setPayableStatusFilter?.(val)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="All Payable Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All Payable Statuses</SelectItem>
+              <SelectItem value="pending_admin_approval">
+                Pending Admin Approval
+              </SelectItem>
+              <SelectItem value="approved_for_payment">
+                Approved for Payment
+              </SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="unpaid">Unpaid</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Legacy Status Filter */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Invoice Status
           </label>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full">
@@ -92,4 +123,3 @@ export function VendorInvoiceFilters({
     </Card>
   );
 }
-

@@ -99,6 +99,10 @@ interface QuickActionsCardProps {
   onOpenStatusModal?: () => void;
   onReschedule: () => void;
   isUpdatingStatus?: boolean;
+  onSendReminder?: () => void;
+  onDownloadDetails?: () => void;
+  onViewDocuments?: () => void;
+  isDownloadingDetails?: boolean;
 }
 
 export const QuickActionsCard = ({
@@ -106,6 +110,10 @@ export const QuickActionsCard = ({
   onOpenStatusModal,
   onReschedule,
   isUpdatingStatus = false,
+  onSendReminder,
+  onDownloadDetails,
+  onViewDocuments,
+  isDownloadingDetails = false,
 }: QuickActionsCardProps) => {
   const isDelivered = isFinalStatus(currentStatus);
 
@@ -124,9 +132,22 @@ export const QuickActionsCard = ({
           onClick={onReschedule}
           disabled={isDelivered}
         />
-        <QuickActionButton icon={Bell} label="Send Reminder Now" />
-        <QuickActionButton icon={Download} label="Download Details" />
-        <QuickActionButton icon={FileText} label="View Documents" />
+        <QuickActionButton
+          icon={Bell}
+          label="Send Reminder Now"
+          onClick={onSendReminder}
+        />
+        <QuickActionButton
+          icon={Download}
+          label={isDownloadingDetails ? "Downloading..." : "Download Details"}
+          onClick={onDownloadDetails}
+          disabled={isDownloadingDetails}
+        />
+        <QuickActionButton
+          icon={FileText}
+          label="View Documents"
+          onClick={onViewDocuments}
+        />
       </div>
     </div>
   );
