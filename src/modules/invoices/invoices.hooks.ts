@@ -21,6 +21,14 @@ import {
   getAdminInvoiceDetailProvider,
   getCarrierInvoicesProvider,
   exportCarrierInvoicesProvider,
+  getPayablesFiltersProvider,
+  getPayablesApprovalQueueProvider,
+  createManualVendorPayableProvider,
+  createManualFreightPayableProvider,
+  getPayableInvoiceDetailProvider,
+  approvePayableInvoiceProvider,
+  rejectPayableInvoiceProvider,
+  addPayableInvoiceCommentProvider,
   type CreateInvoicePayload,
   type UpdateInvoicePayload,
   type GetInvoicesParams,
@@ -28,6 +36,11 @@ import {
   type GetCarrierInvoicesParams,
   type SendInvoicePayload,
   type MarkInvoiceSentPayload,
+  type GetPayablesApprovalQueueParams,
+  type CreateManualVendorPayablePayload,
+  type CreateManualFreightPayablePayload,
+  type RejectPayableInvoicePayload,
+  type AddPayableCommentPayload,
 } from "./invoices.api";
 
 import {
@@ -219,6 +232,98 @@ export function useGetCarrierInvoicesQuery(params?: GetCarrierInvoicesParams) {
 export function useExportCarrierInvoicesMutation() {
   return useMutation({
     mutationFn: (params?: GetCarrierInvoicesParams) => exportCarrierInvoicesProvider(params),
+  });
+}
+
+// ---------------- Admin Payables Hooks ----------------
+
+export function useGetPayablesFiltersQuery() {
+  return useQuery({
+    queryKey: ["payablesFilters"],
+    queryFn: () => getPayablesFiltersProvider(),
+  });
+}
+
+export function useGetPayablesApprovalQueueQuery(params?: GetPayablesApprovalQueueParams) {
+  return useQuery({
+    queryKey: ["payablesApprovalQueue", params],
+    queryFn: () => getPayablesApprovalQueueProvider(params),
+  });
+}
+
+export function useCreateManualVendorPayableMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateManualVendorPayablePayload) =>
+      createManualVendorPayableProvider(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vendorInvoices"] });
+      queryClient.invalidateQueries({ queryKey: ["payablesApprovalQueue"] });
+    },
+  });
+}
+
+export function useCreateManualFreightPayableMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateManualFreightPayablePayload) =>
+      createManualFreightPayableProvider(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["carrierInvoices"] });
+      queryClient.invalidateQueries({ queryKey: ["payablesApprovalQueue"] });
+    },
+  });
+}
+
+export function useGetPayableInvoiceDetailQuery(invoiceId: string) {
+  return useQuery({
+    queryKey: ["payableInvoiceDetail", invoiceId],
+    queryFn: () => getPayableInvoiceDetailProvider(invoiceId),
+    enabled: Boolean(invoiceId),
+  });
+}
+
+export function useApprovePayableInvoiceMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (invoiceId: string) => approvePayableInvoiceProvider(invoiceId),
+    onSuccess: (_data, invoiceId) => {
+      queryClient.invalidateQueries({ queryKey: ["payableInvoiceDetail", invoiceId] });
+      queryClient.invalidateQueries({ queryKey: ["vendorInvoices"] });
+      queryClient.invalidateQueries({ queryKey: ["carrierInvoices"] });
+      queryClient.invalidateQueries({ queryKey: ["payablesApprovalQueue"] });
+      queryClient.invalidateQueries({ queryKey: ["adminVendorInvoiceDetail", invoiceId] });
+      queryClient.invalidateQueries({ queryKey: ["adminInvoiceDetail", invoiceId] });
+    },
+  });
+}
+
+export function useRejectPayableInvoiceMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ invoiceId, payload }: { invoiceId: string; payload: RejectPayableInvoicePayload }) =>
+      rejectPayableInvoiceProvider(invoiceId, payload),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["payableInvoiceDetail", variables.invoiceId] });
+      queryClient.invalidateQueries({ queryKey: ["vendorInvoices"] });
+      queryClient.invalidateQueries({ queryKey: ["carrierInvoices"] });
+      queryClient.invalidateQueries({ queryKey: ["payablesApprovalQueue"] });
+      queryClient.invalidateQueries({ queryKey: ["adminVendorInvoiceDetail", variables.invoiceId] });
+      queryClient.invalidateQueries({ queryKey: ["adminInvoiceDetail", variables.invoiceId] });
+    },
+  });
+}
+
+export function useAddPayableInvoiceCommentMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ invoiceId, payload }: { invoiceId: string; payload: AddPayableCommentPayload }) =>
+      addPayableInvoiceCommentProvider(invoiceId, payload),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["payableInvoiceDetail", variables.invoiceId] });
+      queryClient.invalidateQueries({ queryKey: ["adminVendorInvoiceDetail", variables.invoiceId] });
+      queryClient.invalidateQueries({ queryKey: ["adminInvoiceDetail", variables.invoiceId] });
+    },
   });
 }
 
