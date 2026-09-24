@@ -19,6 +19,9 @@ import { DeliveryDetailsSkeleton } from "./delivery-details/components/DeliveryS
 import { DeliveryOverview, SiteCoordinationAndFreight } from "./delivery-details/components/DeliveryOverview";
 import { DeliveryContacts } from "./delivery-details/components/DeliveryContacts";
 import { ReceivingPocCard, QuickActionsCard, StatusHistoryCard } from "./delivery-details/components/DeliverySidebar";
+import SendReminderDialog from "@/plant/components/SendReminderDialog";
+import DeliveryDocumentsModal from "@/plant/components/DeliveryDocumentsModal";
+import { handleDownloadDeliveryDetailsPdf } from "@/plant/utils/deliveryActionHelpers";
 import type { DeliveryDetails as DeliveryDetailsType } from "@/modules/plant/freight.api";
 
 export interface DeliveryDetailsViewProps {
@@ -48,6 +51,9 @@ export default function DeliveryDetailsView({
   const [isStatusSuccessOpen, setIsStatusSuccessOpen] = useState(false);
   const [lastUpdatedStatusLabel, setLastUpdatedStatusLabel] = useState("");
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isSendReminderOpen, setIsSendReminderOpen] = useState(false);
+  const [isDocumentsOpen, setIsDocumentsOpen] = useState(false);
+  const [isDownloadingDetails, setIsDownloadingDetails] = useState(false);
 
   // Data / Status States
   const [rescheduleData, setRescheduleData] = useState<{ date: string; timeWindowStart: string; timeWindowEnd: string } | null>(null);
@@ -144,7 +150,8 @@ export default function DeliveryDetailsView({
     });
   }
 
-  const activeDeliveryId = delivery.deliveryId || deliveryId;
+  const activeDeliveryId =
+    (delivery as { _id?: string })._id || delivery.deliveryId || deliveryId;
 
   return (
     <div className="xl:pr-5 px-2 pb-10 space-y-6 relative font-inter">
@@ -251,6 +258,17 @@ export default function DeliveryDetailsView({
               onOpenStatusModal={() => setIsStatusConfirmOpen(true)}
               onReschedule={() => setIsRescheduleOpen(true)}
               isUpdatingStatus={isUpdatingStatus}
+              onSendReminder={() => setIsSendReminderOpen(true)}
+              onDownloadDetails={async () => {
+                setIsDownloadingDetails(true);
+                await handleDownloadDeliveryDetailsPdf(
+                  activeDeliveryId,
+                  delivery.deliveryNumber
+                );
+                setIsDownloadingDetails(false);
+              }}
+              isDownloadingDetails={isDownloadingDetails}
+              onViewDocuments={() => setIsDocumentsOpen(true)}
             />
           )}
 
@@ -335,6 +353,23 @@ export default function DeliveryDetailsView({
         onClose={() => setIsStatusSuccessOpen(false)}
         projectName={delivery.formDetails?.description || delivery.project?.projectName || "Delivery"}
         statusLabel={lastUpdatedStatusLabel}
+      />
+
+      <SendReminderDialog
+        open={isSendReminderOpen}
+        onOpenChange={setIsSendReminderOpen}
+        deliveryId={activeDeliveryId}
+        deliveryNumber={delivery.deliveryNumber}
+        projectName={delivery.project?.projectName || delivery.formDetails?.description}
+        customerName={delivery.customer?.customerName || delivery.receivingPocDetails?.receivingPoc}
+      />
+
+      <DeliveryDocumentsModal
+        open={isDocumentsOpen}
+        onOpenChange={setIsDocumentsOpen}
+        deliveryId={activeDeliveryId}
+        deliveryNumber={delivery.deliveryNumber}
+        title={delivery.project?.projectName || delivery.formDetails?.description}
       />
     </div>
   );
