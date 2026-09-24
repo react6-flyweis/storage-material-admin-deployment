@@ -14,7 +14,7 @@ interface DailyDeliveriesModalProps {
   onOpenStatusModal?: (id: string) => void;
   onMarkDelivered?: (id: string) => void;
   onViewDetails?: (id: string) => void;
-  onSendReminder?: (id: string) => void;
+  onSendReminder?: (id: string, delivery?: Delivery) => void;
 }
 
 const DailyDeliveriesModal: React.FC<DailyDeliveriesModalProps> = ({
