@@ -339,7 +339,37 @@ export async function getAdminProjectInvoicesProvider(customerId: string, leadId
   return response.data;
 }
 
+export type PayableWorkflowStatus =
+  | "pending_admin_approval"
+  | "approved_for_payment"
+  | "rejected"
+  | "paid"
+  | "unpaid";
 
+export type PayableWorkflowSource = "acceptance_upload" | "admin_manual";
+
+export type PayableComment = {
+  _id?: string;
+  text: string;
+  authorRole?: "admin" | "account" | string;
+  authorId?: { _id?: string; name?: string; email?: string } | string;
+  createdAt: string;
+};
+
+export type PayableWorkflow = {
+  status: PayableWorkflowStatus;
+  source: PayableWorkflowSource;
+  documentUrl?: string;
+  documentFileName?: string;
+  shipperRequestId?: string;
+  freightBidId?: string;
+  comments?: PayableComment[];
+  rejectionReason?: string;
+  approvedAt?: string;
+  approvedBy?: any;
+  rejectedAt?: string;
+  rejectedBy?: any;
+};
 
 export type VendorInvoiceItem = {
   _id: string;
@@ -372,6 +402,11 @@ export type VendorInvoiceItem = {
   depositAmount: number;
   totalAmount: number;
   status: string;
+  payableStatus?: PayableWorkflowStatus;
+  paymentLabel?: string;
+  documentUrl?: string;
+  documentFileName?: string;
+  payableWorkflow?: PayableWorkflow;
   sentAt: string | null;
   paidBy: string | null;
   paidAt: string | null;
@@ -398,6 +433,7 @@ export type VendorInvoiceStats = {
 
 export type GetVendorInvoicesParams = {
   status?: string;
+  payableStatus?: string;
   projectId?: string;
   startDate?: string;
   endDate?: string;
@@ -479,6 +515,11 @@ export type AdminInvoiceDetailData = {
   depositAmount: number;
   totalAmount: number;
   status: string;
+  payableStatus?: PayableWorkflowStatus;
+  paymentLabel?: string;
+  documentUrl?: string;
+  documentFileName?: string;
+  payableWorkflow?: PayableWorkflow;
   sentAt: string | null;
   paidBy: string | null;
   paidAt: string | null;
@@ -555,6 +596,11 @@ export type CarrierInvoiceItem = {
   depositAmount: number;
   totalAmount: number;
   status: string;
+  payableStatus?: PayableWorkflowStatus;
+  paymentLabel?: string;
+  documentUrl?: string;
+  documentFileName?: string;
+  payableWorkflow?: PayableWorkflow;
   sentAt: string | null;
   paidBy: string | null;
   paidAt: string | null;
@@ -579,6 +625,7 @@ export type CarrierInvoiceItem = {
 
 export type GetCarrierInvoicesParams = {
   status?: string;
+  payableStatus?: string;
   projectId?: string;
   startDate?: string;
   endDate?: string;
@@ -613,6 +660,154 @@ export async function exportCarrierInvoicesProvider(params?: GetCarrierInvoicesP
   });
   return response.data;
 }
+
+// ---------------- Admin Payables APIs (Vendor & Freight Carrier) ----------------
+
+export type PayablesFiltersData = {
+  statuses?: string[];
+  payableStatuses?: string[];
+  categories?: string[];
+  projects?: Array<{ _id: string; projectName?: string; jobId?: string }>;
+  vendors?: Array<{ _id: string; vendorName: string }>;
+  carriers?: Array<{ _id: string; carrierName: string }>;
+};
+
+export type GetPayablesFiltersResponse = {
+  success: boolean;
+  message?: string;
+  data: PayablesFiltersData;
+};
+
+export async function getPayablesFiltersProvider() {
+  const response = await apiClient.get<GetPayablesFiltersResponse>(
+    "/api/admin/invoices/payables/filters"
+  );
+  return response.data;
+}
+
+export type GetPayablesApprovalQueueParams = {
+  invoiceType?: "vendor" | "freight_carrier";
+  page?: number;
+  limit?: number;
+};
+
+export type GetPayablesApprovalQueueResponse = {
+  success: boolean;
+  message?: string;
+  data: {
+    invoices: (VendorInvoiceItem | CarrierInvoiceItem)[];
+    total: number;
+    page: number;
+    limit: number;
+  };
+};
+
+export async function getPayablesApprovalQueueProvider(params?: GetPayablesApprovalQueueParams) {
+  const response = await apiClient.get<GetPayablesApprovalQueueResponse>(
+    "/api/admin/invoices/payables/approval-queue",
+    { params }
+  );
+  return response.data;
+}
+
+export type CreateManualVendorPayablePayload = {
+  leadId: string;
+  vendorId: string;
+  totalAmount: number;
+  category?: string;
+  description?: string;
+  date: string;
+  daysToPay?: number;
+  documentUrl?: string;
+  documentFileName?: string;
+};
+
+export async function createManualVendorPayableProvider(payload: CreateManualVendorPayablePayload) {
+  const response = await apiClient.post<{
+    success: boolean;
+    message: string;
+    data: unknown;
+  }>("/api/admin/invoices/payables/vendor", payload);
+  return response.data;
+}
+
+export type CreateManualFreightPayablePayload = {
+  leadId: string;
+  carrierId: string;
+  totalAmount: number;
+  category?: string;
+  description?: string;
+  date: string;
+  daysToPay?: number;
+  documentUrl?: string;
+  documentFileName?: string;
+};
+
+export async function createManualFreightPayableProvider(payload: CreateManualFreightPayablePayload) {
+  const response = await apiClient.post<{
+    success: boolean;
+    message: string;
+    data: unknown;
+  }>("/api/admin/invoices/payables/freight-carrier", payload);
+  return response.data;
+}
+
+export type GetPayableInvoiceDetailResponse = {
+  success: boolean;
+  message?: string;
+  data: {
+    invoice: AdminInvoiceDetailData;
+  };
+};
+
+export async function getPayableInvoiceDetailProvider(invoiceId: string) {
+  const response = await apiClient.get<GetPayableInvoiceDetailResponse>(
+    `/api/admin/invoices/payables/${invoiceId}`
+  );
+  return response.data;
+}
+
+export async function approvePayableInvoiceProvider(invoiceId: string) {
+  const response = await apiClient.put<{
+    success: boolean;
+    message: string;
+    data: unknown;
+  }>(`/api/admin/invoices/payables/${invoiceId}/approve`);
+  return response.data;
+}
+
+export type RejectPayableInvoicePayload = {
+  reason: string;
+};
+
+export async function rejectPayableInvoiceProvider(
+  invoiceId: string,
+  payload: RejectPayableInvoicePayload
+) {
+  const response = await apiClient.put<{
+    success: boolean;
+    message: string;
+    data: unknown;
+  }>(`/api/admin/invoices/payables/${invoiceId}/reject`, payload);
+  return response.data;
+}
+
+export type AddPayableCommentPayload = {
+  text: string;
+};
+
+export async function addPayableInvoiceCommentProvider(
+  invoiceId: string,
+  payload: AddPayableCommentPayload
+) {
+  const response = await apiClient.post<{
+    success: boolean;
+    message: string;
+    data: unknown;
+  }>(`/api/admin/invoices/payables/${invoiceId}/comments`, payload);
+  return response.data;
+}
+
 
 
 
