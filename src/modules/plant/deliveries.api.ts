@@ -1,4 +1,5 @@
 import { apiClient } from "@/modules/auth/auth.api";
+import { useAuthStore } from "@/modules/auth/auth.store";
 
 export interface DeliveryProject {
   _id: string;
@@ -107,16 +108,18 @@ export interface DeliveriesStatsResponse {
 export async function getDeliveries(
   params?: GetDeliveriesParams
 ): Promise<GetDeliveriesResponse> {
+  const prefix = getDeliveriesApiPrefix();
   const response = await apiClient.get<GetDeliveriesResponse>(
-    "/api/admin/plant/deliveries",
+    prefix,
     { params }
   );
   return response.data;
 }
 
 export async function getDeliveriesStats(): Promise<DeliveriesStatsResponse> {
+  const prefix = getDeliveriesApiPrefix();
   const response = await apiClient.get<DeliveriesStatsResponse>(
-    "/api/admin/plant/deliveries/stats"
+    `${prefix}/stats`
   );
   return response.data;
 }
@@ -203,11 +206,95 @@ export interface GetCalendarDeliveriesResponse {
   };
 }
 
+export function getDeliveriesApiPrefix(): string {
+  const role = useAuthStore.getState().role?.toLowerCase();
+  return role === "plant" ? "/api/plant/deliveries" : "/api/admin/plant/deliveries";
+}
+
+export function extractFilename(
+  contentDisposition?: string,
+  fallbackFilename: string = "download.pdf"
+): string {
+  if (!contentDisposition) return fallbackFilename;
+  const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/i);
+  if (match && match[1]) {
+    return match[1].replace(/['"]/g, "").trim();
+  }
+  return fallbackFilename;
+}
+
+export function triggerBlobDownload(blob: Blob, filename: string) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+export async function getApiErrorMessage(error: unknown): Promise<string> {
+  const err = error as {
+    response?: {
+      status?: number;
+      data?: { message?: string; error?: string } | Blob;
+    };
+    message?: string;
+  };
+
+  if (err?.response?.status === 403) {
+    const data = err.response.data;
+    if (data && !(data instanceof Blob) && data.message) {
+      return data.message;
+    }
+    return "Access denied. Plant user must have an approved PO assigned to this project.";
+  }
+  if (err?.response?.status === 404) {
+    const data = err.response.data;
+    if (data && !(data instanceof Blob) && data.message) {
+      return data.message;
+    }
+    return "Delivery or project not found.";
+  }
+  if (err?.response?.status === 400) {
+    if (err.response.data instanceof Blob) {
+      try {
+        const text = await err.response.data.text();
+        const json = JSON.parse(text);
+        return json.message || "Cancelled delivery, already delivered, or no notification channel available.";
+      } catch {
+        return "Cancelled delivery, already delivered, or no notification channel available.";
+      }
+    }
+    if (err.response?.data && typeof err.response.data === "object" && "message" in err.response.data) {
+      return (err.response.data as { message?: string }).message || "Cancelled delivery, already delivered, or no notification channel available.";
+    }
+    return "Cancelled delivery, already delivered, or no notification channel available.";
+  }
+  if (err?.response?.data instanceof Blob) {
+    try {
+      const text = await err.response.data.text();
+      const json = JSON.parse(text);
+      return json.message || "An error occurred while processing the request.";
+    } catch {
+      return "An error occurred while processing the request.";
+    }
+  }
+  if (err?.response?.data && typeof err.response.data === "object") {
+    const dataObj = err.response.data as { message?: string; error?: string };
+    if (dataObj.message) return dataObj.message;
+    if (dataObj.error) return dataObj.error;
+  }
+  return err?.message || "An unexpected error occurred.";
+}
+
 export async function getCalendarDeliveries(
   params?: GetCalendarDeliveriesParams
 ): Promise<GetCalendarDeliveriesResponse> {
+  const prefix = getDeliveriesApiPrefix();
   const response = await apiClient.get<GetCalendarDeliveriesResponse>(
-    "/api/admin/plant/deliveries/calendar",
+    `${prefix}/calendar`,
     { params }
   );
   return response.data;
@@ -218,13 +305,99 @@ export type ExportDeliveriesParams = Omit<GetDeliveriesParams, "page" | "limit">
 export async function exportDeliveries(
   params?: ExportDeliveriesParams
 ): Promise<Blob> {
+  const prefix = getDeliveriesApiPrefix();
   const response = await apiClient.get(
-    "/api/admin/plant/deliveries/export",
+    `${prefix}/export`,
     {
       params,
       responseType: "blob",
     }
   );
   return response.data;
+}
+
+// Quick Action: 2. Send reminder now
+export interface SendDeliveryReminderPayload {
+  message?: string;
+  note?: string;
+}
+
+export interface SendDeliveryReminderResponse {
+  success: boolean;
+  message: string;
+  data: {
+    deliveryId: string;
+    channels: {
+      email?: boolean;
+      sms?: boolean;
+      inApp?: boolean;
+    };
+  };
+}
+
+export async function sendDeliveryReminder(
+  deliveryId: string,
+  payload?: SendDeliveryReminderPayload
+): Promise<SendDeliveryReminderResponse> {
+  const prefix = getDeliveriesApiPrefix();
+  const response = await apiClient.post<SendDeliveryReminderResponse>(
+    `${prefix}/${encodeURIComponent(deliveryId)}/send-reminder`,
+    payload || {}
+  );
+  return response.data;
+}
+
+// Quick Action: 3. Download details (PDF)
+export async function downloadDeliveryDetails(
+  deliveryId: string,
+  fallbackFilename?: string
+): Promise<{ blob: Blob; filename: string }> {
+  const prefix = getDeliveriesApiPrefix();
+  const response = await apiClient.get(
+    `${prefix}/${encodeURIComponent(deliveryId)}/download`,
+    { responseType: "blob" }
+  );
+  const contentDisposition = response.headers["content-disposition"];
+  const filename = extractFilename(
+    contentDisposition,
+    fallbackFilename || `delivery-${deliveryId}-details.pdf`
+  );
+  return { blob: response.data, filename };
+}
+
+// Quick Action: 4. View documents (list + downloads)
+export interface DeliveryDocumentItem {
+  name: string;
+  type: "pdf" | "file";
+  url: string;
+}
+
+export interface GetDeliveryDocumentsResponse {
+  success: boolean;
+  message: string;
+  data: {
+    documents: DeliveryDocumentItem[];
+  };
+}
+
+export async function getDeliveryDocuments(
+  deliveryId: string
+): Promise<GetDeliveryDocumentsResponse> {
+  const prefix = getDeliveriesApiPrefix();
+  const response = await apiClient.get<GetDeliveryDocumentsResponse>(
+    `${prefix}/${encodeURIComponent(deliveryId)}/documents`
+  );
+  return response.data;
+}
+
+export async function downloadDeliveryDocumentPdf(
+  urlOrPath: string,
+  fallbackFilename: string
+): Promise<{ blob: Blob; filename: string }> {
+  // urlOrPath can be relative (e.g. /api/admin/plant/deliveries/...) or full URL
+  const response = await apiClient.get(urlOrPath, { responseType: "blob" });
+  const contentDisposition = response.headers["content-disposition"];
+  const filename = extractFilename(contentDisposition, fallbackFilename);
+  return { blob: response.data, filename };
 }
 
