@@ -2,15 +2,29 @@ import { useNavigate, useLocation, useParams } from "react-router";
 import { useState } from "react";
 import { useAppBack } from "@/modules/navigation";
 import {
+  useGetPayableInvoiceDetailQuery,
   useGetAdminInvoiceDetailQuery,
   useMarkInvoicePaidMutation,
   useSendInvoiceMutation,
+  useApprovePayableInvoiceMutation,
+  useRejectPayableInvoiceMutation,
 } from "@/modules/invoices/invoices.hooks";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Mail, Wallet } from "lucide-react";
+import {
+  Mail,
+  Check,
+  XCircle,
+  FileText,
+  ExternalLink,
+  Loader2,
+  AlertTriangle,
+} from "lucide-react";
 import logo from "@/assets/steel-building-depot-logo.png";
 import SuccessDialog from "@/components/success-dialog";
+import { PayableStatusBadge } from "./components/payable-status-badge";
+import { RejectPayableDialog } from "./components/reject-payable-dialog";
+import { InvoiceCommentsThread } from "./components/invoice-comments-thread";
 import { toast } from "sonner";
 
 export default function CarrierInvoicePreview() {
@@ -19,6 +33,7 @@ export default function CarrierInvoicePreview() {
   const params = useParams();
   const { goBack } = useAppBack("/invoice/carrier-invoices");
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isRejectOpen, setIsRejectOpen] = useState(false);
 
   const locationState = location.state || {};
   const invoiceId = params.invoiceId || locationState.invoiceId || "";
@@ -26,12 +41,31 @@ export default function CarrierInvoicePreview() {
   const queryClient = useQueryClient();
   const markPaidMutation = useMarkInvoicePaidMutation();
   const sendInvoiceMutation = useSendInvoiceMutation();
+  const approveMutation = useApprovePayableInvoiceMutation();
+  const rejectMutation = useRejectPayableInvoiceMutation();
 
-  const { data: detailResponse, isLoading } = useGetAdminInvoiceDetailQuery(invoiceId);
+  // Fetch payable invoice details (which includes comments and payableWorkflow)
+  const {
+    data: payableDetailResponse,
+    isLoading: isPayableLoading,
+    refetch: refetchPayable,
+  } = useGetPayableInvoiceDetailQuery(invoiceId);
 
-  const invoiceData = detailResponse?.data?.invoice;
+  // Fallback to standard admin invoice detail query
+  const {
+    data: detailResponse,
+    isLoading: isDetailLoading,
+  } = useGetAdminInvoiceDetailQuery(invoiceId);
 
-  const invoiceNumber = invoiceData?.invoiceNumber || locationState.invoiceNumber || "";
+  const invoiceData =
+    payableDetailResponse?.data?.invoice ||
+    (payableDetailResponse?.data as any) ||
+    detailResponse?.data?.invoice;
+
+  const isLoading = (isPayableLoading && isDetailLoading) || !invoiceData;
+
+  const invoiceNumber =
+    invoiceData?.invoiceNumber || locationState.invoiceNumber || "";
   const date = invoiceData?.date
     ? new Date(invoiceData.date).toLocaleDateString("en-US")
     : locationState.date || "";
@@ -40,28 +74,44 @@ export default function CarrierInvoicePreview() {
   const total = invoiceData?.totalAmount ?? locationState.total ?? 0;
   const discount = invoiceData?.discount ?? 0;
 
+  const payableWorkflow = invoiceData?.payableWorkflow;
+  const payableStatus =
+    invoiceData?.payableStatus || payableWorkflow?.status || invoiceData?.status;
+  const isPendingApproval = payableStatus === "pending_admin_approval";
+  const documentUrl =
+    invoiceData?.documentUrl || payableWorkflow?.documentUrl;
+
   const carrierName =
     typeof invoiceData?.carrierId === "object"
       ? invoiceData?.carrierId?.carrierName
       : invoiceData?.payeeName;
   const carrierEmail =
-    typeof invoiceData?.carrierId === "object" ? invoiceData?.carrierId?.email : "";
+    typeof invoiceData?.carrierId === "object"
+      ? invoiceData?.carrierId?.email
+      : "";
   const carrierPhone =
-    typeof invoiceData?.carrierId === "object" ? invoiceData?.carrierId?.phone : "";
+    typeof invoiceData?.carrierId === "object"
+      ? invoiceData?.carrierId?.phone
+      : "";
 
   const projectName =
-    typeof invoiceData?.leadId === "object" ? invoiceData?.leadId?.projectName : "";
+    typeof invoiceData?.leadId === "object"
+      ? invoiceData?.leadId?.projectName
+      : "";
   const jobId =
     typeof invoiceData?.leadId === "object" ? invoiceData?.leadId?.jobId : "";
   const locationText =
     typeof invoiceData?.leadId === "object" ? invoiceData?.leadId?.location : "";
   const buildingType =
-    typeof invoiceData?.leadId === "object" ? invoiceData?.leadId?.buildingType : "";
+    typeof invoiceData?.leadId === "object"
+      ? invoiceData?.leadId?.buildingType
+      : "";
 
   const items = invoiceData?.lineItems?.length
     ? invoiceData.lineItems.map((item: any, index: number) => ({
         id: item._id || `item-${index}`,
-        description: item.items?.[0] || item.description || "Freight Item Description",
+        description:
+          item.items?.[0] || item.description || "Freight Item Description",
         notes: item.items?.slice(1).join(", ") || "",
         total: item.total || 0,
         photos: item.images || [],
@@ -75,12 +125,38 @@ export default function CarrierInvoicePreview() {
     invoiceData?.tax ??
     items.reduce((acc: number, item: any) => acc + (item.taxAmount || 0), 0);
 
+  const handleApprove = async () => {
+    if (!invoiceId) return;
+    try {
+      await approveMutation.mutateAsync(invoiceId);
+      toast.success("Payable carrier invoice approved successfully.");
+      refetchPayable();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to approve invoice.");
+    }
+  };
+
+  const handleConfirmReject = async (reason: string) => {
+    if (!invoiceId) return;
+    try {
+      await rejectMutation.mutateAsync({
+        invoiceId,
+        payload: { reason },
+      });
+      toast.success("Payable carrier invoice rejected.");
+      setIsRejectOpen(false);
+      refetchPayable();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Failed to reject invoice.");
+    }
+  };
+
   const handleMarkPaid = async () => {
     if (!invoiceId) {
       toast.error("Cannot mark as paid: Invoice ID missing.");
       return;
     }
-    if (invoiceData?.status === "paid") {
+    if (invoiceData?.status === "paid" || payableStatus === "paid") {
       toast.info("This invoice is already paid.");
       return;
     }
@@ -90,6 +166,9 @@ export default function CarrierInvoicePreview() {
       toast.success("Carrier invoice marked as paid!");
       queryClient.invalidateQueries({
         queryKey: ["adminInvoiceDetail", invoiceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["payableInvoiceDetail", invoiceId],
       });
     } catch (error) {
       console.error("Failed to mark carrier invoice as paid", error);
@@ -108,6 +187,9 @@ export default function CarrierInvoicePreview() {
       queryClient.invalidateQueries({
         queryKey: ["adminInvoiceDetail", invoiceId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["payableInvoiceDetail", invoiceId],
+      });
     } catch (error) {
       console.error("Failed to send carrier invoice email", error);
       toast.error("Failed to send email");
@@ -125,7 +207,7 @@ export default function CarrierInvoicePreview() {
   return (
     <>
       <div className="md:px-5 px-2 md:pt-5 pb-10 space-y-6">
-        {/* Top Actions */}
+        {/* Top Navigation & Quick Actions */}
         <div className="flex justify-between items-center mb-3 mt-1 max-w-350 gap-4 mx-auto">
           <div className="flex gap-2">
             <Button
@@ -138,15 +220,41 @@ export default function CarrierInvoicePreview() {
             <Button
               variant="outline"
               className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200 min-w-25"
-              onClick={() => goBack()}
+              onClick={() => navigate("/invoice/carrier-invoices")}
             >
-              Cancel
+              Invoices List
             </Button>
           </div>
-          <div className="flex gap-4">
+          <div className="flex items-center gap-3">
+            {isPendingApproval ? (
+              <>
+                <Button
+                  onClick={handleApprove}
+                  disabled={approveMutation.isPending}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5"
+                >
+                  {approveMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Check className="w-4 h-4" />
+                  )}
+                  Approve Invoice
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsRejectOpen(true)}
+                  disabled={rejectMutation.isPending}
+                  className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 flex items-center gap-1.5"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Reject Invoice
+                </Button>
+              </>
+            ) : null}
+
             <Button
               className={
-                invoiceData?.status === "paid"
+                invoiceData?.status === "paid" || payableStatus === "paid"
                   ? "bg-gray-400 cursor-not-allowed text-white min-w-25 gap-2"
                   : "bg-[#2563EB] hover:bg-blue-700 text-white min-w-25 gap-2"
               }
@@ -156,25 +264,77 @@ export default function CarrierInvoicePreview() {
               <Mail className="w-4 h-4" />
               {sendInvoiceMutation.isPending ? "Sending..." : "Email"}
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate("/invoice/carrier-invoices")}
-              className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200 min-w-25 gap-2"
-            >
-              <Wallet className="w-4 h-4" />
-              Carrier Invoices List
-            </Button>
           </div>
         </div>
 
+        {/* Payable Workflow Status Alert Banner */}
+        <div className="max-w-350 mx-auto">
+          <div className="p-4 rounded-lg border bg-white shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <PayableStatusBadge
+                status={payableStatus}
+                paymentLabel={invoiceData?.paymentLabel}
+              />
+              {payableWorkflow?.source && (
+                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                  Source:{" "}
+                  {payableWorkflow.source === "acceptance_upload"
+                    ? "Carrier Acceptance Upload"
+                    : "Admin Manual Upload"}
+                </span>
+              )}
+            </div>
+
+            {payableWorkflow?.rejectionReason && (
+              <div className="flex items-center gap-1.5 text-xs text-red-700 bg-red-50 px-3 py-1.5 rounded border border-red-200">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-red-500" />
+                <span>
+                  <strong>Rejection Reason:</strong> {payableWorkflow.rejectionReason}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Uploaded PDF Document Banner (if exists) */}
+        {documentUrl && (
+          <div className="max-w-350 mx-auto">
+            <div className="p-4 rounded-lg border border-blue-200 bg-blue-50/50 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-md text-blue-600">
+                  <FileText className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-900">
+                    Uploaded Carrier Freight Invoice PDF
+                  </h4>
+                  <p className="text-xs text-gray-500">
+                    Original carrier invoice document uploaded for this payable record.
+                  </p>
+                </div>
+              </div>
+              <a
+                href={documentUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                View Document
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* Invoice Paper Document */}
         <div className="bg-white rounded-lg p-6 sm:p-14 shadow-sm mx-auto max-w-350">
           <div className="relative mb-12 flex justify-center items-center">
             <h1 className="text-gray-400 font-bold text-md md:text-xl tracking-widest uppercase">
-              FREIGHT CARRIER INVOICE
+              CARRIER FREIGHT INVOICE
             </h1>
             <Button
               className={
-                invoiceData?.status === "paid"
+                invoiceData?.status === "paid" || payableStatus === "paid"
                   ? "absolute right-0 bg-gray-400 cursor-not-allowed text-white min-w-25"
                   : "absolute right-0 bg-[#2563EB] hover:bg-blue-700 text-white min-w-25"
               }
@@ -203,23 +363,20 @@ export default function CarrierInvoicePreview() {
               </div>
 
               {carrierName && (
-                <div className="pt-2 text-xs text-gray-700 space-y-1">
+                <div className="pt-2 text-xs text-gray-700">
                   <span className="font-semibold text-gray-900 block mb-1">
                     Carrier Details:
                   </span>
-                  <div className="font-medium text-gray-900">{carrierName}</div>
-                  {carrierEmail && <div className="text-gray-500">{carrierEmail}</div>}
-                  {carrierPhone && <div className="text-gray-500">{carrierPhone}</div>}
-                  {(projectName || jobId) && (
-                    <div className="pt-2">
-                      <span className="font-semibold text-gray-900 block">Project:</span>
-                      <div>
-                        {jobId} {projectName ? `- ${projectName}` : ""}
-                      </div>
-                      {buildingType && <div>Building Type: {buildingType}</div>}
-                      {locationText && <div>Location: {locationText}</div>}
+                  <div className="font-medium text-gray-800">{carrierName}</div>
+                  {carrierEmail && <div>Email: {carrierEmail}</div>}
+                  {carrierPhone && <div>Phone: {carrierPhone}</div>}
+                  {projectName && (
+                    <div className="mt-1">
+                      Project: {projectName} {jobId ? `(${jobId})` : ""}
                     </div>
                   )}
+                  {locationText && <div>Destination: {locationText}</div>}
+                  {buildingType && <div>Building Type: {buildingType}</div>}
                 </div>
               )}
             </div>
@@ -237,20 +394,25 @@ export default function CarrierInvoicePreview() {
                 <span className="text-gray-500 font-medium">Date</span>
                 <span className="text-gray-900">{date}</span>
               </div>
-              <div className="flex justify-between text-xs">
+              <div className="flex justify-between text-xs items-center">
                 <span className="text-gray-500 font-medium">Status</span>
-                <span className="text-gray-900 capitalize">{invoiceData?.status || "sent"}</span>
+                <PayableStatusBadge
+                  status={payableStatus}
+                  paymentLabel={invoiceData?.paymentLabel}
+                />
               </div>
             </div>
           </div>
 
-          {/* Line Items / Description */}
+          {/* Line Items */}
           <div className="mb-12">
             <div className="flex justify-between border-b border-gray-800 pb-2 mb-6">
               <span className="text-xs font-bold text-gray-700 w-2/3">
-                Description
+                Freight Description
               </span>
-              <span className="text-xs font-bold text-gray-700 w-1/3 text-right">Total</span>
+              <span className="text-xs font-bold text-gray-700 w-1/3 text-right">
+                Total
+              </span>
             </div>
 
             <div className="space-y-8">
@@ -281,9 +443,13 @@ export default function CarrierInvoicePreview() {
               {items.length === 0 && (
                 <div className="py-4">
                   <div className="flex justify-between text-xs text-gray-700">
-                    <span>{invoiceData?.description || "Freight Carrier Invoice Charge"}</span>
+                    <span>
+                      {invoiceData?.description || "Freight Delivery Charge"}
+                    </span>
                     <span className="font-semibold">
-                      ${Number(total).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      ${Number(total).toLocaleString("en-US", {
+                        minimumFractionDigits: 2,
+                      })}
                     </span>
                   </div>
                 </div>
@@ -291,34 +457,41 @@ export default function CarrierInvoicePreview() {
             </div>
           </div>
 
-
           {/* Summary Section */}
           <div className="flex justify-end mb-12">
             <div className="w-64 space-y-3">
               <div className="flex justify-between text-xs">
                 <span className="text-gray-900 font-bold">Subtotal</span>
                 <span className="text-gray-500">
-                  ${Number(subtotal || total).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  ${Number(subtotal).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                  })}
                 </span>
               </div>
               <div className="flex justify-between text-xs border-b border-gray-100 pb-3">
                 <span className="text-gray-500">Tax</span>
                 <span className="text-gray-500">
-                  ${Number(totalTax).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  ${Number(totalTax).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                  })}
                 </span>
               </div>
               {discount > 0 && (
                 <div className="flex justify-between text-xs border-b border-gray-100 pb-3">
                   <span className="text-gray-500">Discount</span>
                   <span className="text-red-500">
-                    -${Number(discount).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    -${Number(discount).toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                    })}
                   </span>
                 </div>
               )}
               <div className="flex justify-between text-xs pt-1">
                 <span className="text-gray-900 font-bold">Total Amount</span>
                 <span className="text-gray-900 font-bold">
-                  ${Number(total).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                  ${Number(total).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                  })}
                 </span>
               </div>
             </div>
@@ -327,11 +500,29 @@ export default function CarrierInvoicePreview() {
           {/* Footer */}
           <div className="border-t border-gray-200 pt-6 mt-16">
             <p className="text-xs text-gray-500 mb-8">
-              Freight Carrier Invoice Record - Thank you for your business.
+              Freight Carrier Invoice Record - Accounts Payable
             </p>
           </div>
         </div>
+
+        {/* Admin ↔ Account Comments Thread Section */}
+        <div className="max-w-350 mx-auto">
+          <InvoiceCommentsThread
+            invoiceId={invoiceId}
+            comments={payableWorkflow?.comments}
+            onCommentAdded={() => refetchPayable()}
+          />
+        </div>
       </div>
+
+      <RejectPayableDialog
+        open={isRejectOpen}
+        onOpenChange={setIsRejectOpen}
+        invoiceNumber={invoiceNumber}
+        onConfirm={handleConfirmReject}
+        isLoading={rejectMutation.isPending}
+      />
+
       <SuccessDialog
         open={showSuccess}
         onClose={() => setShowSuccess(false)}
