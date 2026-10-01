@@ -11,15 +11,44 @@ export interface ProjectCalendarItem {
 export interface ProjectCalendarDelivery {
   _id?: string;
   deliveryId?: string;
+  title?: string;
   description?: string;
   deliveryNumber?: string;
   status?: string;
   deliveryDate?: string;
-  project?: {
-    projectName?: string;
-    jobId?: string;
-    location?: string;
-  };
+  sectionLocation?: string;
+  location?: string;
+  projectName?: string;
+  jobId?: string;
+  leadId?:
+    | string
+    | {
+        _id?: string;
+        projectName?: string;
+        name?: string;
+        jobId?: string;
+        location?: string;
+      };
+  projectId?:
+    | string
+    | {
+        _id?: string;
+        projectName?: string;
+        name?: string;
+        jobId?: string;
+        location?: string;
+      };
+  project?:
+    | string
+    | {
+        _id?: string;
+        leadId?: string;
+        projectName?: string;
+        name?: string;
+        jobId?: string;
+        location?: string;
+        site?: string;
+      };
 }
 
 export interface ProjectsCalendarStats {
@@ -39,15 +68,43 @@ export interface ProjectsCalendarResponse {
   };
 }
 
-export async function getProjectsCalendar(month: number, year: number) {
+export interface CalendarQueryParams {
+  month: number;
+  year: number;
+  leadId?: string;
+  projectId?: string;
+}
+
+export async function getProjectsCalendar(
+  monthOrParams: number | CalendarQueryParams,
+  year?: number,
+  extraParams?: { leadId?: string; projectId?: string }
+) {
+  let params: CalendarQueryParams;
+  if (typeof monthOrParams === "number") {
+    params = {
+      month: monthOrParams,
+      year: year || new Date().getFullYear(),
+      ...extraParams,
+    };
+  } else {
+    params = monthOrParams;
+  }
   const response = await apiClient.get<ProjectsCalendarResponse>(
     `/api/admin/construction/projects-calendar`,
     {
-      params: { month, year },
+      params,
     }
   );
   return response.data;
 }
+
+export const getCalendarApi = (params: CalendarQueryParams) => {
+  return apiClient.get<ProjectsCalendarResponse>(
+    `/api/admin/construction/projects-calendar`,
+    { params }
+  );
+};
 
 export interface TaskLeadId {
   _id: string;
@@ -116,8 +173,20 @@ export interface CreateTaskResponse {
   data: ApiTaskItem;
 }
 
-export async function getTasks() {
-  const response = await apiClient.get<TasksResponse>(`/api/admin/construction/tasks`);
+export interface GetTasksParams {
+  projectId?: string;
+  assignedTo?: string;
+  status?: "todo" | "in_progress" | "done" | string;
+  priority?: "low" | "medium" | "high" | string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export async function getTasks(params?: GetTasksParams) {
+  const response = await apiClient.get<TasksResponse>(
+    `/api/admin/construction/tasks`,
+    { params }
+  );
   return response.data;
 }
 
@@ -247,6 +316,8 @@ export interface GetDeliveriesParams {
   limit?: number;
   search?: string;
   projectId?: string;
+  leadId?: string;
+  sortBy?: string;
   deliveryStatus?: string;
   siteDestination?: string;
   transporter?: string;
@@ -262,6 +333,8 @@ export async function getDeliveries(params?: GetDeliveriesParams) {
   );
   return response.data;
 }
+
+export const getDeliveriesApi = getDeliveries;
 
 export interface CreateDeliveryPayload {
   title: string;
@@ -313,12 +386,66 @@ export async function getDeliveryById(deliveryId: string) {
   return response.data;
 }
 
+export interface WorkLogProject {
+  _id: string;
+  projectName?: string;
+  jobId?: string;
+  location?: string;
+}
+
+export interface WorkLogTask {
+  _id: string;
+  title: string;
+}
+
+export interface WorkLogLoggedBy {
+  _id: string;
+  name?: string;
+  email?: string;
+}
+
+export interface WorkLogItem {
+  _id: string;
+  leadId: WorkLogProject | string;
+  taskId?: WorkLogTask | string | null;
+  loggedBy?: WorkLogLoggedBy | string;
+  date: string;
+  progress?: number;
+  description?: string;
+  photos?: string[];
+  issues?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WorkLogsResponseData {
+  logs: WorkLogItem[];
+  total: number;
+  page?: number;
+  limit?: number;
+}
+
+export interface WorkLogsApiResponse {
+  success: boolean;
+  message: string;
+  data: WorkLogsResponseData;
+}
+
+export interface GetWorkLogsParams {
+  projectId?: string;
+  leadId?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+}
+
 export interface CreateWorkLogPayload {
   leadId: string;
-  taskId: string;
+  taskId?: string | null;
   date: string;
-  progress: number;
-  description: string;
+  progress?: number;
+  description?: string;
   photos?: string[];
   issues?: string;
 }
@@ -326,7 +453,28 @@ export interface CreateWorkLogPayload {
 export interface CreateWorkLogResponse {
   success: boolean;
   message: string;
-  data: Record<string, unknown>;
+  data: {
+    log?: WorkLogItem;
+    [key: string]: unknown;
+  };
+}
+
+export async function getWorkLogs(params?: GetWorkLogsParams) {
+  const queryParams: Record<string, unknown> = {};
+  if (params?.projectId) queryParams.projectId = params.projectId;
+  else if (params?.leadId) queryParams.projectId = params.leadId;
+  if (params?.startDate) queryParams.startDate = params.startDate;
+  if (params?.endDate) queryParams.endDate = params.endDate;
+  if (params?.page !== undefined) queryParams.page = params.page;
+  if (params?.limit !== undefined) queryParams.limit = params.limit;
+
+  const response = await apiClient.get<WorkLogsApiResponse>(
+    `/api/admin/construction/work-logs`,
+    {
+      params: queryParams,
+    }
+  );
+  return response.data;
 }
 
 export async function createWorkLog(payload: CreateWorkLogPayload) {
@@ -846,6 +994,8 @@ export async function getConstructionOverview(params?: GetConstructionOverviewPa
   );
   return response.data;
 }
+
+export { getProjectsApi } from "@/api/projects.api";
 
 
 
