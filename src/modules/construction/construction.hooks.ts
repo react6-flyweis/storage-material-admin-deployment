@@ -9,6 +9,7 @@ import {
   getMaterialRequestById,
   createTask,
   createWorkLog,
+  getWorkLogs,
   createMaterialRequest,
   createDelivery,
   reviewMaterialRequest,
@@ -24,6 +25,8 @@ import {
   getConstructionOverview,
   type CreateTaskPayload,
   type CreateWorkLogPayload,
+  type GetWorkLogsParams,
+  type GetTasksParams,
   type CreateMaterialRequestPayload,
   type CreateDeliveryPayload,
   type GetMaterialRequestsParams,
@@ -46,17 +49,37 @@ export function useExportConstructionReportMutation() {
   });
 }
 
-export function useProjectsCalendarQuery(month: number, year: number) {
+export function useProjectsCalendarQuery(
+  monthOrParams: number | import("./construction.api").CalendarQueryParams,
+  year?: number,
+  extraParams?: { leadId?: string; projectId?: string }
+) {
+  const params: import("./construction.api").CalendarQueryParams =
+    typeof monthOrParams === "number"
+      ? {
+          month: monthOrParams,
+          year: year || new Date().getFullYear(),
+          ...extraParams,
+        }
+      : monthOrParams;
+
   return useQuery({
-    queryKey: ["construction", "projects-calendar", month, year],
-    queryFn: () => getProjectsCalendar(month, year),
+    queryKey: [
+      "construction",
+      "projects-calendar",
+      params.month,
+      params.year,
+      params.leadId,
+      params.projectId,
+    ],
+    queryFn: () => getProjectsCalendar(params),
   });
 }
 
-export function useTasksQuery() {
+export function useTasksQuery(params?: GetTasksParams) {
   return useQuery({
-    queryKey: ["construction", "tasks"],
-    queryFn: () => getTasks(),
+    queryKey: ["construction", "tasks", params],
+    queryFn: () => getTasks(params),
   });
 }
 
@@ -70,12 +93,20 @@ export function useCreateTaskMutation() {
   });
 }
 
+export function useWorkLogsQuery(params?: GetWorkLogsParams) {
+  return useQuery({
+    queryKey: ["construction", "work-logs", params],
+    queryFn: () => getWorkLogs(params),
+  });
+}
+
 export function useCreateWorkLogMutation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreateWorkLogPayload) => createWorkLog(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["construction", "tasks"] });
+      void queryClient.invalidateQueries({ queryKey: ["construction", "work-logs"] });
     },
   });
 }
