@@ -458,7 +458,8 @@ export default function ProjectCalendarComponent({
               </button>
             </div>
 
-            <div className="relative w-full sm:w-auto">
+            {/* Month / Week / Day Selector */}
+            {/* <div className="relative w-full sm:w-auto">
               <select className="w-full appearance-none bg-white border border-gray-200 rounded-lg pl-4 pr-10 py-1.5 text-sm font-bold text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-100 cursor-pointer">
                 <option value="month">Month</option>
                 <option value="week">Week</option>
@@ -469,7 +470,7 @@ export default function ProjectCalendarComponent({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </div>
-            </div>
+            </div> */}
           </div>
 
           {loading ? (
