@@ -1,5 +1,9 @@
 import { useState } from "react";
 import dayjs from "dayjs";
+import { useSearchParams } from "react-router";
+import { useQuery } from "@tanstack/react-query";
+import { getProjectsApi } from "@/api/projects.api";
+import type { Project as ProjectType } from "@/types/projects.types";
 import StatsOverview from "../components/cards/StatCard";
 import type { StatItem } from "../components/cards/StatCard";
 import ProjectsTable from "../components/common/Table";
@@ -14,16 +18,43 @@ import { useProjectsCalendarQuery } from "../construction.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Projects() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab] = useState<"calendar" | "project">("calendar");
   const [isAddDeliveryOpen, setIsAddDeliveryOpen] = useState(false);
 
   const [currentMonth, setCurrentMonth] = useState(dayjs());
   const [selectedDate, setSelectedDate] = useState(dayjs());
 
+  const selectedCalendarProjectId = searchParams.get("projectId") || "";
+  const [selectedProjectObj, setSelectedProjectObj] = useState<ProjectType | null>(null);
+
+  // Fetch all projects for the dropdown / project object lookup
+  const { data: dropdownData } = useQuery({
+    queryKey: ["projects-dropdown"],
+    queryFn: () => getProjectsApi({ page: 1, limit: 100 }),
+    enabled: activeTab === "calendar",
+  });
+
+  const dropdownProjects = dropdownData?.data?.data?.projects || [];
+  const selectedProjObj =
+    selectedProjectObj ||
+    dropdownProjects.find(
+      (p: ProjectType) =>
+        p._id === selectedCalendarProjectId || p.leadId === selectedCalendarProjectId
+    ) ||
+    null;
+
+  const leadIdToPass = selectedProjObj?.leadId || selectedCalendarProjectId || "";
+
   const monthNum = currentMonth.month() + 1;
   const yearNum = currentMonth.year();
 
-  const { data, isLoading } = useProjectsCalendarQuery(monthNum, yearNum);
+  const { data, isLoading } = useProjectsCalendarQuery({
+    month: monthNum,
+    year: yearNum,
+    leadId: leadIdToPass || undefined,
+    projectId: selectedCalendarProjectId || undefined,
+  });
 
   const apiProjects = data?.data?.projects || [];
   const apiDeliveries = data?.data?.deliveries || [];
@@ -86,32 +117,6 @@ export default function Projects() {
             Construction Department Performance
           </p>
         </div>
-
-        {/* View Toggle */}
-        {/* <div className="flex items-center">
-          <div className="bg-[#F3F4F6] p-1 rounded-xl flex border border-gray-100">
-            <button
-              onClick={() => setActiveTab("calendar")}
-              className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${
-                activeTab === "calendar"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Calendar
-            </button>
-            <button
-              onClick={() => setActiveTab("project")}
-              className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${
-                activeTab === "project"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              Project
-            </button>
-          </div>
-        </div> */}
       </div>
 
       {/* Top Stats Overview */}
@@ -132,6 +137,17 @@ export default function Projects() {
           setCurrentMonth={setCurrentMonth}
           selectedDate={selectedDate}
           setSelectedDate={setSelectedDate}
+          leadId={leadIdToPass}
+          projectId={selectedCalendarProjectId}
+          selectedProject={selectedProjObj}
+          onProjectChange={(val, proj) => {
+            setSelectedProjectObj(proj || null);
+            if (val) {
+              setSearchParams({ tab: "calendar", projectId: val });
+            } else {
+              setSearchParams({ tab: "calendar" });
+            }
+          }}
           projects={apiProjects}
           deliveries={apiDeliveries}
           loading={isLoading}
@@ -139,8 +155,8 @@ export default function Projects() {
       )}
 
       {/* Project Tab Content */}
-      {activeTab === "project" && (
-        isLoading ? (
+      {activeTab === "project" &&
+        (isLoading ? (
           <div className="space-y-4 bg-white p-6 rounded-[8px] border border-[#F3F4F6]">
             <Skeleton className="h-8 w-48 mb-4" />
             {[...Array(5)].map((_, i) => (
@@ -149,8 +165,7 @@ export default function Projects() {
           </div>
         ) : (
           <ProjectsTable projects={tableProjectsData} />
-        )
-      )}
+        ))}
 
       <AddDeliverySheet
         isOpen={isAddDeliveryOpen}
