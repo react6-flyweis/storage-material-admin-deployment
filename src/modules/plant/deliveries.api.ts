@@ -89,6 +89,15 @@ export interface GetDeliveriesResponse {
 }
 
 export interface DeliveriesStatsData {
+  totalCount?: number;
+  draftCount?: number;
+  scheduledCount?: number;
+  confirmedCount?: number;
+  inTransitCount?: number;
+  deliveredCount?: number;
+  delayedCount?: number;
+  cancelledCount?: number;
+  // Fallbacks / legacy aliases
   draft?: number;
   total?: number;
   scheduled?: number;
