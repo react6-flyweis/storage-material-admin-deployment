@@ -44,10 +44,15 @@ export function useCustomerDetailQuery(customerId: string) {
   });
 }
 
-export function useCustomerProjectsQuery(customerId: string) {
+export function useCustomerProjectsQuery(
+  customerId: string,
+  page = 1,
+  limit = 20,
+  businessUnit?: string
+) {
   return useQuery({
-    queryKey: ["customers", "admin-projects", customerId],
-    queryFn: () => getCustomerProjectsProvider(customerId),
+    queryKey: ["customers", "admin-projects", customerId, page, limit, businessUnit],
+    queryFn: () => getCustomerProjectsProvider(customerId, page, limit, businessUnit),
     staleTime: 60 * 1000,
     enabled: Boolean(customerId),
   });
