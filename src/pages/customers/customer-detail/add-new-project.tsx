@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import BusinessUnitSelector from "@/components/leads/business-unit-selector";
 import { useCustomerDetailQuery, useCreateCustomerLeadMutation } from "@/modules/customers/customers.hooks";
 
 export default function AddNewProjectPage() {
@@ -31,6 +32,7 @@ export default function AddNewProjectPage() {
     email: "",
     phone: "",
     projectName: "",
+    businessUnit: "",
     city: "",
     landmark: "",
     fullAddress: "",
@@ -123,6 +125,7 @@ export default function AddNewProjectPage() {
       customerId,
       leadData: {
         projectName: formData.projectName,
+        businessUnit: formData.businessUnit ? formData.businessUnit.trim().toLowerCase() : null,
         buildingType: formData.buildingType,
         location: formData.city || formData.state || "Location not provided",
         roofStyle: formData.roofStyle,
@@ -433,6 +436,18 @@ export default function AddNewProjectPage() {
                   <SelectItem value="Shed">Shed Roof</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="businessUnit">Business Unit</Label>
+              <BusinessUnitSelector
+                id="businessUnit"
+                value={formData.businessUnit}
+                onChange={(value) => handleSelectChange("businessUnit", value)}
+                includeClear
+                clearLabel="Not set"
+                placeholder="Select Business Unit"
+              />
             </div>
 
             <div className="space-y-2">
