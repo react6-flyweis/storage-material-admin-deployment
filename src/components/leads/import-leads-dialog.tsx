@@ -229,6 +229,8 @@ export default function ImportLeadsDialog() {
 
           <div className="text-sm text-gray-500 mt-4">
             Supported formats: CSV, Excel (.xlsx, .xls)
+            <br />
+            Expected columns: name, email, phone, projectType, businessUnit (optional: storage_material, platform, steel)
           </div>
 
           {selectedFile && (
