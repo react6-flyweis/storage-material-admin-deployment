@@ -59,7 +59,7 @@ const AddNewFreightCourier: React.FC = () => {
         fleetCapacity: {
           totalVehicleCount: values.fleetCapacity.totalVehicles,
           maximumLoadCapacity: Number.parseFloat(values.fleetCapacity.maxLoadCapacity.replace(/[^0-9.]/g, "")) || 0,
-          averageFleetAge: values.fleetCapacity.avgFleetAge,
+          averageFleetAge: Math.round(values.fleetCapacity.avgFleetAge),
         },
         documents: values.documents?.map((doc) => ({
           name: doc.name,
