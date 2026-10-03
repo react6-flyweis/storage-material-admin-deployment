@@ -508,10 +508,20 @@ const CarrierForm: React.FC<CarrierFormProps> = ({
                     </label>
                     <Input
                       type="number"
-                      step="0.1"
-                      placeholder="e.g. 4.2"
+                      step="1"
+                      min="0"
+                      placeholder="e.g. 4"
                       value={field.value ?? ""}
-                      onChange={field.onChange}
+                      onKeyDown={(e) => {
+                        if (e.key === "." || e.key === "," || e.key === "e" || e.key === "E" || e.key === "+" || e.key === "-") {
+                          e.preventDefault();
+                        }
+                      }}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        const intPart = raw.split(".")[0].replace(/[^0-9]/g, "");
+                        field.onChange(intPart === "" ? "" : Number(intPart));
+                      }}
                       onBlur={field.onBlur}
                       ref={field.ref}
                       className={`h-11 border-gray-200 focus-visible:ring-1 focus-visible:ring-blue-400 ${
