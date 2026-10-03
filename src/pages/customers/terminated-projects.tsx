@@ -1,7 +1,10 @@
-import { useMemo, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { CheckCircle, Eye, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import BusinessUnitSelector from "@/components/leads/business-unit-selector";
+import { formatBusinessUnit } from "@/modules/leads/business-unit";
 import {
   Table,
   TableHeader,
@@ -19,6 +22,7 @@ export default function TerminatedProjectsPage() {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [businessUnit, setBusinessUnit] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(20);
 
@@ -33,13 +37,14 @@ export default function TerminatedProjectsPage() {
   const { data, isLoading, isError } = useTerminatedLeadsQuery(
     currentPage,
     rowsPerPage,
-    debouncedQuery
+    debouncedQuery,
+    businessUnit === "all" ? undefined : businessUnit
   );
 
   const projects = data?.data?.projects || [];
   const totalItems = data?.data?.total || 0;
 
-  const formatDate = (dateString?: string) => {
+  const formatDate = (dateString?: string | null) => {
     if (!dateString) return "N/A";
     try {
       const date = new Date(dateString);
@@ -64,22 +69,38 @@ export default function TerminatedProjectsPage() {
         </p>
       </div>
 
-      <div className="w-full max-w-xs bg-white rounded-lg">
-        <label className="sr-only" htmlFor="search-terminated-projects">
-          Search terminated projects
-        </label>
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <Input
-            id="search-terminated-projects"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-            }}
-            placeholder="Search"
-            className="pl-10"
-          />
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="w-full max-w-xs bg-white rounded-lg">
+          <label className="sr-only" htmlFor="search-terminated-projects">
+            Search terminated projects
+          </label>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Input
+              id="search-terminated-projects"
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+              }}
+              placeholder="Search"
+              className="pl-10"
+            />
+          </div>
         </div>
+
+        <BusinessUnitSelector
+          value={businessUnit}
+          onChange={(val) => {
+            setBusinessUnit(val);
+            setCurrentPage(1);
+          }}
+          includeAll
+          allLabel="All Business Units"
+          includeNone
+          noneLabel="Not set"
+          placeholder="Business Unit"
+          triggerClassName="w-44 bg-white"
+        />
       </div>
 
       <Card className="p-3">
@@ -156,6 +177,16 @@ export default function TerminatedProjectsPage() {
                       <span className="text-[12px] text-slate-500 mt-0.5">
                         {project.jobId || project._id}
                       </span>
+                      {(project.businessUnitLabel || project.businessUnit) && (
+                        <div className="mt-1">
+                          <Badge
+                            variant="outline"
+                            className="text-[11px] font-normal px-1.5 py-0 border-slate-300 text-slate-700 bg-slate-50"
+                          >
+                            {project.businessUnitLabel || formatBusinessUnit(project.businessUnit)}
+                          </Badge>
+                        </div>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-4 text-sm text-slate-600">
