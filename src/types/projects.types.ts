@@ -4,6 +4,8 @@ export interface Project {
   projectName?: string;
   buildingType?: string;
   location?: string;
+  businessUnit?: string | null;
+  businessUnitLabel?: string;
   jobId?: string;
   lifecycleStatus?: string;
   hasDelivery?: boolean;
