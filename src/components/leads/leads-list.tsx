@@ -6,10 +6,15 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
+  Archive,
+  RotateCcw,
 } from "lucide-react";
 import { getLeadLifecycleBadgeClassName } from "@/modules/leads/lead-lifecycle";
+import { formatBusinessUnit } from "@/modules/leads/business-unit";
 import AssignSalesDialog from "@/components/leads/assign-sales-dialog";
 import DeleteLeadDialog from "@/components/leads/delete-lead-dialog";
+import ArchiveLeadDialog from "@/components/leads/archive-lead-dialog";
+import RestoreLeadDialog from "@/components/leads/restore-lead-dialog";
 import ChatDialog from "@/components/leads/chat-dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,8 +33,11 @@ import { cn } from "@/lib/utils";
 export type LeadTableRow = {
   id: string;
   backendId?: string;
+  jobId?: string;
   name: string;
   customerName: string;
+  businessUnit?: string | null;
+  businessUnitLabel?: string;
   workshop: string;
   category: string;
   assignedTo: string | null;
@@ -43,6 +51,9 @@ export type LeadTableRow = {
   quoteValue: string;
   chatCount: number;
   createdAt: Date;
+  isArchived?: boolean;
+  archiveReason?: string | null;
+  archivedAt?: string | null;
 };
 
 interface LeadsListProps {
@@ -55,6 +66,7 @@ interface LeadsListProps {
   limit: number;
   total: number;
   onPageChange: (newPage: number) => void;
+  isArchived?: boolean;
 }
 
 const getScoreColorClass = (score: number) => {
@@ -81,6 +93,7 @@ export default function LeadsList({
   limit,
   total,
   onPageChange,
+  isArchived = false,
 }: LeadsListProps) {
   const isAllSelected = leads.length > 0 && selectedLeads.length === leads.length;
 
@@ -161,9 +174,17 @@ export default function LeadsList({
                       <span className="text-[12px] text-gray-500 text-nowrap mt-0.5">
                         {lead.id}
                       </span>
-                      <span className="text-[12px] text-gray-500 text-nowrap mt-0.5">
-                        {lead.workshop} · {lead.category}
-                      </span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <Badge
+                          variant="outline"
+                          className="text-[11px] font-normal px-1.5 py-0 border-slate-300 text-slate-700 bg-slate-50"
+                        >
+                          {lead.businessUnitLabel || formatBusinessUnit(lead.businessUnit)}
+                        </Badge>
+                        <span className="text-xs text-gray-500">
+                          · {lead.workshop || "-"} · {lead.category || "-"}
+                        </span>
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3">
@@ -266,15 +287,47 @@ export default function LeadsList({
                   </TableCell>
                   <TableCell className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-3 text-indigo-700">
-                      <Link to={`/leads/${lead.backendId}`}>
+                      <Link to={`/leads/${lead.backendId}`} title="View Lead Details">
                         <Eye className="w-4 h-4 cursor-pointer hover:text-indigo-900 transition-colors" />
                       </Link>
-                      <AssignSalesDialog
-                        leadId={lead.backendId!}
-                        trigger={
-                          <UserPlus className="w-4 h-4 cursor-pointer hover:text-indigo-900 transition-colors" />
-                        }
-                      />
+                      {!isArchived && (
+                        <AssignSalesDialog
+                          leadId={lead.backendId!}
+                          trigger={
+                            <UserPlus className="w-4 h-4 cursor-pointer hover:text-indigo-900 transition-colors" />
+                          }
+                        />
+                      )}
+                      {isArchived ? (
+                        <RestoreLeadDialog
+                          leadId={lead.backendId}
+                          leadName={lead.name || lead.customerName}
+                          trigger={
+                            <button
+                              type="button"
+                              className="cursor-pointer text-blue-600 hover:text-blue-800 transition-colors"
+                              title="Restore Lead"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </button>
+                          }
+                        />
+                      ) : (
+                        <ArchiveLeadDialog
+                          leadId={lead.backendId}
+                          leadName={lead.name || lead.customerName}
+                          jobId={lead.jobId}
+                          trigger={
+                            <button
+                              type="button"
+                              className="cursor-pointer text-gray-500 hover:text-amber-600 transition-colors"
+                              title="Archive Lead"
+                            >
+                              <Archive className="w-4 h-4" />
+                            </button>
+                          }
+                        />
+                      )}
                       {lead.backendId && (
                         <DeleteLeadDialog
                           leadId={lead.backendId}
@@ -294,7 +347,9 @@ export default function LeadsList({
                     colSpan={8}
                     className="px-6 py-8 text-center text-sm text-gray-500"
                   >
-                    No leads match your search or filters.
+                    {isArchived
+                      ? "No archived leads found."
+                      : "No leads match your search or filters."}
                   </TableCell>
                 </TableRow>
               )}
