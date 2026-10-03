@@ -20,7 +20,10 @@ import {
   useFreightLoadsQuery,
 } from "@/modules/plant/freight.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatStatusLabel, getStatusBadgeStyle } from "./deliveryStatusConstants";
+import {
+  formatStatusLabel,
+  getStatusBadgeStyle,
+} from "./deliveryStatusConstants";
 import {
   Select,
   SelectContent,
@@ -264,7 +267,7 @@ export default function FreightLoads() {
             {isStatsLoading ? (
               <Skeleton className="h-9 w-20" />
             ) : (
-              <h2 className="text-3xl font-bold text-slate-900">
+              <h2 className="text-xl font-bold text-slate-900">
                 {stats ? `$${stats.totalSpent.toLocaleString()}` : "$0"}
               </h2>
             )}
@@ -493,14 +496,30 @@ export default function FreightLoads() {
           <table className="w-full text-left border-collapse border border-gray-200 text-nowrap font-inter text-sm">
             <thead className="bg-[linear-gradient(90deg,_#DBEAFE_0%,_#F3E8FF_100%)]">
               <tr className="border-b border-gray-200">
-                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">REQUEST ID</th>
-                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">PROJECT</th>
-                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">DESCRIPTION</th>
-                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap text-center">ROUTE</th>
-                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">DATES</th>
-                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">AWARDED BID</th>
-                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap text-center">STATUS</th>
-                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap text-center">ACTIONS</th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  REQUEST ID
+                </th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  PROJECT
+                </th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  DESCRIPTION
+                </th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap text-center">
+                  ROUTE
+                </th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  DATES
+                </th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  AWARDED BID
+                </th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap text-center">
+                  STATUS
+                </th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap text-center">
+                  ACTIONS
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 bg-white">
