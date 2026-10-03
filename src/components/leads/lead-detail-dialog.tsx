@@ -23,6 +23,7 @@ import ConversationHistoryDialog from "./conversation-history-dialog";
 import AssignPlantPersonDialog from "@/components/customers/assign-plant-person-dialog";
 import { apiClient } from "@/modules/auth/auth.api";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { formatBusinessUnit } from "@/modules/leads/business-unit";
 import { Link, useNavigate } from "react-router";
 
 type Lead = {
@@ -49,6 +50,9 @@ type LeadDetailResponse = {
   data: {
     lead: {
       _id: string;
+      projectName?: string;
+      businessUnit?: string | null;
+      businessUnitLabel?: string;
       customerId?: {
         customerId?: string;
         firstName?: string;
@@ -573,6 +577,12 @@ export default function LeadDetailDialog({
               <DialogTitle className="text-2xl">
                 Leads Details - {customer?.firstName ?? lead.name}
               </DialogTitle>
+              <Badge
+                variant="outline"
+                className="text-xs font-normal border-slate-200 text-slate-700 bg-slate-50"
+              >
+                {leadDetail?.businessUnitLabel || formatBusinessUnit(leadDetail?.businessUnit)}
+              </Badge>
               {/* badge or edit lead button */}
               {escalationReason ? (
                 <div className="bg-red-100 px-2 py-1 rounded  text-xs">
@@ -750,6 +760,17 @@ export default function LeadDetailDialog({
                     </Button>
                   </div>
                   <div className="mt-3 text-sm text-gray-700 space-y-3">
+                    <div>
+                      <div className="text-xs text-gray-500">Business Unit</div>
+                      <div className="mt-1">
+                        <Badge
+                          variant="outline"
+                          className="text-xs font-normal border-slate-200 text-slate-700 bg-slate-50"
+                        >
+                          {leadDetail?.businessUnitLabel || formatBusinessUnit(leadDetail?.businessUnit)}
+                        </Badge>
+                      </div>
+                    </div>
                     <div>
                       <div className="text-xs text-gray-500">Building Type</div>
                       <div className="text-sm text-gray-900">
