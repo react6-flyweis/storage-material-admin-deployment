@@ -2,11 +2,11 @@ import { useMemo, useState } from "react";
 import { Eye, UserPlus2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import AssignSalesDialog from "@/components/leads/assign-sales-dialog";
 import AssignEscalationDialog from "@/components/leads/assign-escalation-dialog";
 import ResolveEscalationDialog from "@/components/leads/resolve-escalation-dialog";
 import LeadDetailDialog from "@/components/leads/lead-detail-dialog";
 import { useEscalatedLeadsQuery } from "@/modules/leads/leads.hooks";
+import { formatBusinessUnit } from "@/modules/leads/business-unit";
 import {
   Table,
   TableBody,
@@ -21,6 +21,8 @@ type EscalationStatus = "pending" | "assigned" | "resolved";
 type EscalationItem = {
   _id: string;
   projectName?: string;
+  businessUnit?: string | null;
+  businessUnitLabel?: string;
   lifecycleStatus?: string;
   quoteValue?: number;
   customerId?: {
@@ -54,6 +56,8 @@ interface EscalatedLead {
   id: string;
   name: string;
   projectName?: string;
+  businessUnit?: string | null;
+  businessUnitLabel?: string;
   leadId: string;
   quoteId: string;
   type: string;
@@ -153,6 +157,8 @@ const getEscalationRows = (escalations: EscalationItem[]): EscalatedLead[] =>
     leadId: escalation._id,
     name: getLeadName(escalation),
     projectName: escalation.projectName || "",
+    businessUnit: escalation.businessUnit,
+    businessUnitLabel: escalation.businessUnitLabel || formatBusinessUnit(escalation.businessUnit),
     quoteId: escalation.jobId || escalation.projectId || escalation._id || "N/A",
     type: formatLeadType(escalation),
     assignedTo: getAssignedName(escalation) ?? undefined,
@@ -309,6 +315,16 @@ export default function EscalatedLeadsPage() {
                             <p className="text-[12px] text-slate-500 mt-0.5">
                               {lead.projectName}
                             </p>
+                          )}
+                          {(lead.businessUnitLabel || lead.businessUnit) && (
+                            <div className="mt-1">
+                              <Badge
+                                variant="outline"
+                                className="text-[11px] font-normal px-1.5 py-0 border-slate-300 text-slate-700 bg-slate-50"
+                              >
+                                {lead.businessUnitLabel || formatBusinessUnit(lead.businessUnit)}
+                              </Badge>
+                            </div>
                           )}
                           {/* <p className="text-[12px] text-slate-500 mt-0.5">
                             {lead.quoteId}
