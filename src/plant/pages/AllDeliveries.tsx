@@ -369,7 +369,7 @@ export default function AllDeliveries() {
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Draft</p>
-              <h3 className="text-2xl font-bold text-[#eab308] mt-1">{stats.draft ?? 0}</h3>
+              <h3 className="text-2xl font-bold text-[#eab308] mt-1">{stats.draftCount ?? stats.draft ?? 0}</h3>
             </div>
             <div className="w-12 h-12 rounded-full bg-[#fef9c3] flex items-center justify-center text-[#eab308]">
               <FileText className="w-5 h-5" />
@@ -381,7 +381,7 @@ export default function AllDeliveries() {
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Total</p>
-              <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.total ?? total}</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.totalCount ?? stats.total ?? total}</h3>
             </div>
             <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
               <Truck className="w-5 h-5" />
@@ -393,7 +393,7 @@ export default function AllDeliveries() {
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Scheduled</p>
-              <h3 className="text-2xl font-bold text-[#3b82f6] mt-1">{stats.scheduled ?? 0}</h3>
+              <h3 className="text-2xl font-bold text-[#3b82f6] mt-1">{stats.scheduledCount ?? stats.scheduled ?? 0}</h3>
             </div>
             <div className="w-12 h-12 rounded-full bg-[#dbeafe] flex items-center justify-center text-[#3b82f6]">
               <CalendarDays className="w-5 h-5" />
@@ -405,7 +405,7 @@ export default function AllDeliveries() {
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Confirmed</p>
-              <h3 className="text-2xl font-bold text-[#22c55e] mt-1">{stats.confirmed ?? 0}</h3>
+              <h3 className="text-2xl font-bold text-[#22c55e] mt-1">{stats.confirmedCount ?? stats.confirmed ?? 0}</h3>
             </div>
             <div className="w-12 h-12 rounded-full bg-[#dcfce7] flex items-center justify-center text-[#22c55e]">
               <CheckCircle2 className="w-5 h-5" />
@@ -417,7 +417,7 @@ export default function AllDeliveries() {
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">In Transit</p>
-              <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.inTransit ?? 0}</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.inTransitCount ?? stats.inTransit ?? 0}</h3>
             </div>
             <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
               <Truck className="w-5 h-5" />
@@ -429,7 +429,7 @@ export default function AllDeliveries() {
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Delivered</p>
-              <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.delivered ?? 0}</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.deliveredCount ?? stats.delivered ?? 0}</h3>
             </div>
             <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
               <CheckCircle className="w-5 h-5" />
@@ -441,7 +441,7 @@ export default function AllDeliveries() {
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Delayed</p>
-              <h3 className="text-2xl font-bold text-[#ef4444] mt-1">{stats.delayed ?? 0}</h3>
+              <h3 className="text-2xl font-bold text-[#ef4444] mt-1">{stats.delayedCount ?? stats.delayed ?? 0}</h3>
             </div>
             <div className="w-12 h-12 rounded-full bg-[#fee2e2] flex items-center justify-center text-[#ef4444]">
               <AlertTriangle className="w-5 h-5" />
@@ -453,7 +453,7 @@ export default function AllDeliveries() {
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500">Cancelled</p>
-              <h3 className="text-2xl font-bold text-[#ef4444] mt-1">{stats.cancelled ?? 0}</h3>
+              <h3 className="text-2xl font-bold text-[#ef4444] mt-1">{stats.cancelledCount ?? stats.cancelled ?? 0}</h3>
             </div>
             <div className="w-12 h-12 rounded-full bg-[#fee2e2] flex items-center justify-center text-[#ef4444]">
               <XCircle className="w-5 h-5" />
@@ -784,9 +784,9 @@ export default function AllDeliveries() {
                         )}
                       </td>
                     )}
-                    <td className="px-4 py-3 border border-gray-200 align-top max-w-[200px]">
-                      <div className="text-gray-900 font-medium break-words leading-tight">
-                        {row.description}
+                    <td className="px-4 py-3 border border-gray-200 align-top max-w-[240px] whitespace-normal">
+                      <div className="text-gray-900 font-medium break-words leading-snug line-clamp-2" title={row.description || ""}>
+                        {row.description || "-"}
                       </div>
                     </td>
                     {visibleColumns.Project && (
