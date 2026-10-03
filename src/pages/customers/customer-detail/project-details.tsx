@@ -9,10 +9,13 @@ import {
   User,
   FileText,
   DollarSign,
+  Briefcase,
   Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
+import { formatBusinessUnit } from "@/modules/leads/business-unit";
 import {
   Card,
   CardContent,
@@ -220,6 +223,12 @@ export default function ProjectDetailsPage() {
                   <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5"></span>
                   {currentStatusConfig.label}
                 </span>
+                <Badge
+                  variant="outline"
+                  className="text-xs font-normal border-slate-200 text-slate-700 bg-slate-50"
+                >
+                  {project?.businessUnitLabel || formatBusinessUnit(project?.businessUnit)}
+                </Badge>
               </div>
               <p className="text-[13px] text-slate-500 mt-1">
                 {project?.jobId ||
@@ -252,7 +261,18 @@ export default function ProjectDetailsPage() {
         </CardHeader>
 
         <CardContent className="pb-4 border-b">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="flex items-center gap-3">
+              <div className="text-slate-400">
+                <Briefcase className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-[12px] text-slate-500">Business Unit</p>
+                <p className="text-[14px] font-medium text-slate-800">
+                  {project?.businessUnitLabel || formatBusinessUnit(project?.businessUnit)}
+                </p>
+              </div>
+            </div>
             <div className="flex items-center gap-3">
               <div className="text-slate-400">
                 <Building2 className="h-5 w-5" />
