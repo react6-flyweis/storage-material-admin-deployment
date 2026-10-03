@@ -38,7 +38,7 @@ const AddNewShipper: React.FC = () => {
         phone: values.phone,
         contactName: values.contactName,
         vendorCode: values.vendorCode,
-        yearsWithCompany: values.yearsWithCompany,
+        yearsWithCompany: values.yearsWithCompany ?? undefined,
         serviceCategory: values.serviceCategory,
         vendorType: values.vendorType,
         materialTypes: values.materialTypes,
