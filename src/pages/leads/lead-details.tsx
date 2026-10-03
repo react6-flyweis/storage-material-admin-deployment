@@ -1,5 +1,6 @@
 import {
   Building2,
+  Briefcase,
   MapPin,
   Calendar,
   CircleDollarSign,
@@ -19,7 +20,11 @@ import {
   ArrowLeft,
   Trash2,
   Flag,
+  Archive,
+  RotateCcw,
 } from "lucide-react";
+import ArchiveLeadDialog from "@/components/leads/archive-lead-dialog";
+import RestoreLeadDialog from "@/components/leads/restore-lead-dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -54,6 +59,7 @@ import {
   updateLeadLifecycleProvider,
   addLeadNoteProvider,
 } from "@/modules/leads/leads.api";
+import { formatBusinessUnit } from "@/modules/leads/business-unit";
 import { formatPhone } from "@/lib/utils";
 import { useState } from "react";
 // import { useLeadQuotationsQuery } from "@/modules/quotations/quotations.hooks";
@@ -207,6 +213,24 @@ export default function LeadDetails() {
                   }
                 />
 
+                {!lead?.isArchived && (
+                  <ArchiveLeadDialog
+                    leadId={leadId}
+                    leadName={lead?.projectName || customer?.firstName}
+                    jobId={lead?.jobId}
+                    trigger={
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="bg-white hover:bg-amber-50 hover:text-amber-700 border-gray-200 text-gray-600 h-9 px-4 text-sm font-normal rounded-md"
+                      >
+                        <Archive className="w-4 h-4 mr-1.5 text-amber-600" />
+                        <span>Archive Lead</span>
+                      </Button>
+                    }
+                  />
+                )}
+
                 {leadId && (
                   <DeleteLeadDialog
                     leadId={leadId}
@@ -235,6 +259,60 @@ export default function LeadDetails() {
           </div>
         </CardHeader>
         <CardContent>
+          {lead?.isArchived && (
+            <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-amber-200/80 bg-amber-50/60 px-4 py-3.5 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                  <Archive className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-900">
+                      This lead is archived
+                    </span>
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                      Archived
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-slate-600">
+                    {lead.archiveReason ? (
+                      <span>
+                        <strong className="font-medium text-slate-700">Reason:</strong>{" "}
+                        {lead.archiveReason}
+                      </span>
+                    ) : (
+                      "No archive reason specified."
+                    )}
+                    {lead.archivedAt && (
+                      <span className="ml-2 text-slate-400">
+                        • Archived on{" "}
+                        {new Date(lead.archivedAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <RestoreLeadDialog
+                leadId={leadId}
+                leadName={lead.projectName || customer?.firstName}
+                trigger={
+                  <Button
+                    size="sm"
+                    className="bg-[#1D51A4] hover:bg-[#1D51A4]/90 text-white rounded-[6px] shrink-0 cursor-pointer"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                    Restore Lead
+                  </Button>
+                }
+              />
+            </div>
+          )}
+
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
@@ -272,6 +350,12 @@ export default function LeadDetails() {
                           <div className="w-1.5 h-1.5 rounded-full bg-[#16a34a]"></div>
                           {currentStepId.replace(/_/g, " ")}
                         </Badge>
+                        <Badge
+                          variant="outline"
+                          className="text-xs font-normal border-slate-200 text-slate-700 bg-slate-50"
+                        >
+                          {lead?.businessUnitLabel || formatBusinessUnit(lead?.businessUnit)}
+                        </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">
                         {lead?.jobId || leadId}
@@ -280,7 +364,7 @@ export default function LeadDetails() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pb-6 border-b border-gray-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-6 pb-6 border-b border-gray-100">
                   <div className="flex items-start gap-3">
                     <Building2 className="w-5 h-5 text-gray-400 mt-0.5" />
                     <div>
@@ -289,6 +373,17 @@ export default function LeadDetails() {
                       </p>
                       <p className="text-sm text-gray-500 mt-1">
                         {lead?.buildingType || "Workshop"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Briefcase className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Business Unit
+                      </p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {lead?.businessUnitLabel || formatBusinessUnit(lead?.businessUnit)}
                       </p>
                     </div>
                   </div>
