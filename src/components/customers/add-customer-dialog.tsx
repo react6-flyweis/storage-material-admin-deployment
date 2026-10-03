@@ -20,6 +20,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Controller, useForm } from "react-hook-form";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
+import BusinessUnitSelector from "@/components/leads/business-unit-selector";
 import { useSalesEmployeesQuery, useCreateCustomerMutation } from "@/modules/customers/customers.hooks";
 
 type Customer = {
@@ -61,6 +62,7 @@ export default function AddCustomerDialog({
     email: string;
     phone: string;
     buildingType: string;
+    businessUnit?: string;
     location: string;
     projectName: string;
     countryCode: string;
@@ -75,6 +77,7 @@ export default function AddCustomerDialog({
       email: "",
       phone: "",
       buildingType: "Warehouse",
+      businessUnit: "",
       location: "",
       projectName: "",
       countryCode: "+1",
@@ -126,6 +129,7 @@ export default function AddCustomerDialog({
       email: values.email,
       phone: values.phone,
       buildingType: values.buildingType,
+      businessUnit: values.businessUnit ? values.businessUnit.trim().toLowerCase() : null,
       location: values.location,
       projectName: values.projectName,
       countryCode: values.countryCode,
@@ -238,24 +242,44 @@ export default function AddCustomerDialog({
             />
           </div>
 
-          <Controller
-            control={form.control}
-            name="projectName"
-            render={({ field, fieldState }) => (
-              <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="projectName">Project Name <span className="text-red-500">*</span></FieldLabel>
-                <Input
-                  {...field}
-                  id="projectName"
-                  placeholder="Ravi Warehouse"
-                  aria-invalid={fieldState.invalid}
-                />
-                {fieldState.invalid && (
-                  <FieldError errors={[fieldState.error]} />
-                )}
-              </Field>
-            )}
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Controller
+              control={form.control}
+              name="projectName"
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="projectName">Project Name <span className="text-red-500">*</span></FieldLabel>
+                  <Input
+                    {...field}
+                    id="projectName"
+                    placeholder="Ravi Warehouse"
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="businessUnit"
+              render={({ field }) => (
+                <Field>
+                  <FieldLabel htmlFor="businessUnit">Business Unit</FieldLabel>
+                  <BusinessUnitSelector
+                    id="businessUnit"
+                    value={field.value}
+                    onChange={field.onChange}
+                    includeClear
+                    clearLabel="Not set"
+                    placeholder="Select Business Unit"
+                  />
+                </Field>
+              )}
+            />
+          </div>
 
           <Controller
             control={form.control}
