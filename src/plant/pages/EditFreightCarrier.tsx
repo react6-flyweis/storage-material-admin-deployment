@@ -68,7 +68,7 @@ const EditFreightCarrier: React.FC = () => {
       fleetCapacity: {
         totalVehicles: carrier.fleetCapacity?.totalVehicleCount || 0,
         maxLoadCapacity: carrier.fleetCapacity?.maximumLoadCapacity ? `${carrier.fleetCapacity.maximumLoadCapacity} lbs` : "0 lbs",
-        avgFleetAge: carrier.fleetCapacity?.averageFleetAge || 0,
+        avgFleetAge: carrier.fleetCapacity?.averageFleetAge != null ? Math.round(carrier.fleetCapacity.averageFleetAge) : 0,
       },
       documents: (carrier.documents || []).map((doc) => ({
         name: doc.name || "",
@@ -105,7 +105,7 @@ const EditFreightCarrier: React.FC = () => {
         fleetCapacity: {
           totalVehicleCount: values.fleetCapacity.totalVehicles,
           maximumLoadCapacity: Number.parseFloat(values.fleetCapacity.maxLoadCapacity.replace(/[^0-9.]/g, "")) || 0,
-          averageFleetAge: values.fleetCapacity.avgFleetAge,
+          averageFleetAge: Math.round(values.fleetCapacity.avgFleetAge),
         },
         documents: values.documents?.map((doc) => ({
           name: doc.name,

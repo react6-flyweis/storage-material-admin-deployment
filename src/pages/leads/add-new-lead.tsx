@@ -19,6 +19,7 @@ import AddBasicCustomerDialog, {
 } from "@/components/customers/add-basic-customer-dialog";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import BusinessUnitSelector from "@/components/leads/business-unit-selector";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -47,6 +48,7 @@ const addLeadSchema = z.object({
     .trim()
     .min(1, "Assigned sales representative is required"),
   projectName: z.string().trim().min(1, "Project name is required"),
+  businessUnit: z.string().optional(),
   location: z.string().trim().min(1, "Location is required"),
   source: z.string().trim().min(1, "Lead source is required"),
   quoteValue: z
@@ -194,6 +196,7 @@ export default function AddNewLead() {
       customerId: "",
       assignedSales: "",
       projectName: "",
+      businessUnit: "",
       location: "",
       source: "",
       quoteValue: "",
@@ -240,6 +243,7 @@ export default function AddNewLead() {
       await createLead.mutateAsync({
         customerId: data.customerId,
         projectName: data.projectName.trim(),
+        businessUnit: data.businessUnit ? data.businessUnit.trim().toLowerCase() : null,
         buildingType: data.buildingType,
         location: data.location.trim(),
         source: data.source,
@@ -549,6 +553,25 @@ export default function AddNewLead() {
                   {errors.location.message}
                 </p>
               )}
+            </div>
+
+            {/* Business Unit */}
+            <div className="space-y-2">
+              <Label htmlFor="businessUnit">Business Unit</Label>
+              <Controller
+                control={control}
+                name="businessUnit"
+                render={({ field }) => (
+                  <BusinessUnitSelector
+                    id="businessUnit"
+                    value={field.value}
+                    onChange={field.onChange}
+                    includeClear
+                    clearLabel="Not set"
+                    placeholder="Select Business Unit"
+                  />
+                )}
+              />
             </div>
           </div>
         </div>

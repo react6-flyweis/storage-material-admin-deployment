@@ -69,9 +69,19 @@ export async function getAdminCustomerDetailProvider(customerId: string) {
   return response.data;
 }
 
-export async function getCustomerProjectsProvider(customerId: string) {
+export async function getCustomerProjectsProvider(
+  customerId: string,
+  page = 1,
+  limit = 20,
+  businessUnit?: string
+) {
+  const params: { page: number; limit: number; businessUnit?: string } = { page, limit };
+  if (businessUnit && businessUnit !== "all") {
+    params.businessUnit = businessUnit;
+  }
   const response = await apiClient.get<GetCustomerProjectsResponse>(
     `/api/admin/customers/${customerId}/projects`,
+    { params }
   );
 
   return response.data;

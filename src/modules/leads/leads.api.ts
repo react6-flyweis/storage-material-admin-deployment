@@ -4,6 +4,8 @@ export type Lead = {
   _id: string;
   customerId?: string;
   projectName?: string;
+  businessUnit?: string | null;
+  businessUnitLabel?: string;
   buildingType?: string;
   location?: string;
   assignedSales?: {
@@ -16,6 +18,15 @@ export type Lead = {
   isTerminated?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  isArchived?: boolean;
+  archiveReason?: string | null;
+  archivedAt?: string | null;
+  archivedBy?: {
+    _id: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  } | string | null;
 };
 
 export type GetLeadsData = {
@@ -47,6 +58,7 @@ export async function getLeadsProvider(
     customerId?: string;
     search?: string;
     lifecycleStatus?: string;
+    businessUnit?: string;
   }
 ) {
   const params: Record<string, string | number> = {
@@ -64,6 +76,10 @@ export async function getLeadsProvider(
 
   if (filters?.lifecycleStatus) {
     params.lifecycleStatus = filters.lifecycleStatus;
+  }
+
+  if (filters?.businessUnit && filters.businessUnit !== "all") {
+    params.businessUnit = filters.businessUnit;
   }
 
   const response = await apiClient.get<GetLeadsResponse>(
@@ -85,6 +101,8 @@ export type AdminLead = {
   _id: string;
   jobId?: string;
   projectName?: string;
+  businessUnit?: string | null;
+  businessUnitLabel?: string;
   customerId?: {
     customerId?: string;
     firstName?: string;
@@ -101,7 +119,18 @@ export type AdminLead = {
     score?: number;
   };
   createdAt: string;
+  isArchived?: boolean;
+  archiveReason?: string | null;
+  archivedAt?: string | null;
+  archivedBy?: {
+    _id: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  } | string | null;
 };
+
+export type LeadListItem = AdminLead;
 
 export type AdminLeadsData = {
   leads: AdminLead[];
@@ -175,7 +204,11 @@ export type GetTerminatedLeadsResponse = {
   data: {
     projects: Array<{
       _id: string;
+      jobId?: string;
+      projectId?: string;
       projectName: string;
+      businessUnit?: string | null;
+      businessUnitLabel?: string;
       customerId?: { _id?: string; firstName: string; lastName?: string };
       assignedSales?: { _id?: string; name: string };
       terminatedAt: string | null;
@@ -189,7 +222,8 @@ export type GetTerminatedLeadsResponse = {
 export async function getTerminatedLeadsProvider(
   page = 1,
   limit = 20,
-  search?: string
+  search?: string,
+  businessUnit?: string
 ) {
   const params: Record<string, string | number> = {
     page,
@@ -197,6 +231,9 @@ export async function getTerminatedLeadsProvider(
   };
   if (search) {
     params.search = search;
+  }
+  if (businessUnit && businessUnit !== "all") {
+    params.businessUnit = businessUnit;
   }
   const response = await apiClient.get<GetTerminatedLeadsResponse>(
     "/api/admin/leads/terminated",
@@ -226,6 +263,8 @@ export type GetLeadDetailResponse = {
     lead: {
       _id: string;
       customerId?: string;
+      businessUnit?: string | null;
+      businessUnitLabel?: string;
       buildingType?: string;
       location?: string;
       city?: string;
@@ -247,6 +286,15 @@ export type GetLeadDetailResponse = {
       isTerminated?: boolean;
       terminationReason?: string;
       terminatedAt?: string | null;
+      isArchived?: boolean;
+      archiveReason?: string | null;
+      archivedAt?: string | null;
+      archivedBy?: {
+        _id: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+      } | string | null;
       isDeleted?: boolean;
       deletedAt?: string | null;
       deletedBy?: string | null;
@@ -368,6 +416,8 @@ export type LeadScoreItem = {
   projectId: string;
   customerName: string;
   projectName: string;
+  businessUnit?: string | null;
+  businessUnitLabel?: string;
   location: string;
   lifecycleStatus: string;
   status: string;
@@ -400,6 +450,7 @@ export async function getLeadScoringProvider(
     endDate?: string;
     status?: string;
     client?: string;
+    businessUnit?: string;
   }
 ) {
   const params: Record<string, string | number> = { page, limit };
@@ -408,6 +459,9 @@ export async function getLeadScoringProvider(
   if (filters?.endDate) params.endDate = filters.endDate;
   if (filters?.status && filters.status !== "all") params.status = filters.status;
   if (filters?.client) params.search = filters.client;
+  if (filters?.businessUnit && filters.businessUnit !== "all") {
+    params.businessUnit = filters.businessUnit;
+  }
 
   const response = await apiClient.get<GetLeadScoringResponse>(
     "/api/admin/leads/by-score",
@@ -577,6 +631,7 @@ export async function getLeadBudgetProvider(leadId: string) {
 export type UpdateLeadPayload = {
   projectName?: string;
   buildingType?: string;
+  businessUnit?: string | null;
   location?: string;
   roofStyle?: string;
   width?: number;
@@ -612,6 +667,7 @@ export type CreateLeadPayload = {
   customerId: string;
   projectName: string;
   buildingType: string;
+  businessUnit?: string | null;
   location: string;
   source: string;
   quoteValue: number;
@@ -739,5 +795,92 @@ export async function uploadLeadDocumentProvider(
     },
   });
 
+  return response.data;
+}
+
+export type GetArchivedLeadsParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  businessUnit?: string;
+};
+
+export type ArchivedLeadsData = {
+  leads: AdminLead[];
+  total: number;
+  page?: number;
+  limit?: number;
+};
+
+export type ArchivedLeadsResponse = {
+  success: boolean;
+  message: string;
+  data: ArchivedLeadsData;
+};
+
+export type LeadsListResponse = ArchivedLeadsResponse;
+
+/**
+ * 1. List Archived Leads
+ * GET /api/admin/leads/archived?page=1&limit=20
+ */
+export async function getArchivedLeadsProvider(
+  params: GetArchivedLeadsParams = { page: 1, limit: 20 },
+) {
+  const queryParams: Record<string, string | number> = {};
+  if (params.page !== undefined) queryParams.page = params.page;
+  if (params.limit !== undefined) queryParams.limit = params.limit;
+  if (params.search) queryParams.search = params.search;
+  if (params.businessUnit && params.businessUnit !== "all") {
+    queryParams.businessUnit = params.businessUnit;
+  }
+
+  const response = await apiClient.get<ArchivedLeadsResponse>(
+    "/api/admin/leads/archived",
+    { params: queryParams },
+  );
+  return response.data;
+}
+
+export type ArchiveLeadPayload = {
+  reason?: string;
+};
+
+export type ArchiveLeadResponse = {
+  success: boolean;
+  message: string;
+  data?: unknown;
+};
+
+/**
+ * 2. Archive Lead
+ * PUT /api/admin/leads/:leadId/archive
+ * Body: { "reason": "Lost to competitor — no follow-up" } (optional)
+ */
+export async function archiveLeadProvider(
+  leadId: string,
+  payload?: ArchiveLeadPayload,
+) {
+  const response = await apiClient.put<ArchiveLeadResponse>(
+    `/api/admin/leads/${encodeURIComponent(leadId)}/archive`,
+    payload ?? {},
+  );
+  return response.data;
+}
+
+export type UnarchiveLeadResponse = {
+  success: boolean;
+  message: string;
+  data?: unknown;
+};
+
+/**
+ * 3. Restore Lead
+ * PUT /api/admin/leads/:leadId/unarchive
+ */
+export async function unarchiveLeadProvider(leadId: string) {
+  const response = await apiClient.put<UnarchiveLeadResponse>(
+    `/api/admin/leads/${encodeURIComponent(leadId)}/unarchive`,
+  );
   return response.data;
 }

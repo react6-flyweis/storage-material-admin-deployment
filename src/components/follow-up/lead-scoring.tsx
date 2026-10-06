@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { useLeadScoringQuery } from "@/modules/leads/leads.hooks";
+import { formatBusinessUnit } from "@/modules/leads/business-unit";
 
 export default function LeadScoring() {
   const { data: leadScoringResponse, isLoading } = useLeadScoringQuery(1, 10, { status: "hot" });
@@ -61,7 +62,14 @@ export default function LeadScoring() {
                     </span>
                     <div className="font-medium text-gray-900">{lead.customerName || "Unknown"}</div>
                   </div>
-                  <div className="text-sm text-gray-500 mt-1">{lead.projectName}</div>
+                  <div className="text-sm text-gray-500 mt-1 flex items-center gap-2">
+                    <span>{lead.projectName}</span>
+                    {(lead.businessUnitLabel || lead.businessUnit) && (
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                        {lead.businessUnitLabel || formatBusinessUnit(lead.businessUnit)}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-2 items-center">
                   <div className="text-sm font-semibold">{lead.score || 0}</div>

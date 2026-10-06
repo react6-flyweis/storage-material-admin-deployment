@@ -36,6 +36,8 @@ export async function getProjectsApi(params?: GetProjectsParams) {
     buildingType: l.buildingType,
     location: l.location,
     jobId: (l as unknown as { jobId?: string }).jobId,
+    businessUnit: l.businessUnit,
+    businessUnitLabel: l.businessUnitLabel,
     lifecycleStatus: l.lifecycleStatus,
   }));
 

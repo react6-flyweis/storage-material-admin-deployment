@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router";
 import { useAppBack } from "@/modules/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getLeadDetailProvider, updateLeadProvider } from "@/modules/leads/leads.api";
+import BusinessUnitSelector from "@/components/leads/business-unit-selector";
 import SuccessDialog from "@/components/success-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ type LeadFormData = {
   windows: number;
   insulation: number;
   projectName: string;
+  businessUnit: string;
   location: string;
 };
 
@@ -64,6 +66,7 @@ const getInitialFormData = (): LeadFormData => ({
   windows: 0,
   insulation: 0,
   projectName: "",
+  businessUnit: "",
   location: "",
 });
 
@@ -189,6 +192,7 @@ export default function EditLeadPage() {
         windows: Number(lead?.numWindows) || 0,
         insulation: Number(lead?.numInsulation) || 0,
         projectName: lead?.projectName || "",
+        businessUnit: lead?.businessUnit || "",
         location: lead?.location || "",
       });
     }
@@ -227,6 +231,7 @@ export default function EditLeadPage() {
       windows: Number(formData.windows) || 0,
       insulation: Number(formData.insulation) || 0,
       projectName: formData.projectName,
+      businessUnit: formData.businessUnit ? formData.businessUnit.trim().toLowerCase() : null,
       location: formData.location,
     });
   };
@@ -386,6 +391,20 @@ export default function EditLeadPage() {
                   onChange={handleInputChange}
                   placeholder="Enter Location"
                   className="h-10"
+                />
+              </div>
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="businessUnit" className="text-xs text-slate-600">
+                  Business Unit
+                </Label>
+                <BusinessUnitSelector
+                  id="businessUnit"
+                  value={formData.businessUnit}
+                  onChange={(value) => handleSelectChange("businessUnit", value)}
+                  includeClear
+                  clearLabel="Not set"
+                  placeholder="Not set"
+                  triggerClassName="h-10 w-full bg-white"
                 />
               </div>
               <div className="space-y-2 md:col-span-2">

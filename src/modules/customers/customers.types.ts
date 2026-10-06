@@ -42,6 +42,9 @@ export type GetAdminCustomersResponse = {
 export type AdminCustomerProject = {
   _id: string;
   customerId?: string;
+  projectName?: string;
+  businessUnit?: string | null;
+  businessUnitLabel?: string;
   buildingType?: string;
   location?: string;
   source?: string;
@@ -57,7 +60,11 @@ export type AdminCustomerProject = {
 // Type matching the real /api/admin/customers/{id}/projects response
 export type CustomerProject = {
   _id: string;
+  projectId?: string;
+  jobId?: string;
   projectName?: string;
+  businessUnit?: string | null;
+  businessUnitLabel?: string;
   numberOfBuildings?: number;
   lifecycleStatus?: string;
   assignedSales?: { _id: string; name: string };
@@ -186,6 +193,7 @@ export type CreateCustomerRequest = {
   projectName: string;
   countryCode: string;
   assignedSales: string;
+  businessUnit?: string | null;
 };
 
 export type CreateCustomerResponse = {
@@ -241,6 +249,7 @@ export type EditCustomerResponse = {
 export type CreateCustomerLeadRequest = {
   projectName: string;
   buildingType: string;
+  businessUnit?: string | null;
   location: string;
   roofStyle: string;
   width: number;
@@ -266,6 +275,8 @@ export type GetCustomersProjectsListResponse = {
       leadId: string;
       projectName: string;
       jobId: string;
+      businessUnit?: string | null;
+      businessUnitLabel?: string;
       customerId: string;
       customerName: string;
       quoteValue: number;

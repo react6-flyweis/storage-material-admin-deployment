@@ -7,6 +7,8 @@ export type PurchaseOrder = {
   leadId?: {
     _id: string;
     projectName?: string;
+    businessUnit?: string | null;
+    businessUnitLabel?: string;
     location?: string;
     quoteValue?: number;
   };
