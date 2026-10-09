@@ -174,6 +174,7 @@ export function EmployeeTable({
                 <SelectItem value="construction">Construction</SelectItem>
                 <SelectItem value="plant">Plant</SelectItem>
                 <SelectItem value="account">Account</SelectItem>
+                <SelectItem value="support">Support</SelectItem>
               </SelectGroup>
             </SelectContent>
           </Select>
