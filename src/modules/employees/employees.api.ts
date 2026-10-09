@@ -232,10 +232,15 @@ export type EmployeePerformanceApiItem = {
   totalLeads: number;
   closedLeads: number;
   conversionRate: number;
+  revenue: number;
+  revenueSharePercent: number;
 };
 
 export type EmployeePerformanceData = {
   performance: EmployeePerformanceApiItem[];
+  totalRevenue: number;
+  totalDeals: number;
+  topPerformer: EmployeePerformanceApiItem | null;
 };
 
 export type EmployeePerformanceResponse = {
