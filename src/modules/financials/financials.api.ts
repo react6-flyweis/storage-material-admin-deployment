@@ -533,7 +533,7 @@ export type FreightCostItem = {
   freightId?: string;
   id?: string;
   projectName?: string;
-  project?: string;
+  project?: { projectName?: string; jobId?: string; leadId?: string };
   carrierName?: string;
   carrier?: string;
   deliveryId?: string;
