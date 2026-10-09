@@ -137,7 +137,9 @@ export default function CustomersTable({
       setSuccessDialogOpen(true);
       toast.success("Customer deactivated successfully");
     } catch (error: any) {
-      const errorMessage = error?.response?.data?.message || "Failed to deactivate customer. Please try again.";
+      const errorMessage =
+        error?.response?.data?.message ||
+        "Failed to deactivate customer. Please try again.";
       toast.error(errorMessage);
       console.error("Deactivate customer error:", error);
     }
@@ -148,7 +150,9 @@ export default function CustomersTable({
       await deactivateCustomerMutation.mutateAsync(customerId);
       toast.success("Customer reactivated successfully");
     } catch (error: any) {
-      const errorMessage = error?.response?.data?.message || "Failed to reactivate customer. Please try again.";
+      const errorMessage =
+        error?.response?.data?.message ||
+        "Failed to reactivate customer. Please try again.";
       toast.error(errorMessage);
       console.error("Reactivate customer error:", error);
     }
@@ -180,9 +184,7 @@ export default function CustomersTable({
       const matchesPlant =
         plantFilter === "all" || assignedPlant.toLowerCase() === plantFilter;
 
-      return (
-        matchesSearch && matchesStatus && matchesPlant
-      );
+      return matchesSearch && matchesStatus && matchesPlant;
     });
   }, [customers, plantFilter, searchQuery, statusFilter]);
 
@@ -334,14 +336,17 @@ export default function CustomersTable({
                     Status
                   </th>
                   <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">
-                 Action
+                    Action
                   </th>
                   <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white">
                 {Array.from({ length: 5 }).map((_, rowIndex) => (
-                  <tr key={`skeleton-row-${rowIndex}`} className="h-12 animate-pulse">
+                  <tr
+                    key={`skeleton-row-${rowIndex}`}
+                    className="h-12 animate-pulse"
+                  >
                     <td className="px-3 py-2.5">
                       <div className="h-4 w-4 rounded bg-gray-200" />
                     </td>
@@ -418,7 +423,7 @@ export default function CustomersTable({
                     Status
                   </th>
                   <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">
-                  Actions
+                    Actions
                   </th>
                   <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700"></th>
                 </tr>
