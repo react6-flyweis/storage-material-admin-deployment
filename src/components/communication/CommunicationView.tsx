@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useSearchParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/modules/auth/auth.store";
 import { useSocket } from "@/context/useSocket";
@@ -10,6 +11,14 @@ import {
   useGroupDetailsQuery,
   chatQueryKeys,
 } from "@/modules/team-chat/team-chat.hooks";
+import {
+  useCustomerDirectConversationsQuery,
+  useCustomerDirectMessagesQuery,
+  useSendCustomerDirectMessageMutation,
+  customerDirectChatQueryKeys,
+} from "@/modules/customer-direct-chat/customer-direct-chat.hooks";
+import type { CustomerDirectMessage } from "@/modules/customer-direct-chat/customer-direct-chat.types";
+import { useCustomerDetailQuery } from "@/modules/customers/customers.hooks";
 import { uploadFileToS3 } from "@/lib/upload";
 import type {
   TeamMessage,
@@ -29,6 +38,9 @@ import { NewChatModal } from "./NewChatModal";
 import { NewGroupModal } from "./NewGroupModal";
 
 export const CommunicationView: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const urlCustomerId = searchParams.get("customerId");
+
   const queryClient = useQueryClient();
   const currentUser = useAuthStore((state) => state.user);
   const {
@@ -39,9 +51,17 @@ export const CommunicationView: React.FC = () => {
     sendTypingStart,
     sendTypingStop,
     sendMessage,
+    joinCustomerDirect,
+    leaveCustomerDirect,
   } = useSocket();
 
-  const [activeTab, setActiveTab] = useState<"Departments" | "Direct">("Departments");
+  // Top level tabs: Customers vs Team
+  const [activeMainTab, setActiveMainTab] = useState<"Customers" | "Team">(
+    urlCustomerId ? "Customers" : "Customers"
+  );
+  // Sub-tab under Team: Departments vs Direct
+  const [teamTab, setTeamTab] = useState<"Departments" | "Direct">("Direct");
+
   const [activeChat, setActiveChat] = useState<ActiveChatState | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [messageInput, setMessageInput] = useState("");
@@ -62,14 +82,62 @@ export const CommunicationView: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Queries
+  // Team queries
   const { data: usersData, isLoading: isLoadingUsers } = useChatUsersQuery();
   const { data: conversationsData, isLoading: isLoadingConversations } = useChatConversationsQuery();
 
-  // Active chat message history queries
+  // Customer direct conversations query
+  const {
+    data: customerConversationsData,
+    isLoading: isLoadingCustomerConversations,
+  } = useCustomerDirectConversationsQuery();
+
+  // Single customer query for deep-link / direct initiate
+  const { data: targetCustomerDetailRes } = useCustomerDetailQuery(urlCustomerId || "");
+
+  // Auto-select chat when customerId is present in URL
+  useEffect(() => {
+    if (!urlCustomerId) return;
+
+    setActiveMainTab("Customers");
+    const existingConv = customerConversationsData?.find(
+      (c) => c.customerId === urlCustomerId
+    );
+
+    if (existingConv) {
+      setActiveChat({
+        type: "customer",
+        id: urlCustomerId,
+        name: existingConv.customerName || "Customer",
+        email: existingConv.email,
+        phone: existingConv.phone,
+        category: "Customer",
+        color: "bg-emerald-600",
+      });
+    } else {
+      const cust = targetCustomerDetailRes?.data?.customer;
+      const cName = cust
+        ? `${cust.firstName || ""} ${cust.lastName || ""}`.trim()
+        : "Customer";
+
+      setActiveChat({
+        type: "customer",
+        id: urlCustomerId,
+        name: cName || "Customer",
+        email: cust?.email,
+        phone: cust?.phone?.number,
+        category: "Customer",
+        color: "bg-emerald-600",
+      });
+    }
+  }, [urlCustomerId, customerConversationsData, targetCustomerDetailRes]);
+
+  // Active chat state flags
   const isDirectActive = activeChat?.type === "direct" && Boolean(activeChat.id);
   const isGroupActive = activeChat?.type === "group" && Boolean(activeChat.id);
+  const isCustomerActive = activeChat?.type === "customer" && Boolean(activeChat.id);
 
+  // Team chat message history queries
   const {
     data: directHistoryData,
     isLoading: isLoadingDirectHistory,
@@ -93,16 +161,50 @@ export const CommunicationView: React.FC = () => {
     isLoading: isLoadingGroupDetails,
   } = useGroupDetailsQuery(activeChat?.id || "", isGroupActive);
 
+  // Customer direct chat history query
+  const {
+    data: customerHistoryData,
+    isLoading: isLoadingCustomerHistory,
+  } = useCustomerDirectMessagesQuery(activeChat?.id || "", undefined, {
+    enabled: isCustomerActive,
+  });
+
+  // Customer direct send mutation
+  const sendCustomerMessageMutation = useSendCustomerDirectMessageMutation();
+
   // Merge historical messages with live socket messages
   const displayedMessages = useMemo(() => {
-    const history = isDirectActive
-      ? directHistoryData?.messages || []
-      : isGroupActive
-      ? groupHistoryData?.messages || []
-      : [];
+    let history: TeamMessage[] = [];
+
+    if (isDirectActive) {
+      history = directHistoryData?.messages || [];
+    } else if (isGroupActive) {
+      history = groupHistoryData?.messages || [];
+    } else if (isCustomerActive && customerHistoryData) {
+      history = customerHistoryData.map((m) => ({
+        _id: m._id || m.messageId || `cmsg-${m.createdAt}-${Math.random()}`,
+        messageId: m.messageId,
+        customerId: m.customerId,
+        channelType: "customer",
+        senderType: m.senderType,
+        senderId:
+          m.senderId ||
+          (m.senderType === "customer" ? m.customerId : currentUser?._id || "staff"),
+        senderName:
+          m.senderName ||
+          (m.senderType === "customer"
+            ? activeChat?.name || "Customer"
+            : currentUser?.name || "You"),
+        content: m.content,
+        isReadByCustomer: m.isReadByCustomer,
+        isReadByStaff: m.isReadByStaff,
+        createdAt: m.createdAt,
+      }));
+    }
 
     const map = new Map<string, TeamMessage>();
     history.forEach((m) => map.set(m._id, m));
+
     liveMessages.forEach((m) => {
       // replace optimistic or append
       const existingTempKey = Array.from(map.keys()).find(
@@ -120,7 +222,17 @@ export const CommunicationView: React.FC = () => {
     return Array.from(map.values()).sort(
       (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
     );
-  }, [isDirectActive, isGroupActive, directHistoryData, groupHistoryData, liveMessages]);
+  }, [
+    isDirectActive,
+    isGroupActive,
+    isCustomerActive,
+    directHistoryData,
+    groupHistoryData,
+    customerHistoryData,
+    liveMessages,
+    currentUser,
+    activeChat,
+  ]);
 
   // Auto scroll to bottom
   const scrollToBottom = (behavior: ScrollBehavior = "smooth") => {
@@ -135,9 +247,9 @@ export const CommunicationView: React.FC = () => {
     scrollToBottom("smooth");
   }, [displayedMessages]);
 
-  // Join / Leave channel lifecycle
+  // Join / Leave channel lifecycle for Team Chat
   useEffect(() => {
-    if (!activeChat) return;
+    if (!activeChat || activeChat.type === "customer") return;
 
     joinChannel(activeChat.type, activeChat.id);
 
@@ -146,9 +258,20 @@ export const CommunicationView: React.FC = () => {
     };
   }, [activeChat, joinChannel, leaveChannel]);
 
-  // Listen to live socket events for current chat
+  // Join / Leave channel lifecycle for Customer Direct Chat
   useEffect(() => {
-    if (!socket || !activeChat) return;
+    if (!activeChat || activeChat.type !== "customer") return;
+
+    joinCustomerDirect(activeChat.id);
+
+    return () => {
+      leaveCustomerDirect(activeChat.id);
+    };
+  }, [activeChat, joinCustomerDirect, leaveCustomerDirect]);
+
+  // Listen to live socket events for current Team chat
+  useEffect(() => {
+    if (!socket || !activeChat || activeChat.type === "customer") return;
 
     // 1. new_team_message
     const handleNewMessage = (msg: TeamMessage) => {
@@ -167,11 +290,9 @@ export const CommunicationView: React.FC = () => {
 
       if (isCurrentGroup || isCurrentDirect) {
         setLiveMessages((prev) => {
-          // Check if message already exists
           const exists = prev.some((m) => m._id === msg._id);
           if (exists) return prev;
 
-          // Remove optimistic message with matching content and sender
           const filtered = prev.filter(
             (m) =>
               !(
@@ -184,7 +305,6 @@ export const CommunicationView: React.FC = () => {
           return [...filtered, msg];
         });
 
-        // Invalidate unread queries if received from someone else
         if (msg.senderId !== currentUser?._id) {
           queryClient.invalidateQueries({ queryKey: chatQueryKeys.unreadCount() });
           queryClient.invalidateQueries({ queryKey: chatQueryKeys.conversations() });
@@ -194,7 +314,6 @@ export const CommunicationView: React.FC = () => {
 
     // 2. team_typing
     const handleTyping = (data: TeamTypingEvent) => {
-      console.log("[CommunicationView] team_typing:", data);
       if (
         data.channelType === activeChat.type &&
         data.channelId === activeChat.id &&
@@ -213,7 +332,6 @@ export const CommunicationView: React.FC = () => {
 
     // 3. team_messages_read
     const handleMessagesRead = (data: TeamMessagesReadEvent) => {
-      console.log("[CommunicationView] team_messages_read:", data);
       if (
         data.channelType === activeChat.type &&
         data.channelId === activeChat.id
@@ -248,12 +366,70 @@ export const CommunicationView: React.FC = () => {
     };
   }, [socket, activeChat, currentUser, queryClient]);
 
+  // Listen to live socket events for current Customer Direct chat
+  useEffect(() => {
+    if (!socket || !activeChat || activeChat.type !== "customer") return;
+
+    const handleCustomerDirectMessage = (msg: CustomerDirectMessage) => {
+      console.log("[CommunicationView] customer_direct_message:", msg);
+
+      if (msg.customerId === activeChat.id) {
+        const converted: TeamMessage = {
+          _id: msg._id || msg.messageId || `msg-${Date.now()}`,
+          messageId: msg.messageId,
+          customerId: msg.customerId,
+          channelType: "customer",
+          senderType: msg.senderType,
+          senderId:
+            msg.senderId ||
+            (msg.senderType === "customer"
+              ? msg.customerId
+              : currentUser?._id || "staff"),
+          senderName:
+            msg.senderName ||
+            (msg.senderType === "customer"
+              ? activeChat.name
+              : currentUser?.name || "You"),
+          content: msg.content,
+          isReadByCustomer: msg.isReadByCustomer,
+          isReadByStaff: msg.isReadByStaff,
+          createdAt: msg.createdAt,
+        };
+
+        setLiveMessages((prev) => {
+          const exists = prev.some(
+            (m) =>
+              (m.messageId && m.messageId === msg.messageId) ||
+              m._id === converted._id
+          );
+          if (exists) return prev;
+
+          const filtered = prev.filter(
+            (m) => !(m.isOptimistic && m.content === msg.content)
+          );
+
+          return [...filtered, converted];
+        });
+
+        queryClient.invalidateQueries({
+          queryKey: customerDirectChatQueryKeys.conversations(),
+        });
+      }
+    };
+
+    socket.on("customer_direct_message", handleCustomerDirectMessage);
+
+    return () => {
+      socket.off("customer_direct_message", handleCustomerDirectMessage);
+    };
+  }, [socket, activeChat, currentUser, queryClient]);
+
   // Handle typing debounce
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setMessageInput(val);
 
-    if (!activeChat) return;
+    if (!activeChat || activeChat.type === "customer") return;
 
     sendTypingStart(activeChat.type, activeChat.id);
 
@@ -291,7 +467,8 @@ export const CommunicationView: React.FC = () => {
 
       setPendingAttachments((prev) => [...prev, ...uploaded]);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to upload file attachment";
+      const message =
+        err instanceof Error ? err.message : "Failed to upload file attachment";
       console.error("[CommunicationView] File upload error:", err);
       setErrorBanner(message);
     } finally {
@@ -312,12 +489,61 @@ export const CommunicationView: React.FC = () => {
     const trimmed = messageInput.trim();
     if (!trimmed && pendingAttachments.length === 0) return;
 
+    // 1. Customer Direct message send
+    if (activeChat.type === "customer") {
+      const tempId = `temp-${Date.now()}`;
+      let finalContent = trimmed;
+
+      if (pendingAttachments.length > 0) {
+        const links = pendingAttachments.map((a) => a.url).join("\n");
+        finalContent = trimmed ? `${trimmed}\n\n${links}` : links;
+      }
+
+      const optimisticMsg: TeamMessage = {
+        _id: tempId,
+        channelType: "customer",
+        customerId: activeChat.id,
+        senderType: "admin",
+        senderId: currentUser?._id || "staff",
+        senderName: currentUser?.name || "You",
+        content: finalContent,
+        attachments: [...pendingAttachments],
+        createdAt: new Date().toISOString(),
+        isOptimistic: true,
+        status: "pending",
+      };
+
+      setLiveMessages((prev) => [...prev, optimisticMsg]);
+
+      sendCustomerMessageMutation.mutate(
+        { customerId: activeChat.id, content: finalContent },
+        {
+          onError: (err: unknown) => {
+            const errObj = err as {
+              response?: { data?: { message?: string } };
+              message?: string;
+            };
+            const msg =
+              errObj?.response?.data?.message ||
+              errObj?.message ||
+              "Failed to send message to customer";
+            setErrorBanner(msg);
+            setLiveMessages((prev) => prev.filter((m) => m._id !== tempId));
+          },
+        }
+      );
+
+      setMessageInput("");
+      setPendingAttachments([]);
+      return;
+    }
+
+    // 2. Team message send
     if (typingTimeoutRef.current) {
       clearTimeout(typingTimeoutRef.current);
     }
     sendTypingStop(activeChat.type, activeChat.id);
 
-    // Optimistic UI message
     const tempId = `temp-${Date.now()}`;
     const optimisticMsg: TeamMessage = {
       _id: tempId,
@@ -335,7 +561,6 @@ export const CommunicationView: React.FC = () => {
 
     setLiveMessages((prev) => [...prev, optimisticMsg]);
 
-    // Emit over socket
     sendMessage({
       channelType: activeChat.type,
       channelId: activeChat.id,
@@ -372,8 +597,13 @@ export const CommunicationView: React.FC = () => {
       <ChatSidebar
         currentUser={currentUser}
         isConnected={isConnected}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        activeMainTab={activeMainTab}
+        setActiveMainTab={(tab) => {
+          setActiveMainTab(tab);
+          setSearchQuery("");
+        }}
+        teamTab={teamTab}
+        setTeamTab={setTeamTab}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         activeChat={activeChat}
@@ -386,6 +616,8 @@ export const CommunicationView: React.FC = () => {
         }}
         conversations={conversationsData || []}
         isLoadingConversations={isLoadingConversations}
+        customerConversations={customerConversationsData || []}
+        isLoadingCustomerConversations={isLoadingCustomerConversations}
         onOpenNewChat={() => setIsNewChatModalOpen(true)}
         onOpenNewGroup={() => setIsNewGroupModalOpen(true)}
       />
@@ -396,7 +628,7 @@ export const CommunicationView: React.FC = () => {
           <>
             <ChatHeader
               activeChat={activeChat}
-              typingText={typingText}
+              typingText={activeChat.type === "customer" ? null : typingText}
               errorBanner={errorBanner}
               setErrorBanner={setErrorBanner}
               isDrawerOpen={isDrawerOpen}
@@ -405,7 +637,11 @@ export const CommunicationView: React.FC = () => {
 
             <ChatMessageList
               messages={displayedMessages}
-              isLoadingHistory={isLoadingDirectHistory || isLoadingGroupHistory}
+              isLoadingHistory={
+                isLoadingDirectHistory ||
+                isLoadingGroupHistory ||
+                isLoadingCustomerHistory
+              }
               currentUserId={currentUser?._id}
               currentUserName={currentUser?.name}
               messagesEndRef={messagesEndRef}
@@ -441,7 +677,7 @@ export const CommunicationView: React.FC = () => {
         />
       )}
 
-      {/* 4. New Direct Chat Modal */}
+      {/* 4. New Direct Chat Modal (Team Only) */}
       <NewChatModal
         isOpen={isNewChatModalOpen}
         onClose={() => setIsNewChatModalOpen(false)}
@@ -449,7 +685,8 @@ export const CommunicationView: React.FC = () => {
         isLoadingUsers={isLoadingUsers}
         onSelectUser={(chat) => {
           setActiveChat(chat);
-          setActiveTab("Direct");
+          setActiveMainTab("Team");
+          setTeamTab("Direct");
           setLiveMessages([]);
           setTypingUsers({});
           setErrorBanner(null);
@@ -458,7 +695,7 @@ export const CommunicationView: React.FC = () => {
         currentUserId={currentUser?._id}
       />
 
-      {/* 5. New Department / Group Channel Modal */}
+      {/* 5. New Department / Group Channel Modal (Team Only) */}
       <NewGroupModal
         isOpen={isNewGroupModalOpen}
         onClose={() => setIsNewGroupModalOpen(false)}
@@ -474,7 +711,8 @@ export const CommunicationView: React.FC = () => {
             avatar: group.avatar,
             color: "bg-[#4285F4]",
           });
-          setActiveTab("Departments");
+          setActiveMainTab("Team");
+          setTeamTab("Departments");
           setLiveMessages([]);
           setTypingUsers({});
           setErrorBanner(null);
