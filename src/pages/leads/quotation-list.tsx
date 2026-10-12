@@ -43,6 +43,7 @@ import {
   type Quotation,
   type AdminStatus,
 } from "@/modules/quotations/quotations.api";
+import { resolveQuotationLifecycle } from "@/modules/quotations/quotations.utils";
 import ApproveQuotationDialog from "@/components/leads/approve-quotation-dialog";
 import RejectQuotationDialog from "@/components/leads/reject-quotation-dialog";
 import SendQuotationDialog from "@/components/leads/send-quotation-dialog";
@@ -63,26 +64,37 @@ const BUILDING_TYPE_OPTIONS = BUILDING_TYPE.map((type) => ({
 }));
 
 function getStatusBadge(quotation: Quotation) {
-  const status = quotation.workflowStatus || quotation.status || "draft";
+  const lifecycle = resolveQuotationLifecycle(quotation);
 
-  switch (status) {
+  switch (lifecycle.lifecycleStatus) {
+    case "customer_rejected":
+      return (
+        <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-rose-100 text-rose-700">
+          Declined by Customer
+        </span>
+      );
+    case "customer_accepted":
+      return (
+        <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
+          Accepted by Customer
+        </span>
+      );
     case "approved":
       return (
         <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-green-100 text-green-700">
           Approved
         </span>
       );
-    case "pending":
     case "pending_approval":
       return (
         <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
           Pending Approval
         </span>
       );
-    case "rejected":
+    case "admin_rejected":
       return (
-        <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-orange-100 text-orange-700">
-          Rejected
+        <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-red-100 text-red-700">
+          Admin Rejected
         </span>
       );
     case "sent":
@@ -96,12 +108,6 @@ function getStatusBadge(quotation: Quotation) {
       return (
         <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-purple-100 text-purple-700">
           Sent via email
-        </span>
-      );
-    case "accepted":
-      return (
-        <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
-          Accepted
         </span>
       );
     case "draft":
@@ -431,23 +437,11 @@ export default function QuotationListPage() {
                 </TableRow>
               ) : (
                 quotations.map((quotation) => {
-                  const effectiveStatus =
-                    quotation.approvalStatus ||
-                    quotation.workflowStatus ||
-                    quotation.approval?.status ||
-                    quotation.status;
-                  const isPending =
-                    effectiveStatus === "pending_approval" ||
-                    effectiveStatus === "pending";
-                  const isAlreadySent =
-                    quotation.workflowStatus === "sent" ||
-                    quotation.status === "sent" ||
-                    Boolean(quotation.sentAt);
-                  const isApproved =
-                    effectiveStatus === "approved" ||
-                    quotation.approvalStatus === "approved" ||
-                    quotation.approval?.status === "approved";
-                  const canSend = isApproved || isAlreadySent;
+                  const lifecycle = resolveQuotationLifecycle(quotation);
+                  const isPending = lifecycle.isPendingApproval;
+                  const isAlreadySent = lifecycle.isSent;
+                  const isApproved = lifecycle.isApproved;
+                  const canSend = (isApproved || isAlreadySent) && !lifecycle.isCustomerRejected;
                   const price =
                     quotation.finalPrice || quotation.basePrice || 0;
 
