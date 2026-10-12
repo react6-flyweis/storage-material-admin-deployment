@@ -7,6 +7,7 @@ import {
   FileSpreadsheet,
   FileText,
   MailIcon,
+  MessageSquare,
   Printer,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,12 +15,7 @@ import { Button } from "@/components/ui/button";
 import StatCard from "@/components/ui/stat-card";
 import ProfileCard from "@/components/profile-card";
 import { useCustomerDetailQuery, useCustomerProjectsQuery, useCustomerInvoicesQuery } from "@/modules/customers/customers.hooks";
-import { StatCardSkeleton, TableSkeleton, CardSkeleton } from "@/components/ui/skeleton";
-import photo1 from "@/assets/images/customers/photos-1.webp";
-import photo2 from "@/assets/images/customers/photos-2.webp";
-import photo3 from "@/assets/images/customers/photos-3.webp";
-import photo4 from "@/assets/images/customers/photos-4.webp";
-import photo5 from "@/assets/images/customers/photos-5.webp";
+import { StatCardSkeleton } from "@/components/ui/skeleton";
 
 function formatCurrency(value = 0) {
   return new Intl.NumberFormat("en-US", {
@@ -139,6 +135,15 @@ export default function CustomerDetailLayout() {
           <h1 className="text-lg ">Customer Info</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+          <Button
+            asChild
+            className="w-full sm:w-auto bg-[#4285F4] hover:bg-blue-600 text-white shadow-xs"
+          >
+            <Link to={`/communication?customerId=${customerData?._id || id}`}>
+              <MessageSquare className="h-4 w-4 mr-1.5" />
+              Message Customer
+            </Link>
+          </Button>
           <Button asChild className="w-full sm:w-auto bg-black px-4">
             <Link to={`/customers/${id}/edit`} state={{ from: location.pathname + location.search }}>Edit</Link>
           </Button>
