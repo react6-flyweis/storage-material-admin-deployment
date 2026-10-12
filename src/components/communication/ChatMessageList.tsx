@@ -44,10 +44,15 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         </div>
       ) : (
         messages.map((msg, index) => {
-          const isMe =
-            msg.senderId === currentUserId ||
-            msg.isOptimistic ||
-            msg.senderName === currentUserName;
+          const isCustomerMsg = msg.channelType === "customer" || Boolean(msg.senderType);
+          const isMe = isCustomerMsg
+            ? msg.senderType === "admin" ||
+              msg.senderType === "sales" ||
+              msg.isOptimistic ||
+              msg.senderId === currentUserId
+            : msg.senderId === currentUserId ||
+              msg.isOptimistic ||
+              msg.senderName === currentUserName;
 
           const prevMsg = messages[index - 1];
           const showDateHeader =
@@ -55,7 +60,10 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
             formatMessageDateHeader(prevMsg.createdAt) !==
             formatMessageDateHeader(msg.createdAt);
 
-          const isRead = (msg.readBy && msg.readBy.length > 0) || false;
+          const isRead =
+            msg.isReadByCustomer ||
+            (msg.readBy && msg.readBy.length > 0) ||
+            false;
 
           return (
             <React.Fragment key={msg._id || index}>
@@ -71,7 +79,18 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
                 className={`flex flex-col ${isMe ? "items-end" : "items-start"
                   }`}
               >
-                {!isMe && (
+                {isCustomerMsg && isMe ? (
+                  <div className="flex items-center gap-1.5 mb-1 pr-1">
+                    <span className="text-xs font-semibold text-slate-700">
+                      {msg.senderId === currentUserId || msg.isOptimistic
+                        ? "You"
+                        : msg.senderName || "Staff"}
+                    </span>
+                    <span className="text-[9px] px-1.5 py-0.5 bg-blue-50 text-blue-700 font-semibold rounded-full uppercase border border-blue-200">
+                      {msg.senderType || "Staff"}
+                    </span>
+                  </div>
+                ) : !isMe ? (
                   <div className="flex items-center gap-2 mb-1 pl-1">
                     <span className="text-xs font-semibold text-slate-700">
                       {msg.senderName}
@@ -81,8 +100,13 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
                         • {msg.senderRole}
                       </span>
                     )}
+                    {isCustomerMsg && (
+                      <span className="text-[9px] px-1.5 py-0.5 bg-emerald-50 text-emerald-800 font-semibold rounded-full uppercase border border-emerald-200">
+                        Customer
+                      </span>
+                    )}
                   </div>
-                )}
+                ) : null}
 
                 <div
                   className={`relative max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 shadow-2xs ${isMe
