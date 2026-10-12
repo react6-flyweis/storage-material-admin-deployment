@@ -63,7 +63,15 @@ export const ADMIN_STATUS = [
 ] as const;
 export type AdminStatus = (typeof ADMIN_STATUS)[number];
 
-export type WorkflowStatus = "draft" | "pending_approval" | "approved" | "rejected" | "sent";
+export type WorkflowStatus =
+  | "draft"
+  | "pending_approval"
+  | "approved"
+  | "rejected"
+  | "sent"
+  | "accepted"
+  | "customer_rejected"
+  | "customer_accepted";
 
 export type QuotationCustomer = {
   _id: string;
@@ -182,6 +190,9 @@ export type Quotation = {
   sentCc?: string[];
   sentMessage?: string;
   sentAt?: string | null;
+  customerDecisionAt?: string | null;
+  customerRejectedAt?: string | null;
+  customerAcceptedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };

@@ -88,3 +88,205 @@ export function getQuotationSalesSubmission(quotation?: Quotation | null): {
 
   return { message, submittedBy, submittedAt, authorName };
 }
+
+export type QuotationResolvedLifecycle =
+  | "draft"
+  | "pending_approval"
+  | "admin_rejected"
+  | "approved"
+  | "sent"
+  | "customer_rejected"
+  | "customer_accepted";
+
+export interface QuotationLifecycleInfo {
+  lifecycleStatus: QuotationResolvedLifecycle;
+  label: string;
+  isCustomerRejected: boolean;
+  isAdminRejected: boolean;
+  isCustomerAccepted: boolean;
+  isSent: boolean;
+  isApproved: boolean;
+  isPendingApproval: boolean;
+  isDraft: boolean;
+  clientNotes?: string;
+  adminRejectionReason?: string;
+  customerDecisionAt?: string;
+}
+
+export function resolveQuotationLifecycle(
+  quotation?: Quotation | null
+): QuotationLifecycleInfo {
+  if (!quotation) {
+    return {
+      lifecycleStatus: "draft",
+      label: "Draft",
+      isCustomerRejected: false,
+      isAdminRejected: false,
+      isCustomerAccepted: false,
+      isSent: false,
+      isApproved: false,
+      isPendingApproval: false,
+      isDraft: true,
+    };
+  }
+
+  const approvalStatus =
+    quotation.approval?.status || quotation.approvalStatus;
+  const quoteStatus = quotation.status;
+  const workflowStatus = quotation.workflowStatus;
+
+  // 1. Customer decisions (Portal decision: customer accepted or declined)
+  // Backend returns quotation.status = "rejected" or "accepted"
+  if (
+    quoteStatus === "rejected" ||
+    workflowStatus === "customer_rejected"
+  ) {
+    // Edge case guard: If quote was rejected internally by admin before sending
+    // (approval status is rejected, never sent, and no client notes)
+    if (
+      approvalStatus === "rejected" &&
+      !quotation.sentAt &&
+      !quotation.clientNotes
+    ) {
+      return {
+        lifecycleStatus: "admin_rejected",
+        label: "Admin Rejected",
+        isCustomerRejected: false,
+        isAdminRejected: true,
+        isCustomerAccepted: false,
+        isSent: false,
+        isApproved: false,
+        isPendingApproval: false,
+        isDraft: false,
+        adminRejectionReason: quotation.approval?.rejectionReason,
+      };
+    }
+
+    return {
+      lifecycleStatus: "customer_rejected",
+      label: "Declined by Customer",
+      isCustomerRejected: true,
+      isAdminRejected: false,
+      isCustomerAccepted: false,
+      isSent: false,
+      isApproved: false,
+      isPendingApproval: false,
+      isDraft: false,
+      clientNotes: quotation.clientNotes,
+      adminRejectionReason: quotation.approval?.rejectionReason,
+      customerDecisionAt:
+        quotation.customerRejectedAt ||
+        quotation.customerDecisionAt ||
+        quotation.updatedAt,
+    };
+  }
+
+  if (
+    quoteStatus === "accepted" ||
+    workflowStatus === "accepted" ||
+    workflowStatus === "customer_accepted"
+  ) {
+    return {
+      lifecycleStatus: "customer_accepted",
+      label: "Accepted by Customer",
+      isCustomerRejected: false,
+      isAdminRejected: false,
+      isCustomerAccepted: true,
+      isSent: false,
+      isApproved: false,
+      isPendingApproval: false,
+      isDraft: false,
+      clientNotes: quotation.clientNotes,
+      customerDecisionAt:
+        quotation.customerAcceptedAt ||
+        quotation.customerDecisionAt ||
+        quotation.updatedAt,
+    };
+  }
+
+  // 2. Sent to Customer
+  if (
+    quoteStatus === "sent" ||
+    workflowStatus === "sent" ||
+    Boolean(quotation.sentAt)
+  ) {
+    return {
+      lifecycleStatus: "sent",
+      label:
+        quotation.sendMethod === "manual" ? "Marked Sent" : "Sent to Customer",
+      isCustomerRejected: false,
+      isAdminRejected: false,
+      isCustomerAccepted: false,
+      isSent: true,
+      isApproved: false,
+      isPendingApproval: false,
+      isDraft: false,
+    };
+  }
+
+  // 3. Admin / Internal Gate (before quote goes to customer)
+  if (approvalStatus === "rejected") {
+    return {
+      lifecycleStatus: "admin_rejected",
+      label: "Admin Rejected",
+      isCustomerRejected: false,
+      isAdminRejected: true,
+      isCustomerAccepted: false,
+      isSent: false,
+      isApproved: false,
+      isPendingApproval: false,
+      isDraft: false,
+      adminRejectionReason: quotation.approval?.rejectionReason,
+    };
+  }
+
+  if (
+    approvalStatus === "approved" ||
+    quoteStatus === "approved" ||
+    workflowStatus === "approved"
+  ) {
+    return {
+      lifecycleStatus: "approved",
+      label: "Approved",
+      isCustomerRejected: false,
+      isAdminRejected: false,
+      isCustomerAccepted: false,
+      isSent: false,
+      isApproved: true,
+      isPendingApproval: false,
+      isDraft: false,
+    };
+  }
+
+  if (
+    approvalStatus === "pending_approval" ||
+    approvalStatus === "pending" ||
+    quoteStatus === "pending_approval" ||
+    quoteStatus === "pending" ||
+    workflowStatus === "pending_approval"
+  ) {
+    return {
+      lifecycleStatus: "pending_approval",
+      label: "Pending Approval",
+      isCustomerRejected: false,
+      isAdminRejected: false,
+      isCustomerAccepted: false,
+      isSent: false,
+      isApproved: false,
+      isPendingApproval: true,
+      isDraft: false,
+    };
+  }
+
+  return {
+    lifecycleStatus: "draft",
+    label: "Draft",
+    isCustomerRejected: false,
+    isAdminRejected: false,
+    isCustomerAccepted: false,
+    isSent: false,
+    isApproved: false,
+    isPendingApproval: false,
+    isDraft: true,
+  };
+}

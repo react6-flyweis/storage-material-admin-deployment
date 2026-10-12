@@ -31,6 +31,7 @@ import { ApprovalHistoryTimeline } from "@/components/timeline/approval-history-
 import {
   getQuotationSalesSubmission,
   formatDate,
+  resolveQuotationLifecycle,
 } from "@/modules/quotations/quotations.utils";
 
 export default function QuotationDetailsPage() {
@@ -89,14 +90,15 @@ export default function QuotationDetailsPage() {
     );
   }
 
-  const effectiveStatus =
-    q.workflowStatus || q.approval?.status || q.status || "draft";
-  const isApproved = effectiveStatus === "approved";
-  const isPending =
-    effectiveStatus === "pending" || effectiveStatus === "pending_approval";
-  const isRejected = effectiveStatus === "rejected";
-  const isSent = effectiveStatus === "sent";
-  const canSend = isApproved || isSent;
+  const lifecycle = resolveQuotationLifecycle(q);
+  const effectiveStatus = lifecycle.lifecycleStatus;
+  const isApproved = lifecycle.isApproved;
+  const isPending = lifecycle.isPendingApproval;
+  const isAdminRejected = lifecycle.isAdminRejected;
+  const isCustomerRejected = lifecycle.isCustomerRejected;
+  const isCustomerAccepted = lifecycle.isCustomerAccepted;
+  const isSent = lifecycle.isSent;
+  const canSend = (isApproved || isSent) && !isCustomerRejected;
 
   const salesSubmission = getQuotationSalesSubmission(q);
 
@@ -309,27 +311,72 @@ export default function QuotationDetailsPage() {
         </div>
       )}
 
-      {isRejected && (
+      {/* Customer Declined Banner */}
+      {isCustomerRejected && (
+        <div className="bg-rose-50/80 border border-rose-200 rounded-xl p-5 flex items-start gap-4">
+          <XCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+          <div className="space-y-2 w-full">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="font-semibold text-rose-950 text-sm">
+                Quotation Declined by Customer
+              </h4>
+              {lifecycle.customerDecisionAt && (
+                <span className="text-xs text-rose-700 font-medium">
+                  Declined {formatDate(lifecycle.customerDecisionAt)}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-rose-700">
+              The customer declined this quotation in the portal.
+            </p>
+
+            {/* Reason / Feedback Box */}
+            <div className="mt-2.5 p-3.5 bg-white rounded-lg border border-rose-200">
+              <div className="flex items-center gap-1.5 mb-1.5 text-xs font-semibold text-rose-950">
+                <MessageSquare className="h-3.5 w-3.5 text-rose-600" />
+                Reason / Feedback
+              </div>
+              {lifecycle.clientNotes ? (
+                <p className="text-xs text-rose-900 italic whitespace-pre-wrap pl-3 border-l-2 border-rose-400">
+                  "{lifecycle.clientNotes}"
+                </p>
+              ) : (
+                <p className="text-xs text-rose-500 italic pl-3 border-l-2 border-rose-200">
+                  No specific reason or feedback was provided by customer.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Internal Admin Rejection Banner */}
+      {isAdminRejected && (
         <div className="bg-red-50/80 border border-red-200 rounded-xl p-5 flex items-start gap-4">
           <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
           <div className="space-y-1 w-full">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h4 className="font-semibold text-red-900 text-sm">
-                Quotation Rejected
-              </h4>
+              <div className="flex items-center gap-2">
+                <h4 className="font-semibold text-red-900 text-sm">
+                  Quotation Rejected by Admin
+                </h4>
+                <span className="text-[11px] font-semibold bg-red-100 text-red-800 px-2 py-0.5 rounded border border-red-200">
+                  Internal Review Gate
+                </span>
+              </div>
               {q.approval?.reviewedAt && (
                 <span className="text-xs text-red-700 font-medium">
                   Rejected {formatDate(q.approval.reviewedAt)}
                 </span>
               )}
             </div>
-            {q.approval?.rejectionReason && (
+            {lifecycle.adminRejectionReason && (
               <p className="text-sm text-red-700 mt-1">
-                <strong>Reason:</strong> {q.approval.rejectionReason}
+                <strong>Internal Reason:</strong> {lifecycle.adminRejectionReason}
               </p>
             )}
             <p className="text-xs text-red-600 mt-1">
-              Sales team has been notified to revise this quotation and resubmit for approval.
+              Sales team has been notified to revise this quotation and resubmit for approval before it can be sent to customer.
             </p>
             {salesSubmission.message && (
               <div className="mt-3 p-3 bg-white/95 rounded-lg border border-red-200 text-xs">
@@ -349,7 +396,8 @@ export default function QuotationDetailsPage() {
         </div>
       )}
 
-      {effectiveStatus === "sent" && (
+      {/* Sent Banner */}
+      {isSent && (
         <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-5 flex items-start gap-4">
           <Send className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
           <div className="space-y-1 w-full">
@@ -395,21 +443,36 @@ export default function QuotationDetailsPage() {
         </div>
       )}
 
-      {effectiveStatus === "accepted" && (
-        <div className="bg-green-50/80 border border-green-200 rounded-xl p-5 flex items-start gap-4">
-          <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <h4 className="font-semibold text-green-900 text-sm">
-              Quotation Accepted by Customer
-            </h4>
-            <p className="text-xs text-green-700">
-              The customer has accepted this quotation.
+      {/* Customer Accepted Banner */}
+      {isCustomerAccepted && (
+        <div className="bg-emerald-50/90 border border-emerald-300 rounded-xl p-5 flex items-start gap-4">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+          <div className="space-y-1 w-full">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-emerald-950 text-sm">
+                Quotation Accepted by Customer
+              </h4>
+              {lifecycle.customerDecisionAt && (
+                <span className="text-xs text-emerald-700 font-medium">
+                  Accepted {formatDate(lifecycle.customerDecisionAt)}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-emerald-700">
+              The customer has accepted this quotation in the customer portal. You can now proceed with invoicing or order conversion.
             </p>
+            {lifecycle.clientNotes && (
+              <div className="mt-2.5 p-3 bg-white rounded border border-emerald-200 text-xs">
+                <span className="font-semibold text-emerald-900 block mb-1">Customer Note:</span>
+                <p className="text-emerald-800 italic">"{lifecycle.clientNotes}"</p>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {(effectiveStatus === "draft" || effectiveStatus === "not_submitted") && (
+      {/* Draft Banner */}
+      {lifecycle.isDraft && (
         <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-5 flex items-start gap-4">
           <FileText className="h-5 w-5 text-slate-600 shrink-0 mt-0.5" />
           <div className="space-y-1">
