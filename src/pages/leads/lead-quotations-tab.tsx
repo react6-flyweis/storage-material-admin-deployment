@@ -22,6 +22,7 @@ import {
   useRejectQuotationMutation,
 } from "@/modules/quotations/quotations.hooks";
 import type { Quotation } from "@/modules/quotations/quotations.api";
+import { resolveQuotationLifecycle } from "@/modules/quotations/quotations.utils";
 import { toast } from "sonner";
 import dayjs from "dayjs";
 
@@ -31,9 +32,21 @@ interface LeadQuotationsTabProps {
 }
 
 function getWorkflowBadge(quotation: Quotation) {
-  const status = quotation.workflowStatus || quotation.approval?.status || quotation.status || "draft";
+  const lifecycle = resolveQuotationLifecycle(quotation);
 
-  switch (status) {
+  switch (lifecycle.lifecycleStatus) {
+    case "customer_rejected":
+      return (
+        <Badge className="bg-[#ffe4e6] text-[#be123c] hover:bg-[#ffe4e6] border-none px-2 py-0.5 rounded text-[11px] font-bold capitalize tracking-wider">
+          Declined by Customer
+        </Badge>
+      );
+    case "customer_accepted":
+      return (
+        <Badge className="bg-[#d1fae5] text-[#047857] hover:bg-[#d1fae5] border-none px-2 py-0.5 rounded text-[11px] font-bold capitalize tracking-wider">
+          Accepted by Customer
+        </Badge>
+      );
     case "approved":
       return (
         <Badge className="bg-[#dcfce7] text-[#166534] hover:bg-[#dcfce7] border-none px-2 py-0.5 rounded text-[11px] font-bold capitalize tracking-wider">
@@ -46,10 +59,10 @@ function getWorkflowBadge(quotation: Quotation) {
           Pending Approval
         </Badge>
       );
-    case "rejected":
+    case "admin_rejected":
       return (
         <Badge className="bg-[#fee2e2] text-[#dc2626] hover:bg-[#fee2e2] border-none px-2 py-0.5 rounded text-[11px] font-bold capitalize tracking-wider">
-          Rejected
+          Admin Rejected
         </Badge>
       );
     case "sent":
@@ -66,7 +79,6 @@ function getWorkflowBadge(quotation: Quotation) {
         </Badge>
       );
     case "draft":
-    case "not_submitted":
     default:
       return (
         <Badge className="bg-[#f1f5f9] text-[#475569] hover:bg-[#f1f5f9] border-none px-2 py-0.5 rounded text-[11px] font-bold capitalize tracking-wider">
@@ -217,9 +229,9 @@ export default function LeadQuotationsTab({ leadId }: LeadQuotationsTabProps) {
               <tbody className="divide-y divide-gray-100">
                 {quotations.length > 0 ? (
                   quotations.map((q) => {
-                    const effectiveStatus = q.workflowStatus || q.approval?.status || q.status;
-                    const isPending = effectiveStatus === "pending_approval";
-                    const canSubmit = effectiveStatus === "draft" || effectiveStatus === "not_submitted" || effectiveStatus === "rejected";
+                    const lifecycle = resolveQuotationLifecycle(q);
+                    const isPending = lifecycle.isPendingApproval;
+                    const canSubmit = lifecycle.isDraft || lifecycle.isAdminRejected;
                     const price = q.finalPrice || q.basePrice || 0;
 
                     return (
@@ -274,9 +286,8 @@ export default function LeadQuotationsTab({ leadId }: LeadQuotationsTabProps) {
                               </>
                             )}
                             {(() => {
-                              const isAlreadySent = (q.workflowStatus || q.status) === "sent" || Boolean(q.sentAt);
-                              const isAppr = (q.workflowStatus || q.approval?.status) === "approved";
-                              const canSend = isAppr || isAlreadySent;
+                              const isAlreadySent = lifecycle.isSent;
+                              const canSend = (lifecycle.isApproved || isAlreadySent) && !lifecycle.isCustomerRejected;
                               return canSend ? (
                                 <Button
                                   size="sm"
