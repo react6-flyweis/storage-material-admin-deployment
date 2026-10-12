@@ -28,6 +28,7 @@ import QuotationApprovalTimeline from "./quotation-approval-timeline";
 import {
   getQuotationSalesSubmission,
   formatDate,
+  resolveQuotationLifecycle,
 } from "@/modules/quotations/quotations.utils";
 
 interface QuotationDetailsDialogProps {
@@ -40,13 +41,21 @@ interface QuotationDetailsDialogProps {
 }
 
 function getWorkflowBadge(quotation: Quotation) {
-  const status =
-    quotation.workflowStatus ||
-    quotation.approval?.status ||
-    quotation.status ||
-    "draft";
+  const lifecycle = resolveQuotationLifecycle(quotation);
 
-  switch (status) {
+  switch (lifecycle.lifecycleStatus) {
+    case "customer_rejected":
+      return (
+        <Badge className="bg-[#ffe4e6] text-[#be123c] hover:bg-[#ffe4e6] border-none px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
+          Declined by Customer
+        </Badge>
+      );
+    case "customer_accepted":
+      return (
+        <Badge className="bg-[#d1fae5] text-[#047857] hover:bg-[#d1fae5] border-none px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
+          Accepted by Customer
+        </Badge>
+      );
     case "approved":
       return (
         <Badge className="bg-[#dcfce7] text-[#166534] hover:bg-[#dcfce7] border-none px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
@@ -59,10 +68,10 @@ function getWorkflowBadge(quotation: Quotation) {
           Pending Approval
         </Badge>
       );
-    case "rejected":
+    case "admin_rejected":
       return (
         <Badge className="bg-[#fee2e2] text-[#dc2626] hover:bg-[#fee2e2] border-none px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
-          Rejected
+          Admin Rejected
         </Badge>
       );
     case "sent":
@@ -79,7 +88,6 @@ function getWorkflowBadge(quotation: Quotation) {
         </Badge>
       );
     case "draft":
-    case "not_submitted":
     default:
       return (
         <Badge className="bg-[#f1f5f9] text-[#475569] hover:bg-[#f1f5f9] border-none px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
@@ -99,17 +107,14 @@ export default function QuotationDetailsDialog({
 }: QuotationDetailsDialogProps) {
   if (!quotation) return null;
 
-  const effectiveStatus =
-    quotation.workflowStatus ||
-    quotation.approval?.status ||
-    quotation.status ||
-    "draft";
-
-  const isPending = effectiveStatus === "pending_approval";
-  const isApproved = effectiveStatus === "approved";
-  const isRejected = effectiveStatus === "rejected";
-  const isAlreadySent = effectiveStatus === "sent" || Boolean(quotation.sentAt);
-  const canSend = isApproved || isAlreadySent;
+  const lifecycle = resolveQuotationLifecycle(quotation);
+  const isPending = lifecycle.isPendingApproval;
+  const isApproved = lifecycle.isApproved;
+  const isAdminRejected = lifecycle.isAdminRejected;
+  const isCustomerRejected = lifecycle.isCustomerRejected;
+  const isCustomerAccepted = lifecycle.isCustomerAccepted;
+  const isAlreadySent = lifecycle.isSent;
+  const canSend = (isApproved || isAlreadySent) && !isCustomerRejected;
 
   const salesSubmission = getQuotationSalesSubmission(quotation);
 
@@ -203,16 +208,74 @@ export default function QuotationDetailsDialog({
             </div>
           )}
 
-          {/* Rejection Alert Banner if Rejected */}
-          {isRejected && (quotation.approval?.rejectionReason || quotation.specialNote) && (
+          {/* Customer Declined Banner with clientNotes */}
+          {isCustomerRejected && (
+            <div className="p-3.5 bg-rose-50/80 border border-rose-200 rounded-xl space-y-1.5">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-rose-950 uppercase tracking-wide flex items-center gap-1.5">
+                  <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+                  Declined by Customer
+                </h4>
+                {lifecycle.customerDecisionAt && (
+                  <span className="text-[11px] text-rose-700">
+                    {formatDate(lifecycle.customerDecisionAt)}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-rose-700">
+                The customer declined this quotation.
+              </p>
+              <div className="mt-2 p-2.5 bg-white rounded-lg border border-rose-200 text-xs">
+                <span className="font-semibold text-rose-950 block mb-0.5">
+                  Reason / Feedback:
+                </span>
+                {lifecycle.clientNotes ? (
+                  <p className="text-rose-900 italic whitespace-pre-wrap pl-2.5 border-l-2 border-rose-400">
+                    "{lifecycle.clientNotes}"
+                  </p>
+                ) : (
+                  <p className="text-rose-500 italic pl-2.5 border-l-2 border-rose-200">
+                    No specific reason or feedback was provided.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Customer Accepted Banner */}
+          {isCustomerAccepted && (
+            <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-bold text-emerald-900 uppercase tracking-wide flex items-center gap-1.5">
+                  Accepted by Customer
+                </h4>
+                {lifecycle.customerDecisionAt && (
+                  <span className="text-[11px] text-emerald-700">
+                    {formatDate(lifecycle.customerDecisionAt)}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-emerald-700">
+                The customer has accepted this quotation.
+              </p>
+              {lifecycle.clientNotes && (
+                <div className="p-2 bg-white rounded border border-emerald-200 text-xs text-emerald-800 italic mt-1">
+                  "{lifecycle.clientNotes}"
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Admin Rejection Alert Banner */}
+          {isAdminRejected && (
             <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
               <ShieldAlert className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
               <div>
                 <h4 className="text-xs font-bold text-red-800 uppercase tracking-wide">
-                  Rejection Details
+                  Admin Rejection Details
                 </h4>
                 <p className="text-xs text-red-700 mt-0.5">
-                  {quotation.approval?.rejectionReason || quotation.specialNote || "No rejection reason specified."}
+                  {lifecycle.adminRejectionReason || quotation.specialNote || "No rejection reason specified."}
                 </p>
               </div>
             </div>
