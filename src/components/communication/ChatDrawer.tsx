@@ -141,16 +141,43 @@ export const ChatDrawer: React.FC<ChatDrawerProps> = ({
             )
           ) : (
             <div className="p-3 bg-slate-50 rounded-xl text-xs space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Role:</span>
-                <span className="font-semibold text-slate-800 capitalize">
-                  {activeChat.role || "Staff"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Status:</span>
-                <span className="font-semibold text-emerald-600">Active</span>
-              </div>
+              {activeChat.type === "customer" ? (
+                <>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Contact:</span>
+                    <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full text-[10px]">Customer</span>
+                  </div>
+                  {activeChat.email && (
+                    <div className="flex justify-between items-center gap-2">
+                      <span className="text-gray-500">Email:</span>
+                      <span className="font-medium text-slate-800 truncate max-w-35">{activeChat.email}</span>
+                    </div>
+                  )}
+                  {activeChat.phone && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500">Phone:</span>
+                      <span className="font-medium text-slate-800">{activeChat.phone}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Customer ID:</span>
+                    <span className="font-mono text-[10px] text-slate-700 truncate max-w-35">{activeChat.id}</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Role:</span>
+                    <span className="font-semibold text-slate-800 capitalize">
+                      {activeChat.role || "Staff"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Status:</span>
+                    <span className="font-semibold text-emerald-600">Active</span>
+                  </div>
+                </>
+              )}
             </div>
           )
         ) : sharedFiles.length === 0 ? (
