@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import AddCustomerDialog from "@/components/customers/add-customer-dialog";
 import FilterTabs, { type Period } from "@/components/FilterTabs";
@@ -35,16 +35,13 @@ type StatCard = {
 };
 
 function mapApiCustomerToCustomer(apiCustomer: AdminCustomer): Customer {
-  const fullName =
-    `${apiCustomer.firstName ?? ""} ${apiCustomer.lastName ?? ""}`.trim();
-
   const phoneNumber = apiCustomer.phone?.number;
   const phoneCountryCode = apiCustomer.phone?.countryCode;
 
   return {
     id: apiCustomer._id,
     customerId: apiCustomer.customerId,
-    customerName: fullName,
+    customerName: apiCustomer.customerName,
     phone:
       phoneNumber && phoneCountryCode
         ? `${phoneCountryCode} ${phoneNumber}`
@@ -119,13 +116,16 @@ export default function CustomersPage() {
   }, [period]);
 
   // Prepare filters for backend API
-  const filters = useMemo(() => ({
-    isActive: statusFilter === "all" ? undefined : statusFilter === "active",
-    startDate: dateRange.startDate,
-    endDate: dateRange.endDate,
-    status: statusFilter === "all" ? undefined : statusFilter,
-    search: searchQuery.trim() || undefined,
-  }), [statusFilter, dateRange.startDate, dateRange.endDate, searchQuery]);
+  const filters = useMemo(
+    () => ({
+      isActive: statusFilter === "all" ? undefined : statusFilter === "active",
+      startDate: dateRange.startDate,
+      endDate: dateRange.endDate,
+      status: statusFilter === "all" ? undefined : statusFilter,
+      search: searchQuery.trim() || undefined,
+    }),
+    [statusFilter, dateRange.startDate, dateRange.endDate, searchQuery],
+  );
 
   const {
     data: customersResponse,
@@ -134,10 +134,8 @@ export default function CustomersPage() {
     isFetching: isCustomersFetching,
   } = useCustomersQuery(currentPage, rowsPerPage, filters);
 
-  const { data: customerStatsResponse, isLoading: isStatsLoading } = useCustomerStatsQuery(
-    dateRange.startDate,
-    dateRange.endDate
-  );
+  const { data: customerStatsResponse, isLoading: isStatsLoading } =
+    useCustomerStatsQuery(dateRange.startDate, dateRange.endDate);
   const customerStats = customerStatsResponse?.data;
 
   const customers = useMemo(() => {
@@ -217,7 +215,7 @@ export default function CustomersPage() {
           </div>
           <div className="flex gap-3">
             <AddCustomerDialog
-              onAdd={() => { }}
+              onAdd={() => {}}
               // onAdd={(c) => {
               //   const newCustomer = c ?? generateRandomCustomer();
               //   setCustomers((prev) => [newCustomer, ...prev]);
@@ -235,42 +233,55 @@ export default function CustomersPage() {
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
           {isStatsLoading
             ? Array.from({ length: 6 }).map((_, index) => (
-              <CustomerStatCardSkeleton key={index} />
-            ))
-            : statCards.map(({ title, value, icon: Icon, iconBgClassName, onClick }) => {
-              const isSelected = selectedStat === title;
-              return (
-                <button
-                  type="button"
-                  key={title}
-                  onClick={() => {
-                    setSelectedStat(isSelected ? null : title);
-                    onClick?.();
-                  }}
-                  className={`bg-white rounded-lg p-4 border transition-all cursor-pointer active:scale-[0.98] w-full text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${isSelected
-                      ? "border-blue-500 shadow-md bg-blue-50/30"
-                      : "border-gray-200 hover:shadow-md hover:border-blue-300"
-                    }`}
-                >
-                  <div className="flex flex-col items-start gap-3">
-                    <div className={`${iconBgClassName} rounded-full p-4`}>
-                      <img src={Icon} alt={title} className="h-8 w-8 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-gray-600 text-sm font-medium">{title}</p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1">
-                        {value}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
+                <CustomerStatCardSkeleton key={index} />
+              ))
+            : statCards.map(
+                ({ title, value, icon: Icon, iconBgClassName, onClick }) => {
+                  const isSelected = selectedStat === title;
+                  return (
+                    <button
+                      type="button"
+                      key={title}
+                      onClick={() => {
+                        setSelectedStat(isSelected ? null : title);
+                        onClick?.();
+                      }}
+                      className={`bg-white rounded-lg p-4 border transition-all cursor-pointer active:scale-[0.98] w-full text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+                        isSelected
+                          ? "border-blue-500 shadow-md bg-blue-50/30"
+                          : "border-gray-200 hover:shadow-md hover:border-blue-300"
+                      }`}
+                    >
+                      <div className="flex flex-col items-start gap-3">
+                        <div className={`${iconBgClassName} rounded-full p-4`}>
+                          <img
+                            src={Icon}
+                            alt={title}
+                            className="h-8 w-8 text-white"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-gray-600 text-sm font-medium">
+                            {title}
+                          </p>
+                          <p className="text-2xl font-bold text-gray-900 mt-1">
+                            {value}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                },
+              )}
         </div>
 
         {/* Conditional Content Based on Selected Stat */}
         {(() => {
-          if (!selectedStat || selectedStat === "Total Customers" || selectedStat === "Active Customers") {
+          if (
+            !selectedStat ||
+            selectedStat === "Total Customers" ||
+            selectedStat === "Active Customers"
+          ) {
             return (
               <>
                 <CustomersTable
@@ -341,8 +352,8 @@ export default function CustomersPage() {
                         Assign to Plant
                       </h2>
                       <p className="mt-3 text-sm text-gray-600">
-                        Assign Customer Projects to a plant for execution and start
-                        budget planning
+                        Assign Customer Projects to a plant for execution and
+                        start budget planning
                       </p>
 
                       <Button

@@ -4,7 +4,7 @@ import type { DateRange } from "react-day-picker";
 import PaymentStatusDistribution from "@/components/payments/payment-status-distribution";
 import RevenueTrend from "@/components/payments/revenue-trend";
 import PaymentAgingAnalysis from "@/components/payments/payment-aging-analysis";
-import StageWisePaymentProgress from "@/components/payments/stage-wise-payment-progress";
+// import StageWisePaymentProgress from "@/components/payments/stage-wise-payment-progress";
 import RecentPaymentsTable from "@/components/payments/recent-payments-table";
 import StatCardV2 from "@/components/ui/stat-card-v2";
 import {
@@ -44,11 +44,17 @@ export default function PaymentsPage() {
   const handleExport = async () => {
     try {
       setIsExporting(true);
-      const blob = await exportPaymentsDashboardProvider({ startDate, endDate });
+      const blob = await exportPaymentsDashboardProvider({
+        startDate,
+        endDate,
+      });
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `payments_dashboard_${startDate || "all"}_to_${endDate || "all"}.csv`);
+      link.setAttribute(
+        "download",
+        `payments_dashboard_${startDate || "all"}_to_${endDate || "all"}.csv`,
+      );
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -83,7 +89,11 @@ export default function PaymentsPage() {
             onChange={setDateRange}
             className="bg-white"
           />
-          <Button variant="outline" onClick={handleExport} disabled={isExporting}>
+          <Button
+            variant="outline"
+            onClick={handleExport}
+            disabled={isExporting}
+          >
             <Upload className="w-4 h-4 mr-2" />
             {isExporting ? "Exporting..." : "Export"}
           </Button>
@@ -146,21 +156,20 @@ export default function PaymentsPage() {
       </div>
 
       {/* Second Row - 2 Columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <StageWisePaymentProgress
           data={dashboardData?.stageWise}
           isLoading={isLoading}
-        />
+        /> */}
 
-        {/* Recent payments table */}
-        <div className="lg:col-span-2">
-          <RecentPaymentsTable
-            data={dashboardData?.recentPayments}
-            isLoading={isLoading}
-          />
-        </div>
+      {/* Recent payments table */}
+      <div className="">
+        <RecentPaymentsTable
+          data={dashboardData?.recentPayments}
+          isLoading={isLoading}
+        />
       </div>
+      {/* </div> */}
     </div>
   );
 }
-

@@ -25,6 +25,7 @@ import {
   useExpensesFiltersQuery,
   useExpenseCategoriesQuery,
 } from "@/modules/financials/financials.hooks";
+import LeadSelector from "@/components/leads/lead-selector";
 
 const addExpenseSchema = z.object({
   category: z.string().min(1, "Category is required"),
@@ -38,7 +39,6 @@ const addExpenseSchema = z.object({
   status: z.string().default("paid"),
   receiptFile: z.string().optional(),
 });
-
 
 export type AddExpenseFormValues = z.infer<typeof addExpenseSchema>;
 
@@ -76,7 +76,6 @@ export function AddExpenseDialog({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  const projects = filtersRes?.data?.projects || [];
   const filterBuildingLabels = filtersRes?.data?.buildingLabels || [];
   const apiCategories = categoriesRes?.data?.categories || [];
 
@@ -84,12 +83,12 @@ export function AddExpenseDialog({
     apiCategories.length > 0
       ? apiCategories.map((c) => c.name)
       : filtersRes?.data?.categories || [
-        "Vendor/Freight",
-        "Manual (Operations)",
-        "Miscellaneous",
-        "Salaries",
-        "Marketing",
-      ];
+          "Vendor/Freight",
+          "Manual (Operations)",
+          "Miscellaneous",
+          "Salaries",
+          "Marketing",
+        ];
 
   const subcategoryOptions = [
     "Steel Delivery",
@@ -123,6 +122,7 @@ export function AddExpenseDialog({
       date: new Date().toISOString().split("T")[0],
       description: "Freight charges",
       status: "paid",
+      leadId: "",
       buildingLabel: "Building A",
     },
   });
@@ -144,10 +144,12 @@ export function AddExpenseDialog({
     }
   };
 
-
   const onSubmit = async (data: AddExpenseFormValues) => {
     setUploadError(null);
-    let finalReceiptUrl = receiptMode === "upload" ? (uploadedUrl || data.receiptFile) : data.receiptFile;
+    let finalReceiptUrl =
+      receiptMode === "upload"
+        ? uploadedUrl || data.receiptFile
+        : data.receiptFile;
 
     if (receiptMode === "upload" && selectedFile && !uploadedUrl) {
       setIsUploading(true);
@@ -157,7 +159,9 @@ export function AddExpenseDialog({
         setValue("receiptFile", finalReceiptUrl);
       } catch (err) {
         console.error("Failed to upload receipt file:", err);
-        setUploadError("Failed to upload file. Please try again or provide a direct URL.");
+        setUploadError(
+          "Failed to upload file. Please try again or provide a direct URL.",
+        );
         setIsUploading(false);
         return;
       } finally {
@@ -172,8 +176,12 @@ export function AddExpenseDialog({
         date: data.date,
         amount: Number(data.amount),
         description: data.description || "",
-        leadId: data.leadId === "none" || !data.leadId ? undefined : data.leadId,
-        buildingLabel: data.buildingLabel === "none" || !data.buildingLabel ? undefined : data.buildingLabel,
+        leadId:
+          data.leadId === "none" || !data.leadId ? undefined : data.leadId,
+        buildingLabel:
+          data.buildingLabel === "none" || !data.buildingLabel
+            ? undefined
+            : data.buildingLabel,
         paymentMethod: data.paymentMethod,
         status: data.status || "paid",
         receiptFile: finalReceiptUrl || undefined,
@@ -187,7 +195,6 @@ export function AddExpenseDialog({
       console.error("Failed to create expense:", error);
     }
   };
-
 
   const isSubmitting = createExpenseMutation.isPending || isUploading;
 
@@ -260,19 +267,14 @@ export function AddExpenseDialog({
                 control={control}
                 name="leadId"
                 render={({ field }) => (
-                  <Select value={field.value || "none"} onValueChange={field.onChange}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select project" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {projects.map((proj) => (
-                        <SelectItem key={proj.leadId} value={proj.leadId}>
-                          {proj.projectName} ({proj.jobId})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <LeadSelector
+                    value={field.value || ""}
+                    onValueChange={(val) => {
+                      field.onChange(val);
+                    }}
+                    placeholder="Search projects..."
+                    error={!!errors.leadId}
+                  />
                 )}
               />
               {errors.leadId && (
@@ -286,7 +288,10 @@ export function AddExpenseDialog({
                 control={control}
                 name="buildingLabel"
                 render={({ field }) => (
-                  <Select value={field.value || "none"} onValueChange={field.onChange}>
+                  <Select
+                    value={field.value || "none"}
+                    onValueChange={field.onChange}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Select building" />
                     </SelectTrigger>
@@ -356,9 +361,7 @@ export function AddExpenseDialog({
                 )}
               />
               {errors.status && (
-                <p className="text-sm text-red-500">
-                  {errors.status.message}
-                </p>
+                <p className="text-sm text-red-500">{errors.status.message}</p>
               )}
             </div>
 
@@ -377,15 +380,9 @@ export function AddExpenseDialog({
 
             <div className="space-y-2">
               <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                {...register("date")}
-              />
+              <Input id="date" type="date" {...register("date")} />
               {errors.date && (
-                <p className="text-sm text-red-500">
-                  {errors.date.message}
-                </p>
+                <p className="text-sm text-red-500">{errors.date.message}</p>
               )}
             </div>
 
@@ -415,10 +412,11 @@ export function AddExpenseDialog({
                       setReceiptMode("upload");
                       setUploadError(null);
                     }}
-                    className={`px-2 py-0.5 rounded font-medium transition-colors ${receiptMode === "upload"
-                      ? "bg-violet-100 text-violet-700"
-                      : "text-slate-500 hover:text-slate-700"
-                      }`}
+                    className={`px-2 py-0.5 rounded font-medium transition-colors ${
+                      receiptMode === "upload"
+                        ? "bg-violet-100 text-violet-700"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}
                   >
                     Upload File
                   </button>
@@ -429,10 +427,11 @@ export function AddExpenseDialog({
                       setReceiptMode("url");
                       setUploadError(null);
                     }}
-                    className={`px-2 py-0.5 rounded font-medium transition-colors ${receiptMode === "url"
-                      ? "bg-violet-100 text-violet-700"
-                      : "text-slate-500 hover:text-slate-700"
-                      }`}
+                    className={`px-2 py-0.5 rounded font-medium transition-colors ${
+                      receiptMode === "url"
+                        ? "bg-violet-100 text-violet-700"
+                        : "text-slate-500 hover:text-slate-700"
+                    }`}
                   >
                     Enter URL
                   </button>
@@ -491,7 +490,10 @@ export function AddExpenseDialog({
                                 setUploadError(null);
                                 setIsUploading(true);
                                 try {
-                                  const url = await uploadFileToS3(selectedFile, "expenses");
+                                  const url = await uploadFileToS3(
+                                    selectedFile,
+                                    "expenses",
+                                  );
                                   setUploadedUrl(url);
                                   setValue("receiptFile", url);
                                 } catch (err) {
@@ -536,7 +538,6 @@ export function AddExpenseDialog({
                 </div>
               )}
 
-
               {uploadError && (
                 <p className="text-sm text-red-500">{uploadError}</p>
               )}
@@ -558,7 +559,12 @@ export function AddExpenseDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" className="px-8" size="lg" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              className="px-8"
+              size="lg"
+              disabled={isSubmitting}
+            >
               {isUploading ? (
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -576,5 +582,3 @@ export function AddExpenseDialog({
     </Dialog>
   );
 }
-
-

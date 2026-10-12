@@ -1,13 +1,11 @@
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from "recharts";
-import { type PerformanceDatum } from "./TopPerformerCard";
+import { type PerformanceDatum, formatCurrency } from "./TopPerformerCard";
 
 export default function PerformanceChart({
   data,
 }: {
   data: PerformanceDatum[];
 }) {
-  //   const total = data.reduce((s, d) => s + d.value, 0);
-
   return (
     <div style={{ width: 260, height: 260 }} className="shrink-0">
       <ResponsiveContainer width={260} height={260}>
@@ -26,7 +24,7 @@ export default function PerformanceChart({
               <Cell key={entry.name} fill={entry.color} />
             ))}
           </Pie>
-          <Tooltip formatter={(value: number) => `$${value}`} />
+          <Tooltip formatter={(value: number) => formatCurrency(value)} />
         </PieChart>
       </ResponsiveContainer>
     </div>
