@@ -43,9 +43,19 @@ export default function PaymentAgingAnalysis({
     const totalAmount = data.reduce((sum, item) => sum + item.amount, 0);
 
     displayItems = data.map((item) => {
-      const percentage = totalAmount > 0 ? Math.round((item.amount / totalAmount) * 100) : 0;
-      const color = RANGE_COLOR_MAP[item._id] || "bg-blue-500";
-      const rangeLabel = item._id.includes("days") ? item._id : `${item._id} days`;
+      const bucketKey = (item.bucket || item._id || "").trim();
+      const percentage =
+        item.percent !== undefined
+          ? Math.round(item.percent)
+          : totalAmount > 0
+          ? Math.round((item.amount / totalAmount) * 100)
+          : 0;
+      const color = RANGE_COLOR_MAP[bucketKey] || "bg-blue-500";
+      const rangeLabel = bucketKey.includes("days")
+        ? bucketKey
+        : bucketKey
+        ? `${bucketKey} days`
+        : "Unknown";
 
       return {
         range: rangeLabel,
@@ -76,7 +86,7 @@ export default function PaymentAgingAnalysis({
                 </span>
                 <div className="flex items-center gap-4">
                   <span className="text-sm font-semibold text-gray-900">
-                    ${item.amount.toLocaleString()}
+                    ${item.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </span>
                   <span className="text-sm text-gray-500 w-10 text-right">
                     {item.percentage}%
@@ -86,7 +96,7 @@ export default function PaymentAgingAnalysis({
               <div className="w-full bg-gray-100 rounded-full h-3 overflow-hidden">
                 <div
                   className={cn("h-full rounded-full transition-all", item.color)}
-                  style={{ width: `${Math.max(item.percentage, 2)}%` }}
+                  style={{ width: `${item.amount > 0 ? Math.max(item.percentage, 2) : 0}%` }}
                 />
               </div>
             </div>
