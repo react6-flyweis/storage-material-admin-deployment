@@ -29,8 +29,11 @@ import {
   approvePayableInvoiceProvider,
   rejectPayableInvoiceProvider,
   addPayableInvoiceCommentProvider,
+  getInvoiceBillingDefaultsProvider,
+  updateInvoiceBillingProvider,
   type CreateInvoicePayload,
   type UpdateInvoicePayload,
+  type UpdateInvoiceBillingPayload,
   type GetInvoicesParams,
   type GetVendorInvoicesParams,
   type GetCarrierInvoicesParams,
@@ -323,6 +326,40 @@ export function useAddPayableInvoiceCommentMutation() {
       queryClient.invalidateQueries({ queryKey: ["payableInvoiceDetail", variables.invoiceId] });
       queryClient.invalidateQueries({ queryKey: ["adminVendorInvoiceDetail", variables.invoiceId] });
       queryClient.invalidateQueries({ queryKey: ["adminInvoiceDetail", variables.invoiceId] });
+    },
+  });
+}
+
+export function useInvoiceBillingDefaultsQuery(leadId?: string) {
+  return useQuery({
+    queryKey: ["invoices", "billing-defaults", leadId || "general"],
+    queryFn: () => getInvoiceBillingDefaultsProvider(leadId),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useUpdateInvoiceBillingMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      invoiceId,
+      payload,
+    }: {
+      invoiceId: string;
+      payload: UpdateInvoiceBillingPayload;
+    }) => updateInvoiceBillingProvider(invoiceId, payload),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({
+        queryKey: ["invoice", variables.invoiceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["invoices", "detail", variables.invoiceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["admin-invoice-detail", variables.invoiceId],
+      });
     },
   });
 }
