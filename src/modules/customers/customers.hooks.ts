@@ -13,8 +13,12 @@ import {
   getCustomerProjectInvoicesProvider,
   getCustomersProjectsListProvider,
   createBasicCustomerProvider,
+  getAdminCustomerDocumentsProvider,
+  createAdminCustomerDocumentProvider,
+  deleteAdminCustomerDocumentProvider,
+  type CreateCustomerDocumentPayload,
 } from "./customers.api";
-import type { CreateCustomerLeadRequest } from "./customers.types";
+import type { CreateCustomerLeadRequest, EditCustomerRequest } from "./customers.types";
 
 export function useCustomersQuery(
   page = 1, 
@@ -127,9 +131,9 @@ export function useUpdateCustomerMutation() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ customerId, customerData }: { customerId: string; customerData: any }) => 
+    mutationFn: ({ customerId, customerData }: { customerId: string; customerData: EditCustomerRequest }) => 
       updateCustomerProvider(customerId, customerData),
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       // Invalidate and refetch customers list and detail
       queryClient.invalidateQueries({ queryKey: ["customers", "admin-list"] });
       queryClient.invalidateQueries({ queryKey: ["customers", "admin-detail", variables.customerId] });
@@ -171,3 +175,42 @@ export function useCustomersProjectsListQuery(scope: string, page = 1, limit = 2
     staleTime: 60 * 1000,
   });
 }
+
+export function useAdminCustomerDocumentsQuery(customerId: string) {
+  return useQuery({
+    queryKey: ["admin-customers", "documents", customerId],
+    queryFn: () => getAdminCustomerDocumentsProvider(customerId),
+    enabled: Boolean(customerId) && customerId !== "unknown",
+  });
+}
+
+export function useCreateAdminCustomerDocumentMutation(customerId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: CreateCustomerDocumentPayload) =>
+      createAdminCustomerDocumentProvider(customerId, payload),
+    onSuccess: (response) => {
+      if (response && response.success === false) return;
+      void queryClient.invalidateQueries({
+        queryKey: ["admin-customers", "documents", customerId],
+      });
+    },
+  });
+}
+
+export function useDeleteAdminCustomerDocumentMutation(customerId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (docId: string) =>
+      deleteAdminCustomerDocumentProvider(customerId, docId),
+    onSuccess: (response) => {
+      if (response && response.success === false) return;
+      void queryClient.invalidateQueries({
+        queryKey: ["admin-customers", "documents", customerId],
+      });
+    },
+  });
+}
+
