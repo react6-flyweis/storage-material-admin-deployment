@@ -375,6 +375,9 @@ const DrawingAttachment = lazy(
 const ConstructionAllDeliveries = lazy(
   () => import("@/modules/construction/pages/AllDeliveries"),
 );
+const MismatchOrders = lazy(
+  () => import("@/modules/construction/pages/MismatchOrders"),
+);
 
 export const adminRoutes: RouteObject[] = [
   {
@@ -923,6 +926,7 @@ export const adminRoutes: RouteObject[] = [
               { path: "materials", element: <Materials /> },
               { path: "material-view-page", element: <MaterialsViewPage /> },
               { path: "reports", element: <Reports /> },
+              { path: "mismatch-orders", element: <MismatchOrders /> },
             ],
           },
 
