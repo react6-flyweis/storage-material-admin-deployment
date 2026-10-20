@@ -4,7 +4,6 @@ import type { DateRange } from "react-day-picker";
 import PaymentStatusDistribution from "@/components/payments/payment-status-distribution";
 import RevenueTrend from "@/components/payments/revenue-trend";
 import PaymentAgingAnalysis from "@/components/payments/payment-aging-analysis";
-// import StageWisePaymentProgress from "@/components/payments/stage-wise-payment-progress";
 import RecentPaymentsTable from "@/components/payments/recent-payments-table";
 import StatCardV2 from "@/components/ui/stat-card-v2";
 import {
@@ -68,7 +67,9 @@ export default function PaymentsPage() {
 
   const formatCurrency = (amt?: number) => {
     if (amt === undefined || amt === null) return "$0";
-    return `$${amt.toLocaleString()}`;
+    return `$${amt.toLocaleString(undefined, {
+      maximumFractionDigits: 2,
+    })}`;
   };
 
   return (
@@ -147,6 +148,7 @@ export default function PaymentsPage() {
         />
         <RevenueTrend
           data={dashboardData?.revenueTrend}
+          chartData={dashboardData?.revenueTrendChart}
           isLoading={isLoading}
         />
         <PaymentAgingAnalysis
@@ -155,21 +157,14 @@ export default function PaymentsPage() {
         />
       </div>
 
-      {/* Second Row - 2 Columns */}
-      {/* <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <StageWisePaymentProgress
-          data={dashboardData?.stageWise}
-          isLoading={isLoading}
-        /> */}
-
       {/* Recent payments table */}
-      <div className="">
+      <div>
         <RecentPaymentsTable
           data={dashboardData?.recentPayments}
+          total={dashboardData?.recentPaymentsTotal}
           isLoading={isLoading}
         />
       </div>
-      {/* </div> */}
     </div>
   );
 }

@@ -997,5 +997,73 @@ export async function getConstructionOverview(params?: GetConstructionOverviewPa
 
 export { getProjectsApi } from "@/api/projects.api";
 
+// --- Project Mismatch Orders API ---
+export interface MismatchOrderItemDetail {
+  itemId: string;
+  expectedQty: number;
+  receivedQty: number;
+  status: string;
+  materialName?: string;
+}
+
+export interface MismatchOrderPhoto {
+  name: string;
+  url: string;
+}
+
+export interface MismatchOrderReportedBy {
+  _id?: string;
+  name?: string;
+  email?: string;
+}
+
+export interface ApiMismatchOrder {
+  mismatchId: string;
+  mismatchOrderId: string;
+  status: "open" | "in_review" | "resolved" | "closed" | "cancelled" | string;
+  reason: string;
+  notes?: string;
+  actionNotes?: string;
+  bundleId?: string;
+  bundleNo?: string;
+  items: MismatchOrderItemDetail[];
+  photos?: MismatchOrderPhoto[];
+  reportedBy?: MismatchOrderReportedBy;
+  createdAt: string;
+}
+
+export interface MismatchOrdersData {
+  leadId: string;
+  projectName: string;
+  jobId: string;
+  mismatchOrders: ApiMismatchOrder[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface MismatchOrdersResponse {
+  success: boolean;
+  message: string;
+  data: MismatchOrdersData;
+}
+
+export interface GetProjectMismatchOrdersParams {
+  page?: number;
+  limit?: number;
+  status?: "open" | "in_review" | "resolved" | "closed" | "cancelled" | string;
+}
+
+export async function getProjectMismatchOrders(
+  leadId: string,
+  params?: GetProjectMismatchOrdersParams
+): Promise<MismatchOrdersResponse> {
+  const response = await apiClient.get<MismatchOrdersResponse>(
+    `/api/admin/plant/projects/${encodeURIComponent(leadId)}/mismatch-orders`,
+    { params }
+  );
+  return response.data;
+}
+
 
 

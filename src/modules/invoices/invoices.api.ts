@@ -15,6 +15,46 @@ export type CreateInvoiceLineItemPayload = {
   total: number;
 };
 
+export interface InvoiceAddress {
+  companyName?: string;
+  line1?: string;
+  line2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  country?: string;
+  lines?: string[];
+}
+
+export interface InvoiceBankDetails {
+  bankName?: string;
+  accountName?: string;
+  accountNumber?: string;
+  routingNumber?: string;
+  swiftCode?: string;
+  iban?: string;
+  branchAddress?: string;
+  paymentInstructions?: string;
+}
+
+export interface InvoiceBillingDefaults {
+  billingAddress?: InvoiceAddress;
+  recipientAddress?: InvoiceAddress;
+  bankDetails?: InvoiceBankDetails;
+}
+
+export interface InvoiceBillingDefaultsResponse {
+  statusCode?: number;
+  message?: string;
+  data: InvoiceBillingDefaults;
+}
+
+export interface UpdateInvoiceBillingPayload {
+  billingAddress?: InvoiceAddress;
+  recipientAddress?: InvoiceAddress;
+  bankDetails?: InvoiceBankDetails;
+}
+
 export type CreateInvoiceDraftPayload = {
   date?: string;
   daysToPay?: number;
@@ -27,6 +67,9 @@ export type CreateInvoiceDraftPayload = {
   totalAmount: number;
   paymentScheduleId?: string;
   paymentScheduleStageId?: string;
+  billingAddress?: InvoiceAddress;
+  recipientAddress?: InvoiceAddress;
+  bankDetails?: InvoiceBankDetails;
 };
 
 export type CreateInvoicePayload = {
@@ -41,6 +84,9 @@ export type CreateInvoicePayload = {
   discount: number;
   depositAmount: number;
   totalAmount: number;
+  billingAddress?: InvoiceAddress;
+  recipientAddress?: InvoiceAddress;
+  bankDetails?: InvoiceBankDetails;
 };
 
 export type CreateInvoiceResponse = {
@@ -62,13 +108,77 @@ export async function createInvoiceProvider(payload: CreateInvoicePayload) {
 export type UpdateInvoicePayload = CreateInvoicePayload & { invoiceId: string };
 
 export async function updateInvoiceProvider(payload: UpdateInvoicePayload) {
-  const { invoiceId, leadId, ...bodyPayload } = payload;
+  const { invoiceId, leadId: _, ...bodyPayload } = payload;
+  void _;
   const response = await apiClient.put<CreateInvoiceResponse>(
     `/api/invoices/${invoiceId}`,
     bodyPayload,
   );
 
   return response.data;
+}
+
+interface AxiosErrorStatus {
+  response?: { status?: number };
+  status?: number;
+}
+
+export async function getInvoiceBillingDefaultsProvider(
+  leadId?: string,
+): Promise<InvoiceBillingDefaults> {
+  const params = leadId ? { leadId } : undefined;
+  try {
+    const res = await apiClient.get<InvoiceBillingDefaultsResponse>(
+      "/api/common/invoices/billing-defaults",
+      { params },
+    );
+    return res.data?.data ?? (res.data as unknown as InvoiceBillingDefaults);
+  } catch (error: unknown) {
+    const err = error as AxiosErrorStatus;
+    if (err?.response?.status === 404 || err?.status === 404) {
+      const res = await apiClient.get<InvoiceBillingDefaultsResponse>(
+        "/api/invoices/billing-defaults",
+        { params },
+      );
+      return res.data?.data ?? (res.data as unknown as InvoiceBillingDefaults);
+    }
+    throw error;
+  }
+}
+
+export async function updateInvoiceBillingProvider(
+  invoiceId: string,
+  payload: UpdateInvoiceBillingPayload,
+) {
+  try {
+    const res = await apiClient.put(
+      `/api/common/invoices/${invoiceId}/billing`,
+      payload,
+    );
+    return res.data;
+  } catch (error: unknown) {
+    const err = error as AxiosErrorStatus;
+    if (err?.response?.status === 404 || err?.status === 404) {
+      try {
+        const res = await apiClient.put(
+          `/api/invoices/${invoiceId}/billing`,
+          payload,
+        );
+        return res.data;
+      } catch (fallbackError: unknown) {
+        const fbErr = fallbackError as AxiosErrorStatus;
+        if (fbErr?.response?.status === 404 || fbErr?.status === 404) {
+          const res = await apiClient.put(
+            `/api/invoices/${invoiceId}`,
+            payload,
+          );
+          return res.data;
+        }
+        throw fallbackError;
+      }
+    }
+    throw error;
+  }
 }
 
 export async function markInvoicePaidProvider(invoiceId: string) {
@@ -517,6 +627,9 @@ export type AdminInvoiceDetailData = {
   status: string;
   payableStatus?: PayableWorkflowStatus;
   paymentLabel?: string;
+  billingAddress?: InvoiceAddress | null;
+  recipientAddress?: InvoiceAddress | null;
+  bankDetails?: InvoiceBankDetails | null;
   documentUrl?: string;
   documentFileName?: string;
   payableWorkflow?: PayableWorkflow;

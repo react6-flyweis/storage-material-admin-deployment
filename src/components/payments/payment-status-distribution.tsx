@@ -11,16 +11,17 @@ interface PaymentStatusDistributionProps {
 
 const STATUS_CONFIG: Record<string, { name: string; color: string }> = {
   paid: { name: "Paid", color: "#22c55e" },
-  sent: { name: "Sent", color: "#3b82f6" },
+  sent: { name: "Pending", color: "#3b82f6" },
   partial: { name: "Partial", color: "#eab308" },
   overdue: { name: "Overdue", color: "#ef4444" },
   pending: { name: "Pending", color: "#6b7280" },
+  draft: { name: "Draft", color: "#9ca3af" },
 };
 
 const DEFAULT_DATA = [
-  { name: "Paid", value: 15, amount: 240000, color: "#22c55e" },
-  { name: "Partial", value: 8, amount: 85000, color: "#eab308" },
-  { name: "Overdue", value: 5, amount: 130000, color: "#ef4444" },
+  { name: "Paid", value: 15, amount: 240000, color: "#22c55e", percent: undefined },
+  { name: "Partial", value: 8, amount: 85000, color: "#eab308", percent: undefined },
+  { name: "Overdue", value: 5, amount: 130000, color: "#ef4444", percent: undefined },
 ];
 
 export default function PaymentStatusDistribution({
@@ -30,20 +31,23 @@ export default function PaymentStatusDistribution({
 }: PaymentStatusDistributionProps) {
   const chartData = data && data.length > 0
     ? data.map((item) => {
-        const config = STATUS_CONFIG[item._id.toLowerCase()] || {
-          name: item._id.charAt(0).toUpperCase() + item._id.slice(1),
+        const statusKey = (item.status || item._id || "").toLowerCase();
+        const config = STATUS_CONFIG[statusKey] || {
+          name: item.statusLabel || (statusKey ? statusKey.charAt(0).toUpperCase() + statusKey.slice(1) : "Other"),
           color: "#8b5cf6",
         };
+        const count = item.paymentCount ?? item.count ?? item.clientCount ?? 0;
         return {
-          name: config.name,
-          value: item.count,
+          name: item.statusLabel || config.name,
+          value: count,
           amount: item.amount,
           color: config.color,
+          percent: item.percent,
         };
       })
     : DEFAULT_DATA;
 
-  const totalClients = chartData.reduce((sum, item) => sum + item.value, 0);
+  const totalPayments = chartData.reduce((sum, item) => sum + item.value, 0);
 
   return (
     <Card
@@ -83,7 +87,7 @@ export default function PaymentStatusDistribution({
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
                 <div className="text-3xl font-bold text-gray-900">
-                  {totalClients}
+                  {totalPayments}
                 </div>
                 <div className="text-sm text-gray-500">Total Payments</div>
               </div>
@@ -102,9 +106,12 @@ export default function PaymentStatusDistribution({
                       {item.name}
                     </span>
                   </div>
-                  <div className="text-sm text-gray-600">{item.value} count</div>
+                  <div className="text-sm text-gray-600">
+                    {item.value} count
+                    {item.percent !== undefined && ` (${item.percent}%)`}
+                  </div>
                   <div className="text-sm font-semibold text-gray-900">
-                    ${item.amount.toLocaleString()}
+                    ${item.amount.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                   </div>
                 </div>
               ))}

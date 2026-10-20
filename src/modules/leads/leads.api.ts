@@ -595,32 +595,73 @@ export async function getLeadTimelineProvider(leadId: string, params?: { dateFro
   return response.data;
 }
 
+export type CustomBudgetLine = {
+  key?: string;
+  label: string;
+  amount: number;
+  expenseCategories?: string[];
+};
+
+export type PlanningCard = {
+  key: string;
+  label: string;
+  description?: string;
+  amount: number;
+  isPreset: boolean;
+  canDelete: boolean;
+  expenseCategories?: string[];
+};
+
 export type LeadBudgetPayload = {
+  totalBudget?: number;
   materialBudget?: number;
   logisticBudget?: number;
   productionBudget?: number;
   shipperBudget?: number;
   otherCost?: number;
+  customLines?: CustomBudgetLine[];
+};
+
+export type LeadBudgetData = {
+  _id: string;
+  leadId: string;
+  materialBudget?: number;
+  logisticBudget?: number;
+  productionBudget?: number;
+  shipperBudget?: number;
+  otherCost?: number;
+  totalBudget?: number;
+  expectedProfit?: number;
+  customLines?: CustomBudgetLine[];
+  planningCards?: PlanningCard[];
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type GetLeadBudgetResponse = {
   success: boolean;
   message: string;
   data: {
-    budget?: {
-      _id: string;
-      leadId: string;
-      materialBudget: number;
-      logisticBudget: number;
-      productionBudget: number;
-      shipperBudget: number;
-      otherCost: number;
-      totalBudget: number;
-      expectedProfit: number;
-      createdAt: string;
-      updatedAt: string;
-    }
+    budget?: LeadBudgetData | null;
   };
+};
+
+export type UpdateLeadBudgetCategoryPayload = {
+  amount: number;
+};
+
+export type AddCustomLinePayload = {
+  label: string;
+  amount?: number;
+  key?: string;
+  expenseCategories?: string[];
+};
+
+export type UpdateCustomLinePayload = {
+  label?: string;
+  amount?: number;
+  expenseCategories?: string[];
 };
 
 export async function getLeadBudgetProvider(leadId: string) {
@@ -691,6 +732,51 @@ export async function createLeadProvider(payload: CreateLeadPayload) {
 
 export async function updateLeadBudgetProvider(leadId: string, payload: LeadBudgetPayload) {
   const response = await apiClient.post<GetLeadBudgetResponse>(`/api/admin/leads/${leadId}/budget`, payload);
+  return response.data;
+}
+
+export async function updateLeadBudgetCategoryProvider(
+  leadId: string,
+  categoryKey: string,
+  payload: UpdateLeadBudgetCategoryPayload
+) {
+  const response = await apiClient.put<{ success: boolean; message: string; data?: Record<string, unknown> }>(
+    `/api/admin/leads/${leadId}/budget/categories/${categoryKey}`,
+    payload
+  );
+  return response.data;
+}
+
+export async function addLeadBudgetCustomLineProvider(
+  leadId: string,
+  payload: AddCustomLinePayload
+) {
+  const response = await apiClient.post<{ success: boolean; message: string; data?: Record<string, unknown> }>(
+    `/api/admin/leads/${leadId}/budget/custom-lines`,
+    payload
+  );
+  return response.data;
+}
+
+export async function updateLeadBudgetCustomLineProvider(
+  leadId: string,
+  lineKey: string,
+  payload: UpdateCustomLinePayload
+) {
+  const response = await apiClient.put<{ success: boolean; message: string; data?: Record<string, unknown> }>(
+    `/api/admin/leads/${leadId}/budget/custom-lines/${lineKey}`,
+    payload
+  );
+  return response.data;
+}
+
+export async function deleteLeadBudgetCustomLineProvider(
+  leadId: string,
+  lineKey: string
+) {
+  const response = await apiClient.delete<{ success: boolean; message: string }>(
+    `/api/admin/leads/${leadId}/budget/custom-lines/${lineKey}`
+  );
   return response.data;
 }
 

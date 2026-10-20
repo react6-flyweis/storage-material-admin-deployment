@@ -23,6 +23,7 @@ import {
   attachMaterialRequestAttachment,
   addDrawingComment,
   getConstructionOverview,
+  getProjectMismatchOrders,
   type CreateTaskPayload,
   type CreateWorkLogPayload,
   type GetWorkLogsParams,
@@ -33,6 +34,7 @@ import {
   type GetDeliveriesParams,
   type ReviewMaterialRequestPayload,
   type GetConstructionOverviewParams,
+  type GetProjectMismatchOrdersParams,
 } from "./construction.api";
 
 export function useConstructionReportsQuery() {
@@ -283,6 +285,18 @@ export function useConstructionOverviewQuery(params?: GetConstructionOverviewPar
   return useQuery({
     queryKey: ["construction", "overview", params],
     queryFn: () => getConstructionOverview(params),
+  });
+}
+
+export function useProjectMismatchOrdersQuery(
+  leadId?: string,
+  params?: GetProjectMismatchOrdersParams,
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: ["plant", "projects", leadId, "mismatch-orders", params],
+    queryFn: () => getProjectMismatchOrders(leadId!, params),
+    enabled: Boolean(leadId) && (options?.enabled ?? true),
   });
 }
 
