@@ -697,18 +697,31 @@ export async function getStateWiseTaxUpcomingDeadlinesProvider(
 // ---------------- Payments Dashboard Types & API ----------------
 
 export type PaymentsDashboardStats = {
-  totalPayments: number;
-  totalReceived: number;
-  totalOutstanding: number;
-  totalOverdue: number;
-  totalOverdueYTD: number;
-  totalOverdueYTDPct: number;
+  totalPayments?: number;
+  totalInvoicedToClients?: number;
+  totalReceived?: number;
+  totalOutstanding?: number;
+  totalOverdue?: number;
+  totalOverdueYTD?: number;
+  totalOverdueYTDPct?: number;
+  totalToReceiveFromClients?: number;
+  totalScheduledToReceiveFromClients?: number;
+  scheduledStageCount?: number;
+  balanceDueOnInvoices?: number;
+  [key: string]: unknown;
 };
 
 export type StatusDistributionItem = {
-  _id: string;
-  count: number;
+  _id?: string;
+  status?: string;
+  statusLabel?: string;
+  clientCount?: number;
+  paymentCount?: number;
+  count?: number;
   amount: number;
+  percent?: number;
+  countSharePct?: number;
+  [key: string]: unknown;
 };
 
 export type RevenueTrendItem = {
@@ -720,15 +733,30 @@ export type RevenueTrendItem = {
   amount: number;
 };
 
+export type RevenueTrendChartItem = {
+  label: string;
+  year: number;
+  month: number;
+  received: number;
+  projected: number;
+};
+
 export type ExpectedPaymentItem = {
-  _id: string;
+  _id?: string;
+  bucket?: string;
   amount: number;
+  percent?: number;
+  [key: string]: unknown;
 };
 
 export type StageWiseItem = {
   _id: string;
-  count: number;
+  key?: string;
+  progressPct?: number;
+  clientCount?: number;
+  count?: number;
   amount: number;
+  [key: string]: unknown;
 };
 
 export type RecentPaymentCustomer = {
@@ -768,14 +796,23 @@ export type RecentPaymentProof = {
 };
 
 export type RecentPaymentItem = {
-  _id: string;
+  id?: string;
+  _id?: string;
+  date?: string;
+  clientName?: string;
+  projectName?: string;
+  clientProjectLabel?: string;
+  invoiceNumber?: string;
+  amount?: number;
+  received?: number;
+  paymentMode?: string;
+  status?: string;
+  statusLabel?: string;
   leadId?: RecentPaymentLead | null;
   customerId?: RecentPaymentCustomer | null;
   quotationId?: string | null;
   createdBy?: string;
-  invoiceNumber?: string;
   description?: string;
-  date?: string;
   daysToPay?: number | null;
   dueDate?: string | null;
   poNumber?: string;
@@ -786,7 +823,6 @@ export type RecentPaymentItem = {
   discount?: number;
   depositAmount?: number;
   totalAmount?: number;
-  status?: string;
   sentAt?: string | null;
   paidBy?: string | null;
   paidAt?: string | null;
@@ -801,14 +837,20 @@ export type PaymentsDashboardData = {
   stats: PaymentsDashboardStats;
   statusDistribution: StatusDistributionItem[];
   revenueTrend: RevenueTrendItem[];
+  revenueTrendChart?: RevenueTrendChartItem[];
   expectedPayments: ExpectedPaymentItem[];
   stageWise: StageWiseItem[];
   recentPayments: RecentPaymentItem[];
+  recentPaymentsPage?: number;
+  recentPaymentsLimit?: number;
+  recentPaymentsTotal?: number;
 };
 
 export type GetPaymentsDashboardParams = {
   startDate?: string;
   endDate?: string;
+  page?: number;
+  limit?: number;
 };
 
 export type GetPaymentsDashboardResponse = {
@@ -826,6 +868,12 @@ export async function getPaymentsDashboardProvider(
   }
   if (params?.endDate) {
     queryParams.append("endDate", params.endDate);
+  }
+  if (params?.page) {
+    queryParams.append("page", params.page.toString());
+  }
+  if (params?.limit) {
+    queryParams.append("limit", params.limit.toString());
   }
 
   const queryString = queryParams.toString();
