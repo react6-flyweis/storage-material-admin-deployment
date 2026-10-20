@@ -468,6 +468,11 @@ const navigationGroups: NavigationGroup[] = [
         label: "Construction Reports",
         icon: constructionReportsIcon,
       },
+      {
+        path: "/construction/mismatch-orders",
+        label: "Mismatch Orders",
+        icon: purchaseOrdersIcon,
+      },
     ],
   },
   {
