@@ -17,9 +17,19 @@ import {
   getActivityLogProvider,
   getLeadBudgetProvider,
   updateLeadBudgetProvider,
+  updateLeadBudgetCategoryProvider,
+  addLeadBudgetCustomLineProvider,
+  updateLeadBudgetCustomLineProvider,
+  deleteLeadBudgetCustomLineProvider,
   getLeadTimelineProvider,
   type GetActivityLogParams,
   type LeadBudgetPayload,
+  type CustomBudgetLine,
+  type PlanningCard,
+  type LeadBudgetData,
+  type UpdateLeadBudgetCategoryPayload,
+  type AddCustomLinePayload,
+  type UpdateCustomLinePayload,
   terminateLeadProvider,
   type TerminateLeadPayload,
   deleteLeadProvider,
@@ -33,6 +43,16 @@ import {
   unarchiveLeadProvider,
   type GetArchivedLeadsParams,
 } from "./leads.api";
+
+export type {
+  CustomBudgetLine,
+  LeadBudgetPayload,
+  PlanningCard,
+  LeadBudgetData,
+  UpdateLeadBudgetCategoryPayload,
+  AddCustomLinePayload,
+  UpdateCustomLinePayload,
+};
 
 type EscalationStatus = "pending" | "assigned" | "resolved";
 
@@ -296,6 +316,79 @@ export function useUpdateLeadBudgetMutation() {
       updateLeadBudgetProvider(leadId, payload),
     onSuccess: (_, { leadId }) => {
       void queryClient.invalidateQueries({ queryKey: ["leads", "budget", leadId] });
+      void queryClient.invalidateQueries({ queryKey: ["leads", "detail", leadId] });
+    },
+  });
+}
+
+export function useUpdateLeadBudgetCategoryMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      leadId,
+      categoryKey,
+      payload,
+    }: {
+      leadId: string;
+      categoryKey: string;
+      payload: UpdateLeadBudgetCategoryPayload;
+    }) => updateLeadBudgetCategoryProvider(leadId, categoryKey, payload),
+    onSuccess: (_, { leadId }) => {
+      void queryClient.invalidateQueries({ queryKey: ["leads", "budget", leadId] });
+      void queryClient.invalidateQueries({ queryKey: ["leads", "detail", leadId] });
+    },
+  });
+}
+
+export function useAddLeadBudgetCustomLineMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      leadId,
+      payload,
+    }: {
+      leadId: string;
+      payload: AddCustomLinePayload;
+    }) => addLeadBudgetCustomLineProvider(leadId, payload),
+    onSuccess: (_, { leadId }) => {
+      void queryClient.invalidateQueries({ queryKey: ["leads", "budget", leadId] });
+      void queryClient.invalidateQueries({ queryKey: ["leads", "detail", leadId] });
+    },
+  });
+}
+
+export function useUpdateLeadBudgetCustomLineMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      leadId,
+      lineKey,
+      payload,
+    }: {
+      leadId: string;
+      lineKey: string;
+      payload: UpdateCustomLinePayload;
+    }) => updateLeadBudgetCustomLineProvider(leadId, lineKey, payload),
+    onSuccess: (_, { leadId }) => {
+      void queryClient.invalidateQueries({ queryKey: ["leads", "budget", leadId] });
+      void queryClient.invalidateQueries({ queryKey: ["leads", "detail", leadId] });
+    },
+  });
+}
+
+export function useDeleteLeadBudgetCustomLineMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      leadId,
+      lineKey,
+    }: {
+      leadId: string;
+      lineKey: string;
+    }) => deleteLeadBudgetCustomLineProvider(leadId, lineKey),
+    onSuccess: (_, { leadId }) => {
+      void queryClient.invalidateQueries({ queryKey: ["leads", "budget", leadId] });
+      void queryClient.invalidateQueries({ queryKey: ["leads", "detail", leadId] });
     },
   });
 }
