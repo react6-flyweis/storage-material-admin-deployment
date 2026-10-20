@@ -1,8 +1,9 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router";
 import SearchIcon from "../assets/searchIcon.svg";
 import CustomSelect from "../components/common/CustomSelect";
 import ProjectSelector from "../components/common/ProjectSelector";
-import { Upload, CheckCircle2 } from "lucide-react";
+import { Upload, CheckCircle2, AlertCircle } from "lucide-react";
 import {
   useDeliveriesQuery,
   useExportDeliveriesMutation,
@@ -71,6 +72,7 @@ function formatStatus(status: string) {
 }
 
 export default function AllDeliveries() {
+  const navigate = useNavigate();
   const [projectFilter, setProjectFilter] = useState("all");
   const [destinationFilter, setDestinationFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -216,14 +218,24 @@ export default function AllDeliveries() {
             View & Monitor all deliveries across projects and sites
           </p>
         </div>
-        <button
-          onClick={handleExport}
-          disabled={exportMutation.isPending}
-          className="flex items-center gap-2 px-4 py-2 bg-white border border-[#D1D5DB] rounded-lg text-sm font-medium text-[#374151] hover:bg-gray-50 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Upload className="w-4 h-4 text-gray-500" />
-          {exportMutation.isPending ? "Exporting..." : "Export"}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate("/construction/mismatch-orders")}
+            className="flex items-center gap-2 px-3.5 py-2 bg-red-50 border border-red-200 rounded-lg text-sm font-medium text-red-600 hover:bg-red-100 shadow-xs transition-colors cursor-pointer"
+          >
+            <AlertCircle className="w-4 h-4 text-red-500" />
+            Mismatch Orders
+          </button>
+          <button
+            onClick={handleExport}
+            disabled={exportMutation.isPending}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-[#D1D5DB] rounded-lg text-sm font-medium text-[#374151] hover:bg-gray-50 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+          >
+            <Upload className="w-4 h-4 text-gray-500" />
+            {exportMutation.isPending ? "Exporting..." : "Export"}
+          </button>
+        </div>
       </div>
 
       {/* Filters Section */}
