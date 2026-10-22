@@ -1,6 +1,5 @@
 import { format, isValid } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -23,6 +22,7 @@ import {
   Loader2,
 } from "lucide-react";
 import type { TaxFilingItem } from "@/modules/payments/payments.api";
+import TaxStatusBadge from "@/components/payments/tax-status-badge";
 
 const AVATAR_COLORS = [
   "bg-blue-900",
@@ -81,7 +81,6 @@ function getDueInText(dueDateStr?: string | null) {
     const due = new Date(dueDateStr);
     if (!isValid(due)) return "-";
     const now = new Date();
-    // Normalize to start of day for comparison
     const dueDay = new Date(due.getFullYear(), due.getMonth(), due.getDate());
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const diffTime = dueDay.getTime() - today.getTime();
@@ -95,50 +94,6 @@ function getDueInText(dueDateStr?: string | null) {
     return "-";
   }
 }
-
-const getStatusBadge = (status?: string) => {
-  if (!status) return <span className="text-gray-400 text-sm">-</span>;
-  const s = status.toLowerCase().trim();
-  switch (s) {
-    case "due soon":
-      return (
-        <Badge className="bg-orange-400 hover:bg-orange-500 text-white font-normal rounded-sm">
-          Due Soon
-        </Badge>
-      );
-    case "pending":
-      return (
-        <Badge className="bg-cyan-500 hover:bg-cyan-600 text-white font-normal rounded-sm">
-          Pending
-        </Badge>
-      );
-    case "no tax due":
-      return (
-        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-normal rounded-sm">
-          No tax due
-        </Badge>
-      );
-    case "filed":
-    case "paid":
-      return (
-        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-normal rounded-sm capitalize">
-          {s === "paid" ? "Paid" : "Filed"}
-        </Badge>
-      );
-    case "overdue":
-      return (
-        <Badge className="bg-rose-500 hover:bg-rose-600 text-white font-normal rounded-sm">
-          Overdue
-        </Badge>
-      );
-    default:
-      return (
-        <Badge className="bg-gray-500 text-white font-normal rounded-sm capitalize">
-          {status}
-        </Badge>
-      );
-  }
-};
 
 type PaginationFooterProps = {
   page: number;
@@ -215,10 +170,11 @@ export function PaginationFooter({
               key={idx}
               variant="outline"
               onClick={() => onPageChange(p)}
-              className={`h-8 w-8 p-0 rounded-md text-xs font-medium ${page === p
-                ? "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100"
-                : "text-gray-600 border-gray-200 hover:bg-gray-50"
-                }`}
+              className={`h-8 w-8 p-0 rounded-md text-xs font-medium ${
+                page === p
+                  ? "bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100"
+                  : "text-gray-600 border-gray-200 hover:bg-gray-50"
+              }`}
             >
               {p}
             </Button>
@@ -300,89 +256,114 @@ export function PendingFilingTab({
                 </TableCell>
               </TableRow>
             ) : (
-              rows.map((row) => (
-                <TableRow
-                  key={row._id}
-                  className="border-b last:border-none hover:bg-gray-50/50 transition-colors"
-                >
-                  <TableCell className="py-4">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${getAvatarColor(
-                          row.state
-                        )}`}
-                      >
-                        <span className="text-xs font-bold">
-                          {row.state?.charAt(0) || "T"}
-                        </span>
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-gray-900">{row.state || "-"}</span>
-                        <span className="text-xs text-gray-500">
-                          {row.leadId?.jobId
-                            ? `${row.leadId.jobId}${row.leadId.projectName ? ` • ${row.leadId.projectName}` : ""}`
-                            : row.threshold || "-"}
-                        </span>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-4">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-gray-900">
-                        {formatPeriod(row.dueDate)}
-                      </span>
-                      <span className="text-xs text-gray-500 capitalize">
-                        {row.filingFrequency || "-"}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-4">
-                    <div className="flex flex-col">
-                      <span className="text-gray-900 font-medium">
-                        {formatDate(row.dueDate)}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {getDueInText(row.dueDate)}
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="py-4 text-gray-900 font-semibold text-sm">
-                    {formatCurrency(row.amount)}
-                  </TableCell>
-                  <TableCell className="py-4">{getStatusBadge(row.status)}</TableCell>
-                  <TableCell className="py-4">
-                    <div className="flex items-center gap-3">
-                      {row.status?.toLowerCase() === "no tax due" ? (
-                        <button
-                          type="button"
-                          onClick={() => onReviewDetails?.(row)}
-                          className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+              rows.map((row) => {
+                const stateDisplay = row.stateLabel || row.state || "-";
+                const leadObj = typeof row.leadId === "object" ? row.leadId : null;
+                const leadInfo = row.jobId
+                  ? `${row.jobId}${row.projectName ? ` • ${row.projectName}` : ""}`
+                  : leadObj?.jobId
+                  ? `${leadObj.jobId}${leadObj.projectName ? ` • ${leadObj.projectName}` : ""}`
+                  : row.threshold || "";
+
+                const filingPeriodText =
+                  row.filingPeriod || formatPeriod(row.dueDate);
+                const dueInText =
+                  row.daysUntilDueLabel || getDueInText(row.dueDate);
+                const taxDueVal = row.taxDue ?? row.payable ?? row.amount;
+
+                const isNoTaxDue =
+                  (typeof row.status === "object" &&
+                    (row.status.code === "no_tax_due" ||
+                      row.status.tone === "success")) ||
+                  (typeof row.status === "string" &&
+                    row.status.toLowerCase() === "no tax due");
+
+                return (
+                  <TableRow
+                    key={row._id}
+                    className="border-b last:border-none hover:bg-gray-50/50 transition-colors"
+                  >
+                    <TableCell className="py-4">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${getAvatarColor(
+                            row.state
+                          )}`}
                         >
-                          View Details
-                        </button>
-                      ) : (
-                        <>
+                          <span className="text-xs font-bold">
+                            {row.state?.charAt(0) || "T"}
+                          </span>
+                        </div>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-gray-900">{stateDisplay}</span>
+                          <span className="text-xs text-gray-500">
+                            {row.salesTaxRateLabel
+                              ? row.salesTaxRateLabel
+                              : leadInfo || "-"}
+                          </span>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-gray-900">
+                          {filingPeriodText}
+                        </span>
+                        <span className="text-xs text-gray-500 capitalize">
+                          {row.filingFrequency || "Monthly"}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <div className="flex flex-col">
+                        <span className="text-gray-900 font-medium">
+                          {formatDate(row.dueDate)}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {dueInText}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4 text-gray-900 font-semibold text-sm">
+                      {formatCurrency(taxDueVal)}
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <TaxStatusBadge status={row.status} />
+                    </TableCell>
+                    <TableCell className="py-4">
+                      <div className="flex items-center gap-3">
+                        {isNoTaxDue ? (
                           <button
                             type="button"
                             onClick={() => onReviewDetails?.(row)}
-                            className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                            className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
                           >
-                            Review Details
+                            View Details
                           </button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            onClick={() => onPrepareFiling?.(row)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs px-3"
-                          >
-                            Prepare Filing
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => onReviewDetails?.(row)}
+                              className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
+                            >
+                              Review Details
+                            </button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              onClick={() => onPrepareFiling?.(row)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs px-3 cursor-pointer"
+                            >
+                              Prepare Filing
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -462,8 +443,15 @@ export function FilingHistoryTab({
               </TableRow>
             ) : (
               rows.map((row) => {
-                const filedDateValue = row.paidAt || row.updatedAt || row.createdAt;
-                const receiptId = "-";
+                const filedDateValue =
+                  row.filedDate || row.paidAt || row.updatedAt || row.createdAt;
+                const confirmationNumber =
+                  row.receipt?.confirmationNumber || "-";
+                const receiptDate =
+                  row.receipt?.receiptDate || filedDateValue;
+                const taxPaidVal = row.taxPaid ?? row.amount;
+                const filingPeriodText =
+                  row.filingPeriod || formatPeriod(row.dueDate || filedDateValue);
 
                 return (
                   <TableRow
@@ -484,11 +472,7 @@ export function FilingHistoryTab({
                         <div className="flex flex-col">
                           <span className="font-medium text-gray-900">{row.state || "-"}</span>
                           <span className="text-xs text-gray-500">
-                            {row.leadId?.jobId
-                              ? `${row.leadId.jobId}${row.leadId.projectName ? ` • ${row.leadId.projectName}` : ""}`
-                              : (row.customerId?.firstName
-                                ? `${row.customerId.firstName}${row.customerId.lastName ? ` ${row.customerId.lastName}` : ""}`
-                                : "-")}
+                            {row.salesTaxRateLabel || "Sales Tax"}
                           </span>
                         </div>
                       </div>
@@ -496,10 +480,10 @@ export function FilingHistoryTab({
                     <TableCell className="py-4">
                       <div className="flex flex-col">
                         <span className="font-medium text-gray-900">
-                          {formatPeriod(row.dueDate || filedDateValue)}
+                          {filingPeriodText}
                         </span>
                         <span className="text-xs text-gray-500 capitalize">
-                          {row.filingFrequency || "-"}
+                          {row.filingFrequency || "Monthly"}
                         </span>
                       </div>
                     </TableCell>
@@ -514,26 +498,28 @@ export function FilingHistoryTab({
                       </div>
                     </TableCell>
                     <TableCell className="py-4 text-gray-900 font-semibold text-sm">
-                      {formatCurrency(row.amount)}
+                      {formatCurrency(taxPaidVal)}
                     </TableCell>
                     <TableCell className="py-4 text-gray-600 text-sm">
-                      {row.filingFrequency || "-"}
+                      {row.method || "Avalara API"}
                     </TableCell>
-                    <TableCell className="py-4">{getStatusBadge(row.status || "-")}</TableCell>
                     <TableCell className="py-4">
-                      {receiptId !== "-" ? (
+                      <TaxStatusBadge status={row.status} />
+                    </TableCell>
+                    <TableCell className="py-4">
+                      {confirmationNumber !== "-" ? (
                         <button
                           type="button"
-                          onClick={() => onViewDetails?.(row)}
-                          className="text-blue-600 font-medium hover:underline text-left block text-sm"
+                          onClick={() => onDownload?.(row)}
+                          className="text-blue-600 font-medium hover:underline text-left block text-sm cursor-pointer"
                         >
-                          {receiptId}
+                          {confirmationNumber}
                         </button>
                       ) : (
                         <span className="text-gray-400 text-sm">-</span>
                       )}
                       <div className="text-xs text-gray-400">
-                        {formatDate(filedDateValue, "MMM dd, yyyy")}
+                        {formatDate(receiptDate, "MMM dd, yyyy")}
                       </div>
                     </TableCell>
                     <TableCell className="py-4">
@@ -543,16 +529,17 @@ export function FilingHistoryTab({
                           variant="secondary"
                           size="sm"
                           onClick={() => onViewDetails?.(row)}
-                          className="rounded font-medium text-blue-600 hover:text-blue-800 h-8 text-xs"
+                          className="rounded font-medium text-blue-600 hover:text-blue-800 h-8 text-xs cursor-pointer"
                         >
-                          View Filing
+                          View Details
                         </Button>
                         <Button
                           type="button"
                           size="icon"
                           variant="outline"
-                          className="h-8 w-8 flex items-center justify-center rounded text-gray-600 hover:bg-gray-100"
+                          className="h-8 w-8 flex items-center justify-center rounded text-gray-600 hover:bg-gray-100 cursor-pointer"
                           onClick={() => onDownload?.(row)}
+                          title="Download Receipt"
                         >
                           <Download className="h-4 w-4" />
                         </Button>
