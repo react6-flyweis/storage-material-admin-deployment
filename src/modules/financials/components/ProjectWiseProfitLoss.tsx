@@ -9,12 +9,22 @@ interface ProjectWiseProfitLossProps {
   data?: ProjectWisePLItem[];
 }
 
-const formatCurrency = (val: number) => {
+const formatCurrency = (val?: number | string | null) => {
+  if (val === undefined || val === null) return "$0.00";
+  const num = typeof val === "number" ? val : Number(val);
+  if (isNaN(num)) return "$0.00";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 2,
-  }).format(val);
+  }).format(num);
+};
+
+const formatMargin = (val?: number | string | null) => {
+  if (val === undefined || val === null) return "0.00%";
+  const num = typeof val === "number" ? val : Number(val);
+  if (isNaN(num)) return "0.00%";
+  return `${num.toFixed(2)}%`;
 };
 
 export default function ProjectWiseProfitLoss({
@@ -77,44 +87,50 @@ export default function ProjectWiseProfitLoss({
                 </td>
               </tr>
             ) : (
-              projects.map((row) => (
-                <tr
-                  key={row.projectId}
-                  className="border-b border-slate-200 bg-white hover:bg-slate-50"
-                >
-                  <td className="px-4 py-3 text-sm font-medium text-slate-900">
-                    {row.projectId}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600">
-                    {row.projectName || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600">
-                    {formatCurrency(row.revenue)}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600">
-                    {formatCurrency(row.totalExpenses)}
-                  </td>
-                  <td
-                    className={`px-4 py-3 text-sm font-medium ${row.netProfit >= 0 ? "text-emerald-600" : "text-rose-600"
-                      }`}
+              projects.map((row, index) => {
+                const netProfit = row.netProfit ?? 0;
+                const isProfitable = netProfit >= 0;
+                return (
+                  <tr
+                    key={row.projectId || row.jobId || row.projectName || index}
+                    className="border-b border-slate-200 bg-white hover:bg-slate-50"
                   >
-                    {formatCurrency(row.netProfit)}
-                  </td>
-                  <td className="px-4 py-3 text-sm font-medium text-slate-900">
-                    {row.netProfitMargin.toFixed(2)}%
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${row.status?.toLowerCase().includes("unprofitable") || row.netProfit < 0
-                          ? "bg-rose-100 text-rose-800"
-                          : "bg-emerald-100 text-emerald-800"
-                        }`}
+                    <td className="px-4 py-3 text-sm font-medium text-slate-900">
+                      {row.projectId || row.jobId || "-"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      {row.projectName || "-"}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      {formatCurrency(row.revenue)}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-slate-600">
+                      {formatCurrency(row.totalExpenses)}
+                    </td>
+                    <td
+                      className={`px-4 py-3 text-sm font-medium ${
+                        isProfitable ? "text-emerald-600" : "text-rose-600"
+                      }`}
                     >
-                      {row.status || (row.netProfit >= 0 ? "Profitable" : "Unprofitable")}
-                    </span>
-                  </td>
-                </tr>
-              ))
+                      {formatCurrency(row.netProfit)}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-medium text-slate-900">
+                      {formatMargin(row.netProfitMargin)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                          row.status?.toLowerCase().includes("unprofitable") || !isProfitable
+                            ? "bg-rose-100 text-rose-800"
+                            : "bg-emerald-100 text-emerald-800"
+                        }`}
+                      >
+                        {row.status || (isProfitable ? "Profitable" : "Unprofitable")}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
