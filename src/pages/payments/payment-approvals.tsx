@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { format, isValid } from "date-fns";
 import type { DateRange as RDateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
@@ -37,14 +37,14 @@ import {
 import {
   usePaymentApprovalsFiltersQuery,
   usePaymentApprovalsQuery,
+  usePaymentApprovalsStatsQuery,
   useExportPaymentApprovalsMutation,
 } from "@/modules/payments/payments.hooks";
 import type { PaymentApprovalItem } from "@/modules/payments/payments.api";
 
-type ApprovalStatus = "Pending" | "Approved" | "Rejected" | "Under Review" | "Disputed";
-
 type ApprovalRow = {
   _id: string;
+  approvalId?: string;
   paymentId: string;
   requestDate: string;
   payee: string;
@@ -68,6 +68,7 @@ const categoryStyles: Record<string, string> = {
   "Vendor Payment": "bg-emerald-500",
   "Shipper Payment": "bg-blue-500",
   "Other Expenses": "bg-violet-600",
+  Equipment: "bg-amber-500",
 };
 
 const statusStyles: Record<string, string> = {
@@ -79,7 +80,24 @@ const statusStyles: Record<string, string> = {
   Pending: "bg-amber-500",
   Approved: "bg-emerald-500",
   Rejected: "bg-rose-500",
+  "Under Review": "bg-blue-500",
+  Disputed: "bg-orange-500",
 };
+
+const defaultCategories = [
+  "vendor_payment",
+  "shipper_payment",
+  "equipment",
+  "other_expenses",
+];
+
+const defaultStatuses = [
+  "pending",
+  "under_review",
+  "approved",
+  "disputed",
+  "rejected",
+];
 
 const formatCategoryName = (cat: string) => {
   if (!cat) return "";
@@ -113,20 +131,38 @@ export default function PaymentApprovalsPage() {
   const [limit, setLimit] = useState<number>(10);
 
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<ApprovalRow | null>(null);
+  const [selectedApprovalId, setSelectedApprovalId] = useState<string | null>(null);
+  const [selectedPayment, setSelectedPayment] = useState<ApprovalRow | null>(
+    null,
+  );
 
   // Filters API
-  const { data: filtersRes, isLoading: isFiltersLoading } = usePaymentApprovalsFiltersQuery();
+  const { data: filtersRes } = usePaymentApprovalsFiltersQuery();
   const filtersData = filtersRes?.data;
 
+  const categoriesList =
+    filtersData?.categories && filtersData.categories.length > 0
+      ? filtersData.categories
+      : defaultCategories;
+
+  const statusesList =
+    filtersData?.statuses && filtersData.statuses.length > 0
+      ? filtersData.statuses
+      : defaultStatuses;
+
   // Date range formatted
-  const startDateStr = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
-  const endDateStr = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
+  const startDateStr = dateRange?.from
+    ? format(dateRange.from, "yyyy-MM-dd")
+    : undefined;
+  const endDateStr = dateRange?.to
+    ? format(dateRange.to, "yyyy-MM-dd")
+    : undefined;
 
   // Approvals List API
   const queryParams = {
     category: selectedCategory !== "all" ? selectedCategory : undefined,
-    requestedBy: selectedRequestedBy !== "all" ? selectedRequestedBy : undefined,
+    requestedBy:
+      selectedRequestedBy !== "all" ? selectedRequestedBy : undefined,
     status: selectedStatus !== "all" ? selectedStatus : undefined,
     startDate: startDateStr,
     endDate: endDateStr,
@@ -134,25 +170,52 @@ export default function PaymentApprovalsPage() {
     limit,
   };
 
-  const { data: approvalsRes, isLoading, isFetching } = usePaymentApprovalsQuery(queryParams);
+  const {
+    data: approvalsRes,
+    isLoading,
+    isFetching,
+  } = usePaymentApprovalsQuery(queryParams);
+
+  // Dedicated stats query for Account route
+  const { data: statsRes } = usePaymentApprovalsStatsQuery({
+    category: selectedCategory !== "all" ? selectedCategory : undefined,
+    requestedBy:
+      selectedRequestedBy !== "all" ? selectedRequestedBy : undefined,
+    status: selectedStatus !== "all" ? selectedStatus : undefined,
+    startDate: startDateStr,
+    endDate: endDateStr,
+  });
+
   const exportMutation = useExportPaymentApprovalsMutation();
 
-  const approvalsList: PaymentApprovalItem[] = approvalsRes?.data?.approvals || [];
-  const stats = approvalsRes?.data?.stats;
+  const approvalsList: PaymentApprovalItem[] =
+    approvalsRes?.data?.approvals || [];
+  const stats = approvalsRes?.data?.stats || statsRes?.data;
   const total = approvalsRes?.data?.total || 0;
   const totalPages = Math.max(1, Math.ceil(total / limit));
+
+  const totalRequestsCount =
+    stats?.totalRequests !== undefined
+      ? stats.totalRequests
+      : (stats?.pendingApproval ?? 0) +
+        (stats?.approved ?? 0) +
+        (stats?.rejected ?? 0) +
+        (stats?.underReview ?? 0) || total;
 
   const approvalSummary = [
     {
       title: "Total Requests",
-      value: stats?.totalRequests !== undefined ? String(stats.totalRequests) : "0",
+      value: String(totalRequestsCount),
       subtitle: "All payment requests",
       color: "purple" as const,
       icon: <Filter className="h-4 w-4" />,
     },
     {
       title: "Pending Approval",
-      value: stats?.pendingApproval !== undefined ? String(stats.pendingApproval) : "0",
+      value:
+        stats?.pendingApproval !== undefined
+          ? String(stats.pendingApproval)
+          : "0",
       subtitle: formatCurrency(stats?.pendingAmount || 0),
       color: "green" as const,
       icon: <Clock3 className="h-4 w-4" />,
@@ -173,7 +236,11 @@ export default function PaymentApprovalsPage() {
     },
     {
       title: "Total Amount",
-      value: formatCurrency(stats?.totalAmount || 0),
+      value: formatCurrency(
+        stats?.totalAmount !== undefined
+          ? stats.totalAmount
+          : approvalsList.reduce((acc, curr) => acc + (curr.amount || 0), 0),
+      ),
       subtitle: "All requests",
       color: "purple" as const,
       icon: <Wallet className="h-4 w-4" />,
@@ -181,26 +248,43 @@ export default function PaymentApprovalsPage() {
   ];
 
   const handleReview = (item: PaymentApprovalItem) => {
-    const reqByName = typeof item.requestedBy === "object" ? item.requestedBy?.name : String(item.requestedBy || "N/A");
-    const formattedDate = item.createdAt && isValid(new Date(item.createdAt))
-      ? format(new Date(item.createdAt), "MMM dd, yyyy\nhh:mm a")
-      : "N/A";
-    const formattedDueDate = item.dueDate && isValid(new Date(item.dueDate))
-      ? format(new Date(item.dueDate), "MMM dd, yyyy")
-      : "N/A";
+    const rawId = item.approvalId || item._id || "";
+    setSelectedApprovalId(rawId);
+
+    const reqByName =
+      typeof item.requestedBy === "object"
+        ? item.requestedBy?.name
+        : String(item.requestedBy || "N/A");
+
+    const dateVal = item.createdAt || (item as unknown as { requestDate?: string }).requestDate;
+    const formattedDate =
+      dateVal && isValid(new Date(dateVal))
+        ? format(new Date(dateVal), "MMM dd, yyyy\nhh:mm a")
+        : "N/A";
+
+    const formattedDueDate =
+      item.dueDate && isValid(new Date(item.dueDate))
+        ? format(new Date(item.dueDate), "MMM dd, yyyy")
+        : "N/A";
+
+    const payeeName = item.companyName || item.payee || "N/A";
+    const statusVal = item.statusLabel || item.status || "Pending";
 
     setSelectedPayment({
-      _id: item._id,
-      paymentId: item.paymentId,
+      _id: rawId,
+      approvalId: item.approvalId,
+      paymentId: item.paymentId || rawId,
       requestDate: formattedDate,
-      payee: item.payee,
-      payerType: item.payeeType ? item.payeeType.charAt(0).toUpperCase() + item.payeeType.slice(1) : "Vendor",
-      category: item.category,
+      payee: payeeName,
+      payerType: item.payeeType
+        ? item.payeeType.charAt(0).toUpperCase() + item.payeeType.slice(1)
+        : "Vendor",
+      category: item.category || "vendor_payment",
       requestedBy: reqByName,
       amount: formatCurrency(item.amount),
       rawAmount: item.amount,
-      status: item.status,
-      invoiceNumber: item.invoiceNumber || item.paymentId,
+      status: statusVal,
+      invoiceNumber: item.invoiceNumber || item.paymentId || rawId,
       dueDate: formattedDueDate,
       reviewedBy: item.reviewedBy,
       reviewedAt: item.reviewedAt,
@@ -212,7 +296,8 @@ export default function PaymentApprovalsPage() {
     try {
       const blob = await exportMutation.mutateAsync({
         category: selectedCategory !== "all" ? selectedCategory : undefined,
-        requestedBy: selectedRequestedBy !== "all" ? selectedRequestedBy : undefined,
+        requestedBy:
+          selectedRequestedBy !== "all" ? selectedRequestedBy : undefined,
         status: selectedStatus !== "all" ? selectedStatus : undefined,
         startDate: startDateStr,
         endDate: endDateStr,
@@ -222,7 +307,7 @@ export default function PaymentApprovalsPage() {
       link.href = url;
       link.setAttribute(
         "download",
-        `Payment_Approvals_Export_${format(new Date(), "yyyyMMdd")}.xlsx`
+        `Payment_Approvals_Export_${format(new Date(), "yyyyMMdd")}.xlsx`,
       );
       document.body.appendChild(link);
       link.click();
@@ -232,19 +317,27 @@ export default function PaymentApprovalsPage() {
     }
   };
 
-  const renderStatusBadge = (status: string) => {
-    const style = statusStyles[status] || statusStyles[status.toLowerCase()] || "bg-slate-500";
+  const renderStatusBadge = (status: string, statusLabel?: string) => {
+    const label = statusLabel || formatStatusName(status);
+    const style =
+      statusStyles[status] ||
+      statusStyles[status.toLowerCase()] ||
+      statusStyles[label] ||
+      "bg-slate-500";
     return (
       <Badge
         className={`${style} hover:${style} text-white rounded px-3 py-0.5 h-auto! text-sm font-normal`}
       >
-        {formatStatusName(status)}
+        {label}
       </Badge>
     );
   };
 
   const renderCategoryBadge = (category: string) => {
-    const style = categoryStyles[category] || categoryStyles[category.toLowerCase()] || "bg-slate-500";
+    const style =
+      categoryStyles[category] ||
+      categoryStyles[category.toLowerCase()] ||
+      "bg-slate-500";
     return (
       <Badge
         className={`${style} hover:${style} text-white rounded-md px-3 font-normal`}
@@ -287,10 +380,13 @@ export default function PaymentApprovalsPage() {
             <label className="text-sm font-medium text-slate-700">
               Request Date
             </label>
-            <DateRangeFilter value={dateRange} onChange={(range) => {
-              setDateRange(range);
-              setPage(1);
-            }} />
+            <DateRangeFilter
+              value={dateRange}
+              onChange={(range) => {
+                setDateRange(range);
+                setPage(1);
+              }}
+            />
           </div>
 
           <div className="space-y-1.5">
@@ -309,7 +405,7 @@ export default function PaymentApprovalsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                {filtersData?.categories?.map((cat) => (
+                {categoriesList.map((cat) => (
                   <SelectItem key={cat} value={cat}>
                     {formatCategoryName(cat)}
                   </SelectItem>
@@ -360,7 +456,7 @@ export default function PaymentApprovalsPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                {filtersData?.statuses?.map((st) => (
+                {statusesList.map((st) => (
                   <SelectItem key={st} value={st}>
                     {formatStatusName(st)}
                   </SelectItem>
@@ -437,24 +533,66 @@ export default function PaymentApprovalsPage() {
                 </TableRow>
               ) : approvalsList.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-32 text-center text-slate-500">
+                  <TableCell
+                    colSpan={8}
+                    className="h-32 text-center text-slate-500"
+                  >
                     No payment approval requests found.
                   </TableCell>
                 </TableRow>
               ) : (
                 approvalsList.map((item) => {
-                  const reqByName = typeof item.requestedBy === "object" ? item.requestedBy?.name : String(item.requestedBy || "N/A");
-                  const formattedDate = item.createdAt && isValid(new Date(item.createdAt))
-                    ? format(new Date(item.createdAt), "MMM dd, yyyy\nhh:mm a")
-                    : "N/A";
+                  const rawId = item.approvalId || item._id || "";
+                  const displayPaymentId = item.paymentId || rawId;
+                  const payeeName = item.companyName || item.payee || "N/A";
+
+                  const reqByName =
+                    typeof item.requestedBy === "object"
+                      ? item.requestedBy?.name
+                      : String(item.requestedBy || "N/A");
+
+                  const dateVal =
+                    item.createdAt ||
+                    (item as unknown as { requestDate?: string }).requestDate;
+                  const formattedDate =
+                    dateVal && isValid(new Date(dateVal))
+                      ? format(new Date(dateVal), "MMM dd, yyyy\nhh:mm a")
+                      : "N/A";
+
+                  const payeeTypeStr =
+                    typeof item.payeeType === "object"
+                      ? (item.payeeType as any)?.label ||
+                        (item.payeeType as any)?.code ||
+                        "Vendor"
+                      : item.payeeType || "Vendor";
+
+                  const categoryVal =
+                    typeof item.category === "object"
+                      ? (item.category as any)?.label ||
+                        (item.category as any)?.name ||
+                        "vendor_payment"
+                      : item.category || "vendor_payment";
+
+                  const statusVal =
+                    typeof item.status === "object"
+                      ? (item.status as any)?.label ||
+                        (item.status as any)?.code ||
+                        "pending"
+                      : item.status || "pending";
+
+                  const statusLabelVal =
+                    typeof item.statusLabel === "object"
+                      ? (item.statusLabel as any)?.label ||
+                        (item.statusLabel as any)?.name
+                      : item.statusLabel;
 
                   return (
                     <TableRow
-                      key={item._id}
+                      key={rawId}
                       className="border-b last:border-none"
                     >
                       <TableCell className="py-4 font-medium text-slate-900 whitespace-nowrap">
-                        {item.paymentId}
+                        {displayPaymentId}
                       </TableCell>
                       <TableCell className="py-4 text-slate-600 whitespace-pre-line text-xs">
                         {formattedDate}
@@ -462,15 +600,15 @@ export default function PaymentApprovalsPage() {
                       <TableCell className="py-4">
                         <div className="flex flex-col">
                           <span className="font-medium text-slate-900">
-                            {item.payee}
+                            {payeeName}
                           </span>
                           <span className="text-xs text-slate-500 capitalize">
-                            {item.payeeType}
+                            {payeeTypeStr}
                           </span>
                         </div>
                       </TableCell>
                       <TableCell className="py-4">
-                        {renderCategoryBadge(item.category)}
+                        {renderCategoryBadge(categoryVal)}
                       </TableCell>
                       <TableCell className="py-4 text-slate-600">
                         {reqByName}
@@ -479,7 +617,7 @@ export default function PaymentApprovalsPage() {
                         {formatCurrency(item.amount)}
                       </TableCell>
                       <TableCell className="py-4">
-                        {renderStatusBadge(item.status)}
+                        {renderStatusBadge(statusVal, statusLabelVal)}
                       </TableCell>
                       <TableCell className="py-4">
                         <Button
@@ -552,6 +690,7 @@ export default function PaymentApprovalsPage() {
       <PaymentApprovalDetail
         isOpen={isDetailOpen}
         onOpenChange={setIsDetailOpen}
+        approvalId={selectedApprovalId}
         paymentData={
           selectedPayment
             ? {
@@ -563,7 +702,7 @@ export default function PaymentApprovalsPage() {
                 reference: selectedPayment.invoiceNumber || "N/A",
                 dueDate: selectedPayment.dueDate || "N/A",
                 amount: selectedPayment.amount,
-                status: (formatStatusName(selectedPayment.status) as ApprovalStatus) || "Pending",
+                status: selectedPayment.status || "Pending",
               }
             : undefined
         }
