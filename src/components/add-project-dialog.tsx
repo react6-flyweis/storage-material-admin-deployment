@@ -6,6 +6,7 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import type { InstallAddress } from "@/types/address.types";
 
 export type Project = {
   id: string;
@@ -14,6 +15,10 @@ export type Project = {
   customerName?: string;
   buildingType?: string;
   location?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  installAddress?: InstallAddress;
   code?: string;
   jobId?: string;
   projectId?: string;
@@ -33,8 +38,9 @@ export const getProjectDisplayName = (project: Project): string => {
   if (project.buildingType && String(project.buildingType).trim()) {
     fallbackArr.push(String(project.buildingType).trim());
   }
-  if (project.location && String(project.location).trim()) {
-    fallbackArr.push(String(project.location).trim());
+  const loc = project.location || (project.installAddress ? (project.installAddress.city ? `${project.installAddress.city}, ${project.installAddress.state}` : project.installAddress.line1) : "");
+  if (loc && String(loc).trim()) {
+    fallbackArr.push(String(loc).trim());
   }
   if (fallbackArr.length > 0) {
     return fallbackArr.join("-");
