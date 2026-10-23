@@ -77,12 +77,19 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
 
   // 3. Customer direct conversations list from API
   const customerItems = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return customerConversations;
+    const sorted = [...customerConversations].sort((a, b) => {
+      const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+      const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+      return timeB - timeA;
+    });
 
-    return customerConversations.filter(
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return sorted;
+
+    return sorted.filter(
       (item) =>
         (item.customerName && item.customerName.toLowerCase().includes(q)) ||
+        (item.company && item.company.toLowerCase().includes(q)) ||
         (item.email && item.email.toLowerCase().includes(q)) ||
         (item.phone && item.phone.toLowerCase().includes(q)) ||
         (item.lastMessage && item.lastMessage.toLowerCase().includes(q))
@@ -262,6 +269,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                       phone: conv.phone,
                       category: "Customer",
                       color: "bg-emerald-600",
+                      leadId: conv.leadId,
                     })
                   }
                   className={`flex items-center justify-between p-3 cursor-pointer rounded-xl transition-all group ${
@@ -288,6 +296,11 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                           }`}
                         >
                           {conv.customerName || "Customer"}
+                          {conv.company && (
+                            <span className="block text-[11px] text-gray-400 font-normal truncate">
+                              {conv.company}
+                            </span>
+                          )}
                         </span>
                         {conv.lastMessageAt && (
                           <span className="text-[10px] text-gray-400 shrink-0">
