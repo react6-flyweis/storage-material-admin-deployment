@@ -24,6 +24,7 @@ import AssignPlantPersonDialog from "@/components/customers/assign-plant-person-
 import { apiClient } from "@/modules/auth/auth.api";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { formatBusinessUnit } from "@/modules/leads/business-unit";
+import { formatInstallAddress } from "@/lib/address";
 import { Link, useNavigate } from "react-router";
 
 type Lead = {
@@ -725,9 +726,10 @@ export default function LeadDetailDialog({
                     <div>
                       <div className="text-xs text-gray-500">Location</div>
                       <div className="text-sm text-gray-900">
-                        {leadDetail?.location ??
-                          lead.category ??
-                          "Not available"}
+                        {formatInstallAddress(
+                          leadDetail?.installAddress,
+                          leadDetail?.location ?? lead.category
+                        )}
                       </div>
                     </div>
                     <div>

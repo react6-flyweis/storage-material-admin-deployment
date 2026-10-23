@@ -20,6 +20,8 @@ import AddBasicCustomerDialog, {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import BusinessUnitSelector from "@/components/leads/business-unit-selector";
+import InstallAddressFields from "@/components/common/install-address-fields";
+import { buildLocationString } from "@/lib/address";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -49,7 +51,13 @@ const addLeadSchema = z.object({
     .min(1, "Assigned sales representative is required"),
   projectName: z.string().trim().min(1, "Project name is required"),
   businessUnit: z.string().optional(),
-  location: z.string().trim().min(1, "Location is required"),
+  addressLine1: z.string().trim().min(1, "Street address is required"),
+  addressLine2: z.string().optional(),
+  city: z.string().trim().min(1, "City is required"),
+  state: z.string().trim().min(1, "State is required"),
+  postalCode: z.string().trim().min(1, "ZIP / Postal code is required"),
+  country: z.string().optional(),
+  location: z.string().optional(),
   source: z.string().trim().min(1, "Lead source is required"),
   quoteValue: z
     .union([z.number(), z.string()])
@@ -197,6 +205,12 @@ export default function AddNewLead() {
       assignedSales: "",
       projectName: "",
       businessUnit: "",
+      addressLine1: "",
+      addressLine2: "",
+      city: "",
+      state: "",
+      postalCode: "",
+      country: "US",
       location: "",
       source: "",
       quoteValue: "",
@@ -240,12 +254,33 @@ export default function AddNewLead() {
   const onSubmit = async (data: AddLeadFormValues) => {
     clearErrors("root");
     try {
+      const compiledLocation = buildLocationString({
+        line1: data.addressLine1,
+        line2: data.addressLine2,
+        city: data.city,
+        state: data.state,
+        postalCode: data.postalCode,
+      });
+
       await createLead.mutateAsync({
         customerId: data.customerId,
         projectName: data.projectName.trim(),
         businessUnit: data.businessUnit ? data.businessUnit.trim().toLowerCase() : null,
         buildingType: data.buildingType,
-        location: data.location.trim(),
+        location: compiledLocation,
+        city: data.city.trim(),
+        state: data.state.trim(),
+        pincode: data.postalCode.trim(),
+        installAddress: {
+          companyName: "",
+          line1: data.addressLine1.trim(),
+          line2: data.addressLine2?.trim() || "",
+          city: data.city.trim(),
+          state: data.state.trim(),
+          postalCode: data.postalCode.trim(),
+          country: data.country?.trim() || "US",
+          lines: [],
+        },
         source: data.source,
         quoteValue: Number(data.quoteValue),
         roofStyle: data.roofStyle,
@@ -531,28 +566,42 @@ export default function AddNewLead() {
               )}
             </div>
 
-            {/* Location */}
-            <div className="space-y-2">
-              <Label htmlFor="location">
-                Location <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="location"
-                placeholder="Enter Location"
-                {...register("location")}
-                onChange={(e) => {
-                  register("location").onChange(e);
+            {/* Structured Address */}
+            <div className="md:col-span-2">
+              <InstallAddressFields
+                idPrefix="add-lead"
+                values={{
+                  line1: watch("addressLine1") || "",
+                  line2: watch("addressLine2") || "",
+                  city: watch("city") || "",
+                  state: watch("state") || "",
+                  postalCode: watch("postalCode") || "",
+                  country: watch("country") || "US",
+                }}
+                onChange={(field, val) => {
+                  const fieldMap: Record<string, keyof AddLeadFormValues> = {
+                    line1: "addressLine1",
+                    line2: "addressLine2",
+                    city: "city",
+                    state: "state",
+                    postalCode: "postalCode",
+                    country: "country",
+                  };
+                  const formField = fieldMap[field];
+                  if (formField) {
+                    setValue(formField, val, { shouldValidate: true });
+                  }
                   clearErrors("root");
                 }}
-                className={
-                  errors.location ? "border-red-500 ring-1 ring-red-500" : ""
-                }
+                errors={{
+                  line1: errors.addressLine1?.message,
+                  line2: errors.addressLine2?.message,
+                  city: errors.city?.message,
+                  state: errors.state?.message,
+                  postalCode: errors.postalCode?.message,
+                  country: errors.country?.message,
+                }}
               />
-              {errors.location && (
-                <p className="text-xs text-red-500">
-                  {errors.location.message}
-                </p>
-              )}
             </div>
 
             {/* Business Unit */}

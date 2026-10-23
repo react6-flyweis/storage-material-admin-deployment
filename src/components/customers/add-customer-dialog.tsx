@@ -21,6 +21,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Controller, useForm } from "react-hook-form";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import BusinessUnitSelector from "@/components/leads/business-unit-selector";
+import InstallAddressFields from "@/components/common/install-address-fields";
+import { buildLocationString } from "@/lib/address";
 import { useSalesEmployeesQuery, useCreateCustomerMutation } from "@/modules/customers/customers.hooks";
 
 type Customer = {
@@ -63,7 +65,13 @@ export default function AddCustomerDialog({
     phone: string;
     buildingType: string;
     businessUnit?: string;
-    location: string;
+    addressLine1: string;
+    addressLine2?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country?: string;
+    location?: string;
     projectName: string;
     countryCode: string;
     assignedSales: string;
@@ -78,6 +86,12 @@ export default function AddCustomerDialog({
       phone: "",
       buildingType: "Warehouse",
       businessUnit: "",
+      addressLine1: "",
+      addressLine2: "",
+      city: "",
+      state: "",
+      postalCode: "",
+      country: "US",
       location: "",
       projectName: "",
       countryCode: "+1",
@@ -107,8 +121,20 @@ export default function AddCustomerDialog({
         errors.buildingType = { type: "required", message: "Building type is required" };
       }
 
-      if (!values.location?.trim()) {
-        errors.location = { type: "required", message: "Location is required" };
+      if (!values.addressLine1?.trim()) {
+        errors.addressLine1 = { type: "required", message: "Street address is required" };
+      }
+
+      if (!values.city?.trim()) {
+        errors.city = { type: "required", message: "City is required" };
+      }
+
+      if (!values.state?.trim()) {
+        errors.state = { type: "required", message: "State is required" };
+      }
+
+      if (!values.postalCode?.trim()) {
+        errors.postalCode = { type: "required", message: "ZIP / Postal code is required" };
       }
 
       if (!values.projectName?.trim()) {
@@ -123,6 +149,14 @@ export default function AddCustomerDialog({
   });
 
   function onSubmit(values: FormValues) {
+    const compiledLocation = buildLocationString({
+      line1: values.addressLine1,
+      line2: values.addressLine2,
+      city: values.city,
+      state: values.state,
+      postalCode: values.postalCode,
+    });
+
     // Prepare data for API
     const apiData = {
       firstName: values.firstName,
@@ -130,7 +164,20 @@ export default function AddCustomerDialog({
       phone: values.phone,
       buildingType: values.buildingType,
       businessUnit: values.businessUnit ? values.businessUnit.trim().toLowerCase() : null,
-      location: values.location,
+      location: compiledLocation,
+      city: values.city.trim(),
+      state: values.state.trim(),
+      pincode: values.postalCode.trim(),
+      installAddress: {
+        companyName: "",
+        line1: values.addressLine1.trim(),
+        line2: values.addressLine2?.trim() || "",
+        city: values.city.trim(),
+        state: values.state.trim(),
+        postalCode: values.postalCode.trim(),
+        country: values.country?.trim() || "US",
+        lines: [],
+      },
       projectName: values.projectName,
       countryCode: values.countryCode,
       assignedSales: values.assignedSales === "unassigned" ? "" : values.assignedSales,
@@ -221,24 +268,42 @@ export default function AddCustomerDialog({
                 </Field>
               )}
             />
+          </div>
 
-            <Controller
-              control={form.control}
-              name="location"
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="location">Location <span className="text-red-500">*</span></FieldLabel>
-                  <Input
-                    {...field}
-                    id="location"
-                    placeholder="Chennai"
-                    aria-invalid={fieldState.invalid}
-                  />
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
+          {/* Structured Address */}
+          <div className="pt-1">
+            <InstallAddressFields
+              idPrefix="add-cust"
+              values={{
+                line1: form.watch("addressLine1") || "",
+                line2: form.watch("addressLine2") || "",
+                city: form.watch("city") || "",
+                state: form.watch("state") || "",
+                postalCode: form.watch("postalCode") || "",
+                country: form.watch("country") || "US",
+              }}
+              onChange={(field, val) => {
+                const fieldMap: Record<string, keyof FormValues> = {
+                  line1: "addressLine1",
+                  line2: "addressLine2",
+                  city: "city",
+                  state: "state",
+                  postalCode: "postalCode",
+                  country: "country",
+                };
+                const formKey = fieldMap[field];
+                if (formKey) {
+                  form.setValue(formKey, val, { shouldValidate: true });
+                }
+              }}
+              errors={{
+                line1: form.formState.errors.addressLine1?.message as string,
+                line2: form.formState.errors.addressLine2?.message as string,
+                city: form.formState.errors.city?.message as string,
+                state: form.formState.errors.state?.message as string,
+                postalCode: form.formState.errors.postalCode?.message as string,
+                country: form.formState.errors.country?.message as string,
+              }}
             />
           </div>
 

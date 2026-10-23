@@ -1,4 +1,6 @@
 import { apiClient } from "@/modules/auth/auth.api";
+import type { InstallAddress } from "@/types/address.types";
+export type { InstallAddress } from "@/types/address.types";
 
 export type Lead = {
   _id: string;
@@ -8,6 +10,10 @@ export type Lead = {
   businessUnitLabel?: string;
   buildingType?: string;
   location?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  installAddress?: InstallAddress;
   assignedSales?: {
     _id: string;
     name: string;
@@ -110,6 +116,10 @@ export type AdminLead = {
   };
   buildingType?: string;
   location?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  installAddress?: InstallAddress;
   assignedSales?: {
     name?: string;
   } | null;
@@ -270,6 +280,7 @@ export type GetLeadDetailResponse = {
       city?: string;
       state?: string;
       pincode?: string;
+      installAddress?: InstallAddress;
       roofStyle?: string;
       roofPitch?: string;
       sqft?: string;
@@ -674,6 +685,10 @@ export type UpdateLeadPayload = {
   buildingType?: string;
   businessUnit?: string | null;
   location?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  installAddress?: InstallAddress;
   roofStyle?: string;
   width?: number;
   length?: number;
@@ -710,6 +725,10 @@ export type CreateLeadPayload = {
   buildingType: string;
   businessUnit?: string | null;
   location: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  installAddress?: InstallAddress;
   source: string;
   quoteValue: number;
   roofStyle: string;

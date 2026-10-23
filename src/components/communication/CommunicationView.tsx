@@ -199,6 +199,9 @@ export const CommunicationView: React.FC = () => {
         isReadByCustomer: m.isReadByCustomer,
         isReadByStaff: m.isReadByStaff,
         createdAt: m.createdAt,
+        mirroredFrom: m.mirroredFrom,
+        leadId: m.leadId,
+        channel: m.channel,
       }));
     }
 
