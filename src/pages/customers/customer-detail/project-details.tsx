@@ -92,13 +92,7 @@ export default function ProjectDetailsPage() {
   );
   const initialStepId = getPlantLifecycleStageIndex(project?.lifecycleStatus);
 
-  const [notes, setNotes] = useState<AddNotesFormValues[]>([
-    {
-      title: "Steel Investment",
-      notes:
-        "Reliable for long-distance steel transport.\nPreferred carrier for Texas routes.\nFast response time during bidding.",
-    },
-  ]);
+  const [notes, setNotes] = useState<AddNotesFormValues[]>([]);
   const [selectedStepId, setSelectedStepId] = useState(initialStepId);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
@@ -714,14 +708,18 @@ export default function ProjectDetailsPage() {
         <Card className="rounded-[12px] border border-[#E5E7EB] bg-white shadow-sm p-6 overflow-y-auto max-h-[400px]">
           <h3 className="text-[16px] font-bold text-slate-800 mb-4">Notes</h3>
           <div className="space-y-4 text-[13px] text-slate-600">
-            {notes.map((note, index) => (
-              <div key={index} className="space-y-2">
-                <p className="text-[14px] font-medium text-slate-800">
-                  {note.title}
-                </p>
-                <p className="whitespace-pre-line">{note.notes}</p>
-              </div>
-            ))}
+            {notes.length === 0 ? (
+              <p className="text-slate-400 italic">No notes added yet.</p>
+            ) : (
+              notes.map((note, index) => (
+                <div key={index} className="space-y-2">
+                  <p className="text-[14px] font-medium text-slate-800">
+                    {note.title}
+                  </p>
+                  <p className="whitespace-pre-line">{note.notes}</p>
+                </div>
+              ))
+            )}
           </div>
         </Card>
       </div>
