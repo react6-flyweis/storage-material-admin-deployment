@@ -1,3 +1,6 @@
+import type { InstallAddress } from "@/types/address.types";
+export type { InstallAddress } from "@/types/address.types";
+
 export type AdminCustomerPhone = {
   number: string;
   countryCode: string;
@@ -47,6 +50,10 @@ export type AdminCustomerProject = {
   businessUnitLabel?: string;
   buildingType?: string;
   location?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  installAddress?: InstallAddress;
   source?: string;
   quoteValue?: number;
   lifecycleStatus?: string;
@@ -66,6 +73,11 @@ export type CustomerProject = {
   businessUnit?: string | null;
   businessUnitLabel?: string;
   numberOfBuildings?: number;
+  location?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  installAddress?: InstallAddress;
   lifecycleStatus?: string;
   assignedSales?: { _id: string; name: string };
   quoteValue?: number;
@@ -190,6 +202,10 @@ export type CreateCustomerRequest = {
   phone: string;
   buildingType: string;
   location: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  installAddress?: InstallAddress;
   projectName: string;
   countryCode: string;
   assignedSales: string;
@@ -251,6 +267,10 @@ export type CreateCustomerLeadRequest = {
   buildingType: string;
   businessUnit?: string | null;
   location: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  installAddress?: InstallAddress;
   roofStyle: string;
   width: number;
   length: number;
