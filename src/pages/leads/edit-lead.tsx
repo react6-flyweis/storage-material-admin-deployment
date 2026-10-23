@@ -5,6 +5,8 @@ import { useAppBack } from "@/modules/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getLeadDetailProvider, updateLeadProvider } from "@/modules/leads/leads.api";
 import BusinessUnitSelector from "@/components/leads/business-unit-selector";
+import InstallAddressFields from "@/components/common/install-address-fields";
+import { buildLocationString, parseLocationFallback } from "@/lib/address";
 import SuccessDialog from "@/components/success-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 
 type LeadFormData = {
   firstName: string;
@@ -41,6 +42,12 @@ type LeadFormData = {
   insulation: number;
   projectName: string;
   businessUnit: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
   location: string;
 };
 
@@ -67,6 +74,12 @@ const getInitialFormData = (): LeadFormData => ({
   insulation: 0,
   projectName: "",
   businessUnit: "",
+  addressLine1: "",
+  addressLine2: "",
+  city: "",
+  state: "",
+  postalCode: "",
+  country: "US",
   location: "",
 });
 
@@ -193,6 +206,12 @@ export default function EditLeadPage() {
         insulation: Number(lead?.numInsulation) || 0,
         projectName: lead?.projectName || "",
         businessUnit: lead?.businessUnit || "",
+        addressLine1: lead?.installAddress?.line1 || (lead?.location ? parseLocationFallback(lead.location).line1 : ""),
+        addressLine2: lead?.installAddress?.line2 || (lead?.location ? parseLocationFallback(lead.location).line2 : ""),
+        city: lead?.installAddress?.city || lead?.city || (lead?.location ? parseLocationFallback(lead.location).city : ""),
+        state: lead?.installAddress?.state || lead?.state || (lead?.location ? parseLocationFallback(lead.location).state : ""),
+        postalCode: lead?.installAddress?.postalCode || lead?.pincode || (lead?.location ? parseLocationFallback(lead.location).postalCode : ""),
+        country: lead?.installAddress?.country || "US",
         location: lead?.location || "",
       });
     }
@@ -210,6 +229,14 @@ export default function EditLeadPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const compiledLocation = buildLocationString({
+      line1: formData.addressLine1,
+      line2: formData.addressLine2,
+      city: formData.city,
+      state: formData.state,
+      postalCode: formData.postalCode,
+    });
+
     updateMutation.mutate({
       customerFirstName: formData.firstName,
       customerLastName: formData.lastName,
@@ -232,7 +259,20 @@ export default function EditLeadPage() {
       insulation: Number(formData.insulation) || 0,
       projectName: formData.projectName,
       businessUnit: formData.businessUnit ? formData.businessUnit.trim().toLowerCase() : null,
-      location: formData.location,
+      location: compiledLocation,
+      city: formData.city.trim(),
+      state: formData.state.trim(),
+      pincode: formData.postalCode.trim(),
+      installAddress: {
+        companyName: formData.companyName || "",
+        line1: formData.addressLine1.trim(),
+        line2: formData.addressLine2?.trim() || "",
+        city: formData.city.trim(),
+        state: formData.state.trim(),
+        postalCode: formData.postalCode.trim(),
+        country: formData.country?.trim() || "US",
+        lines: [],
+      },
     });
   };
 
@@ -380,17 +420,31 @@ export default function EditLeadPage() {
                   className="h-10"
                 />
               </div>
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="location" className="text-xs text-slate-600">
-                  Location (City, State)
-                </Label>
-                <Input
-                  id="location"
-                  name="location"
-                  value={formData.location}
-                  onChange={handleInputChange}
-                  placeholder="Enter Location"
-                  className="h-10"
+              <div className="md:col-span-2">
+                <InstallAddressFields
+                  idPrefix="edit-lead"
+                  values={{
+                    line1: formData.addressLine1,
+                    line2: formData.addressLine2,
+                    city: formData.city,
+                    state: formData.state,
+                    postalCode: formData.postalCode,
+                    country: formData.country || "US",
+                  }}
+                  onChange={(field, val) => {
+                    const fieldMap: Record<string, keyof LeadFormData> = {
+                      line1: "addressLine1",
+                      line2: "addressLine2",
+                      city: "city",
+                      state: "state",
+                      postalCode: "postalCode",
+                      country: "country",
+                    };
+                    const formKey = fieldMap[field];
+                    if (formKey) {
+                      setFormData((p) => ({ ...p, [formKey]: val }));
+                    }
+                  }}
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
