@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
 import { formatBusinessUnit } from "@/modules/leads/business-unit";
+import { formatInstallAddress } from "@/lib/address";
 import {
   Card,
   CardContent,
@@ -317,7 +318,7 @@ export default function ProjectDetailsPage() {
               <div>
                 <p className="text-[12px] text-slate-500">Location</p>
                 <p className="text-[14px] font-medium text-slate-800">
-                  {project?.location || "N/A"}
+                  {formatInstallAddress(project?.installAddress, project?.location || "N/A")}
                 </p>
               </div>
             </div>
@@ -363,7 +364,7 @@ export default function ProjectDetailsPage() {
                     <div className="flex flex-col text-[13px]">
                       <span className="text-slate-500 w-16">Address</span>
                       <span className="font-medium text-slate-800">
-                        {customer?.location || project?.location || "N/A"}
+                        {customer?.location || formatInstallAddress(project?.installAddress, project?.location || "N/A")}
                       </span>
                     </div>
                   </div>
