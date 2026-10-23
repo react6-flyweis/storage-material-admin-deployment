@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import ArchiveLeadDialog from "@/components/leads/archive-lead-dialog";
 import RestoreLeadDialog from "@/components/leads/restore-lead-dialog";
+import { formatInstallAddress } from "@/lib/address";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -418,7 +419,7 @@ export default function LeadDetails() {
                         Location
                       </p>
                       <p className="text-sm text-gray-500 mt-1">
-                        {lead?.location || "N/A"}
+                        {formatInstallAddress(lead?.installAddress, lead?.location || "N/A")}
                       </p>
                     </div>
                   </div>
