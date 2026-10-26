@@ -94,7 +94,7 @@ export default function LeadsPage() {
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [successOpen, setSuccessOpen] = useState(false);
   const [page, setPage] = useState(1);
-  const [limit] = useState(10);
+  const [limit, setLimit] = useState(10);
 
   const exportMutation = useExportLeadsMutation();
 
@@ -470,8 +470,12 @@ export default function LeadsPage() {
           onSelectAll={handleSelectAll}
           page={page}
           limit={limit}
-          total={leadsResponse?.data?.total || 0}
+          total={leadsResponse?.data?.total ?? leads.length}
           onPageChange={setPage}
+          onRowsPerPageChange={(newLimit) => {
+            setLimit(newLimit);
+            setPage(1);
+          }}
         />
 
         <SuccessDialog
