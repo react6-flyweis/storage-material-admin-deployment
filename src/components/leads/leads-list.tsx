@@ -4,9 +4,8 @@ import {
   Eye,
   UserPlus,
   Trash2,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
+import Pagination from "@/components/Pagination";
 import { getLeadLifecycleBadgeClassName } from "@/modules/leads/lead-lifecycle";
 import AssignSalesDialog from "@/components/leads/assign-sales-dialog";
 import DeleteLeadDialog from "@/components/leads/delete-lead-dialog";
@@ -55,6 +54,7 @@ interface LeadsListProps {
   limit: number;
   total: number;
   onPageChange: (newPage: number) => void;
+  onRowsPerPageChange?: (newLimit: number) => void;
 }
 
 const getScoreColorClass = (score: number) => {
@@ -81,6 +81,7 @@ export default function LeadsList({
   limit,
   total,
   onPageChange,
+  onRowsPerPageChange,
 }: LeadsListProps) {
   const isAllSelected = leads.length > 0 && selectedLeads.length === leads.length;
 
@@ -304,50 +305,15 @@ export default function LeadsList({
 
         {/* Pagination */}
         {!isLoading && total > 0 ? (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 sm:px-6">
-            <div className="flex flex-1 items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Showing{" "}
-                  <span className="font-medium">
-                    {(page - 1) * limit + 1}
-                  </span>{" "}
-                  to{" "}
-                  <span className="font-medium">
-                    {Math.min(page * limit, total)}
-                  </span>{" "}
-                  of <span className="font-medium">{total}</span> results
-                </p>
-              </div>
-              <div>
-                <nav
-                  className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
-                  aria-label="Pagination"
-                >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onPageChange(Math.max(1, page - 1))}
-                    disabled={page === 1}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
-                  >
-                    <span className="sr-only">Previous</span>
-                    <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onPageChange(page + 1)}
-                    disabled={page * limit >= total}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
-                  >
-                    <span className="sr-only">Next</span>
-                    <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                  </Button>
-                </nav>
-              </div>
-            </div>
-          </div>
+          <Pagination
+            totalItems={total}
+            currentPage={page}
+            rowsPerPage={limit}
+            onPageChange={onPageChange}
+            onRowsPerPageChange={(rows) => {
+              onRowsPerPageChange?.(rows);
+            }}
+          />
         ) : null}
       </CardContent>
     </Card>
