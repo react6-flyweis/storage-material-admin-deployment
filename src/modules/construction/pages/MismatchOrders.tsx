@@ -9,7 +9,6 @@ import {
   X,
   Check,
   Building2,
-  RefreshCw,
 } from "lucide-react";
 import { useAppBack } from "@/modules/navigation";
 import Pagination from "@/components/Pagination";
@@ -20,104 +19,6 @@ import {
   type MismatchOrderItem,
 } from "../components/MismatchOrderDetailsDialog";
 import type { Project } from "@/types/projects.types";
-
-// Fallback demo data matching the user's design reference
-const fallbackOrders: MismatchOrderItem[] = [
-  {
-    id: "67c0abc1234567890abcdef",
-    orderId: "CO-ORD-876",
-    project: "Steel building",
-    jobId: "PRO-023",
-    siteLocation: "North Zone, Plot 14",
-    materialName: "Steel Panels",
-    specification: "Standard Galvanized Wall Panel 24ga",
-    quantity: 12,
-    receivedQuantity: 10,
-    unit: "Panels",
-    orderDate: "21/01/2024",
-    deliveryDate: "24/01/2024",
-    status: "open",
-    reason: "Short shipment",
-    notes: "Two purlin lines missing",
-    actionNotes: "",
-    bundleId: "67a1b2c3d4e5f6789012345a",
-    bundleNo: "B-12",
-    items: [
-      {
-        itemId: "67a1b2c3d4e5f6789012345b",
-        expectedQty: 12,
-        receivedQty: 10,
-        status: "Partially Received",
-        materialName: "Steel Panels",
-      },
-    ],
-    photos: [{ name: "dock-photo.jpg", url: "https://images.unsplash.com/photo-1504307651254-35680f356dfd" }],
-    reportedBy: { _id: "u-1", name: "Site Lead", email: "site@example.com" },
-    createdAt: "2024-01-21T06:30:00.000Z",
-  },
-  {
-    id: "67c0abc1234567890abcdeg",
-    orderId: "CO-ORD-876",
-    project: "Riverside Building",
-    jobId: "PRO-024",
-    siteLocation: "Riverside Commercial Park",
-    materialName: "Steel Panels",
-    specification: "Standard Galvanized Wall Panel 24ga",
-    quantity: 11,
-    receivedQuantity: 10,
-    unit: "Panels",
-    orderDate: "21/01/2024",
-    deliveryDate: "25/01/2024",
-    status: "open",
-    reason: "Short shipment",
-    notes: "1 panel short on delivery pallet",
-    actionNotes: "",
-    bundleId: "67a1b2c3d4e5f6789012345c",
-    bundleNo: "B-14",
-    items: [
-      {
-        itemId: "67a1b2c3d4e5f6789012345d",
-        expectedQty: 11,
-        receivedQty: 10,
-        status: "Partially Received",
-        materialName: "Steel Panels",
-      },
-    ],
-    reportedBy: { _id: "u-2", name: "Site Lead", email: "site@example.com" },
-    createdAt: "2024-01-21T07:15:00.000Z",
-  },
-  {
-    id: "67c0abc1234567890abcdeh",
-    orderId: "MMO-0007",
-    project: "ABC Warehouse",
-    jobId: "PRO-023",
-    siteLocation: "Dock 4, Industrial Bay",
-    materialName: "Bundle B-12",
-    specification: "Two purlin lines missing",
-    quantity: 24,
-    receivedQuantity: 18,
-    unit: "Units",
-    orderDate: "14/10/2026",
-    status: "open",
-    reason: "Short shipment",
-    notes: "Two purlin lines missing from delivery package",
-    actionNotes: "Checking warehouse dispatch log",
-    bundleId: "67a1b2c3d4e5f6789012345a",
-    bundleNo: "B-12",
-    items: [
-      {
-        itemId: "67a1b2c3d4e5f6789012345b",
-        expectedQty: 24,
-        receivedQty: 18,
-        status: "Partially Received",
-        materialName: "Purlin Lines",
-      },
-    ],
-    photos: [{ name: "dock-photo.jpg", url: "https://images.unsplash.com/photo-1504307651254-35680f356dfd" }],
-    reportedBy: { _id: "u-3", name: "Site Lead", email: "site@example.com" },
-    createdAt: "2026-10-14T06:30:00.000Z",
-  },
-];
 
 export default function MismatchOrders() {
   const { goBack } = useAppBack("/construction");
@@ -130,7 +31,7 @@ export default function MismatchOrders() {
   // Filters & State
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [selectedDate, setSelectedDate] = useState<string>("7 April 2026");
+  const [selectedDate, setSelectedDate] = useState<string>("All Dates");
   const [sortAsc, setSortAsc] = useState(false);
 
   // Pagination states
@@ -138,7 +39,9 @@ export default function MismatchOrders() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
   // Details dialog
-  const [selectedOrder, setSelectedOrder] = useState<MismatchOrderItem | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<MismatchOrderItem | null>(
+    null,
+  );
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   // Dropdown states
@@ -150,7 +53,7 @@ export default function MismatchOrders() {
   const dateDropdownRef = useRef<HTMLDivElement>(null);
 
   // 1. Fetch available projects for selector
-  const { data: projectsData, isLoading: isProjectsLoading } = useQuery({
+  const { data: projectsData } = useQuery({
     queryKey: ["projects-selector-list"],
     queryFn: () => getProjectsApi({ page: 1, limit: 100 }),
   });
@@ -159,32 +62,21 @@ export default function MismatchOrders() {
     return projectsData?.data?.data?.projects || [];
   }, [projectsData]);
 
-  // Set default project if none selected yet
-  useEffect(() => {
-    if (!selectedLeadId && projects.length > 0) {
-      const defaultId = projects[0]._id || projects[0].leadId || "";
-      setSelectedLeadId(defaultId);
-    }
-  }, [projects, selectedLeadId]);
-
   // 2. Fetch Mismatch Orders using API
   // GET /api/admin/plant/projects/{leadId}/mismatch-orders?page=1&limit=20&status=open
-  const activeLeadId = selectedLeadId || projects[0]?._id || "6ac4e5e6570533c2c601ed40";
+  const activeLeadId =
+    selectedLeadId && selectedLeadId !== "all" ? selectedLeadId : "";
 
-  const {
-    data: mismatchResponse,
-    isLoading: isOrdersLoading,
-    isRefetching,
-    refetch,
-  } = useProjectMismatchOrdersQuery(
-    activeLeadId,
-    {
-      page: currentPage,
-      limit: rowsPerPage,
-      status: statusFilter === "all" ? undefined : statusFilter,
-    },
-    { enabled: Boolean(activeLeadId) }
-  );
+  const { data: mismatchResponse, isLoading: isOrdersLoading } =
+    useProjectMismatchOrdersQuery(
+      activeLeadId,
+      {
+        page: currentPage,
+        limit: rowsPerPage,
+        status: statusFilter === "all" ? undefined : statusFilter,
+      },
+      { enabled: Boolean(activeLeadId) },
+    );
 
   // Click outside listener for dropdowns
   useEffect(() => {
@@ -216,15 +108,19 @@ export default function MismatchOrders() {
   // Format API data or use fallback
   const mappedApiOrders = useMemo<MismatchOrderItem[]>(() => {
     const apiData = mismatchResponse?.data;
-    if (apiData && Array.isArray(apiData.mismatchOrders) && apiData.mismatchOrders.length > 0) {
+    if (
+      apiData &&
+      Array.isArray(apiData.mismatchOrders) &&
+      apiData.mismatchOrders.length > 0
+    ) {
       return apiData.mismatchOrders.map((m) => {
         const totalExpected = (m.items || []).reduce(
           (sum, it) => sum + (it.expectedQty || 0),
-          0
+          0,
         );
         const totalReceived = (m.items || []).reduce(
           (sum, it) => sum + (it.receivedQty || 0),
-          0
+          0,
         );
         const materialName = m.bundleNo
           ? `Bundle ${m.bundleNo}`
@@ -264,21 +160,81 @@ export default function MismatchOrders() {
         };
       });
     }
-
-    // Fallback to reference demo data if no records returned from backend
-    return fallbackOrders;
+    return [];
   }, [mismatchResponse]);
 
   // Filter and search logic
   const filteredOrders = useMemo(() => {
-    return mappedApiOrders
+    return (mappedApiOrders || [])
       .filter((order) => {
+        // Project filter (if specific project is selected)
+        if (selectedLeadId && selectedLeadId !== "all") {
+          const selectedProj = projects.find(
+            (p) => p._id === selectedLeadId || p.leadId === selectedLeadId,
+          );
+          if (selectedProj?.projectName) {
+            const matchesName = order.project
+              .toLowerCase()
+              .includes(selectedProj.projectName.toLowerCase());
+            if (
+              !mismatchResponse?.data?.mismatchOrders?.length &&
+              !matchesName
+            ) {
+              return false;
+            }
+          }
+        }
+
         // Status filter
         if (statusFilter !== "all") {
           const s = order.status.toLowerCase();
           const target = statusFilter.toLowerCase();
-          if (target === "open" && s !== "open" && s !== "mismatch") return false;
+          if (target === "open" && s !== "open" && s !== "mismatch")
+            return false;
           if (target !== "open" && s !== target) return false;
+        }
+
+        // Date filter
+        if (selectedDate && selectedDate !== "All Dates") {
+          const dateMatch =
+            order.orderDate
+              ?.toLowerCase()
+              .includes(selectedDate.toLowerCase()) ||
+            (order.createdAt &&
+              new Date(order.createdAt).toLocaleDateString("en-GB") ===
+                selectedDate);
+          if (!dateMatch) {
+            const parseDatePreset = (dStr: string) => {
+              try {
+                const parts = dStr.split(" ");
+                if (parts.length === 3) {
+                  const day = parts[0].padStart(2, "0");
+                  const months: Record<string, string> = {
+                    January: "01",
+                    February: "02",
+                    March: "03",
+                    April: "04",
+                    May: "05",
+                    June: "06",
+                    July: "07",
+                    August: "08",
+                    September: "09",
+                    October: "10",
+                    November: "11",
+                    December: "12",
+                  };
+                  const month = months[parts[1]] || "";
+                  const year = parts[2];
+                  if (month) return `${day}/${month}/${year}`;
+                }
+              } catch {}
+              return null;
+            };
+            const formattedPreset = parseDatePreset(selectedDate);
+            if (!formattedPreset || order.orderDate !== formattedPreset) {
+              return false;
+            }
+          }
         }
 
         // Search query
@@ -299,19 +255,37 @@ export default function MismatchOrders() {
           ? a.orderId.localeCompare(b.orderId)
           : b.orderId.localeCompare(a.orderId);
       });
-  }, [mappedApiOrders, statusFilter, searchQuery, sortAsc]);
+  }, [
+    mappedApiOrders,
+    selectedLeadId,
+    projects,
+    mismatchResponse,
+    statusFilter,
+    selectedDate,
+    searchQuery,
+    sortAsc,
+  ]);
 
   // Paginated items
   const paginatedOrders = useMemo(() => {
     const startIndex = (currentPage - 1) * rowsPerPage;
-    return filteredOrders.slice(startIndex, startIndex + rowsPerPage);
+    return (filteredOrders || []).slice(startIndex, startIndex + rowsPerPage);
   }, [filteredOrders, currentPage, rowsPerPage]);
 
-  const totalCount = mismatchResponse?.data?.total || filteredOrders.length;
+  const totalCount = mismatchResponse?.data?.total || filteredOrders?.length || 0;
 
   const currentProjectName = useMemo(() => {
-    const found = projects.find((p) => p._id === selectedLeadId || p.leadId === selectedLeadId);
-    return found?.projectName || mismatchResponse?.data?.projectName || "Select Project";
+    if (!selectedLeadId || selectedLeadId === "all") {
+      return "All Projects";
+    }
+    const found = projects.find(
+      (p) => p._id === selectedLeadId || p.leadId === selectedLeadId,
+    );
+    return (
+      found?.projectName ||
+      mismatchResponse?.data?.projectName ||
+      "All Projects"
+    );
   }, [projects, selectedLeadId, mismatchResponse]);
 
   const statusOptions = [
@@ -324,10 +298,10 @@ export default function MismatchOrders() {
   ];
 
   const datePresets = [
+    "All Dates",
     "7 April 2026",
     "21 January 2024",
     "15 January 2024",
-    "All Dates",
   ];
 
   return (
@@ -362,18 +336,6 @@ export default function MismatchOrders() {
             </p>
           </div>
         </div>
-
-        {/* Refetch / Refresh Button */}
-        <button
-          type="button"
-          onClick={() => refetch()}
-          disabled={isOrdersLoading || isRefetching}
-          className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 transition shadow-xs cursor-pointer disabled:opacity-50"
-          title="Reload Mismatch Orders"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${isRefetching ? "animate-spin text-blue-600" : ""}`} />
-          <span>Refresh</span>
-        </button>
       </div>
 
       {/* Main Card Container */}
@@ -424,63 +386,89 @@ export default function MismatchOrders() {
             </div>
 
             {/* Project Selector Dropdown */}
-            {projects.length > 0 && (
-              <div ref={projectDropdownRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
-                  className="
-                    h-[38px] px-3.5 max-w-[200px]
-                    flex items-center justify-between gap-2
-                    text-[13px] text-gray-700 font-normal
-                    bg-white border border-gray-200 rounded-[8px]
-                    hover:bg-gray-50/80
-                    focus:outline-none focus:ring-1 focus:ring-blue-500
-                    transition cursor-pointer truncate
-                  "
-                >
-                  <Building2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                  <span className="truncate">{currentProjectName}</span>
-                  <ChevronDown
-                    className={`w-3.5 h-3.5 text-gray-400 transition-transform shrink-0 ${
-                      projectDropdownOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
+            <div ref={projectDropdownRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
+                className="
+                  h-[38px] px-3.5 max-w-[200px]
+                  flex items-center justify-between gap-2
+                  text-[13px] text-gray-700 font-normal
+                  bg-white border border-gray-200 rounded-[8px]
+                  hover:bg-gray-50/80
+                  focus:outline-none focus:ring-1 focus:ring-blue-500
+                  transition cursor-pointer truncate
+                "
+              >
+                <Building2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                <span className="truncate">{currentProjectName}</span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-gray-400 transition-transform shrink-0 ${
+                    projectDropdownOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
 
-                {projectDropdownOpen && (
-                  <div className="absolute right-0 mt-1.5 w-64 bg-white border border-gray-100 rounded-[8px] shadow-lg py-1 z-30 max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
-                    <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">
-                      Select Project
-                    </div>
-                    {projects.map((proj) => {
-                      const id = proj._id || proj.leadId || "";
-                      const isSelected = selectedLeadId === id;
-                      return (
-                        <button
-                          key={id}
-                          type="button"
-                          onClick={() => {
-                            setSelectedLeadId(id);
-                            setSearchParams({ leadId: id });
-                            setProjectDropdownOpen(false);
-                            setCurrentPage(1);
-                          }}
-                          className={`
-                            w-full px-3.5 py-2 text-left text-xs flex items-center justify-between
-                            hover:bg-gray-50 transition-colors
-                            ${isSelected ? "text-blue-600 font-semibold bg-blue-50/50" : "text-gray-700"}
-                          `}
-                        >
-                          <span className="truncate">{proj.projectName || "Unnamed Project"}</span>
-                          {isSelected && <Check className="w-3.5 h-3.5 shrink-0" />}
-                        </button>
-                      );
-                    })}
+              {projectDropdownOpen && (
+                <div className="absolute right-0 mt-1.5 w-64 bg-white border border-gray-100 rounded-[8px] shadow-lg py-1 z-30 max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                    Select Project
                   </div>
-                )}
-              </div>
-            )}
+
+                  {/* All Projects Option */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedLeadId("");
+                      const newParams = new URLSearchParams(searchParams);
+                      newParams.delete("leadId");
+                      setSearchParams(newParams);
+                      setProjectDropdownOpen(false);
+                      setCurrentPage(1);
+                    }}
+                    className={`
+                      w-full px-3.5 py-2 text-left text-xs flex items-center justify-between
+                      hover:bg-gray-50 transition-colors
+                      ${!selectedLeadId || selectedLeadId === "all" ? "text-blue-600 font-semibold bg-blue-50/50" : "text-gray-700"}
+                    `}
+                  >
+                    <span className="truncate">All Projects</span>
+                    {(!selectedLeadId || selectedLeadId === "all") && (
+                      <Check className="w-3.5 h-3.5 shrink-0" />
+                    )}
+                  </button>
+
+                  {projects.map((proj) => {
+                    const id = proj._id || proj.leadId || "";
+                    const isSelected = selectedLeadId === id;
+                    return (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedLeadId(id);
+                          setSearchParams({ leadId: id });
+                          setProjectDropdownOpen(false);
+                          setCurrentPage(1);
+                        }}
+                        className={`
+                          w-full px-3.5 py-2 text-left text-xs flex items-center justify-between
+                          hover:bg-gray-50 transition-colors
+                          ${isSelected ? "text-blue-600 font-semibold bg-blue-50/50" : "text-gray-700"}
+                        `}
+                      >
+                        <span className="truncate">
+                          {proj.projectName || "Unnamed Project"}
+                        </span>
+                        {isSelected && (
+                          <Check className="w-3.5 h-3.5 shrink-0" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
 
             {/* Select Order Status Dropdown */}
             <div ref={statusDropdownRef} className="relative">
@@ -500,8 +488,8 @@ export default function MismatchOrders() {
                 <span>
                   {statusFilter === "all"
                     ? "Select Order Status"
-                    : statusOptions.find((o) => o.value === statusFilter)?.label ||
-                      "Select Order Status"}
+                    : statusOptions.find((o) => o.value === statusFilter)
+                        ?.label || "Select Order Status"}
                 </span>
                 <ChevronDown
                   className={`w-4 h-4 text-gray-400 transition-transform ${
@@ -528,7 +516,9 @@ export default function MismatchOrders() {
                       `}
                     >
                       <span>{opt.label}</span>
-                      {statusFilter === opt.value && <Check className="w-3.5 h-3.5" />}
+                      {statusFilter === opt.value && (
+                        <Check className="w-3.5 h-3.5" />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -578,7 +568,9 @@ export default function MismatchOrders() {
                       `}
                     >
                       <span>{preset}</span>
-                      {selectedDate === preset && <Check className="w-3.5 h-3.5" />}
+                      {selectedDate === preset && (
+                        <Check className="w-3.5 h-3.5" />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -614,14 +606,30 @@ export default function MismatchOrders() {
               {isOrdersLoading ? (
                 Array.from({ length: 4 }).map((_, idx) => (
                   <tr key={idx} className="animate-pulse">
-                    <td className="py-4 px-6"><div className="h-4 bg-gray-200 rounded w-24" /></td>
-                    <td className="py-4 px-6"><div className="h-4 bg-gray-200 rounded w-32" /></td>
-                    <td className="py-4 px-6"><div className="h-4 bg-gray-200 rounded w-28" /></td>
-                    <td className="py-4 px-6"><div className="h-4 bg-gray-200 rounded w-12" /></td>
-                    <td className="py-4 px-6"><div className="h-4 bg-gray-200 rounded w-12" /></td>
-                    <td className="py-4 px-6"><div className="h-4 bg-gray-200 rounded w-20" /></td>
-                    <td className="py-4 px-6"><div className="h-6 bg-gray-200 rounded-full w-24" /></td>
-                    <td className="py-4 px-6 text-center"><div className="h-5 w-5 bg-gray-200 rounded-full mx-auto" /></td>
+                    <td className="py-4 px-6">
+                      <div className="h-4 bg-gray-200 rounded w-24" />
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="h-4 bg-gray-200 rounded w-32" />
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="h-4 bg-gray-200 rounded w-28" />
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="h-4 bg-gray-200 rounded w-12" />
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="h-4 bg-gray-200 rounded w-12" />
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="h-4 bg-gray-200 rounded w-20" />
+                    </td>
+                    <td className="py-4 px-6">
+                      <div className="h-6 bg-gray-200 rounded-full w-24" />
+                    </td>
+                    <td className="py-4 px-6 text-center">
+                      <div className="h-5 w-5 bg-gray-200 rounded-full mx-auto" />
+                    </td>
                   </tr>
                 ))
               ) : paginatedOrders.length > 0 ? (
@@ -670,19 +678,18 @@ export default function MismatchOrders() {
                       <td className="py-4 px-6 whitespace-nowrap">
                         <span
                           className={`
-                            inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold text-white shadow-xs
+                            inline-block px-3 py-1 rounded-md text-xs font-semibold whitespace-nowrap
                             ${
                               isRedMismatch
-                                ? "bg-[#EF4444]"
+                                ? "bg-[#FEE2E2] text-[#EF4444]"
                                 : isGreen
-                                ? "bg-emerald-500"
-                                : isAmber
-                                ? "bg-amber-500"
-                                : "bg-gray-600"
+                                  ? "bg-[#DCFCE7] text-[#16A34A]"
+                                  : isAmber
+                                    ? "bg-[#FEF9C3] text-[#CA8A04]"
+                                    : "bg-gray-100 text-gray-700"
                             }
                           `}
                         >
-                          <span className="w-1.5 h-1.5 rounded-full bg-white" />
                           {isRedMismatch ? "Mismatch" : order.status}
                         </span>
                       </td>
@@ -709,10 +716,15 @@ export default function MismatchOrders() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-sm text-gray-500">
-                    <p className="font-medium text-gray-700">No mismatch orders found</p>
+                  <td
+                    colSpan={8}
+                    className="py-12 text-center text-sm text-gray-500"
+                  >
+                    <p className="font-medium text-gray-700">
+                      No mismatch orders found
+                    </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      No mismatch tickets reported for this project.
+                      No mismatch tickets reported.
                     </p>
                   </td>
                 </tr>
