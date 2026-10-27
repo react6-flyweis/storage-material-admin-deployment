@@ -503,9 +503,12 @@ export default function AwardedLoads() {
                           "-"}
                       </p>
                     </td>
-                    <td className="px-4 py-3 border border-gray-200 align-top">
-                      <p className="text-sm text-slate-600 max-w-[150px]">
-                        {load.description}
+                    <td className="px-4 py-3 border border-gray-200 align-top max-w-[200px] whitespace-normal">
+                      <p
+                        className="text-sm text-slate-600 break-words leading-snug line-clamp-2 whitespace-normal"
+                        title={load.description || undefined}
+                      >
+                        {load.description || "-"}
                       </p>
                     </td>
                     <td className="px-4 py-3 border border-gray-200 align-top">

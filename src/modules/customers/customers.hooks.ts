@@ -29,13 +29,15 @@ export function useCustomersQuery(
     endDate?: string;
     status?: string;
     search?: string;
-  }
+  },
+  options?: { enabled?: boolean },
 ) {
   return useQuery({
     queryKey: ["customers", "admin-list", page, limit, filters],
     queryFn: () => getAdminCustomersProvider(page, limit, filters),
     staleTime: 60 * 1000,
     placeholderData: keepPreviousData,
+    enabled: options?.enabled ?? true,
   });
 }
 

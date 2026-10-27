@@ -974,6 +974,8 @@ export interface GetConstructionOverviewParams {
   projectId?: string;
   building?: string;
   status?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export async function getConstructionOverview(params?: GetConstructionOverviewParams) {
@@ -986,6 +988,12 @@ export async function getConstructionOverview(params?: GetConstructionOverviewPa
   }
   if (params?.status && params.status !== "All Status" && params.status !== "all") {
     queryParams.status = params.status;
+  }
+  if (params?.startDate) {
+    queryParams.startDate = params.startDate;
+  }
+  if (params?.endDate) {
+    queryParams.endDate = params.endDate;
   }
 
   const response = await apiClient.get<ConstructionOverviewResponse>(
