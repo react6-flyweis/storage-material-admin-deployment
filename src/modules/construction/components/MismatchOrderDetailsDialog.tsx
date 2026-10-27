@@ -1,15 +1,7 @@
 import React from "react";
 import {
   X,
-  Building2,
-  Truck,
-  AlertTriangle,
-  Package,
-  CheckCircle2,
-  FileText,
-  ImageIcon,
-  User,
-  Layers,
+  Calendar,
   ExternalLink,
 } from "lucide-react";
 
@@ -72,24 +64,25 @@ interface MismatchOrderDetailsDialogProps {
   onStatusChange?: (id: string, newStatus: string) => void;
 }
 
-function getStatusBadge(status: string) {
-  const s = status.toLowerCase();
-  if (s === "open" || s === "mismatch") {
-    return { bg: "bg-[#EF4444] text-white", label: "Mismatch" };
-  }
-  if (s === "in_review") {
-    return { bg: "bg-amber-500 text-white", label: "In Review" };
-  }
-  if (s === "resolved") {
-    return { bg: "bg-emerald-500 text-white", label: "Resolved" };
-  }
-  if (s === "closed") {
-    return { bg: "bg-gray-600 text-white", label: "Closed" };
-  }
-  if (s === "cancelled") {
-    return { bg: "bg-gray-400 text-white", label: "Cancelled" };
-  }
-  return { bg: "bg-blue-600 text-white", label: status };
+const statusBadgeStyle: Record<string, string> = {
+  open: "bg-[#FEE2E2] text-[#EF4444]",
+  mismatch: "bg-[#FEE2E2] text-[#EF4444]",
+  in_review: "bg-[#FEF9C3] text-[#CA8A04]",
+  resolved: "bg-[#DCFCE7] text-[#16A34A]",
+  closed: "bg-gray-100 text-gray-700",
+  cancelled: "bg-gray-100 text-gray-500",
+  pending: "bg-[#FEF9C3] text-[#CA8A04]",
+};
+
+function formatStatus(status?: string) {
+  if (!status) return "Mismatch";
+  const lower = status.toLowerCase();
+  if (lower === "open" || lower === "mismatch") return "Mismatch";
+  if (lower === "in_review") return "In Review";
+  if (lower === "resolved") return "Resolved";
+  if (lower === "closed") return "Closed";
+  if (lower === "cancelled") return "Cancelled";
+  return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
 export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProps> = ({
@@ -103,169 +96,242 @@ export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProp
   const difference = order.receivedQuantity - order.quantity;
   const isMismatch =
     order.status.toLowerCase() === "open" || order.status.toLowerCase() === "mismatch";
-  const badge = getStatusBadge(order.status);
+  const formattedStatus = formatStatus(order.status);
+  const badgeClass =
+    statusBadgeStyle[order.status.toLowerCase()] ||
+    statusBadgeStyle[formattedStatus.toLowerCase()] ||
+    "bg-[#FEE2E2] text-[#EF4444]";
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-155 max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-600">
-              <AlertTriangle className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-bold text-gray-900">{order.orderId}</h2>
-                <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${badge.bg}`}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                  {badge.label}
-                </span>
-              </div>
-              <p className="text-xs text-gray-500">Order Mismatch Discrepancy Ticket</p>
-            </div>
-          </div>
+        {/* Modal Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h2 className="text-xl font-bold text-gray-900">Mismatch Order Details</h2>
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
+            className="p-1 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Quantity Discrepancy Banner */}
-          <div className="bg-red-50/70 border border-red-200/80 rounded-xl p-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold text-red-700 uppercase tracking-wider">
-                  Discrepancy Summary
-                </p>
-                <p className="text-sm text-red-900 mt-1 font-medium">
-                  {difference < 0
-                    ? `Short-delivered by ${Math.abs(difference)} ${order.unit || "units"}`
+        {/* Modal Content */}
+        <div className="p-6 overflow-y-auto space-y-6 text-sm text-gray-700">
+          {/* Top Identifier & Status */}
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <h3 className="text-2xl font-bold text-gray-900 leading-none">
+                  {order.orderId}
+                </h3>
+                <span
+                  className={`inline-block px-3 py-1 rounded-md text-xs font-semibold ${badgeClass}`}
+                >
+                  {formattedStatus}
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1.5 font-medium">
+                {order.bundleNo ? `Bundle: ${order.bundleNo}` : ""}
+                {order.bundleNo && (order.jobId || order.mismatchId) ? " • " : ""}
+                {order.jobId
+                  ? `Job ID: ${order.jobId}`
+                  : order.mismatchId
+                  ? `ID: ${order.mismatchId}`
+                  : ""}
+              </p>
+            </div>
+          </div>
+
+          {/* Grid 1: Project / Site & Material */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <p className="text-xs font-normal text-gray-500 mb-1">Project / Site</p>
+              <p className="font-bold text-gray-900 text-base">{order.project}</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {order.siteLocation || order.jobId || "Construction Site"}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs font-normal text-gray-500 mb-1">Material</p>
+              <p className="font-bold text-gray-900 text-base">{order.materialName}</p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                {order.specification || `${order.quantity} ${order.unit || "Units"}`}
+              </p>
+            </div>
+          </div>
+
+          {/* Quantity & Discrepancy Breakdown */}
+          <div className="grid grid-cols-3 gap-6 pt-1">
+            <div>
+              <p className="text-xs font-normal text-gray-500 mb-1">Ordered Qty</p>
+              <p className="font-bold text-gray-900 text-base">
+                {order.quantity}{" "}
+                <span className="text-xs font-normal text-gray-500">
+                  {order.unit || "Units"}
+                </span>
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs font-normal text-gray-500 mb-1">Received Qty</p>
+              <p className="font-bold text-gray-900 text-base">
+                {order.receivedQuantity}{" "}
+                <span className="text-xs font-normal text-gray-500">
+                  {order.unit || "Units"}
+                </span>
+              </p>
+            </div>
+
+            <div>
+              <p className="text-xs font-normal text-gray-500 mb-1">Difference</p>
+              <p
+                className={`font-bold text-base ${
+                  difference < 0
+                    ? "text-[#EF4444]"
                     : difference > 0
-                    ? `Over-delivered by ${difference} ${order.unit || "units"}`
-                    : "Quantities match record"}
+                    ? "text-emerald-600"
+                    : "text-gray-900"
+                }`}
+              >
+                {difference > 0 ? `+${difference}` : difference}{" "}
+                <span className="text-xs font-normal text-gray-500">
+                  {order.unit || "Units"}
+                </span>
+              </p>
+              {difference !== 0 && (
+                <p className="text-xs text-[#EF4444] font-medium mt-0.5">
+                  {difference < 0
+                    ? `Short by ${Math.abs(difference)}`
+                    : `Over by ${difference}`}
                 </p>
-                {order.reason && (
-                  <p className="text-xs text-red-800/80 mt-1">
-                    <span className="font-semibold">Reason:</span> {order.reason}
+              )}
+            </div>
+          </div>
+
+          {/* Delivery & Logistics Details */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div>
+              <p className="text-xs font-normal text-gray-500 mb-1.5">
+                Order / Reported Date
+              </p>
+              <div className="flex items-center gap-2 text-gray-900 font-medium">
+                <Calendar className="w-4 h-4 text-gray-700" />
+                <span>{order.orderDate}</span>
+              </div>
+            </div>
+
+            {order.deliveryDate && (
+              <div>
+                <p className="text-xs font-normal text-gray-500 mb-1.5">Delivery Date</p>
+                <div className="flex items-center gap-2 text-gray-900 font-medium">
+                  <Calendar className="w-4 h-4 text-gray-700" />
+                  <span>{order.deliveryDate}</span>
+                </div>
+              </div>
+            )}
+
+            {order.reportedBy && (
+              <div>
+                <p className="text-xs font-normal text-gray-500 mb-1">Reported By</p>
+                <p className="font-bold text-gray-900 text-sm">
+                  {order.reportedBy.name || "Site Lead"}
+                </p>
+                {order.reportedBy.email && (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {order.reportedBy.email}
                   </p>
                 )}
               </div>
-              <div className="text-right">
-                <span className="text-2xl font-bold text-red-600">
-                  {difference > 0 ? `+${difference}` : difference}
-                </span>
-                <span className="text-xs text-red-600 block">Variance</span>
-              </div>
-            </div>
-          </div>
+            )}
 
-          {/* Details Grid */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Project Info */}
-            <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/40 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase">
-                <Building2 className="w-3.5 h-3.5" />
-                Project Info
-              </div>
+            {order.transporter && (
               <div>
-                <p className="text-sm font-semibold text-gray-900">{order.project}</p>
-                {order.jobId && (
-                  <p className="text-xs text-gray-500 mt-0.5">Job ID: {order.jobId}</p>
-                )}
-                {order.siteLocation && (
-                  <p className="text-xs text-gray-500">Site: {order.siteLocation}</p>
+                <p className="text-xs font-normal text-gray-500 mb-1">Transporter</p>
+                <p className="font-bold text-gray-900 text-base">
+                  {order.transporter}
+                </p>
+                {order.truckNo && (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Truck: {order.truckNo}
+                  </p>
                 )}
               </div>
-            </div>
+            )}
 
-            {/* Material / Bundle Info */}
-            <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/40 space-y-2">
-              <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase">
-                <Package className="w-3.5 h-3.5" />
-                Material / Bundle
-              </div>
+            {order.driverName && (
               <div>
-                <p className="text-sm font-semibold text-gray-900">{order.materialName}</p>
-                {order.bundleNo && (
-                  <div className="flex items-center gap-1.5 text-xs text-gray-600 mt-0.5">
-                    <Layers className="w-3.5 h-3.5 text-gray-400" />
-                    <span>Bundle No: <strong className="text-gray-800">{order.bundleNo}</strong></span>
-                  </div>
-                )}
-                {order.specification && (
-                  <p className="text-xs text-gray-500 mt-0.5">{order.specification}</p>
+                <p className="text-xs font-normal text-gray-500 mb-1">Driver</p>
+                <p className="font-bold text-gray-900 text-base">
+                  {order.driverName}
+                </p>
+                {order.driverPhone && (
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {order.driverPhone}
+                  </p>
                 )}
               </div>
-            </div>
+            )}
           </div>
 
-          {/* Quantity Breakdown Cards */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="p-3.5 rounded-xl border border-gray-100 bg-white text-center">
-              <p className="text-xs text-gray-500">Ordered Qty</p>
-              <p className="text-xl font-bold text-gray-900 mt-1">{order.quantity}</p>
-            </div>
-            <div className="p-3.5 rounded-xl border border-gray-100 bg-white text-center">
-              <p className="text-xs text-gray-500">Received Qty</p>
-              <p className="text-xl font-bold text-gray-900 mt-1">{order.receivedQuantity}</p>
-            </div>
-            <div className="p-3.5 rounded-xl border border-red-100 bg-red-50/40 text-center">
-              <p className="text-xs text-red-600 font-medium">Difference</p>
-              <p className="text-xl font-bold text-red-600 mt-1">{difference}</p>
-            </div>
-          </div>
-
-          {/* Line Items List (from API response) */}
+          {/* Line Items Table (if any) */}
           {order.items && order.items.length > 0 && (
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-gray-600 uppercase flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5" />
-                Item Details ({order.items.length})
-              </label>
-              <div className="border border-gray-200 rounded-xl overflow-hidden">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold">
-                    <tr>
-                      <th className="py-2.5 px-3">Item ID</th>
+            <div className="pt-2 border-t border-gray-100">
+              <h3 className="text-[14px] font-bold text-[#111827] mb-3">
+                Discrepancy Line Items ({order.items.length})
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="text-[12px] font-semibold text-[#111827] border-b border-gray-100">
+                      <th className="py-2.5 pr-3 w-8">#</th>
+                      <th className="py-2.5 px-3">Item / Description</th>
                       <th className="py-2.5 px-3 text-right">Expected</th>
                       <th className="py-2.5 px-3 text-right">Received</th>
-                      <th className="py-2.5 px-3 text-right">Diff</th>
-                      <th className="py-2.5 px-3 text-center">Status</th>
+                      <th className="py-2.5 px-3 text-right">Difference</th>
+                      <th className="py-2.5 pl-3 text-center">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {order.items.map((it, idx) => {
-                      const itDiff = (it.receivedQty || 0) - (it.expectedQty || 0);
+                  <tbody className="divide-y divide-gray-50 text-[13px] text-[#4B5563]">
+                    {order.items.map((item, index) => {
+                      const itemDiff =
+                        (item.receivedQty || 0) - (item.expectedQty || 0);
                       return (
-                        <tr key={it.itemId || idx} className="hover:bg-gray-50/50">
-                          <td className="py-2.5 px-3 font-medium text-gray-900 truncate max-w-[140px]">
-                            {it.materialName || it.itemId}
+                        <tr key={item.itemId || index}>
+                          <td className="py-2.5 pr-3 text-gray-400 font-normal">
+                            {index + 1}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-semibold text-gray-700">
-                            {it.expectedQty}
+                          <td className="py-2.5 px-3 font-medium text-[#111827]">
+                            {item.materialName || item.itemId}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-semibold text-gray-700">
-                            {it.receivedQty}
+                          <td className="py-2.5 px-3 text-right font-medium text-gray-900">
+                            {item.expectedQty}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-bold text-red-600">
-                            {itDiff}
+                          <td className="py-2.5 px-3 text-right font-medium text-gray-900">
+                            {item.receivedQty}
                           </td>
-                          <td className="py-2.5 px-3 text-center">
-                            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                              {it.status}
+                          <td
+                            className={`py-2.5 px-3 text-right font-bold ${
+                              itemDiff < 0
+                                ? "text-[#EF4444]"
+                                : itemDiff > 0
+                                ? "text-emerald-600"
+                                : "text-gray-900"
+                            }`}
+                          >
+                            {itemDiff > 0 ? `+${itemDiff}` : itemDiff}
+                          </td>
+                          <td className="py-2.5 pl-3 text-center">
+                            <span className="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-[#FEF9C3] text-[#CA8A04] inline-block">
+                              {item.status || "Mismatch"}
                             </span>
                           </td>
                         </tr>
@@ -277,114 +343,90 @@ export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProp
             </div>
           )}
 
-          {/* Logistics & Reporter Details */}
-          <div className="p-4 rounded-xl border border-gray-100 bg-gray-50/40 space-y-3">
-            <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 uppercase">
-              <Truck className="w-3.5 h-3.5" />
-              Delivery & Report Details
+          {/* Reason / Notes Section */}
+          {(order.reason || order.mismatchReason) && (
+            <div className="pt-2 border-t border-gray-100">
+              <h4 className="font-bold text-gray-900 text-sm mb-1">
+                Discrepancy Reason
+              </h4>
+              <p className="text-xs text-gray-600 leading-relaxed">
+                {order.reason || order.mismatchReason}
+              </p>
             </div>
-            <div className="grid grid-cols-2 gap-4 text-xs">
-              <div>
-                <span className="text-gray-500 block">Reported Date:</span>
-                <span className="font-semibold text-gray-800">{order.orderDate}</span>
-              </div>
-              {order.reportedBy && (
-                <div>
-                  <span className="text-gray-500 block">Reported By:</span>
-                  <span className="font-semibold text-gray-800 flex items-center gap-1">
-                    <User className="w-3 h-3 text-gray-400" />
-                    {order.reportedBy.name}{" "}
-                    {order.reportedBy.email && (
-                      <span className="text-gray-400 font-normal">
-                        ({order.reportedBy.email})
-                      </span>
-                    )}
-                  </span>
-                </div>
-              )}
-              {order.transporter && (
-                <div>
-                  <span className="text-gray-500 block">Transporter:</span>
-                  <span className="font-semibold text-gray-800">{order.transporter}</span>
-                </div>
-              )}
-              {order.truckNo && (
-                <div>
-                  <span className="text-gray-500 block">Truck / Vehicle:</span>
-                  <span className="font-semibold text-gray-800">{order.truckNo}</span>
-                </div>
-              )}
-              {order.driverName && (
-                <div className="col-span-2">
-                  <span className="text-gray-500 block">Driver:</span>
-                  <span className="font-semibold text-gray-800">
-                    {order.driverName}{" "}
-                    {order.driverPhone ? `(${order.driverPhone})` : ""}
-                  </span>
-                </div>
-              )}
-            </div>
-          </div>
+          )}
 
-          {/* Notes & Reason */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-gray-600 uppercase flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5" />
-              Notes & Observations
-            </label>
-            <div className="p-3.5 rounded-xl bg-gray-50 border border-gray-200 text-xs text-gray-700 leading-relaxed">
-              {order.notes ||
-                order.mismatchReason ||
-                `Physical inspection confirmed ${order.receivedQuantity} items received out of ${order.quantity} expected.`}
+          {order.notes && (
+            <div className="pt-2 border-t border-gray-100">
+              <h4 className="font-bold text-gray-900 text-sm mb-1">
+                Notes & Observations
+              </h4>
+              <p className="text-xs text-gray-600 leading-relaxed">
+                {order.notes}
+              </p>
             </div>
-          </div>
+          )}
 
-          {/* Action Notes (if any) */}
           {order.actionNotes && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-gray-600 uppercase flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5" />
+            <div className="pt-2 border-t border-gray-100">
+              <h4 className="font-bold text-gray-900 text-sm mb-1">
                 Action Notes
-              </label>
-              <div className="p-3.5 rounded-xl bg-blue-50/50 border border-blue-200 text-xs text-blue-900 leading-relaxed">
+              </h4>
+              <p className="text-xs text-blue-700 leading-relaxed">
                 {order.actionNotes}
-              </div>
+              </p>
             </div>
           )}
 
-          {/* Photos (if attached in API) */}
+          {/* Attached Photos */}
           {order.photos && order.photos.length > 0 && (
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-gray-600 uppercase flex items-center gap-1.5">
-                <ImageIcon className="w-3.5 h-3.5" />
+            <div className="pt-2 border-t border-gray-100">
+              <h4 className="font-bold text-gray-900 text-sm mb-3">
                 Attached Photos ({order.photos.length})
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                {order.photos.map((photo, pIdx) => (
-                  <a
-                    key={pIdx}
-                    href={photo.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 transition-colors flex items-center justify-between group"
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <ImageIcon className="w-4 h-4 text-blue-500 shrink-0" />
-                      <span className="text-xs font-medium text-gray-800 truncate">
-                        {photo.name || `photo-${pIdx + 1}.jpg`}
-                      </span>
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {order.photos.map((photo, pIdx) => {
+                  const photoName = photo.name || `photo-${pIdx + 1}.jpg`;
+                  return (
+                    <div
+                      key={pIdx}
+                      className="flex items-center justify-between p-3 border border-gray-200 rounded-lg bg-white overflow-hidden"
+                    >
+                      <div className="flex items-center gap-3 min-w-0 pr-2">
+                        <img
+                          src={photo.url}
+                          alt={photoName}
+                          className="w-9 h-9 shrink-0 object-cover rounded border border-gray-200"
+                          onError={(e) => {
+                            (e.target as HTMLElement).style.display = "none";
+                          }}
+                        />
+                        <div className="truncate">
+                          <p className="text-xs font-medium text-[#111827] truncate">
+                            {photoName}
+                          </p>
+                          <p className="text-[11px] text-[#9CA3AF]">
+                            Attached Photo
+                          </p>
+                        </div>
+                      </div>
+                      <a
+                        href={photo.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-gray-50 rounded transition-colors shrink-0"
+                        title="View photo"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
                     </div>
-                    <ExternalLink className="w-3.5 h-3.5 text-gray-400 group-hover:text-blue-600" />
-                  </a>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
-        </div>
 
-        {/* Footer Actions */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50/50">
-          <div>
+          {/* Modal Footer Button */}
+          <div className="pt-4 border-t border-gray-100 flex items-center justify-center gap-3">
             {isMismatch && onStatusChange && (
               <button
                 type="button"
@@ -392,18 +434,15 @@ export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProp
                   onStatusChange(order.id, "resolved");
                   onClose();
                 }}
-                className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
+                className="px-6 py-2.5 bg-[#22C55E] text-white rounded-lg text-sm font-semibold hover:bg-[#16A34A] transition-colors shadow-sm cursor-pointer"
               >
-                <CheckCircle2 className="w-4 h-4" />
                 Mark as Resolved
               </button>
             )}
-          </div>
-          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-gray-300 hover:bg-gray-100 text-gray-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+              className="px-14 py-2.5 border border-gray-300 rounded-lg text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
             >
               Close
             </button>
@@ -413,3 +452,4 @@ export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProp
     </div>
   );
 };
+
