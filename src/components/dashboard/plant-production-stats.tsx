@@ -5,12 +5,12 @@ export default function PlantProductionStats({
 }: {
   period?: "Today" | "Week" | "Month";
 }) {
-  const scale = period === "Today" ? 0.08 : period === "Week" ? 0.6 : 1;
+  void period;
   const baseStats = [
     {
       title: "Material Value",
-      value: 8458798,
-      change: "+35%",
+      value: "$0",
+      change: "0%",
       trend: "up",
       icon: Package,
       iconBg: "bg-emerald-50",
@@ -19,8 +19,8 @@ export default function PlantProductionStats({
     },
     {
       title: "Outflow this Month",
-      value: 48988.78,
-      change: "-19%",
+      value: "$0.00",
+      change: "0%",
       trend: "down",
       icon: TrendingDown,
       iconBg: "bg-rose-50",
@@ -29,8 +29,8 @@ export default function PlantProductionStats({
     },
     {
       title: "Reorder Requests Pending",
-      value: 6,
-      change: "+41%",
+      value: "0",
+      change: "0%",
       trend: "up",
       icon: RefreshCw,
       iconBg: "bg-sky-50",
@@ -39,8 +39,8 @@ export default function PlantProductionStats({
     },
     {
       title: "Emergency Material Alerts",
-      value: 2,
-      change: "-20%",
+      value: "0",
+      change: "0%",
       trend: "down",
       icon: Bell,
       iconBg: "bg-purple-50",
@@ -49,17 +49,7 @@ export default function PlantProductionStats({
     },
   ];
 
-  const stats = baseStats.map((s) => ({
-    ...s,
-    value:
-      typeof s.value === "number"
-        ? s.title === "Material Value"
-          ? `$${Math.max(1, Math.round(s.value * scale)).toLocaleString()}`
-          : s.title === "Outflow this Month"
-          ? `$${(s.value * scale).toFixed(2)}`
-          : `${Math.max(1, Math.round(s.value * Math.max(0.5, scale)))}`
-        : s.value,
-  }));
+  const stats = baseStats;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
