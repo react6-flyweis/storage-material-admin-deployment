@@ -54,22 +54,22 @@ type DeliverySnapshotCard = {
 const deliverySnapshotCards: DeliverySnapshotCard[] = [
   {
     title: "On-Time Delivery %",
-    value: "20%",
+    value: "0%",
     icon: BarChart3,
   },
   {
     title: "Acknowledgements Pending",
-    value: "60%",
+    value: "0%",
     icon: Wallet,
   },
   {
     title: "Delivery Success Rate",
-    value: "50%",
+    value: "0%",
     icon: UserRound,
   },
   {
     title: "Reschedule Rate",
-    value: "33",
+    value: "0",
     icon: Clock3,
   },
 ];
