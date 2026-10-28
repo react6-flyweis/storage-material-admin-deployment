@@ -88,6 +88,7 @@ export const statusBadgeConfig: Record<string, { bg: string; text: string; borde
   "In Transit": { bg: "bg-[#EFF6FF]", text: "text-[#2563EB]", border: "border-[#EFF6FF]" },
   Delivered: { bg: "bg-[#E6FFEF]", text: "text-[#00C853]", border: "border-[#E6FFEF]" },
   Rescheduled: { bg: "bg-[#FFF9E6]", text: "text-[#D08700]", border: "border-[#FFF9E6]" },
+  bidding_sent: { bg: "bg-[#FEF9C3]", text: "text-[#A16207]", border: "border-[#FEF08A]" },
   carrier_selected: { bg: "bg-[#E6F0FF]", text: "text-[#155DFC]", border: "border-[#E6F0FF]" },
   scheduled: { bg: "bg-[#E6F0FF]", text: "text-[#155DFC]", border: "border-[#E6F0FF]" },
   confirmed: { bg: "bg-[#E6FFEF]", text: "text-[#00C853]", border: "border-[#E6FFEF]" },
@@ -98,6 +99,10 @@ export const statusBadgeConfig: Record<string, { bg: string; text: string; borde
   staged: { bg: "bg-[#FEFCE8]", text: "text-[#CA8A04]", border: "border-[#FEFCE8]" },
   dispatched_to_site: { bg: "bg-[#ECFDF5]", text: "text-[#059669]", border: "border-[#ECFDF5]" },
   delivered: { bg: "bg-[#E6FFEF]", text: "text-[#00C853]", border: "border-[#E6FFEF]" },
+  partial_received: { bg: "bg-[#E0F2FE]", text: "text-[#0369A1]", border: "border-[#BAE6FD]" },
+  received: { bg: "bg-[#DCFCE7]", text: "text-[#15803D]", border: "border-[#BBF7D0]" },
+  delayed: { bg: "bg-[#FFE9E9]", text: "text-[#FF4842]", border: "border-[#FFE9E9]" },
+  cancelled: { bg: "bg-[#FFE9E9]", text: "text-[#FF4842]", border: "border-[#FFE9E9]" },
   rescheduled: { bg: "bg-[#FFF9E6]", text: "text-[#D08700]", border: "border-[#FFF9E6]" },
 };
 

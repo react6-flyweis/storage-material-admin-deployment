@@ -19,7 +19,10 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -79,16 +82,11 @@ export default function AwardedLoads() {
   const requests = loadsResponse?.data?.requests || [];
   const total = loadsResponse?.data?.total || 0;
 
-  const fallbackAwardedStatuses = [
-    "awarded",
-    "in_transit",
-    "delivered",
-    "dispatched_to_site",
-  ];
-  const statusesList =
-    filtersResponse?.data?.statuses && filtersResponse.data.statuses.length > 0
-      ? filtersResponse.data.statuses
-      : fallbackAwardedStatuses;
+  const bidStatusesList =
+    filtersResponse?.data?.bidStatuses && filtersResponse.data.bidStatuses.length > 0
+      ? filtersResponse.data.bidStatuses
+      : filtersResponse?.data?.statuses || [];
+  const deliveryStatusesList = filtersResponse?.data?.deliveryStatuses || [];
   const projectsList = filtersResponse?.data?.projects || [];
   const customersList = filtersResponse?.data?.customers || [];
   const carriersList = filtersResponse?.data?.carriers || [];
@@ -113,6 +111,87 @@ export default function AwardedLoads() {
     fromDate !== "" ||
     toDate !== "" ||
     search !== "";
+
+  const getStatusBadge = (statusStr: string) => {
+    const s = (statusStr || "").toLowerCase();
+    switch (s) {
+      case "awarded":
+      case "selected":
+        return (
+          <span className="px-2.5 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full border border-green-200">
+            Selected
+          </span>
+        );
+      case "sent":
+        return (
+          <span className="px-2.5 py-0.5 bg-sky-100 text-sky-700 text-xs font-semibold rounded-full border border-sky-200">
+            Sent
+          </span>
+        );
+      case "submitted":
+      case "bids_received":
+        return (
+          <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">
+            Submitted
+          </span>
+        );
+      case "resubmit_requested":
+        return (
+          <span className="px-2.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full border border-amber-200">
+            Resubmit Requested
+          </span>
+        );
+      case "rejected":
+        return (
+          <span className="px-2.5 py-0.5 bg-red-100 text-red-700 text-xs font-semibold rounded-full border border-red-200">
+            Rejected
+          </span>
+        );
+      case "expired":
+        return (
+          <span className="px-2.5 py-0.5 bg-slate-100 text-slate-700 text-xs font-semibold rounded-full border border-slate-200">
+            Expired
+          </span>
+        );
+      case "requested":
+        return (
+          <span className="px-2.5 py-0.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full border border-orange-200">
+            Requested
+          </span>
+        );
+      case "bidding_sent":
+      case "carrier_selected":
+      case "scheduled":
+      case "confirmed":
+      case "material_prepared":
+      case "loaded":
+      case "picked_up":
+      case "in_transit":
+      case "staged":
+      case "dispatched_to_site":
+      case "delivered":
+      case "partial_received":
+      case "received":
+      case "delayed":
+      case "cancelled":
+      case "rescheduled": {
+        const style = getStatusBadgeStyle(s);
+        return (
+          <span
+            className={`px-2.5 py-0.5 text-xs font-semibold rounded-full border ${style.bg} ${style.text} ${style.border}`}
+          >
+            {formatStatusLabel(statusStr)}
+          </span>
+        );
+      }
+      default:
+        return (
+          <span className="px-2.5 py-0.5 bg-gray-100 text-gray-700 text-xs font-semibold rounded-full uppercase">
+            {(statusStr || "").replace(/_/g, " ")}
+          </span>
+        );
+    }
+  };
 
   return (
     <div className="flex-1 space-y-6 p-6 bg-[#f9fafb] min-h-screen">
@@ -265,15 +344,37 @@ export default function AwardedLoads() {
                   <SelectTrigger className="bg-white border-slate-200 rounded-xl">
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-72">
                     <SelectItem value="all">All Statuses</SelectItem>
-                    {statusesList.map((st) => (
-                      <SelectItem key={st} value={st}>
-                        {st
-                          .replace(/_/g, " ")
-                          .replace(/\b\w/g, (c) => c.toUpperCase())}
-                      </SelectItem>
-                    ))}
+                    {bidStatusesList.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel className="text-xs font-semibold text-slate-400 px-2 py-1">
+                          Bid Statuses
+                        </SelectLabel>
+                        {bidStatusesList.map((st) => (
+                          <SelectItem key={`bid_${st}`} value={st}>
+                            {st
+                              .replace(/_/g, " ")
+                              .replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                    {deliveryStatusesList.length > 0 && (
+                      <>
+                        {bidStatusesList.length > 0 && <SelectSeparator />}
+                        <SelectGroup>
+                          <SelectLabel className="text-xs font-semibold text-slate-400 px-2 py-1">
+                            Delivery Statuses
+                          </SelectLabel>
+                          {deliveryStatusesList.map((st) => (
+                            <SelectItem key={`delivery_${st}`} value={st}>
+                              {formatStatusLabel(st)}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -487,14 +588,9 @@ export default function AwardedLoads() {
                           ? new Date(load.createdAt).toLocaleDateString()
                           : "-"}
                       </p>
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] rounded-full px-2 py-0.5 font-medium border
-                          ${load.status === "delivered" ? "text-emerald-600 bg-emerald-50 border-emerald-200" : "text-blue-600 bg-blue-50 border-blue-200"}
-                        `}
-                      >
-                        {load.status.replace("_", " ")}
-                      </Badge>
+                      <div className="mt-1">
+                        {getStatusBadge(load.status)}
+                      </div>
                     </td>
                     <td className="px-4 py-3 border border-gray-200 align-top">
                       <p className="text-sm font-medium text-slate-700">

@@ -27,7 +27,10 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -85,20 +88,11 @@ export default function FreightLoads() {
   const loads = loadsResponse?.data?.requests || [];
   const total = loadsResponse?.data?.total || 0;
 
-  const fallbackFreightStatuses = [
-    "requested",
-    "bids_received",
-    "awarded",
-    "in_transit",
-    "delivered",
-    "resubmit_requested",
-    "rejected",
-    "expired",
-  ];
-  const statusesList =
-    filtersResponse?.data?.statuses && filtersResponse.data.statuses.length > 0
-      ? filtersResponse.data.statuses
-      : fallbackFreightStatuses;
+  const bidStatusesList =
+    filtersResponse?.data?.bidStatuses && filtersResponse.data.bidStatuses.length > 0
+      ? filtersResponse.data.bidStatuses
+      : filtersResponse?.data?.statuses || [];
+  const deliveryStatusesList = filtersResponse?.data?.deliveryStatuses || [];
   const projectsList = filtersResponse?.data?.projects || [];
   const customersList = filtersResponse?.data?.customers || [];
   const carriersList = filtersResponse?.data?.carriers || [];
@@ -171,13 +165,22 @@ export default function FreightLoads() {
             Requested
           </span>
         );
+      case "bidding_sent":
+      case "carrier_selected":
+      case "scheduled":
+      case "confirmed":
       case "material_prepared":
       case "loaded":
       case "picked_up":
       case "in_transit":
       case "staged":
       case "dispatched_to_site":
-      case "delivered": {
+      case "delivered":
+      case "partial_received":
+      case "received":
+      case "delayed":
+      case "cancelled":
+      case "rescheduled": {
         const style = getStatusBadgeStyle(s);
         return (
           <span
@@ -363,15 +366,37 @@ export default function FreightLoads() {
                   <SelectTrigger className="bg-white border-gray-200">
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-72">
                     <SelectItem value="all">All Statuses</SelectItem>
-                    {statusesList.map((st) => (
-                      <SelectItem key={st} value={st}>
-                        {st
-                          .replace(/_/g, " ")
-                          .replace(/\b\w/g, (c) => c.toUpperCase())}
-                      </SelectItem>
-                    ))}
+                    {bidStatusesList.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel className="text-xs font-semibold text-gray-400 px-2 py-1">
+                          Bid Statuses
+                        </SelectLabel>
+                        {bidStatusesList.map((st) => (
+                          <SelectItem key={`bid_${st}`} value={st}>
+                            {st
+                              .replace(/_/g, " ")
+                              .replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                    {deliveryStatusesList.length > 0 && (
+                      <>
+                        {bidStatusesList.length > 0 && <SelectSeparator />}
+                        <SelectGroup>
+                          <SelectLabel className="text-xs font-semibold text-gray-400 px-2 py-1">
+                            Delivery Statuses
+                          </SelectLabel>
+                          {deliveryStatusesList.map((st) => (
+                            <SelectItem key={`delivery_${st}`} value={st}>
+                              {formatStatusLabel(st)}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>

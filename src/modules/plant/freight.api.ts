@@ -32,10 +32,15 @@ export interface FreightFilterCustomer {
 }
 
 export interface FreightFiltersData {
-  statuses: string[];
-  carriers: FreightFilterCarrier[];
-  projects: FreightFilterProject[];
-  customers: FreightFilterCustomer[];
+  statuses?: string[];
+  bidStatuses?: string[];
+  deliveryStatuses?: string[];
+  carriers?: FreightFilterCarrier[];
+  projects?: FreightFilterProject[];
+  customers?: FreightFilterCustomer[];
+  materialTypes?: string[];
+  siteLocations?: string[];
+  note?: string;
 }
 
 export interface FreightFiltersResponse {
