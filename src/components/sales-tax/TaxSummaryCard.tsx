@@ -3,9 +3,9 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router";
 
 export default function TaxSummaryCard() {
-  const totalTax = 17788.25;
-  const totalSales = 83000; // example total sales shown in UI
-  const avgRate = "6.5%";
+  const totalTax = 0;
+  const totalSales = 0;
+  const avgRate = "0.0%";
   const summaries = [
     {
       id: "tax",
