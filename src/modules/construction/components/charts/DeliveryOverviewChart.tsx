@@ -84,7 +84,7 @@ export default function DeliveryOverviewChart({
               />
               <span className="text-[#64748B] font-medium">{item.name}</span>
             </div>
-            <span className="font-bold text-[#1E293B]">{item.value}%</span>
+            <span className="font-bold text-[#1E293B]">{item.value}</span>
           </div>
         ))}
       </div>

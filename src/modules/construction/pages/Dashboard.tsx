@@ -204,26 +204,22 @@ export default function Dashboard() {
   const deliveryData = [
     {
       name: "Delivered",
-      count: deliveredCount,
-      value: Math.round((deliveredCount / totalDeliverySum) * 100),
+      value: deliveredCount,
       color: "#0F4C5C",
     },
     {
       name: "In Transit",
-      count: inTransitCount,
-      value: Math.round((inTransitCount / totalDeliverySum) * 100),
+      value: inTransitCount,
       color: "#F4A261",
     },
     {
       name: "Out for Delivery",
-      count: outForDeliveryCount,
-      value: Math.round((outForDeliveryCount / totalDeliverySum) * 100),
+      value: outForDeliveryCount,
       color: "#E76F51",
     },
     {
       name: "Delayed",
-      count: delayedDeliveryCount,
-      value: Math.round((delayedDeliveryCount / totalDeliverySum) * 100),
+      value: delayedDeliveryCount,
       color: "#A855F7",
     },
   ];
