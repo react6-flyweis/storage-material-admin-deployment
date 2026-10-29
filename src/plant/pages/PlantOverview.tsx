@@ -23,13 +23,7 @@ import UpcomingShipmentsTable from "../components/dashboard/UpcomingShipmentsTab
 
 export default function PlantOverview() {
   // State for global filters
-  const [dateRange, setDateRange] = useState<DateRange | undefined>(() => {
-    // Default to the last 30 days
-    const to = new Date();
-    const from = new Date();
-    from.setDate(from.getDate() - 30);
-    return { from, to };
-  });
+  const [dateRange, setDateRange] = useState<DateRange | undefined>();
   
   const [assignedTo, setAssignedTo] = useState<string>("all");
   const [isExporting, setIsExporting] = useState(false);
