@@ -31,7 +31,7 @@ export default function SalesFunnel({
   const rows = items ?? [];
 
   return (
-    <Card className="p-4 gap-0">
+    <Card className="h-full flex flex-col p-5 gap-0">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
         <div className="flex gap-2">
@@ -60,13 +60,15 @@ export default function SalesFunnel({
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState
-          title="No conversion data"
-          description="No sales conversion funnel data recorded for this timeframe."
-          icon={Filter}
-        />
+        <div className="flex-1 flex items-center justify-center min-h-[200px]">
+          <EmptyState
+            title="No conversion data"
+            description="No sales conversion funnel data recorded for this timeframe."
+            icon={Filter}
+          />
+        </div>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 flex-1 justify-start">
           {rows.map((r) => (
             <Link to="/leads" key={r.label}>
               <div
