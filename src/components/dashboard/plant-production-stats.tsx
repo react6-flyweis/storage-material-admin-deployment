@@ -1,55 +1,67 @@
 import { TrendingDown, Package, RefreshCw, Bell } from "lucide-react";
+import type { PlantProduction } from "@/modules/dashboard/dashboard.types";
+import { Link } from "react-router";
+
+function formatCurrency(amount?: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(amount ?? 0);
+}
 
 export default function PlantProductionStats({
-  period,
+  data,
 }: {
   period?: "Today" | "Week" | "Month";
+  data?: PlantProduction;
 }) {
-  void period;
-  const baseStats = [
+  const stats = [
     {
       title: "Material Value",
-      value: "$0",
-      change: "0%",
-      trend: "up",
+      value: formatCurrency(data?.materialValue),
+      change: `${(data?.materialValueChangePct ?? 0) >= 0 ? "+" : ""}${data?.materialValueChangePct ?? 0}%`,
+      trend: (data?.materialValueChangePct ?? 0) >= 0 ? "up" : "down",
       icon: Package,
       iconBg: "bg-emerald-50",
       iconFg: "text-emerald-600",
       label: "vs Last Month",
+      link: "/plant/materials",
     },
     {
       title: "Outflow this Month",
-      value: "$0.00",
-      change: "0%",
-      trend: "down",
+      value: formatCurrency(data?.outflowThisMonth),
+      change: `${(data?.outflowChangePct ?? 0) >= 0 ? "+" : ""}${data?.outflowChangePct ?? 0}%`,
+      trend: (data?.outflowChangePct ?? 0) <= 0 ? "up" : "down",
       icon: TrendingDown,
       iconBg: "bg-rose-50",
       iconFg: "text-rose-600",
       label: "vs Last Month",
+      link: "/plant/materials",
     },
     {
       title: "Reorder Requests Pending",
-      value: "0",
-      change: "0%",
-      trend: "up",
+      value: String(data?.reorderRequestsPending ?? 0),
+      change: `${(data?.reorderRequestsChangePct ?? 0) >= 0 ? "+" : ""}${data?.reorderRequestsChangePct ?? 0}%`,
+      trend: (data?.reorderRequestsChangePct ?? 0) <= 0 ? "up" : "down",
       icon: RefreshCw,
       iconBg: "bg-sky-50",
       iconFg: "text-sky-600",
       label: "vs Last Month",
+      link: "/plant/materials",
     },
     {
       title: "Emergency Material Alerts",
-      value: "0",
-      change: "0%",
-      trend: "down",
+      value: String(data?.emergencyMaterialAlerts ?? 0),
+      change: `${(data?.emergencyAlertsChangePct ?? 0) >= 0 ? "+" : ""}${data?.emergencyAlertsChangePct ?? 0}%`,
+      trend: (data?.emergencyAlertsChangePct ?? 0) <= 0 ? "up" : "down",
       icon: Bell,
       iconBg: "bg-purple-50",
       iconFg: "text-purple-600",
       label: "vs Last Month",
+      link: "/plant/materials",
     },
   ];
-
-  const stats = baseStats;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -84,9 +96,9 @@ export default function PlantProductionStats({
                 {stat.change}{" "}
                 <span className="text-gray-500 font-normal">{stat.label}</span>
               </span>
-              <button className="text-sm text-gray-500 hover:text-blue-600">
+              <Link to={stat.link} className="text-sm text-gray-500 hover:text-blue-600">
                 View All
-              </button>
+              </Link>
             </div>
           </div>
         );
