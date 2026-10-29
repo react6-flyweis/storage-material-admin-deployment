@@ -29,17 +29,19 @@ export default function DealSizeDistribution({
   const rows = items ?? [];
 
   return (
-    <Card className={cn("p-5 gap-0", className)}>
+    <Card className={cn("h-full flex flex-col p-5 gap-0", className)}>
       <h2 className="text-xl font-semibold text-gray-900 mb-6">{title}</h2>
 
       {rows.length === 0 ? (
-        <EmptyState
-          title="No deals distributed"
-          description="No deal size data recorded for this timeframe."
-          icon={PieChart}
-        />
+        <div className="flex-1 flex items-center justify-center min-h-[200px]">
+          <EmptyState
+            title="No deals distributed"
+            description="No deal size data recorded for this timeframe."
+            icon={PieChart}
+          />
+        </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 flex-1 flex flex-col justify-between">
           {rows.map((r) => (
             <div key={r.label}>
               <div className="flex items-center justify-between mb-3">
