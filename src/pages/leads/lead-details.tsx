@@ -817,7 +817,7 @@ export default function LeadDetails() {
               {/* Grid for Bottom Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Project Status */}
-                <div className="bg-white rounded-xl border shadow-sm p-6 flex flex-col items-center">
+                <div className="bg-white rounded-xl border shadow-sm p-6 flex flex-col items-center min-w-0">
                   <h3 className="text-lg font-bold text-[#0f172a] self-start mb-6">
                     Project Status
                   </h3>
@@ -856,13 +856,13 @@ export default function LeadDetails() {
                   <div className="w-full space-y-4">
                     <div>
                       <p className="text-xs text-gray-500">Current step</p>
-                      <p className="text-sm font-medium text-blue-600 mt-1 capitalize">
+                      <p className="text-sm font-medium text-blue-600 mt-1 capitalize truncate">
                         {currentStepId.replace(/_/g, " ")}
                       </p>
                     </div>
                     <div className="flex gap-3">
-                      <Calendar className="w-4 h-4 text-gray-400 mt-0.5" />
-                      <div>
+                      <Calendar className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-900">
                           Started on
                         </p>
@@ -883,7 +883,7 @@ export default function LeadDetails() {
                 </div>
 
                 {/* Recent Activity */}
-                <div className="bg-white rounded-xl border shadow-sm p-6">
+                <div className="bg-white rounded-xl border shadow-sm p-6 min-w-0">
                   <h3 className="text-lg font-bold text-[#0f172a] mb-6">
                     Recent Activity
                   </h3>
@@ -892,13 +892,13 @@ export default function LeadDetails() {
                       leadData.auditLog
                         .slice(0, 5)
                         .map((log: any, i: number) => (
-                          <div key={log._id || i} className="relative pl-6">
+                          <div key={log._id || i} className="relative pl-6 min-w-0">
                             <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-white border-4 border-purple-500"></div>
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-sm font-medium text-gray-900 break-words [overflow-wrap:anywhere]">
                               Action: {log.action}
                             </p>
                             <div className="flex items-center gap-2 mt-1.5">
-                              <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                              <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                               <span className="text-xs text-gray-500">
                                 {new Date(log.createdAt).toLocaleDateString()}
                               </span>
@@ -914,25 +914,28 @@ export default function LeadDetails() {
                 </div>
 
                 {/* Notes History */}
-                <div className="bg-white rounded-xl border shadow-sm p-6 flex flex-col h-full max-h-[400px]">
+                <div className="bg-white rounded-xl border shadow-sm p-6 flex flex-col h-full max-h-[400px] min-w-0">
                   <h3 className="text-lg font-bold text-[#0f172a] mb-6 border-b pb-4 shrink-0">
                     Notes History
                   </h3>
-                  <div className="space-y-4 text-sm text-gray-500 overflow-y-auto flex-1 pr-2">
+                  <div className="space-y-4 text-sm text-gray-500 overflow-y-auto overflow-x-hidden flex-1 pr-2">
                     {leadData?.leadNotes && leadData.leadNotes.length > 0 ? (
                       leadData.leadNotes.map((noteItem: any) => (
                         <div
                           key={noteItem._id}
-                          className="bg-gray-50 p-4 rounded-lg border border-gray-100 relative"
+                          className="bg-gray-50 p-4 rounded-lg border border-gray-100 relative min-w-0 overflow-hidden"
                         >
-                          <p className="text-gray-800 whitespace-pre-wrap mb-2">
+                          <p className="text-gray-800 whitespace-pre-wrap break-words [overflow-wrap:anywhere] mb-2">
                             {noteItem.note}
                           </p>
-                          <div className="flex justify-between items-center text-xs text-gray-400 mt-2 pt-2 border-t border-gray-100">
-                            <span className="font-medium text-gray-500">
+                          <div className="flex justify-between items-center text-xs text-gray-400 mt-2 pt-2 border-t border-gray-100 gap-2">
+                            <span
+                              className="font-medium text-gray-500 truncate"
+                              title={noteItem.addedBy?.name || "System"}
+                            >
                               {noteItem.addedBy?.name || "System"}
                             </span>
-                            <span>
+                            <span className="shrink-0">
                               {new Date(noteItem.addedAt).toLocaleString()}
                             </span>
                           </div>
