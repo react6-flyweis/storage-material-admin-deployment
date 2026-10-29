@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router";
-import { Search, Loader2, X } from "lucide-react";
+import { Search, Loader2, X, Briefcase, User, FolderKanban } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useAdminLeadsQuery } from "@/modules/leads/leads.hooks";
-import { useCustomersQuery } from "@/modules/customers/customers.hooks";
+import { useDashboardSearchQuery } from "@/modules/dashboard/dashboard.hooks";
 import {
   getLeadLifecycleBadgeClassName,
   getLeadLifecycleStatusLabel,
 } from "@/modules/leads/lead-lifecycle";
-import { formatPhone, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
@@ -19,6 +18,15 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
+function formatCurrency(amount?: number) {
+  if (amount === undefined || amount === null) return "";
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
 export function HeaderSearch() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isOpen, setIsOpen] = useState(false);
@@ -27,26 +35,19 @@ export function HeaderSearch() {
 
   const debouncedSearch = useDebounce(searchTerm, 300);
 
-  const { data: leadsData, isLoading: isLeadsLoading } = useAdminLeadsQuery(
-    { search: debouncedSearch.trim(), page: 1, limit: 6 },
-    { enabled: Boolean(debouncedSearch.trim()) }
-  );
+  const { data: searchResponse, isLoading: isSearchLoading } =
+    useDashboardSearchQuery(debouncedSearch.trim(), 20, {
+      enabled: Boolean(debouncedSearch.trim()),
+    });
 
-  const { data: customersData, isLoading: isCustomersLoading } =
-    useCustomersQuery(
-      1,
-      6,
-      { search: debouncedSearch.trim() },
-      { enabled: Boolean(debouncedSearch.trim()) }
-    );
-
-  const leads = leadsData?.data?.leads ?? [];
-  const customers = customersData?.data?.customers ?? [];
+  const searchData = searchResponse?.data;
+  const leads = searchData?.leads ?? [];
+  const projects = searchData?.projects ?? [];
+  const customers = searchData?.customers ?? [];
 
   const isDebouncing = searchTerm.trim() !== debouncedSearch.trim();
   const isLoading =
-    (isLeadsLoading || isCustomersLoading || isDebouncing) &&
-    Boolean(searchTerm.trim());
+    (isSearchLoading || isDebouncing) && Boolean(searchTerm.trim());
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -71,6 +72,12 @@ export function HeaderSearch() {
     navigate(`/leads/${leadId}`);
   };
 
+  const handleSelectProject = (projectId: string) => {
+    setIsOpen(false);
+    setSearchTerm("");
+    navigate(`/plant/projects?id=${projectId}`);
+  };
+
   const handleSelectCustomer = (customerId: string) => {
     setIsOpen(false);
     setSearchTerm("");
@@ -82,12 +89,16 @@ export function HeaderSearch() {
       setIsOpen(false);
     } else if (e.key === "Enter" && isOpen) {
       if (leads.length > 0) {
-        handleSelectLead(leads[0]._id);
+        handleSelectLead(leads[0].id);
+      } else if (projects.length > 0) {
+        handleSelectProject(projects[0].id);
       } else if (customers.length > 0) {
-        handleSelectCustomer(customers[0]._id);
+        handleSelectCustomer(customers[0].id);
       }
     }
   };
+
+  const totalResults = leads.length + projects.length + customers.length;
 
   return (
     <div ref={containerRef} className="relative w-48 md:w-72 lg:w-80">
@@ -104,7 +115,7 @@ export function HeaderSearch() {
             if (searchTerm.trim()) setIsOpen(true);
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Search leads, customers..."
+          placeholder="Search leads, projects, customers..."
           className="pl-9 pr-8 bg-gray-50 border-gray-200 text-sm focus-visible:bg-white transition-colors"
         />
         {searchTerm && (
@@ -122,155 +133,141 @@ export function HeaderSearch() {
       </div>
 
       {isOpen && Boolean(searchTerm.trim()) && (
-        <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden min-w-72">
+        <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-lg shadow-lg z-50 overflow-hidden min-w-80">
           {isLoading ? (
             <div className="flex items-center justify-center gap-2 py-6 text-xs text-gray-500">
               <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-              <span>Searching leads and customers...</span>
+              <span>Searching leads, projects, and customers...</span>
             </div>
-          ) : leads.length === 0 && customers.length === 0 ? (
+          ) : totalResults === 0 ? (
             <div className="py-6 text-center text-xs text-gray-500">
-              No results found
+              No results found for &quot;{searchTerm}&quot;
             </div>
           ) : (
             <div className="max-h-96 overflow-y-auto divide-y divide-gray-100">
+              {/* Leads */}
               {leads.length > 0 && (
                 <div>
-                  <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/80 border-b border-gray-100">
-                    Leads ({leads.length})
+                  <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100 flex items-center gap-1.5">
+                    <Briefcase className="h-3 w-3 text-blue-500" />
+                    <span>Leads ({leads.length})</span>
                   </div>
                   <ul className="divide-y divide-gray-100">
-                    {leads.map((lead) => {
-                      const projectName =
-                        lead.projectName?.trim() || "Untitled Project";
-                      const customerName =
-                        [lead.customerId?.firstName, lead.customerId?.lastName]
-                          .filter(Boolean)
-                          .join(" ")
-                          .trim() || "Unknown Customer";
-
-                      return (
-                        <li key={lead._id}>
-                          <button
-                            type="button"
-                            onClick={() => handleSelectLead(lead._id)}
-                            className="w-full text-left px-3.5 py-2.5 hover:bg-gray-50 transition-colors flex flex-col gap-0.5 group cursor-pointer"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-medium text-sm text-gray-900 group-hover:text-blue-600 transition-colors truncate">
-                                {projectName}
+                    {leads.map((lead) => (
+                      <li key={lead.id}>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectLead(lead.id)}
+                          className="w-full text-left px-3.5 py-2 hover:bg-gray-50 transition-colors flex flex-col gap-0.5 group cursor-pointer"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-sm text-gray-900 group-hover:text-blue-600 transition-colors truncate">
+                              {lead.name}
+                            </span>
+                            {lead.status && (
+                              <span
+                                className={cn(
+                                  "text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0",
+                                  getLeadLifecycleBadgeClassName(lead.status)
+                                )}
+                              >
+                                {getLeadLifecycleStatusLabel(lead.status)}
                               </span>
-                              {lead.lifecycleStatus && (
-                                <span
-                                  className={cn(
-                                    "text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0",
-                                    getLeadLifecycleBadgeClassName(
-                                      lead.lifecycleStatus
-                                    )
-                                  )}
-                                >
-                                  {getLeadLifecycleStatusLabel(
-                                    lead.lifecycleStatus
-                                  )}
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            {lead.projectName && (
+                              <span className="truncate">{lead.projectName}</span>
+                            )}
+                            {lead.projectId && (
+                              <>
+                                <span className="text-gray-300">•</span>
+                                <span className="font-mono text-[11px] text-gray-400">
+                                  #{lead.projectId}
                                 </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                              <span className="truncate">{customerName}</span>
-                              {lead.jobId && (
-                                <>
-                                  <span className="text-gray-300">•</span>
-                                  <span className="font-mono text-[11px] text-gray-400">
-                                    #{lead.jobId}
-                                  </span>
-                                </>
-                              )}
-                            </div>
-                          </button>
-                        </li>
-                      );
-                    })}
+                              </>
+                            )}
+                            {lead.value !== undefined && lead.value > 0 && (
+                              <>
+                                <span className="text-gray-300">•</span>
+                                <span className="font-medium text-emerald-600">
+                                  {formatCurrency(lead.value)}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </button>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               )}
 
-              {customers.length > 0 && (
+              {/* Projects */}
+              {projects.length > 0 && (
                 <div>
-                  <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/80 border-b border-gray-100">
-                    Customers ({customers.length})
+                  <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100 flex items-center gap-1.5">
+                    <FolderKanban className="h-3 w-3 text-purple-500" />
+                    <span>Projects ({projects.length})</span>
                   </div>
                   <ul className="divide-y divide-gray-100">
-                    {customers.map((customer) => {
-                      const fullName = [customer.firstName, customer.lastName]
-                        .filter(Boolean)
-                        .join(" ")
-                        .trim();
-                      const displayName =
-                        fullName ||
-                        customer.customerName ||
-                        "Unknown Customer";
-
-                      const phoneStr =
-                        typeof customer.phone === "object" && customer.phone
-                          ? formatPhone(
-                              customer.phone.number,
-                              customer.phone.countryCode
-                            )
-                          : typeof customer.phone === "string"
-                          ? formatPhone(customer.phone)
-                          : "";
-                      const displayPhone =
-                        phoneStr && phoneStr !== "N/A" ? phoneStr : "";
-
-                      const isActive =
-                        customer.isActive ??
-                        (customer.status?.toLowerCase() === "active");
-
-                      return (
-                        <li key={customer._id}>
-                          <button
-                            type="button"
-                            onClick={() => handleSelectCustomer(customer._id)}
-                            className="w-full text-left px-3.5 py-2.5 hover:bg-gray-50 transition-colors flex flex-col gap-0.5 group cursor-pointer"
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-medium text-sm text-gray-900 group-hover:text-blue-600 transition-colors truncate">
-                                {displayName}
+                    {projects.map((project) => (
+                      <li key={project.id}>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectProject(project.id)}
+                          className="w-full text-left px-3.5 py-2 hover:bg-gray-50 transition-colors flex flex-col gap-0.5 group cursor-pointer"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-sm text-gray-900 group-hover:text-purple-600 transition-colors truncate">
+                              {project.name}
+                            </span>
+                            {project.status && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 bg-purple-50 text-purple-700 border border-purple-200">
+                                {project.status.replace(/_/g, " ")}
                               </span>
-                              <span
-                                className={cn(
-                                  "text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 inline-flex items-center gap-1",
-                                  isActive
-                                    ? "bg-emerald-100 text-emerald-700"
-                                    : "bg-red-100 text-red-700"
-                                )}
-                              >
-                                <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                                {isActive ? "Active" : "Inactive"}
-                              </span>
+                            )}
+                          </div>
+                          {project.projectId && (
+                            <div className="text-xs text-gray-500 font-mono">
+                              #{project.projectId}
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-gray-500">
-                              {customer.email && (
-                                <span className="truncate">
-                                  {customer.email}
-                                </span>
-                              )}
-                              {customer.email && displayPhone && (
-                                <span className="text-gray-300">•</span>
-                              )}
-                              {displayPhone && (
-                                <span className="shrink-0">{displayPhone}</span>
-                              )}
-                              {!customer.email && !displayPhone && (
-                                <span className="text-gray-400">
-                                  No contact info
-                                </span>
-                              )}
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Customers */}
+              {customers.length > 0 && (
+                <div>
+                  <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider bg-gray-50 border-b border-gray-100 flex items-center gap-1.5">
+                    <User className="h-3 w-3 text-green-500" />
+                    <span>Customers ({customers.length})</span>
+                  </div>
+                  <ul className="divide-y divide-gray-100">
+                    {customers.map((customer) => (
+                      <li key={customer.id}>
+                        <button
+                          type="button"
+                          onClick={() => handleSelectCustomer(customer.id)}
+                          className="w-full text-left px-3.5 py-2 hover:bg-gray-50 transition-colors flex flex-col gap-0.5 group cursor-pointer"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-sm text-gray-900 group-hover:text-green-600 transition-colors truncate">
+                              {customer.name}
+                            </span>
+                          </div>
+                          {customer.email && (
+                            <div className="text-xs text-gray-500 truncate">
+                              {customer.email}
                             </div>
-                          </button>
-                        </li>
-                      );
-                    })}
+                          )}
+                        </button>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               )}
