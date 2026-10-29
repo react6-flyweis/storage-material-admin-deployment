@@ -30,6 +30,7 @@ import {
   formatDate,
   resolveQuotationLifecycle,
 } from "@/modules/quotations/quotations.utils";
+import QuotationStatusBadge from "@/components/quotations/quotation-status-badge";
 
 interface QuotationDetailsDialogProps {
   open: boolean;
@@ -38,63 +39,6 @@ interface QuotationDetailsDialogProps {
   onApprove?: (quotation: Quotation) => void;
   onReject?: (quotation: Quotation) => void;
   onSend?: (quotation: Quotation) => void;
-}
-
-function getWorkflowBadge(quotation: Quotation) {
-  const lifecycle = resolveQuotationLifecycle(quotation);
-
-  switch (lifecycle.lifecycleStatus) {
-    case "customer_rejected":
-      return (
-        <Badge className="bg-[#ffe4e6] text-[#be123c] hover:bg-[#ffe4e6] border-none px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
-          Declined by Customer
-        </Badge>
-      );
-    case "customer_accepted":
-      return (
-        <Badge className="bg-[#d1fae5] text-[#047857] hover:bg-[#d1fae5] border-none px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
-          Accepted by Customer
-        </Badge>
-      );
-    case "approved":
-      return (
-        <Badge className="bg-[#dcfce7] text-[#166534] hover:bg-[#dcfce7] border-none px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
-          Approved
-        </Badge>
-      );
-    case "pending_approval":
-      return (
-        <Badge className="bg-[#fef3c7] text-[#d97706] hover:bg-[#fef3c7] border-none px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
-          Pending Approval
-        </Badge>
-      );
-    case "admin_rejected":
-      return (
-        <Badge className="bg-[#fee2e2] text-[#dc2626] hover:bg-[#fee2e2] border-none px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
-          Admin Rejected
-        </Badge>
-      );
-    case "sent":
-      if (quotation.sendMethod === "manual") {
-        return (
-          <Badge className="bg-[#e0e7ff] text-[#4338ca] hover:bg-[#e0e7ff] border-none px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
-            Marked Sent
-          </Badge>
-        );
-      }
-      return (
-        <Badge className="bg-[#dbeafe] text-[#2563eb] hover:bg-[#dbeafe] border-none px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
-          Sent via Email
-        </Badge>
-      );
-    case "draft":
-    default:
-      return (
-        <Badge className="bg-[#f1f5f9] text-[#475569] hover:bg-[#f1f5f9] border-none px-2.5 py-0.5 rounded text-xs font-semibold uppercase tracking-wider">
-          Draft
-        </Badge>
-      );
-  }
 }
 
 export default function QuotationDetailsDialog({
@@ -157,7 +101,11 @@ export default function QuotationDetailsDialog({
                 <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
                   v{quotation.versionNumber}
                 </span>
-                {getWorkflowBadge(quotation)}
+                <QuotationStatusBadge
+                  workflowStatus={quotation.workflowStatus}
+                  sendMethod={quotation.sendMethod}
+                  showSendMethod
+                />
               </div>
               <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-2">
                 <span>Created {dayjs(quotation.createdAt).format("MMM DD, YYYY")}</span>
@@ -573,13 +521,23 @@ export default function QuotationDetailsDialog({
               Reject
             </Button>
           )}
-          {canSend && onSend && (
+          {lifecycle.isApproved && onSend && (
             <Button
               size="sm"
               className="bg-[#1D51A4] hover:bg-[#174287] text-white text-xs h-8 px-3 rounded-lg flex items-center gap-1"
               onClick={() => onSend(quotation)}
             >
-              <Send className="w-3 h-3" /> {isAlreadySent ? "Resend" : "Send"}
+              <Send className="w-3 h-3" /> Send to customer
+            </Button>
+          )}
+          {lifecycle.isSent && onSend && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-xs h-8 px-3 rounded-lg flex items-center gap-1"
+              onClick={() => onSend(quotation)}
+            >
+              <Send className="w-3 h-3" /> Resend
             </Button>
           )}
           <Button
