@@ -1,4 +1,6 @@
-import type { Quotation } from "./quotations.api";
+import type { Quotation, QuotationWorkflowStatus } from "./quotations.api";
+
+export type { QuotationWorkflowStatus };
 
 export function formatUser(user?: unknown): string {
   if (!user) return "User";
@@ -89,18 +91,94 @@ export function getQuotationSalesSubmission(quotation?: Quotation | null): {
   return { message, submittedBy, submittedAt, authorName };
 }
 
-export type QuotationResolvedLifecycle =
-  | "draft"
-  | "pending_approval"
-  | "admin_rejected"
-  | "approved"
-  | "sent"
-  | "customer_rejected"
-  | "customer_accepted";
+export type QuotationResolvedLifecycle = QuotationWorkflowStatus;
+
+export interface QuotationStatusConfigItem {
+  status: QuotationWorkflowStatus;
+  label: string;
+  badgeClass: string;
+  primaryCta: string;
+  description: string;
+}
+
+export const QUOTATION_STATUS_CONFIG: Record<QuotationWorkflowStatus, QuotationStatusConfigItem> = {
+  draft: {
+    status: "draft",
+    label: "Draft",
+    badgeClass: "bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-100",
+    primaryCta: "Send for Approval",
+    description: "Not submitted, or reopened after edit",
+  },
+  pending_approval: {
+    status: "pending_approval",
+    label: "Pending Approval",
+    badgeClass: "bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100",
+    primaryCta: "View Quotation",
+    description: "Waiting on admin",
+  },
+  approved: {
+    status: "approved",
+    label: "Approved",
+    badgeClass: "bg-green-100 text-green-800 border-green-200 hover:bg-green-100",
+    primaryCta: "Send to customer",
+    description: "Admin approved (OK to send to client)",
+  },
+  admin_rejected: {
+    status: "admin_rejected",
+    label: "Admin Rejected",
+    badgeClass: "bg-red-100 text-red-800 border-red-200 hover:bg-red-100",
+    primaryCta: "Edit → Send for Approval",
+    description: "Admin rejected approval",
+  },
+  sent: {
+    status: "sent",
+    label: "Sent",
+    badgeClass: "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100",
+    primaryCta: "—",
+    description: "Sent to customer",
+  },
+  accepted: {
+    status: "accepted",
+    label: "Accepted",
+    badgeClass: "bg-emerald-100 text-emerald-800 border-emerald-200 hover:bg-emerald-100",
+    primaryCta: "Next steps",
+    description: "Client accepted",
+  },
+  client_rejected: {
+    status: "client_rejected",
+    label: "Client Rejected",
+    badgeClass: "bg-rose-100 text-rose-800 border-rose-200 hover:bg-rose-100",
+    primaryCta: "Edit → Send for Approval",
+    description: "Client rejected",
+  },
+};
+
+export function normalizeWorkflowStatus(
+  status?: string | null
+): QuotationWorkflowStatus {
+  if (!status) return "draft";
+  const s = status.toLowerCase().trim();
+  if (s === "customer_rejected") return "client_rejected";
+  if (s === "customer_accepted") return "accepted";
+  if (
+    s === "draft" ||
+    s === "pending_approval" ||
+    s === "approved" ||
+    s === "admin_rejected" ||
+    s === "sent" ||
+    s === "accepted" ||
+    s === "client_rejected"
+  ) {
+    return s as QuotationWorkflowStatus;
+  }
+  return "draft";
+}
 
 export interface QuotationLifecycleInfo {
-  lifecycleStatus: QuotationResolvedLifecycle;
+  lifecycleStatus: QuotationWorkflowStatus;
   label: string;
+  badgeClass: string;
+  primaryCta: string;
   isCustomerRejected: boolean;
   isAdminRejected: boolean;
   isCustomerAccepted: boolean;
@@ -108,185 +186,52 @@ export interface QuotationLifecycleInfo {
   isApproved: boolean;
   isPendingApproval: boolean;
   isDraft: boolean;
+  isAccepted: boolean;
+  isClientRejected: boolean;
   clientNotes?: string;
   adminRejectionReason?: string;
   customerDecisionAt?: string;
 }
 
+/**
+ * Resolves quotation lifecycle UI state using strictly quotation.workflowStatus
+ * as the single source of truth without falling back to legacy status/approvalStatus.
+ */
 export function resolveQuotationLifecycle(
-  quotation?: Quotation | null
+  quotation?: {
+    workflowStatus?: QuotationWorkflowStatus | string;
+    sendMethod?: string | null;
+    clientNotes?: string;
+    approval?: { rejectionReason?: string };
+    customerDecisionAt?: string | null;
+    customerRejectedAt?: string | null;
+    customerAcceptedAt?: string | null;
+    updatedAt?: string;
+  } | null
 ): QuotationLifecycleInfo {
-  if (!quotation) {
-    return {
-      lifecycleStatus: "draft",
-      label: "Draft",
-      isCustomerRejected: false,
-      isAdminRejected: false,
-      isCustomerAccepted: false,
-      isSent: false,
-      isApproved: false,
-      isPendingApproval: false,
-      isDraft: true,
-    };
-  }
-
-  const approvalStatus =
-    quotation.approval?.status || quotation.approvalStatus;
-  const quoteStatus = quotation.status;
-  const workflowStatus = quotation.workflowStatus;
-
-  // 1. Customer decisions (Portal decision: customer accepted or declined)
-  // Backend returns quotation.status = "rejected" or "accepted"
-  if (
-    quoteStatus === "rejected" ||
-    workflowStatus === "customer_rejected"
-  ) {
-    // Edge case guard: If quote was rejected internally by admin before sending
-    // (approval status is rejected, never sent, and no client notes)
-    if (
-      approvalStatus === "rejected" &&
-      !quotation.sentAt &&
-      !quotation.clientNotes
-    ) {
-      return {
-        lifecycleStatus: "admin_rejected",
-        label: "Admin Rejected",
-        isCustomerRejected: false,
-        isAdminRejected: true,
-        isCustomerAccepted: false,
-        isSent: false,
-        isApproved: false,
-        isPendingApproval: false,
-        isDraft: false,
-        adminRejectionReason: quotation.approval?.rejectionReason,
-      };
-    }
-
-    return {
-      lifecycleStatus: "customer_rejected",
-      label: "Declined by Customer",
-      isCustomerRejected: true,
-      isAdminRejected: false,
-      isCustomerAccepted: false,
-      isSent: false,
-      isApproved: false,
-      isPendingApproval: false,
-      isDraft: false,
-      clientNotes: quotation.clientNotes,
-      adminRejectionReason: quotation.approval?.rejectionReason,
-      customerDecisionAt:
-        quotation.customerRejectedAt ||
-        quotation.customerDecisionAt ||
-        quotation.updatedAt,
-    };
-  }
-
-  if (
-    quoteStatus === "accepted" ||
-    workflowStatus === "accepted" ||
-    workflowStatus === "customer_accepted"
-  ) {
-    return {
-      lifecycleStatus: "customer_accepted",
-      label: "Accepted by Customer",
-      isCustomerRejected: false,
-      isAdminRejected: false,
-      isCustomerAccepted: true,
-      isSent: false,
-      isApproved: false,
-      isPendingApproval: false,
-      isDraft: false,
-      clientNotes: quotation.clientNotes,
-      customerDecisionAt:
-        quotation.customerAcceptedAt ||
-        quotation.customerDecisionAt ||
-        quotation.updatedAt,
-    };
-  }
-
-  // 2. Sent to Customer
-  if (
-    quoteStatus === "sent" ||
-    workflowStatus === "sent" ||
-    Boolean(quotation.sentAt)
-  ) {
-    return {
-      lifecycleStatus: "sent",
-      label:
-        quotation.sendMethod === "manual" ? "Marked Sent" : "Sent to Customer",
-      isCustomerRejected: false,
-      isAdminRejected: false,
-      isCustomerAccepted: false,
-      isSent: true,
-      isApproved: false,
-      isPendingApproval: false,
-      isDraft: false,
-    };
-  }
-
-  // 3. Admin / Internal Gate (before quote goes to customer)
-  if (approvalStatus === "rejected") {
-    return {
-      lifecycleStatus: "admin_rejected",
-      label: "Admin Rejected",
-      isCustomerRejected: false,
-      isAdminRejected: true,
-      isCustomerAccepted: false,
-      isSent: false,
-      isApproved: false,
-      isPendingApproval: false,
-      isDraft: false,
-      adminRejectionReason: quotation.approval?.rejectionReason,
-    };
-  }
-
-  if (
-    approvalStatus === "approved" ||
-    quoteStatus === "approved" ||
-    workflowStatus === "approved"
-  ) {
-    return {
-      lifecycleStatus: "approved",
-      label: "Approved",
-      isCustomerRejected: false,
-      isAdminRejected: false,
-      isCustomerAccepted: false,
-      isSent: false,
-      isApproved: true,
-      isPendingApproval: false,
-      isDraft: false,
-    };
-  }
-
-  if (
-    approvalStatus === "pending_approval" ||
-    approvalStatus === "pending" ||
-    quoteStatus === "pending_approval" ||
-    quoteStatus === "pending" ||
-    workflowStatus === "pending_approval"
-  ) {
-    return {
-      lifecycleStatus: "pending_approval",
-      label: "Pending Approval",
-      isCustomerRejected: false,
-      isAdminRejected: false,
-      isCustomerAccepted: false,
-      isSent: false,
-      isApproved: false,
-      isPendingApproval: true,
-      isDraft: false,
-    };
-  }
+  const status = normalizeWorkflowStatus(quotation?.workflowStatus);
+  const config = QUOTATION_STATUS_CONFIG[status] || QUOTATION_STATUS_CONFIG.draft;
 
   return {
-    lifecycleStatus: "draft",
-    label: "Draft",
-    isCustomerRejected: false,
-    isAdminRejected: false,
-    isCustomerAccepted: false,
-    isSent: false,
-    isApproved: false,
-    isPendingApproval: false,
-    isDraft: true,
+    lifecycleStatus: status,
+    label: config.label,
+    badgeClass: config.badgeClass,
+    primaryCta: config.primaryCta,
+    isDraft: status === "draft",
+    isPendingApproval: status === "pending_approval",
+    isApproved: status === "approved",
+    isAdminRejected: status === "admin_rejected",
+    isSent: status === "sent",
+    isAccepted: status === "accepted",
+    isClientRejected: status === "client_rejected",
+    isCustomerAccepted: status === "accepted",
+    isCustomerRejected: status === "client_rejected",
+    clientNotes: quotation?.clientNotes,
+    adminRejectionReason: quotation?.approval?.rejectionReason,
+    customerDecisionAt:
+      quotation?.customerRejectedAt ||
+      quotation?.customerAcceptedAt ||
+      quotation?.customerDecisionAt ||
+      quotation?.updatedAt,
   };
 }
