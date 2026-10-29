@@ -974,6 +974,7 @@ export interface GetConstructionOverviewParams {
   projectId?: string;
   building?: string;
   status?: string;
+  businessUnit?: string;
   startDate?: string;
   endDate?: string;
 }
@@ -989,6 +990,9 @@ export async function getConstructionOverview(params?: GetConstructionOverviewPa
   if (params?.status && params.status !== "All Status" && params.status !== "all") {
     queryParams.status = params.status;
   }
+  if (params?.businessUnit && params.businessUnit !== "All Business Units" && params.businessUnit !== "all") {
+    queryParams.businessUnit = params.businessUnit;
+  }
   if (params?.startDate) {
     queryParams.startDate = params.startDate;
   }
@@ -999,6 +1003,50 @@ export async function getConstructionOverview(params?: GetConstructionOverviewPa
   const response = await apiClient.get<ConstructionOverviewResponse>(
     `/api/admin/construction/overview`,
     { params: queryParams }
+  );
+  return response.data;
+}
+
+export interface ConstructionOverviewFilterProject {
+  _id?: string;
+  leadId?: string;
+  id?: string;
+  projectName?: string;
+  name?: string;
+  jobId?: string;
+  businessUnit?: string;
+}
+
+export interface ConstructionOverviewFilterBuilding {
+  _id?: string;
+  id?: string;
+  name?: string;
+  label?: string;
+  value?: string;
+}
+
+export interface ConstructionOverviewFilterOption {
+  value: string;
+  label?: string;
+  name?: string;
+}
+
+export interface ConstructionOverviewFiltersData {
+  projects?: Array<string | ConstructionOverviewFilterProject>;
+  statuses?: Array<string | ConstructionOverviewFilterOption>;
+  buildings?: Array<string | ConstructionOverviewFilterBuilding>;
+  businessUnits?: Array<string | ConstructionOverviewFilterOption>;
+}
+
+export interface ConstructionOverviewFiltersResponse {
+  success: boolean;
+  message?: string;
+  data: ConstructionOverviewFiltersData;
+}
+
+export async function getConstructionOverviewFilters(): Promise<ConstructionOverviewFiltersResponse> {
+  const response = await apiClient.get<ConstructionOverviewFiltersResponse>(
+    `/api/admin/construction/overview/filters`
   );
   return response.data;
 }
