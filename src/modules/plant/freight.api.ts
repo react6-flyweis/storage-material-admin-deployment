@@ -170,6 +170,49 @@ export async function getFreightLoads(
   return response.data;
 }
 
+export async function exportFreightLoads(
+  params?: Omit<GetFreightLoadsParams, "page" | "limit">
+): Promise<Blob> {
+  const queryParams: Record<string, string | number> = {};
+  if (params?.search?.trim()) queryParams.search = params.search.trim();
+  if (params?.status && params.status !== "all") queryParams.status = params.status;
+  if (params?.projectId && params.projectId !== "all") queryParams.projectId = params.projectId;
+  if (params?.customerId && params.customerId !== "all") queryParams.customerId = params.customerId;
+  if (params?.carrierId && params.carrierId !== "all") queryParams.carrierId = params.carrierId;
+  if (params?.fromDate?.trim()) queryParams.fromDate = params.fromDate.trim();
+  if (params?.toDate?.trim()) queryParams.toDate = params.toDate.trim();
+
+  const response = await apiClient.get(
+    "/api/admin/plant/freight-loads/export",
+    {
+      params: queryParams,
+      responseType: "blob",
+    }
+  );
+  return response.data;
+}
+
+export async function getFreightLoadsBidRows(
+  params?: GetFreightLoadsParams
+): Promise<GetFreightLoadsResponse> {
+  const queryParams: Record<string, string | number> = {};
+  if (params?.page) queryParams.page = params.page;
+  if (params?.limit) queryParams.limit = params.limit;
+  if (params?.search?.trim()) queryParams.search = params.search.trim();
+  if (params?.status && params.status !== "all") queryParams.status = params.status;
+  if (params?.projectId && params.projectId !== "all") queryParams.projectId = params.projectId;
+  if (params?.customerId && params.customerId !== "all") queryParams.customerId = params.customerId;
+  if (params?.carrierId && params.carrierId !== "all") queryParams.carrierId = params.carrierId;
+  if (params?.fromDate?.trim()) queryParams.fromDate = params.fromDate.trim();
+  if (params?.toDate?.trim()) queryParams.toDate = params.toDate.trim();
+
+  const response = await apiClient.get<GetFreightLoadsResponse>(
+    "/api/admin/plant/freight-loads",
+    { params: queryParams }
+  );
+  return response.data;
+}
+
 // --- New Bids & Details API Types & Functions ---
 
 export interface FreightBidItem {
@@ -507,6 +550,12 @@ export interface AwardedLoadPoc {
   pickupContactPhone: string;
 }
 
+export interface AwardedLoadCustomer {
+  _id: string;
+  name: string;
+  email?: string;
+}
+
 export interface AwardedLoad {
   _id: string;
   requestId: string;
@@ -514,7 +563,7 @@ export interface AwardedLoad {
   status: string;
   deliveryTime?: string | null;
   project: AwardedLoadProject;
-  customer?: unknown;
+  customer?: AwardedLoadCustomer | FreightLoadCustomer | null | unknown;
   shipperVendor?: unknown;
   carrier?: AwardedLoadCarrier | null;
   description: string;
@@ -570,6 +619,49 @@ export async function getAwardedLoads(
 
   const response = await apiClient.get<GetAwardedLoadsResponse>(
     "/api/admin/plant/deliveries/awarded",
+    { params: queryParams }
+  );
+  return response.data;
+}
+
+export async function exportAwardedLoads(
+  params?: Omit<GetAwardedLoadsParams, "page" | "limit">
+): Promise<Blob> {
+  const queryParams: Record<string, string | number> = {};
+  if (params?.search?.trim()) queryParams.search = params.search.trim();
+  if (params?.status && params.status !== "all") queryParams.status = params.status;
+  if (params?.projectId && params.projectId !== "all") queryParams.projectId = params.projectId;
+  if (params?.customerId && params.customerId !== "all") queryParams.customerId = params.customerId;
+  if (params?.carrierId && params.carrierId !== "all") queryParams.carrierId = params.carrierId;
+  if (params?.fromDate?.trim()) queryParams.fromDate = params.fromDate.trim();
+  if (params?.toDate?.trim()) queryParams.toDate = params.toDate.trim();
+
+  const response = await apiClient.get(
+    "/api/admin/plant/awarded-loads/export",
+    {
+      params: queryParams,
+      responseType: "blob",
+    }
+  );
+  return response.data;
+}
+
+export async function getAwardedLoadsBidRows(
+  params?: GetAwardedLoadsParams
+): Promise<GetAwardedLoadsResponse> {
+  const queryParams: Record<string, string | number> = {};
+  if (params?.page) queryParams.page = params.page;
+  if (params?.limit) queryParams.limit = params.limit;
+  if (params?.search?.trim()) queryParams.search = params.search.trim();
+  if (params?.status && params.status !== "all") queryParams.status = params.status;
+  if (params?.projectId && params.projectId !== "all") queryParams.projectId = params.projectId;
+  if (params?.customerId && params.customerId !== "all") queryParams.customerId = params.customerId;
+  if (params?.carrierId && params.carrierId !== "all") queryParams.carrierId = params.carrierId;
+  if (params?.fromDate?.trim()) queryParams.fromDate = params.fromDate.trim();
+  if (params?.toDate?.trim()) queryParams.toDate = params.toDate.trim();
+
+  const response = await apiClient.get<GetAwardedLoadsResponse>(
+    "/api/admin/plant/awarded-loads",
     { params: queryParams }
   );
   return response.data;
