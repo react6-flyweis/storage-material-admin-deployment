@@ -11,13 +11,17 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Download,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   useFreightStatsQuery,
   useFreightFiltersQuery,
   useFreightLoadsQuery,
+  useExportFreightLoadsMutation,
 } from "@/modules/plant/freight.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -116,7 +120,38 @@ export default function FreightLoads() {
     carrierId !== "all" ||
     fromDate !== "" ||
     toDate !== "" ||
-    search !== "";
+    search !== "" ||
+    searchInput !== "";
+
+  const exportMutation = useExportFreightLoadsMutation();
+
+  const handleExport = async () => {
+    try {
+      toast.info("Generating Freight Loads export...");
+      const exportParams: Record<string, string> = {};
+      if (search.trim()) exportParams.search = search.trim();
+      if (status && status !== "all") exportParams.status = status;
+      if (projectId && projectId !== "all") exportParams.projectId = projectId;
+      if (customerId && customerId !== "all") exportParams.customerId = customerId;
+      if (carrierId && carrierId !== "all") exportParams.carrierId = carrierId;
+      if (fromDate.trim()) exportParams.fromDate = fromDate.trim();
+      if (toDate.trim()) exportParams.toDate = toDate.trim();
+
+      const blob = await exportMutation.mutateAsync(exportParams);
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `freight-loads-export-${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success("Freight loads exported successfully!");
+    } catch (err: any) {
+      console.error("Failed to export freight loads:", err);
+      toast.error(err?.response?.data?.message || "Failed to export freight loads");
+    }
+  };
 
   const getStatusBadge = (statusStr: string) => {
     const s = (statusStr || "").toLowerCase();
@@ -208,6 +243,21 @@ export default function FreightLoads() {
           <p className="text-gray-500 mt-1">
             Track and manage freight loads and logistics status
           </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            className="bg-white gap-2 font-semibold text-slate-700 border-gray-200 hover:bg-gray-50 rounded-lg shadow-sm"
+            onClick={handleExport}
+            disabled={exportMutation.isPending}
+          >
+            {exportMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+            ) : (
+              <Download className="w-4 h-4 text-slate-500" />
+            )}
+            {exportMutation.isPending ? "Exporting..." : "Export"}
+          </Button>
         </div>
       </div>
 
@@ -319,13 +369,27 @@ export default function FreightLoads() {
         <div className="p-6 border-b border-gray-200 flex flex-col space-y-4">
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div className="relative w-full max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               <Input
-                placeholder="Search requests, locations, equipment, POC..."
-                className="pl-9 bg-[#F8FAFC] border-none h-11 w-full text-sm"
+                placeholder="Search by client / project"
+                className="pl-9 pr-9 bg-[#F8FAFC] border-none h-11 w-full text-sm"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
               />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput("");
+                    setSearch("");
+                    setPage(1);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  aria-label="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
               {hasActiveFilters && (
@@ -615,6 +679,11 @@ export default function FreightLoads() {
                         {load.project?.jobId && (
                           <span className="block text-xs text-gray-400 font-normal mt-0.5">
                             {load.project.jobId}
+                          </span>
+                        )}
+                        {load.customer?.name && (
+                          <span className="block text-xs text-gray-500 font-normal mt-0.5" title={load.customer.name}>
+                            {load.customer.name}
                           </span>
                         )}
                       </div>

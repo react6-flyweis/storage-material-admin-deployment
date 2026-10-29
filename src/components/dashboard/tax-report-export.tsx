@@ -8,23 +8,45 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar, FileSpreadsheet, FileText, File } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import SuccessDialog from "@/components/success-dialog";
+import { useNavigate } from "react-router";
 
 export default function TaxReportExport() {
   const [successOpen, setSuccessOpen] = useState(false);
   const [successTitle, setSuccessTitle] = useState(
     "File Exported Successfully"
   );
+  const navigate = useNavigate();
+
+  const { currentMonthName, currentYear, nextReportDate } = useMemo(() => {
+    const now = new Date();
+    const month = now.toLocaleString("en-US", { month: "long" });
+    const year = now.getFullYear();
+    const lastDayOfMonth = new Date(year, now.getMonth() + 1, 0).getDate();
+    return {
+      currentMonthName: month,
+      currentYear: year,
+      nextReportDate: `Next report ${month} ${lastDayOfMonth}, ${year} at 11:59 PM`,
+    };
+  }, []);
 
   return (
     <>
-      <Card>
-        <CardHeader className="border-b">
+      <Card className="h-full flex flex-col">
+        <CardHeader className="border-b flex flex-row justify-between items-center">
           <CardTitle>Tax Report Export</CardTitle>
+          <Button
+            variant="link"
+            size="sm"
+            onClick={() => navigate("/payments/sales-tax-filing")}
+            className="text-blue-600"
+          >
+            Filing History
+          </Button>
         </CardHeader>
 
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 pt-6 flex-1 flex flex-col justify-start">
           {/* Monthly Tax Report */}
           <div className="bg-blue-50 rounded-lg p-4">
             <div className="flex items-start gap-3">
@@ -36,7 +58,7 @@ export default function TaxReportExport() {
                   Monthly Tax Report
                 </h3>
                 <p className="text-sm text-gray-600 mb-3">
-                  January 2024 . Ready for export
+                  {currentMonthName} {currentYear} • Ready for export
                 </p>
 
                 <div className="flex gap-2">
@@ -89,7 +111,7 @@ export default function TaxReportExport() {
                   Auto Report schedule
                 </h3>
                 <p className="text-sm text-yellow-700">
-                  Next report Jan 31, 2024 at 11:59 PM
+                  {nextReportDate}
                 </p>
               </div>
             </div>

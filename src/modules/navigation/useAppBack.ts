@@ -20,7 +20,7 @@ export function useAppBack(options?: UseAppBackOptions | string) {
     (overrideFallback?: string) => {
       // 1. Check if an explicit origin route was passed in router state
       const stateFrom = (location.state as { from?: string } | null)?.from;
-      if (stateFrom && typeof stateFrom === "string" && stateFrom.trim() !== "") {
+      if (stateFrom && typeof stateFrom === "string" && stateFrom.trim() !== "" && stateFrom.startsWith("/")) {
         navigate(stateFrom);
         return;
       }

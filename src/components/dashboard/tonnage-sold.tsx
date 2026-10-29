@@ -15,14 +15,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const baseData = [
-  { id: "garage", label: "Garage", value: 1146 },
-  { id: "workshop", label: "Workshop", value: 638 },
-  { id: "roof", label: "Roof Sheets", value: 254 },
-  { id: "warehouse", label: "Warehouse", value: 509 },
-  { id: "carports", label: "Car Ports", value: 382 },
-  { id: "others", label: "Others", value: 84 },
-];
+import EmptyState from "@/components/ui/empty-state";
+import { Scale } from "lucide-react";
+
+export type TonnageItem = {
+  id: string;
+  label: string;
+  value: number;
+};
 
 const colors = [
   "var(--chart-1)",
@@ -33,8 +33,6 @@ const colors = [
   "#f66",
 ];
 
-// total will be computed from scaled data inside component
-
 const chartConfig = {
   garage: { label: "Garage", color: colors[0] },
   workshop: { label: "Workshop", color: colors[1] },
@@ -44,23 +42,15 @@ const chartConfig = {
   others: { label: "Others", color: colors[5] },
 } satisfies ChartConfig;
 
-export default function TonnageSold({ className }: { className?: string }) {
+export default function TonnageSold({
+  className,
+  data = [],
+}: {
+  className?: string;
+  data?: TonnageItem[];
+}) {
   const [timeframe, setTimeframe] = useState<string>("monthly");
 
-  const tf = timeframe.toLowerCase();
-  const scale =
-    tf.includes("day") || tf.includes("today")
-      ? 0.06
-      : tf.includes("week")
-      ? 0.45
-      : tf.includes("quarter")
-      ? 3
-      : 1;
-
-  const data = baseData.map((d) => ({
-    ...d,
-    value: Math.max(1, Math.round(d.value * scale)),
-  }));
   const total = data.reduce((s, d) => s + d.value, 0);
 
   return (
@@ -81,97 +71,105 @@ export default function TonnageSold({ className }: { className?: string }) {
         </Select>
       </div>
 
-      <div className="mt-4 flex flex-col ">
-        <div className="mx-auto w-full max-w-[320px]">
-          <ChartContainer
-            config={chartConfig}
-            className="mx-auto h-40 w-full border-0 bg-transparent p-0 shadow-none"
-          >
-            <PieChart>
-              <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-              <Pie
-                data={data}
-                dataKey="value"
-                nameKey="label"
-                innerRadius={55}
-                outerRadius={75}
-                paddingAngle={2}
-              >
-                {data.map((d, i) => (
-                  <Cell
-                    key={d.id}
-                    fill={colors[i % colors.length]}
-                    stroke={colors[i % colors.length]}
-                  />
-                ))}
-                <Label
-                  content={({ viewBox }) => {
-                    if (!viewBox || !("cx" in viewBox) || !("cy" in viewBox))
-                      return null;
-                    return (
-                      <text
-                        x={viewBox.cx}
-                        y={viewBox.cy}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                      >
-                        <tspan
+      {data.length === 0 ? (
+        <EmptyState
+          title="No tonnage data"
+          description="No tonnage sold data recorded for this timeframe."
+          icon={Scale}
+        />
+      ) : (
+        <div className="mt-4 flex flex-col ">
+          <div className="mx-auto w-full max-w-[320px]">
+            <ChartContainer
+              config={chartConfig}
+              className="mx-auto h-40 w-full border-0 bg-transparent p-0 shadow-none"
+            >
+              <PieChart>
+                <ChartTooltip content={<ChartTooltipContent hideLabel />} />
+                <Pie
+                  data={data}
+                  dataKey="value"
+                  nameKey="label"
+                  innerRadius={55}
+                  outerRadius={75}
+                  paddingAngle={2}
+                >
+                  {data.map((d, i) => (
+                    <Cell
+                      key={d.id}
+                      fill={colors[i % colors.length]}
+                      stroke={colors[i % colors.length]}
+                    />
+                  ))}
+                  <Label
+                    content={({ viewBox }) => {
+                      if (!viewBox || !("cx" in viewBox) || !("cy" in viewBox))
+                        return null;
+                      return (
+                        <text
                           x={viewBox.cx}
-                          y={(viewBox.cy ?? 0) - 6}
-                          style={{
-                            fill: "var(--foreground)",
-                            fontSize: 20,
-                            fontWeight: 600,
-                          }}
+                          y={viewBox.cy}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
                         >
-                          {total.toLocaleString()}
-                        </tspan>
-                        <tspan
-                          x={viewBox.cx}
-                          y={(viewBox.cy ?? 0) + 24}
-                          style={{
-                            fill: "var(--muted-foreground)",
-                            fontSize: 14,
-                          }}
-                        >
-                          Total
-                        </tspan>
-                      </text>
-                    );
-                  }}
-                />
-              </Pie>
-            </PieChart>
-          </ChartContainer>
-        </div>
-
-        <div className="flex-1 space-y-3 mt-5">
-          {data.map((d, i) => {
-            const percent =
-              total > 0 ? ((d.value / total) * 100).toFixed(1) : "0.0";
-            return (
-              <div key={d.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span
-                    className="h-3.5 w-3.5 rounded-full"
-                    style={{ backgroundColor: colors[i % colors.length] }}
+                          <tspan
+                            x={viewBox.cx}
+                            y={(viewBox.cy ?? 0) - 6}
+                            style={{
+                              fill: "var(--foreground)",
+                              fontSize: 20,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {total.toLocaleString()}
+                          </tspan>
+                          <tspan
+                            x={viewBox.cx}
+                            y={(viewBox.cy ?? 0) + 24}
+                            style={{
+                              fill: "var(--muted-foreground)",
+                              fontSize: 14,
+                            }}
+                          >
+                            Total
+                          </tspan>
+                        </text>
+                      );
+                    }}
                   />
-                  <p className="font-medium text-muted-foreground">{d.label}</p>
-                </div>
+                </Pie>
+              </PieChart>
+            </ChartContainer>
+          </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="text-base font-semibold text-foreground">
-                    {d.value.toLocaleString()}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    ({percent}%)
-                  </span>
+          <div className="flex-1 space-y-3 mt-5">
+            {data.map((d, i) => {
+              const percent =
+                total > 0 ? ((d.value / total) * 100).toFixed(1) : "0.0";
+              return (
+                <div key={d.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="h-3.5 w-3.5 rounded-full"
+                      style={{ backgroundColor: colors[i % colors.length] }}
+                    />
+                    <p className="font-medium text-muted-foreground">{d.label}</p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-base font-semibold text-foreground">
+                      {d.value.toLocaleString()}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      ({percent}%)
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </Card>
   );
 }

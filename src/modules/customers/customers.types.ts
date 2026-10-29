@@ -64,6 +64,25 @@ export type AdminCustomerProject = {
   updatedAt?: string;
 };
 
+export type CustomerProjectBudgetCustomLine = {
+  key?: string;
+  label?: string;
+  amount?: number;
+  expenseCategories?: string[];
+};
+
+export type CustomerProjectBudget = {
+  totalBudget?: number;
+  customLines?: CustomerProjectBudgetCustomLine[];
+  expectedProfit?: number;
+  materialBudget?: number;
+  logisticBudget?: number;
+  productionBudget?: number;
+  shipperBudget?: number;
+  otherCost?: number;
+  [key: string]: any;
+};
+
 // Type matching the real /api/admin/customers/{id}/projects response
 export type CustomerProject = {
   _id: string;
@@ -82,7 +101,7 @@ export type CustomerProject = {
   assignedSales?: { _id: string; name: string };
   quoteValue?: number;
   isTerminated?: boolean;
-  budget?: number | null;
+  budget?: CustomerProjectBudget | number | null;
   createdAt?: string;
   updatedAt?: string;
 };

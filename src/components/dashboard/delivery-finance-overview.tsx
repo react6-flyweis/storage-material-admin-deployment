@@ -20,181 +20,48 @@ import {
   Gauge,
   type LucideIcon,
 } from "lucide-react";
+import type {
+  DeliveryFinance,
+  LoadOptimization,
+  DeliveryOperations,
+  CommunicationStatus,
+  FreightActivity,
+} from "@/modules/dashboard/dashboard.types";
 
-const topCards = [
-  {
-    title: "Freight Spend",
-    value: "$248,500",
-    icon: Package2,
-    iconBg: "bg-blue-100",
-    iconFg: "text-blue-600",
-  },
-  {
-    title: "Pending Carrier Payments",
-    value: "$62,300",
-    icon: CreditCard,
-    iconBg: "bg-blue-100",
-    iconFg: "text-blue-600",
-  },
-  {
-    title: "Freight Savings",
-    value: "$37,400 saved",
-    icon: CircleDollarSign,
-    iconBg: "bg-blue-100",
-    iconFg: "text-blue-600",
-  },
-];
+interface DeliveryFinanceOverviewProps {
+  finance?: DeliveryFinance;
+  loadOptimization?: LoadOptimization;
+  operations?: DeliveryOperations;
+  communication?: CommunicationStatus;
+  freight?: FreightActivity;
+}
 
-const performanceCards = [
-  {
-    title: "Total Bundles Created",
-    value: "35",
-    change: "+ 5.62% from last month",
-    changeClass: "text-emerald-600",
-    icon: Box,
-    iconBg: "bg-violet-600",
-  },
-  {
-    title: "Total Truckloads Planned",
-    value: "18",
-    change: "+ 11.4% from last month",
-    changeClass: "text-emerald-600",
-    icon: Truck,
-    iconBg: "bg-emerald-600",
-  },
-  {
-    title: "Avg Load Utilization %",
-    value: "65%",
-    change: "+ 8.52% from last month",
-    changeClass: "text-emerald-600",
-    icon: Gauge,
-    iconBg: "bg-amber-600",
-  },
-  {
-    title: "Optimization Savings $",
-    value: "2,000",
-    change: "- 7.45% from last month",
-    changeClass: "text-red-500",
-    icon: BadgeDollarSign,
-    iconBg: "bg-red-600",
-  },
-];
+function formatCurrency(amount?: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(amount ?? 0);
+}
 
-const operationsCards = [
-  {
-    title: "Delivery Operations",
-    items: [
-      {
-        label: "Total Deliveries Today",
-        value: "104",
-        icon: FileText,
-        iconBg: "bg-violet-100",
-        iconFg: "text-violet-600",
-      },
-      {
-        label: "Upcoming Deliveries",
-        value: "36",
-        icon: Users,
-        iconBg: "bg-emerald-100",
-        iconFg: "text-emerald-600",
-      },
-      {
-        label: "Delayed Deliveries",
-        value: "42",
-        icon: TriangleAlert,
-        iconBg: "bg-orange-100",
-        iconFg: "text-orange-500",
-      },
-      {
-        label: "Rescheduled Deliveries",
-        value: "2",
-        icon: ClipboardList,
-        iconBg: "bg-blue-100",
-        iconFg: "text-blue-600",
-      },
-      {
-        label: "Completed Deliveries Today",
-        value: "10",
-        icon: CheckCircle2,
-        iconBg: "bg-violet-100",
-        iconFg: "text-violet-600",
-      },
-    ],
-  },
-  {
-    title: "Communication Status",
-    items: [
-      {
-        label: "Confirmations Sent",
-        value: "89%",
-        icon: Send,
-        iconBg: "bg-violet-100",
-        iconFg: "text-violet-600",
-      },
-      {
-        label: "48hr Reminders Sent",
-        value: "60%",
-        icon: BellRing,
-        iconBg: "bg-emerald-100",
-        iconFg: "text-emerald-600",
-      },
-      {
-        label: "24hr Reminders Sent %",
-        value: "88%",
-        icon: Clock3,
-        iconBg: "bg-orange-100",
-        iconFg: "text-orange-500",
-      },
-      {
-        label: "Failed Notifications",
-        value: "20%",
-        icon: BadgeX,
-        iconBg: "bg-blue-100",
-        iconFg: "text-blue-600",
-      },
-    ],
-  },
-  {
-    title: "Freight Activity",
-    items: [
-      {
-        label: "Active Freight Requests",
-        value: "32",
-        icon: Route,
-        iconBg: "bg-violet-100",
-        iconFg: "text-violet-600",
-      },
-      {
-        label: "Bids Pending",
-        value: "63",
-        icon: WalletCards,
-        iconBg: "bg-emerald-100",
-        iconFg: "text-emerald-600",
-      },
-      {
-        label: "Loads Awarded Today",
-        value: "41",
-        icon: BadgeDollarSign,
-        iconBg: "bg-orange-100",
-        iconFg: "text-orange-500",
-      },
-      {
-        label: "Loads In Transit",
-        value: "1",
-        icon: Truck,
-        iconBg: "bg-blue-100",
-        iconFg: "text-blue-600",
-      },
-      {
-        label: "Delayed Shipments",
-        value: "63",
-        icon: ShieldAlert,
-        iconBg: "bg-emerald-100",
-        iconFg: "text-emerald-600",
-      },
-    ],
-  },
-];
+function formatChange(changePct?: number) {
+  if (changePct === undefined || changePct === 0) {
+    return {
+      text: "0% from last month",
+      className: "text-slate-500",
+    };
+  }
+  if (changePct > 0) {
+    return {
+      text: `+${changePct}% from last month`,
+      className: "text-emerald-600",
+    };
+  }
+  return {
+    text: `${changePct}% from last month`,
+    className: "text-rose-600",
+  };
+}
 
 function MetricCard({
   title,
@@ -276,7 +143,187 @@ function DetailCard({
   );
 }
 
-export default function DeliveryFinanceOverview() {
+export default function DeliveryFinanceOverview({
+  finance,
+  loadOptimization,
+  operations,
+  communication,
+  freight,
+}: DeliveryFinanceOverviewProps) {
+  const topCards = [
+    {
+      title: "Freight Spend",
+      value: formatCurrency(finance?.freightSpend),
+      icon: Package2,
+    },
+    {
+      title: "Pending Carrier Payments",
+      value: formatCurrency(finance?.pendingCarrierPayments),
+      icon: CreditCard,
+    },
+    {
+      title: "Freight Savings",
+      value: `${formatCurrency(finance?.freightSavings)} saved`,
+      icon: CircleDollarSign,
+    },
+  ];
+
+  const bundlesChange = formatChange(loadOptimization?.totalBundlesCreatedChangePct);
+  const truckloadsChange = formatChange(loadOptimization?.totalTruckloadsPlannedChangePct);
+  const utilizationChange = formatChange(loadOptimization?.avgLoadUtilizationChangePct);
+  const savingsChange = formatChange(loadOptimization?.optimizationSavingsChangePct);
+
+  const performanceCards = [
+    {
+      title: "Total Bundles Created",
+      value: String(loadOptimization?.totalBundlesCreated ?? 0),
+      change: bundlesChange.text,
+      changeClass: bundlesChange.className,
+      icon: Box,
+      iconBg: "bg-violet-600",
+    },
+    {
+      title: "Total Truckloads Planned",
+      value: String(loadOptimization?.totalTruckloadsPlanned ?? 0),
+      change: truckloadsChange.text,
+      changeClass: truckloadsChange.className,
+      icon: Truck,
+      iconBg: "bg-emerald-600",
+    },
+    {
+      title: "Avg Load Utilization %",
+      value: `${loadOptimization?.avgLoadUtilizationPct ?? 0}%`,
+      change: utilizationChange.text,
+      changeClass: utilizationChange.className,
+      icon: Gauge,
+      iconBg: "bg-amber-600",
+    },
+    {
+      title: "Optimization Savings $",
+      value: formatCurrency(loadOptimization?.optimizationSavings),
+      change: savingsChange.text,
+      changeClass: savingsChange.className,
+      icon: BadgeDollarSign,
+      iconBg: "bg-red-600",
+    },
+  ];
+
+  const operationsCards = [
+    {
+      title: "Delivery Operations",
+      items: [
+        {
+          label: "Total Deliveries Today",
+          value: String(operations?.totalDeliveriesToday ?? 0),
+          icon: FileText,
+          iconBg: "bg-violet-100",
+          iconFg: "text-violet-600",
+        },
+        {
+          label: "Upcoming Deliveries",
+          value: String(operations?.upcomingDeliveries ?? 0),
+          icon: Users,
+          iconBg: "bg-emerald-100",
+          iconFg: "text-emerald-600",
+        },
+        {
+          label: "Delayed Deliveries",
+          value: String(operations?.delayedDeliveries ?? 0),
+          icon: TriangleAlert,
+          iconBg: "bg-orange-100",
+          iconFg: "text-orange-500",
+        },
+        {
+          label: "Rescheduled Deliveries",
+          value: String(operations?.rescheduledDeliveries ?? 0),
+          icon: ClipboardList,
+          iconBg: "bg-blue-100",
+          iconFg: "text-blue-600",
+        },
+        {
+          label: "Completed Deliveries Today",
+          value: String(operations?.completedDeliveriesToday ?? 0),
+          icon: CheckCircle2,
+          iconBg: "bg-violet-100",
+          iconFg: "text-violet-600",
+        },
+      ],
+    },
+    {
+      title: "Communication Status",
+      items: [
+        {
+          label: "Confirmations Sent",
+          value: `${communication?.confirmationsSentPct ?? 0}%`,
+          icon: Send,
+          iconBg: "bg-violet-100",
+          iconFg: "text-violet-600",
+        },
+        {
+          label: "48hr Reminders Sent",
+          value: `${communication?.reminders48hrSentPct ?? 0}%`,
+          icon: BellRing,
+          iconBg: "bg-emerald-100",
+          iconFg: "text-emerald-600",
+        },
+        {
+          label: "24hr Reminders Sent %",
+          value: `${communication?.reminders24hrSentPct ?? 0}%`,
+          icon: Clock3,
+          iconBg: "bg-orange-100",
+          iconFg: "text-orange-500",
+        },
+        {
+          label: "Failed Notifications",
+          value: `${communication?.failedNotificationsPct ?? 0}%`,
+          icon: BadgeX,
+          iconBg: "bg-blue-100",
+          iconFg: "text-blue-600",
+        },
+      ],
+    },
+    {
+      title: "Freight Activity",
+      items: [
+        {
+          label: "Active Freight Requests",
+          value: String(freight?.activeFreightRequests ?? 0),
+          icon: Route,
+          iconBg: "bg-violet-100",
+          iconFg: "text-violet-600",
+        },
+        {
+          label: "Bids Pending",
+          value: String(freight?.bidsPending ?? 0),
+          icon: WalletCards,
+          iconBg: "bg-emerald-100",
+          iconFg: "text-emerald-600",
+        },
+        {
+          label: "Loads Awarded Today",
+          value: String(freight?.loadsAwardedToday ?? 0),
+          icon: BadgeDollarSign,
+          iconBg: "bg-orange-100",
+          iconFg: "text-orange-500",
+        },
+        {
+          label: "Loads In Transit",
+          value: String(freight?.loadsInTransit ?? 0),
+          icon: Truck,
+          iconBg: "bg-blue-100",
+          iconFg: "text-blue-600",
+        },
+        {
+          label: "Delayed Shipments",
+          value: String(freight?.delayedShipments ?? 0),
+          icon: ShieldAlert,
+          iconBg: "bg-emerald-100",
+          iconFg: "text-emerald-600",
+        },
+      ],
+    },
+  ];
+
   return (
     <section className="space-y-4">
       <div>

@@ -39,86 +39,31 @@ import {
 } from "@/modules/quotations/quotations.hooks";
 import {
   BUILDING_TYPE,
-  ADMIN_STATUS,
   type Quotation,
-  type AdminStatus,
+  type QuotationWorkflowStatus,
 } from "@/modules/quotations/quotations.api";
 import { resolveQuotationLifecycle } from "@/modules/quotations/quotations.utils";
+import QuotationStatusBadge from "@/components/quotations/quotation-status-badge";
 import ApproveQuotationDialog from "@/components/leads/approve-quotation-dialog";
 import RejectQuotationDialog from "@/components/leads/reject-quotation-dialog";
 import SendQuotationDialog from "@/components/leads/send-quotation-dialog";
+import SubmitQuotationApprovalDialog from "@/components/leads/submit-quotation-approval-dialog";
 
-const STATUS_LABELS: Record<AdminStatus, string> = {
-  draft: "Draft",
-  pending: "Pending",
-  pending_approval: "Pending Approval",
-  approved: "Approved",
-  rejected: "Rejected",
-  sent: "Sent",
-  accepted: "Accepted",
-};
+const WORKFLOW_STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: "all", label: "All Status" },
+  { value: "draft", label: "Draft" },
+  { value: "pending_approval", label: "Pending Approval" },
+  { value: "approved", label: "Approved" },
+  { value: "admin_rejected", label: "Admin Rejected" },
+  { value: "sent", label: "Sent" },
+  { value: "accepted", label: "Accepted" },
+  { value: "client_rejected", label: "Client Rejected" },
+];
 
 const BUILDING_TYPE_OPTIONS = BUILDING_TYPE.map((type) => ({
   value: type,
   label: type,
 }));
-
-function getStatusBadge(quotation: Quotation) {
-  const lifecycle = resolveQuotationLifecycle(quotation);
-
-  switch (lifecycle.lifecycleStatus) {
-    case "customer_rejected":
-      return (
-        <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-rose-100 text-rose-700">
-          Declined by Customer
-        </span>
-      );
-    case "customer_accepted":
-      return (
-        <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-emerald-100 text-emerald-700">
-          Accepted by Customer
-        </span>
-      );
-    case "approved":
-      return (
-        <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-green-100 text-green-700">
-          Approved
-        </span>
-      );
-    case "pending_approval":
-      return (
-        <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
-          Pending Approval
-        </span>
-      );
-    case "admin_rejected":
-      return (
-        <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-red-100 text-red-700">
-          Admin Rejected
-        </span>
-      );
-    case "sent":
-      if (quotation.sendMethod === "manual") {
-        return (
-          <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
-            Marked sent
-          </span>
-        );
-      }
-      return (
-        <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-purple-100 text-purple-700">
-          Sent via email
-        </span>
-      );
-    case "draft":
-    default:
-      return (
-        <span className="px-2.5 py-0.5 whitespace-nowrap rounded-full text-xs font-medium bg-gray-100 text-gray-700">
-          Draft
-        </span>
-      );
-  }
-}
 
 export default function QuotationListPage() {
   const navigate = useNavigate();
@@ -192,6 +137,7 @@ export default function QuotationListPage() {
   const [approveQuote, setApproveQuote] = useState<Quotation | null>(null);
   const [rejectQuote, setRejectQuote] = useState<Quotation | null>(null);
   const [sendQuote, setSendQuote] = useState<Quotation | null>(null);
+  const [submitQuote, setSubmitQuote] = useState<Quotation | null>(null);
 
   const handleFilterChange = (filterName: string, value: string) => {
     setSelectedFilters((prev) => ({
@@ -342,10 +288,9 @@ export default function QuotationListPage() {
               <SelectValue placeholder="All Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              {ADMIN_STATUS.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {STATUS_LABELS[status] || status}
+              {WORKFLOW_STATUS_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -524,11 +469,15 @@ export default function QuotationListPage() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="px-6 py-4 text-sm text-gray-900 capitalize">
+                      <TableCell className="px-6 py-4 text-sm capitalize">
                         {quotation.buildingType || "—"}
                       </TableCell>
                       <TableCell className="px-6 py-4 text-sm">
-                        {getStatusBadge(quotation)}
+                        <QuotationStatusBadge
+                          workflowStatus={quotation.workflowStatus}
+                          sendMethod={quotation.sendMethod}
+                          showSendMethod
+                        />
                       </TableCell>
                       <TableCell className="px-6 py-4 text-sm text-gray-900 font-semibold">
                         ${price.toLocaleString()}
@@ -541,6 +490,16 @@ export default function QuotationListPage() {
                       </TableCell>
                       <TableCell className="px-6 py-4 text-sm text-right pr-6">
                         <div className="flex items-center justify-end gap-2">
+                          {(lifecycle.isDraft || lifecycle.isAdminRejected || lifecycle.isClientRejected) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2.5 text-xs border-blue-200 text-[#1D51A4] hover:bg-blue-50 rounded font-medium"
+                              onClick={() => setSubmitQuote(quotation)}
+                            >
+                              Send for Approval
+                            </Button>
+                          )}
                           {isPending && (
                             <>
                               <Button
@@ -560,13 +519,38 @@ export default function QuotationListPage() {
                               </Button>
                             </>
                           )}
-                          {canSend && (
+                          {lifecycle.isApproved && (
                             <Button
                               size="sm"
                               className="bg-[#1D51A4] hover:bg-[#174287] text-white h-7 px-2.5 text-xs font-medium rounded flex items-center gap-1"
                               onClick={() => setSendQuote(quotation)}
                             >
-                              <Send className="w-3 h-3" /> {isAlreadySent ? "Resend" : "Send"}
+                              <Send className="w-3 h-3" /> Send to customer
+                            </Button>
+                          )}
+                          {lifecycle.isSent && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2.5 text-xs border-gray-200 text-gray-700 hover:bg-gray-50 rounded flex items-center gap-1"
+                              onClick={() => setSendQuote(quotation)}
+                            >
+                              <Send className="w-3 h-3" /> Resend
+                            </Button>
+                          )}
+                          {lifecycle.isAccepted && (
+                            <Button
+                              size="sm"
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 px-2.5 text-xs font-medium rounded"
+                              onClick={() => {
+                                const lId = typeof quotation.leadId === "object" ? quotation.leadId?._id : quotation.leadId;
+                                navigate(
+                                  `/invoice?type=quotation${lId ? `&leadId=${lId}` : ""}`,
+                                  { state: { from: location.pathname + location.search } },
+                                );
+                              }}
+                            >
+                              Next steps
                             </Button>
                           )}
                           <button
@@ -578,7 +562,7 @@ export default function QuotationListPage() {
                               )
                             }
                             className="text-gray-500 hover:text-[#1D51A4] inline-block p-1 cursor-pointer"
-                            title="View Details"
+                            title="View Quotation"
                           >
                             <Eye className="size-4" />
                           </button>
@@ -638,9 +622,18 @@ export default function QuotationListPage() {
           sendQuote?.customerEmail ||
           (typeof sendQuote?.customerId === "object" ? sendQuote?.customerId?.email : undefined)
         }
-        status={sendQuote?.workflowStatus || sendQuote?.status}
+        status={sendQuote?.workflowStatus}
         sendMethod={sendQuote?.sendMethod}
         sentAt={sendQuote?.sentAt}
+      />
+
+      {/* Extracted Submit For Approval Modal */}
+      <SubmitQuotationApprovalDialog
+        open={!!submitQuote}
+        onOpenChange={(o) => !o && setSubmitQuote(null)}
+        quotationId={submitQuote?._id || ""}
+        quoteNumber={submitQuote?.quoteNumber}
+        versionNumber={submitQuote?.versionNumber}
       />
     </div>
   );

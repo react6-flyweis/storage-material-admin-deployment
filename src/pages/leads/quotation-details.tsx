@@ -26,6 +26,8 @@ import { toast } from "sonner";
 import ApproveQuotationDialog from "@/components/leads/approve-quotation-dialog";
 import RejectQuotationDialog from "@/components/leads/reject-quotation-dialog";
 import SendQuotationDialog from "@/components/leads/send-quotation-dialog";
+import SubmitQuotationApprovalDialog from "@/components/leads/submit-quotation-approval-dialog";
+import QuotationStatusBadge from "@/components/quotations/quotation-status-badge";
 import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
 import { ApprovalHistoryTimeline } from "@/components/timeline/approval-history-timeline";
 import {
@@ -53,6 +55,7 @@ export default function QuotationDetailsPage() {
   const [isApproveOpen, setIsApproveOpen] = useState(false);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
   const [isSendOpen, setIsSendOpen] = useState(false);
+  const [isSubmitOpen, setIsSubmitOpen] = useState(false);
 
   const q = data?.data?.quotation;
   const leadIdStr = typeof q?.leadId === "object" ? q?.leadId?._id : q?.leadId;
@@ -133,45 +136,42 @@ export default function QuotationDetailsPage() {
   return (
     <div className="p-4 sm:p-6 space-y-6 ">
       {/* Top Action Bar */}
-      <div className="flex items-center justify-between">
-        <Button
-          size="sm"
-          variant="outline"
-          className="bg-white hover:bg-gray-50 border-gray-200 text-gray-600 h-9 px-4 text-sm font-normal rounded-md flex items-center gap-2"
-          onClick={() => goBack()}
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          {/* Timeline Jump button */}
           <Button
             size="sm"
             variant="outline"
-            className="bg-white hover:bg-gray-50 border-gray-300 text-gray-700 h-9 px-3.5 text-xs font-medium rounded-md flex items-center gap-1.5"
-            onClick={scrollToTimeline}
-            title="View Workflow & Approval Timeline"
+            className="bg-white hover:bg-gray-50 border-gray-200 text-gray-600 h-9 px-4 text-sm font-normal rounded-md flex items-center gap-2 shrink-0"
+            onClick={() => goBack()}
           >
-            <History className="h-4 w-4 text-gray-500" />
-            <span>Timeline</span>
+            <ArrowLeft className="h-4 w-4" />
+            Back
           </Button>
-
-          {/* Download PDF button */}
-          <Button
-            size="sm"
-            variant="outline"
-            className="bg-white hover:bg-gray-50 border-gray-300 text-gray-700 h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5"
-            onClick={handleDownloadPdf}
-            disabled={downloadPdfMutation.isPending}
-            title="Download PDF"
-          >
-            {downloadPdfMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4 text-gray-600" />
-            )}
-            <span>{downloadPdfMutation.isPending ? "Downloading..." : "Download PDF"}</span>
-          </Button>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-lg font-bold text-gray-900 tracking-tight">
+              Quotation #{q.quoteNumber}
+            </h1>
+            <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+              v{q.versionNumber}
+            </span>
+            <QuotationStatusBadge
+              workflowStatus={q.workflowStatus}
+              sendMethod={q.sendMethod}
+              showSendMethod
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Send for Approval (when draft, admin_rejected, or client_rejected) */}
+          {(lifecycle.isDraft || lifecycle.isAdminRejected || lifecycle.isClientRejected) && (
+            <Button
+              className="bg-[#1D51A4] hover:bg-[#174287] text-white h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm"
+              onClick={() => setIsSubmitOpen(true)}
+            >
+              <Send className="h-4 w-4" />
+              Send for Approval
+            </Button>
+          )}
 
           {/* Admin Approve & Reject Actions */}
           {isPending && (
@@ -194,42 +194,77 @@ export default function QuotationDetailsPage() {
             </>
           )}
 
-          {/* Send to Customer (available once approved, or re-send if already sent) */}
-          <Button
-            className={
-              !canSend
-                ? "bg-gray-200 text-gray-400 border border-gray-200 cursor-not-allowed h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5"
-                : "bg-[#1D51A4] hover:bg-[#174287] text-white h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer"
-            }
-            onClick={() => setIsSendOpen(true)}
-            disabled={!canSend}
-            title={
-              !canSend
-                ? "Quotation must be approved before sending to customer"
-                : isSent
-                  ? "Resend quotation to customer"
-                  : "Send quotation to customer"
-            }
-          >
-            <Send className="h-4 w-4" />
-            {isSent ? "Resend Quote" : "Send to Customer"}
-          </Button>
+          {/* Send to Customer (available once approved) */}
+          {lifecycle.isApproved && (
+            <Button
+              className="bg-[#1D51A4] hover:bg-[#174287] text-white h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer"
+              onClick={() => setIsSendOpen(true)}
+            >
+              <Send className="h-4 w-4" />
+              Send to customer
+            </Button>
+          )}
 
-          {/* Create Invoice */}
+          {/* Resend to Customer (when already sent) */}
+          {lifecycle.isSent && (
+            <Button
+              variant="outline"
+              className="bg-white hover:bg-gray-50 border-gray-300 text-gray-700 h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer"
+              onClick={() => setIsSendOpen(true)}
+            >
+              <Send className="h-4 w-4" />
+              Resend Quote
+            </Button>
+          )}
+
+          {/* Next steps / Invoicing */}
           <Button
             size="sm"
-            variant="outline"
-            className="bg-white hover:bg-blue-50 border-blue-200 text-blue-700 h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer"
+            variant={lifecycle.isAccepted ? "default" : "outline"}
+            className={
+              lifecycle.isAccepted
+                ? "bg-emerald-600 hover:bg-emerald-700 text-white h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer"
+                : "bg-white hover:bg-blue-50 border-blue-200 text-blue-700 h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer"
+            }
             onClick={() => {
               navigate(
                 `/invoice?type=quotation${leadIdStr ? `&leadId=${leadIdStr}` : ""}`,
                 { state: { from: location.pathname + location.search } },
               );
             }}
-            title="Create Invoice from Quotation"
+            title={lifecycle.isAccepted ? "Customer accepted - proceed with invoicing" : "Create Invoice from Quotation"}
           >
             <Receipt className="h-4 w-4" />
-            Create Invoice
+            {lifecycle.isAccepted ? "Next steps: Create Invoice" : "Create Invoice"}
+          </Button>
+
+          {/* Download PDF button */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="bg-white hover:bg-gray-50 border-gray-300 text-gray-700 h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5"
+            onClick={handleDownloadPdf}
+            disabled={downloadPdfMutation.isPending}
+            title="Download PDF"
+          >
+            {downloadPdfMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 text-gray-600" />
+            )}
+            <span>{downloadPdfMutation.isPending ? "Downloading..." : "Download PDF"}</span>
+          </Button>
+
+          {/* Timeline Jump button */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="bg-white hover:bg-gray-50 border-gray-300 text-gray-700 h-9 px-3.5 text-xs font-medium rounded-md flex items-center gap-1.5"
+            onClick={scrollToTimeline}
+            title="View Workflow & Approval Timeline"
+          >
+            <History className="h-4 w-4 text-gray-500" />
+            <span>Timeline</span>
           </Button>
         </div>
       </div>
@@ -566,9 +601,20 @@ export default function QuotationDetailsPage() {
           quoteNumber={q.quoteNumber}
           versionNumber={q.versionNumber}
           recipientEmail={customerEmail}
-          status={effectiveStatus}
+          status={q.workflowStatus}
           sendMethod={q.sendMethod}
           sentAt={q.sentAt}
+        />
+      )}
+
+      {/* Extracted Submit For Approval Modal */}
+      {id && (
+        <SubmitQuotationApprovalDialog
+          open={isSubmitOpen}
+          onOpenChange={setIsSubmitOpen}
+          quotationId={id}
+          quoteNumber={q.quoteNumber}
+          versionNumber={q.versionNumber}
         />
       )}
     </div>

@@ -23,6 +23,7 @@ import {
   attachMaterialRequestAttachment,
   addDrawingComment,
   getConstructionOverview,
+  getConstructionOverviewFilters,
   getProjectMismatchOrders,
   type CreateTaskPayload,
   type CreateWorkLogPayload,
@@ -285,6 +286,13 @@ export function useConstructionOverviewQuery(params?: GetConstructionOverviewPar
   return useQuery({
     queryKey: ["construction", "overview", params],
     queryFn: () => getConstructionOverview(params),
+  });
+}
+
+export function useConstructionOverviewFiltersQuery() {
+  return useQuery({
+    queryKey: ["construction", "overview", "filters"],
+    queryFn: () => getConstructionOverviewFilters(),
   });
 }
 

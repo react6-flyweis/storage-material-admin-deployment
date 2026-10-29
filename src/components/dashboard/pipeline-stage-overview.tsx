@@ -6,14 +6,13 @@ import {
 } from "@/components/ui/chart";
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
 
-const baseData = [
-  { stage: "New", value: 45 },
-  { stage: "Contacted", value: 37 },
-  { stage: "Proposal Sent", value: 31 },
-  { stage: "Negotiation", value: 15 },
-  { stage: "Closed Won", value: 95 },
-  { stage: "Closed lost", value: 23 },
-];
+import EmptyState from "@/components/ui/empty-state";
+import { BarChart3 } from "lucide-react";
+
+export type StageOverviewItem = {
+  stage: string;
+  value: number;
+};
 
 const chartConfig = {
   stages: { color: "#2B82F6", label: "Leads" },
@@ -21,12 +20,12 @@ const chartConfig = {
 
 type Period = "Today" | "Week" | "Month";
 
-export default function PipelineStageOverview({ period }: { period?: Period }) {
-  const scale = period === "Today" ? 0.06 : period === "Week" ? 0.45 : 1;
-  const data = baseData.map((d) => ({
-    ...d,
-    value: Math.max(1, Math.round(d.value * scale)),
-  }));
+export default function PipelineStageOverview({
+  data = [],
+}: {
+  period?: Period;
+  data?: StageOverviewItem[];
+}) {
   return (
     <Card className="h-full border border-slate-100 p-6 shadow-sm">
       <div className="flex flex-col gap-1">
@@ -34,6 +33,14 @@ export default function PipelineStageOverview({ period }: { period?: Period }) {
           Pipeline Stage overview
         </h2>
       </div>
+
+      {data.length === 0 ? (
+        <EmptyState
+          title="No stage data"
+          description="No leads recorded in pipeline stages for this timeframe."
+          icon={BarChart3}
+        />
+      ) : (
 
       <div className="mt-4">
         <ChartContainer
@@ -77,6 +84,7 @@ export default function PipelineStageOverview({ period }: { period?: Period }) {
           </BarChart>
         </ChartContainer>
       </div>
+      )}
     </Card>
   );
 }

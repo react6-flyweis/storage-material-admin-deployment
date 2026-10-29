@@ -1,39 +1,64 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Link } from "react-router";
+import EmptyState from "@/components/ui/empty-state";
+import { Landmark } from "lucide-react";
 
-interface BuildingTypeData {
+export interface BuildingTypeData {
   type: string;
   value: number;
   color: string;
 }
 
-const buildingTypeData: BuildingTypeData[] = [
-  { type: "PEMB", value: 5802.5, color: "#3B82F6" },
-  { type: "Storage", value: 3765.0, color: "#10B981" },
-  { type: "Shed", value: 2693.25, color: "#F59E0B" },
-  { type: "Commercial", value: 5527.5, color: "#EF4444" },
-];
+function formatUSD(amount?: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  }).format(amount ?? 0);
+}
 
-const totalTaxByBuilding = buildingTypeData.reduce(
-  (sum, item) => sum + item.value,
-  0
-);
+export default function BuildingTypeTaxCard({
+  data = [],
+}: {
+  data?: BuildingTypeData[];
+}) {
+  const buildingTypeData = data;
+  const totalTaxByBuilding = buildingTypeData.reduce(
+    (sum, item) => sum + item.value,
+    0
+  );
 
-export default function BuildingTypeTaxCard() {
   return (
-    <Link to="/sales-tax">
-      <Card className="bg-white">
-        <CardHeader className="border-b">
-          <CardTitle>Tax Distribution by Building Type</CardTitle>
-        </CardHeader>
-        <CardContent>
+    <Card className="bg-white h-full flex flex-col">
+      <CardHeader className="border-b flex flex-row items-center justify-between">
+        <CardTitle>Tax Distribution by Building Type</CardTitle>
+        <Link to="/sales-tax">
+          <Button variant="link" size="sm">
+            View
+          </Button>
+        </Link>
+      </CardHeader>
+      <CardContent className="pt-6 flex-1 flex flex-col justify-start">
+        {buildingTypeData.length === 0 ? (
+          <div className="flex-1 flex items-center justify-center min-h-[200px]">
+            <EmptyState
+              title="No building type data"
+              description="No tax distribution records available by building type."
+              icon={Landmark}
+            />
+          </div>
+        ) : (
           <div className="space-y-4">
             {buildingTypeData.map((item) => {
-              const percentage = (
-                (item.value / totalTaxByBuilding) *
-                100
-              ).toFixed(0);
-              const width = `${(item.value / totalTaxByBuilding) * 100}%`;
+              const percentage =
+                totalTaxByBuilding > 0
+                  ? ((item.value / totalTaxByBuilding) * 100).toFixed(0)
+                  : "0";
+              const width =
+                totalTaxByBuilding > 0
+                  ? `${(item.value / totalTaxByBuilding) * 100}%`
+                  : "0%";
               return (
                 <div key={item.type} className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -46,8 +71,8 @@ export default function BuildingTypeTaxCard() {
                         {item.type}
                       </span>
                     </div>
-                    <div className="text-right text-gray-900 font-semibold">
-                      ${item.value.toLocaleString()}
+                    <div className="text-right text-gray-900 font-semibold text-sm">
+                      {formatUSD(item.value)}
                     </div>
                   </div>
 
@@ -67,8 +92,8 @@ export default function BuildingTypeTaxCard() {
               );
             })}
           </div>
-        </CardContent>
-      </Card>
-    </Link>
+        )}
+      </CardContent>
+    </Card>
   );
 }

@@ -14,7 +14,10 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Download,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -30,6 +33,7 @@ import {
   useAwardedStatsQuery,
   useAwardedLoadsQuery,
   useFreightFiltersQuery,
+  useExportAwardedLoadsMutation,
 } from "@/modules/plant/freight.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatStatusLabel, getStatusBadgeStyle } from "./deliveryStatusConstants";
@@ -110,7 +114,38 @@ export default function AwardedLoads() {
     carrierId !== "all" ||
     fromDate !== "" ||
     toDate !== "" ||
-    search !== "";
+    search !== "" ||
+    searchInput !== "";
+
+  const exportMutation = useExportAwardedLoadsMutation();
+
+  const handleExport = async () => {
+    try {
+      toast.info("Generating Awarded Loads export...");
+      const exportParams: Record<string, string> = {};
+      if (search.trim()) exportParams.search = search.trim();
+      if (status && status !== "all") exportParams.status = status;
+      if (projectId && projectId !== "all") exportParams.projectId = projectId;
+      if (customerId && customerId !== "all") exportParams.customerId = customerId;
+      if (carrierId && carrierId !== "all") exportParams.carrierId = carrierId;
+      if (fromDate.trim()) exportParams.fromDate = fromDate.trim();
+      if (toDate.trim()) exportParams.toDate = toDate.trim();
+
+      const blob = await exportMutation.mutateAsync(exportParams);
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `awarded-loads-export-${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success("Awarded loads exported successfully!");
+    } catch (err: any) {
+      console.error("Failed to export awarded loads:", err);
+      toast.error(err?.response?.data?.message || "Failed to export awarded loads");
+    }
+  };
 
   const getStatusBadge = (statusStr: string) => {
     const s = (statusStr || "").toLowerCase();
@@ -205,23 +240,21 @@ export default function AwardedLoads() {
             Track all awarded freight loads
           </p>
         </div>
-        {/* <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
             className="bg-white gap-2 font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 rounded-xl"
-            onClick={() => setIsFilterOpen((prev) => !prev)}
+            onClick={handleExport}
+            disabled={exportMutation.isPending}
           >
-            <Filter className="w-4 h-4" />
-            {isFilterOpen ? "Hide Filters" : "Filter"}
+            {exportMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+            ) : (
+              <Download className="w-4 h-4 text-slate-500" />
+            )}
+            {exportMutation.isPending ? "Exporting..." : "Export"}
           </Button>
-          <Button 
-            variant="outline" 
-            className="bg-white gap-2 font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 rounded-xl"
-          >
-            <Download className="w-4 h-4" />
-            Export
-          </Button>
-        </div> */}
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -297,13 +330,27 @@ export default function AwardedLoads() {
         <div className="p-6 border-b border-gray-200 flex flex-col space-y-4">
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               <Input
-                placeholder="Search awarded loads..."
+                placeholder="Search by client / project"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="pl-10 h-11 bg-slate-50 border-0 rounded-xl text-sm"
+                className="pl-10 pr-10 h-11 bg-slate-50 border-0 rounded-xl text-sm"
               />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput("");
+                    setSearch("");
+                    setPage(1);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                  aria-label="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
               {hasActiveFilters && (
@@ -598,6 +645,16 @@ export default function AwardedLoads() {
                           load.project?.jobId ||
                           "-"}
                       </p>
+                      {load.project?.jobId && load.project?.projectName && (
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {load.project.jobId}
+                        </p>
+                      )}
+                      {(load.customer as { name?: string } | undefined)?.name && (
+                        <p className="text-xs text-slate-500 mt-0.5" title={(load.customer as { name?: string }).name}>
+                          {(load.customer as { name?: string }).name}
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3 border border-gray-200 align-top max-w-[200px] whitespace-normal">
                       <p

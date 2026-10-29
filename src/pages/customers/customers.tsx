@@ -37,6 +37,7 @@ type StatCard = {
 function mapApiCustomerToCustomer(apiCustomer: AdminCustomer): Customer {
   const phoneNumber = apiCustomer.phone?.number;
   const phoneCountryCode = apiCustomer.phone?.countryCode;
+  const isActive = apiCustomer.status?.toLowerCase() === "active";
 
   return {
     id: apiCustomer._id,
@@ -49,14 +50,9 @@ function mapApiCustomerToCustomer(apiCustomer: AdminCustomer): Customer {
     email: apiCustomer.email ?? "",
     // Keep columns blank when the API omits a value instead of inventing placeholder data.
     inquiryFor: apiCustomer.inquiryFor ?? "",
-    status:
-      typeof apiCustomer.isActive === "boolean"
-        ? apiCustomer.isActive
-          ? "Active"
-          : "Inactive"
-        : "",
+    status: isActive ? "Active" : "Inactive",
     totalProjects: apiCustomer.totalProjects ?? 0,
-    isActive: apiCustomer.isActive ?? false,
+    isActive,
     createdAt: apiCustomer.createdAt
       ? new Date(apiCustomer.createdAt)
       : new Date(0),

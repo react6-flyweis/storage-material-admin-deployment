@@ -26,6 +26,7 @@ import {
 } from "@/modules/customers/customers.hooks";
 import { StatCardSkeleton } from "@/components/ui/skeleton";
 import { CustomerDocumentsTab } from "@/components/customers/customer-documents/customer-documents-tab";
+import type { CustomerProject } from "@/modules/customers/customers.types";
 
 function formatCurrency(value = 0) {
   return new Intl.NumberFormat("en-US", {
@@ -33,6 +34,29 @@ function formatCurrency(value = 0) {
     currency: "USD",
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+function formatProjectBudget(budget?: CustomerProject["budget"]): string {
+  if (budget == null) return "N/A";
+
+  if (typeof budget === "number") {
+    return Number.isFinite(budget) ? formatCurrency(budget) : "N/A";
+  }
+
+  if (typeof budget === "object") {
+    const total =
+      typeof budget.totalBudget === "number"
+        ? budget.totalBudget
+        : Array.isArray(budget.customLines) && budget.customLines.length > 0
+          ? budget.customLines.reduce((acc, line) => acc + (line.amount || 0), 0)
+          : null;
+
+    if (total != null && Number.isFinite(total)) {
+      return formatCurrency(total);
+    }
+  }
+
+  return "N/A";
 }
 
 function formatJoinedDate(value?: string) {
@@ -150,7 +174,6 @@ export default function CustomerDetailLayout() {
   }
 
   // const photos = [photo1, photo2, photo3, photo4, photo5];
-  console.log("apiProjects", apiProjects)
   return (
     <div className="p-4 sm:p-6 space-y-6 min-h-screen">
       {/* Header */}
@@ -323,13 +346,9 @@ export default function CustomerDetailLayout() {
                         <td className="px-6 py-4 text-sm text-gray-700">
                           {cleanProjectName(p.projectName)}
                         </td>
-                        {/* Budget — use budget field, fallback to quoteValue */}
+                        {/* Budget */}
                         <td className="px-6 py-4 text-sm text-gray-700">
-                          {p.budget != null
-                            ? formatCurrency(p.budget)
-                            : p.quoteValue
-                              ? formatCurrency(p.quoteValue)
-                              : "-"}
+                          {formatProjectBudget(p.budget)}
                         </td>
                         {/* Status */}
                         <td className="px-6 py-4">

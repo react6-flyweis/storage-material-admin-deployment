@@ -132,7 +132,7 @@ export default function AllPurchaseOrdersPage() {
                 const leadName = order.customerId ? `${order.customerId.firstName || ""} ${order.customerId.lastName || ""}`.trim() || "Unknown Customer" : "Unknown Customer";
                 const projectName = order.leadId?.projectName || "";
                 const quoteId = order.leadId?.jobId || order.quotationId?.quoteNumber || "Unknown Project";
-                const location = order.leadId?.location || order.customerId?.location || "Unknown Location";
+                const orderLocation = order.leadId?.location || order.customerId?.location || "Unknown Location";
                 const assignedToName = order.assignedTo?.name || "Unassigned";
                 const assignedCount = order.assignedTo ? "1 person assigned" : "No one assigned";
                 const quoteValue = order.leadId?.quoteValue || order.invoiceId?.totalAmount || 0;
@@ -172,7 +172,7 @@ export default function AllPurchaseOrdersPage() {
                           {quoteId}
                         </p>
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          {location}
+                          {orderLocation}
                         </p>
                       </div>
                     </TableCell>
