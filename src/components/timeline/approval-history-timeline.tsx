@@ -304,14 +304,14 @@ function getQuotationTimelineHistory(
       });
     }
 
-    if (lifecycle.isApproved || approval?.status === "approved") {
+    if (lifecycle.isApproved) {
       items.push({
         status: "approved",
         by: approval?.reviewedBy || "Admin",
         at: approval?.reviewedAt || quotation.updatedAt,
         note: approval?.note,
       });
-    } else if (lifecycle.isAdminRejected || approval?.status === "rejected") {
+    } else if (lifecycle.isAdminRejected) {
       items.push({
         status: "admin_rejected",
         by: approval?.reviewedBy || "Admin",
