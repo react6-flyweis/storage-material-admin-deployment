@@ -1,10 +1,23 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ChevronDown } from "lucide-react";
 import { useNavigate } from "react-router";
-import { useConstructionOverviewQuery } from "../construction.hooks";
+import {
+  useConstructionOverviewQuery,
+  useConstructionOverviewFiltersQuery,
+} from "../construction.hooks";
+import { formatBusinessUnit } from "@/modules/leads/business-unit";
+import { getLeadLifecycleStatusLabel } from "@/modules/leads/lead-lifecycle";
 import DeliveryOverviewChart from "../components/charts/DeliveryOverviewChart";
 import MaterialRequestOverviewChart from "../components/charts/MaterialRequestOverviewChart";
 import DateRangeFilter from "@/components/ui/date-range-filter";
+import ProjectSelector from "../components/common/ProjectSelector";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { DateRange as RDateRange } from "react-day-picker";
 
 function formatDateISO(date?: Date) {
@@ -17,25 +30,87 @@ function formatDateISO(date?: Date) {
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [selectedProject, setSelectedProject] = useState("All Projects");
-  const [selectedBuilding, setSelectedBuilding] = useState("All Buildings");
-  const [selectedStatus, setSelectedStatus] = useState("All Status");
+  const [selectedProject, setSelectedProject] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [selectedBusinessUnit, setSelectedBusinessUnit] = useState("all");
   const [dateRange, setDateRange] = useState<RDateRange | undefined>(undefined);
+
+  const { data: filtersResponse } = useConstructionOverviewFiltersQuery();
+  const filtersData = filtersResponse?.data;
 
   const {
     data: overviewResponse,
     isLoading,
-    isRefetching,
     refetch,
   } = useConstructionOverviewQuery({
-    projectId: selectedProject,
-    building: selectedBuilding,
-    status: selectedStatus,
+    projectId:
+      selectedProject === "all" || !selectedProject
+        ? undefined
+        : selectedProject,
+    status:
+      selectedStatus === "all" || !selectedStatus ? undefined : selectedStatus,
+    businessUnit:
+      selectedBusinessUnit === "all" || !selectedBusinessUnit
+        ? undefined
+        : selectedBusinessUnit,
     startDate: formatDateISO(dateRange?.from),
     endDate: formatDateISO(dateRange?.to),
   });
 
   const overview = overviewResponse?.data;
+
+  const projectOptions = useMemo(() => {
+    const rawProjects = filtersData?.projects || [];
+    if (!rawProjects.length) return undefined;
+    const list = rawProjects.map((p) => {
+      if (typeof p === "string") {
+        return { value: p, label: p };
+      }
+      const value = p._id || p.leadId || p.id || p.projectName || "";
+      const baseName = p.projectName || p.name || value || "Project";
+      const displayLabel = p.jobId ? `${baseName} (${p.jobId})` : baseName;
+      return { value, label: displayLabel };
+    });
+    return [{ value: "all", label: "All Projects" }, ...list];
+  }, [filtersData?.projects]);
+
+  const statusOptions = useMemo(() => {
+    const rawStatuses = filtersData?.statuses || [];
+    const list = rawStatuses
+      .map((s) => {
+        if (typeof s === "string") {
+          return {
+            value: s,
+            label: getLeadLifecycleStatusLabel(s),
+          };
+        }
+        const value = s.value || (s as { status?: string }).status || "";
+        const label = s.label || s.name || getLeadLifecycleStatusLabel(value);
+        return { value, label };
+      })
+      .filter((s) => s.value && s.value !== "all");
+
+    return [{ value: "all", label: "All Status" }, ...list];
+  }, [filtersData?.statuses]);
+
+  const businessUnitOptions = useMemo(() => {
+    const rawBUs = filtersData?.businessUnits || [];
+    const list = rawBUs
+      .map((bu) => {
+        if (typeof bu === "string") {
+          return {
+            value: bu,
+            label: formatBusinessUnit(bu),
+          };
+        }
+        const value = bu.value || "";
+        const label = bu.label || bu.name || formatBusinessUnit(value);
+        return { value, label };
+      })
+      .filter((bu) => bu.value && bu.value !== "all");
+
+    return [{ value: "all", label: "All Business Units" }, ...list];
+  }, [filtersData?.businessUnits]);
 
   // Formatting completion rate
   const formatCompletionRate = (val?: number) => {
@@ -516,65 +591,75 @@ export default function Dashboard() {
       {/* Filters Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          {/* Select Project Dropdown */}
-          <div className="relative">
-            <select
+          {/* Project Selector with Search */}
+          <div className="min-w-[200px]">
+            <ProjectSelector
               value={selectedProject}
-              onChange={(e) => setSelectedProject(e.target.value)}
-              className="appearance-none bg-white border border-[#E2E8F0] rounded-lg pl-3 pr-8 py-2 text-xs text-[#1E293B] font-semibold shadow-sm hover:bg-gray-50 cursor-pointer focus:outline-none"
-            >
-              <option value="All Projects">
-                Select Project : All Projects
-              </option>
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-[#64748B] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              onValueChange={setSelectedProject}
+              placeholder="All Projects"
+              includeAllOption
+              options={projectOptions}
+              width="220px"
+            />
           </div>
 
-          {/* Buildings Dropdown */}
-          <div className="relative">
-            <select
-              value={selectedBuilding}
-              onChange={(e) => setSelectedBuilding(e.target.value)}
-              className="appearance-none bg-white border border-[#E2E8F0] rounded-lg pl-3 pr-8 py-2 text-xs text-[#1E293B] font-semibold shadow-sm hover:bg-gray-50 cursor-pointer focus:outline-none"
-            >
-              <option value="All Buildings">Buildings : All Buildings</option>
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-[#64748B] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
+          {/* Status Dropdown (shadcn select) */}
+          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+            <SelectTrigger className="h-10 bg-white border border-[#E2E8F0] rounded-[8px] text-xs font-semibold text-[#1E293B] shadow-sm hover:bg-gray-50 min-w-[170px]">
+              <SelectValue placeholder="All Status" />
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map((opt) => (
+                <SelectItem
+                  key={opt.value}
+                  value={opt.value}
+                  className="text-xs"
+                >
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          {/* Status Dropdown */}
-          <div className="relative">
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="appearance-none bg-white border border-[#E2E8F0] rounded-lg pl-3 pr-8 py-2 text-xs text-[#1E293B] font-semibold shadow-sm hover:bg-gray-50 cursor-pointer focus:outline-none"
-            >
-              <option value="All Status">Status : All Status</option>
-              <option value="fulfilled">Fulfilled</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-[#64748B] absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
+          {/* Business Unit Dropdown (shadcn select) */}
+          <Select
+            value={selectedBusinessUnit}
+            onValueChange={setSelectedBusinessUnit}
+          >
+            <SelectTrigger className="h-10 bg-white border border-[#E2E8F0] rounded-[8px] text-xs font-semibold text-[#1E293B] shadow-sm hover:bg-gray-50 min-w-[180px]">
+              <SelectValue placeholder="All Business Units" />
+            </SelectTrigger>
+            <SelectContent>
+              {businessUnitOptions.map((opt) => (
+                <SelectItem
+                  key={opt.value}
+                  value={opt.value}
+                  className="text-xs"
+                >
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           {/* Date Picker */}
           <DateRangeFilter
             value={dateRange}
             onChange={setDateRange}
-            className="text-xs [&>input]:text-xs [&>input]:h-[35px] [&>input]:rounded-lg [&>input]:border-[#E2E8F0] [&>input]:font-semibold [&>input]:bg-white [&>input]:text-[#1E293B] shadow-sm min-w-[210px]"
+            className="text-xs [&>input]:text-xs [&>input]:h-10 [&>input]:rounded-[8px] [&>input]:border-[#E2E8F0] [&>input]:font-semibold [&>input]:bg-white [&>input]:text-[#1E293B] shadow-sm min-w-[210px]"
           />
         </div>
 
         {/* Restart / Refresh Button */}
         <button
           onClick={() => {
-            setSelectedProject("All Projects");
-            setSelectedBuilding("All Buildings");
-            setSelectedStatus("All Status");
+            setSelectedProject("all");
+            setSelectedStatus("all");
+            setSelectedBusinessUnit("all");
             setDateRange(undefined);
             void refetch();
           }}
-          className="bg-white border border-[#E2E8F0] rounded-lg px-4 py-2 text-xs text-[#475569] flex items-center gap-2 shadow-sm font-medium hover:bg-gray-50"
+          className="h-10 bg-white border border-[#E2E8F0] rounded-[8px] px-4 text-xs text-[#475569] flex items-center gap-2 shadow-sm font-medium hover:bg-gray-50 cursor-pointer"
         >
           <span>Reset</span>
         </button>
