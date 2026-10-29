@@ -14,6 +14,7 @@ export interface ProjectSelectorProps {
   error?: boolean;
   width?: string;
   hasDelivery?: boolean;
+  options?: Array<{ label: string; value: string }>;
 }
 
 export default function ProjectSelector({
@@ -25,22 +26,27 @@ export default function ProjectSelector({
   placeholder = "Select Project",
   width = "100%",
   hasDelivery,
+  options: propOptions,
 }: ProjectSelectorProps) {
   const { data, isLoading } = useQuery({
     queryKey: ["projects-selector-list", hasDelivery],
     queryFn: () => getProjectsApi({ page: 1, limit: 100, hasDelivery }),
+    enabled: !propOptions,
   });
 
   const projects: Project[] = useMemo(() => {
     return data?.data?.data?.projects || [];
   }, [data]);
 
-  const effectiveValue =
-    projects.find((p) => p._id === value || (p.leadId && p.leadId === value))?._id || value;
-
   const shouldIncludeAll = showAllOption || includeAllOption;
 
   const options = useMemo(() => {
+    if (propOptions && propOptions.length > 0) {
+      if (shouldIncludeAll && !propOptions.some((o) => o.value === "" || o.value === "all")) {
+        return [{ label: "All Projects", value: "all" }, ...propOptions];
+      }
+      return propOptions;
+    }
     const list = projects.map((proj) => ({
       label:
         proj.projectName ||
@@ -51,10 +57,15 @@ export default function ProjectSelector({
     }));
 
     if (shouldIncludeAll) {
-      return [{ label: "All Projects", value: "" }, ...list];
+      return [{ label: "All Projects", value: "all" }, ...list];
     }
     return list;
-  }, [projects, shouldIncludeAll]);
+  }, [projects, shouldIncludeAll, propOptions]);
+
+  const effectiveValue =
+    value === "" || value === "all"
+      ? (options.find((o) => o.value === value || o.value === "" || o.value === "all")?.value ?? value)
+      : projects.find((p) => p._id === value || (p.leadId && p.leadId === value))?._id || value;
 
   const handleChange = (val: string) => {
     const selectedProj = projects.find(
@@ -76,7 +87,7 @@ export default function ProjectSelector({
       onChange={handleChange}
       width={width}
       searchable
-      loading={isLoading}
+      loading={!propOptions && isLoading}
     />
   );
 }
