@@ -3,6 +3,8 @@ import {
   getFreightStats,
   getFreightFilters,
   getFreightLoads,
+  getFreightLoadsBidRows,
+  exportFreightLoads,
   getDeliveryFreightBids,
   getDeliveryDetail,
   getProjectDelivery,
@@ -10,6 +12,8 @@ import {
   requestFreightBidRevision,
   getAwardedStats,
   getAwardedLoads,
+  getAwardedLoadsBidRows,
+  exportAwardedLoads,
   rescheduleDelivery,
   updateDeliveryDetails,
   createPlantDeliveryProvider,
@@ -47,6 +51,25 @@ export function useFreightLoadsQuery(
     queryFn: () => getFreightLoads(params),
     staleTime: 60 * 1000,
     ...options,
+  });
+}
+
+export function useFreightLoadsBidRowsQuery(
+  params?: GetFreightLoadsParams,
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: ["plant", "freight-loads", "bid-rows", params],
+    queryFn: () => getFreightLoadsBidRows(params),
+    staleTime: 60 * 1000,
+    ...options,
+  });
+}
+
+export function useExportFreightLoadsMutation() {
+  return useMutation({
+    mutationFn: (params?: Omit<GetFreightLoadsParams, "page" | "limit">) =>
+      exportFreightLoads(params),
   });
 }
 
@@ -117,6 +140,25 @@ export function useAwardedLoadsQuery(
     queryFn: () => getAwardedLoads(params),
     staleTime: 60 * 1000,
     ...options,
+  });
+}
+
+export function useAwardedLoadsBidRowsQuery(
+  params?: GetAwardedLoadsParams,
+  options?: { enabled?: boolean }
+) {
+  return useQuery({
+    queryKey: ["plant", "awarded-loads", "bid-rows", params],
+    queryFn: () => getAwardedLoadsBidRows(params),
+    staleTime: 60 * 1000,
+    ...options,
+  });
+}
+
+export function useExportAwardedLoadsMutation() {
+  return useMutation({
+    mutationFn: (params?: Omit<GetAwardedLoadsParams, "page" | "limit">) =>
+      exportAwardedLoads(params),
   });
 }
 
