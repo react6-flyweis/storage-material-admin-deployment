@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Menu, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -6,53 +5,46 @@ import { HeaderSearch } from "@/components/header-search";
 import { NotificationMenu } from "@/components/notification-menu";
 import steelLogo from "@/assets/steel-building-depot-logo.png";
 import { UserMenu } from "@/components/user-menu";
-import ProfileDialog from "@/components/profile-dialog";
 
 interface HeaderProps {
   onMenuClick: () => void;
 }
 
 export function Header({ onMenuClick }: HeaderProps) {
-  const [profileOpen, setProfileOpen] = useState(false);
-
   return (
-    <>
-      <header className="sticky top-0 z-20 bg-white border-b px-4 md:px-8 py-4">
-        <div className="flex items-center justify-between">
-          {/* Mobile Menu Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="lg:hidden"
-            onClick={onMenuClick}
-          >
-            <Menu className="size-6" />
-          </Button>
+    <header className="sticky top-0 z-20 bg-white border-b px-4 md:px-8 py-4">
+      <div className="flex items-center justify-between">
+        {/* Mobile Menu Button */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="lg:hidden"
+          onClick={onMenuClick}
+        >
+          <Menu className="size-6" />
+        </Button>
 
-          {/* Search Bar */}
-          <div className="hidden md:block">
-            <HeaderSearch />
-          </div>
+        {/* Search Bar */}
+        <div className="hidden md:block">
+          <HeaderSearch />
+        </div>
 
-          {/* Right Side - Notifications and Logo */}
-          <div className="flex items-center gap-3 md:gap-6">
-            <NotificationMenu />
+        {/* Right Side - Notifications and Logo */}
+        <div className="flex items-center gap-3 md:gap-6">
+          <NotificationMenu />
 
-            <UserMenu onOpenProfile={() => setProfileOpen(true)}>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                <User className="size-6" />
-              </Button>
-            </UserMenu>
+          <UserMenu>
+            <Button variant="ghost" size="icon" className="rounded-full">
+              <User className="size-6" />
+            </Button>
+          </UserMenu>
 
-            {/* The Steel Logo */}
-            <div>
-              <img src={steelLogo} alt="The Steel Logo" className="h-8 w-auto" />
-            </div>
+          {/* The Steel Logo */}
+          <div>
+            <img src={steelLogo} alt="The Steel Logo" className="h-8 w-auto" />
           </div>
         </div>
-      </header>
-      <ProfileDialog open={profileOpen} onOpenChange={setProfileOpen} />
-    </>
+      </div>
+    </header>
   );
 }
-
