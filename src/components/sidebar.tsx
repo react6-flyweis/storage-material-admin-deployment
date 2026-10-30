@@ -52,7 +52,7 @@ import drawingsIcon from "@/assets/icons/sidebar/drawings.svg";
 import deliveryIcon from "@/assets/icons/sidebar/delivery.svg";
 import tasksIcon from "@/assets/icons/sidebar/tasks.svg";
 import materialRequestsIcon from "@/assets/icons/sidebar/material-requests.svg";
-import constructionReportsIcon from "@/assets/icons/sidebar/construction-reports.svg";
+// import constructionReportsIcon from "@/assets/icons/sidebar/construction-reports.svg";
 
 // Finance icons
 import WipProfitsIcon from "@/assets/icons/sidebar/wip-profit.svg";
@@ -464,11 +464,11 @@ const navigationGroups: NavigationGroup[] = [
         label: "Material Request",
         icon: materialRequestsIcon,
       },
-      {
-        path: "/construction/reports",
-        label: "Construction Reports",
-        icon: constructionReportsIcon,
-      },
+      // {
+      //   path: "/construction/reports",
+      //   label: "Construction Reports",
+      //   icon: constructionReportsIcon,
+      // },
       {
         path: "/construction/mismatch-orders",
         label: "Mismatch Orders",
@@ -629,7 +629,7 @@ export function Sidebar({
   const teamUnreadCount = unreadData?.count ?? unreadData?.total ?? 0;
   const customerUnreadCount = (customerConversations || []).reduce(
     (acc, curr) => acc + (curr.unreadCount || 0),
-    0
+    0,
   );
   const unreadCount = teamUnreadCount + customerUnreadCount;
   const { data: notificationUnreadCount = 0 } = useNotificationUnreadCountQuery(
@@ -660,7 +660,9 @@ export function Sidebar({
           .filter((item) => !item.mainAdminOnly)
           .map((item) => ({
             ...item,
-            subItems: item.subItems?.filter((subItem) => !subItem.mainAdminOnly),
+            subItems: item.subItems?.filter(
+              (subItem) => !subItem.mainAdminOnly,
+            ),
           })),
       }));
   }, [isMainAdmin]);

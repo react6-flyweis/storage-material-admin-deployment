@@ -1,4 +1,4 @@
-import { useState, useId } from "react";
+import { useState, useEffect, useId } from "react";
 import {
   Dialog,
   DialogContent,
@@ -17,12 +17,15 @@ import {
   Filter,
   Calendar,
   User,
+  Truck,
+  FileText,
 } from "lucide-react";
 import { Link } from "react-router";
 import { useMismatchReportQuery } from "@/modules/plant/dashboard.hooks";
 import type {
   DashboardFilterParams,
   MismatchCategory,
+  MismatchReportItem,
 } from "@/modules/plant/dashboard.api";
 import Pagination from "../Pagination";
 
@@ -36,8 +39,8 @@ interface MismatchReportDialogProps {
 
 const CATEGORIES: { label: string; value: MismatchCategory | "" }[] = [
   { label: "All Items", value: "" },
+  { label: "Delivery Mismatches", value: "qty" },
   { label: "Missing Items", value: "missing" },
-  { label: "Qty Mismatches", value: "qty" },
   { label: "Spec Mismatches", value: "spec" },
   { label: "Extra Items", value: "extra" },
 ];
@@ -53,8 +56,64 @@ function formatDate(dateStr?: string) {
   });
 }
 
-function getStatusBadge(status?: string) {
-  const s = (status || "").toLowerCase();
+function isDeliveryMismatch(item: MismatchReportItem): boolean {
+  return (
+    item.source === "delivery_mismatch" ||
+    Boolean(item.mismatchOrderId) ||
+    Boolean(item.bundleNo) ||
+    item.status === "delivery_mismatch"
+  );
+}
+
+function formatReason(reason?: string) {
+  if (!reason) return "-";
+  return reason
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function getSourceBadge(item: MismatchReportItem) {
+  if (isDeliveryMismatch(item)) {
+    return (
+      <Badge
+        variant="outline"
+        className="bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-50 font-medium inline-flex items-center gap-1 text-[11px]"
+      >
+        <Truck className="w-3 h-3 text-indigo-600" />
+        Site Delivery
+      </Badge>
+    );
+  }
+  return (
+    <Badge
+      variant="outline"
+      className="bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-100 font-medium inline-flex items-center gap-1 text-[11px]"
+    >
+      <FileText className="w-3 h-3 text-slate-500" />
+      Quote Compare
+    </Badge>
+  );
+}
+
+function getStatusBadge(item: MismatchReportItem) {
+  const isDelivery = isDeliveryMismatch(item);
+  if (isDelivery) {
+    return (
+      <div>
+        <Badge className="bg-rose-100 text-rose-700 hover:bg-rose-100 border-none font-medium whitespace-nowrap">
+          Delivery Mismatch
+        </Badge>
+        {item.orderStatus && (
+          <span className="block text-[11px] text-gray-500 capitalize mt-0.5 font-medium">
+            {item.orderStatus.replace(/_/g, " ")}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  const s = (item.status || "").toLowerCase();
   if (s.includes("missing")) {
     return (
       <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-none font-medium">
@@ -85,13 +144,44 @@ function getStatusBadge(status?: string) {
   }
   return (
     <Badge variant="outline" className="font-medium capitalize">
-      {status || "Unknown"}
+      {item.status || "Unknown"}
     </Badge>
   );
 }
 
-function getSeverityBadge(severity?: string) {
-  const s = (severity || "").toLowerCase();
+function getSeverityBadge(item: MismatchReportItem) {
+  const isDelivery = isDeliveryMismatch(item);
+  if (isDelivery && !item.severity) {
+    const s = (item.orderStatus || "open").toLowerCase();
+    if (s === "open" || s === "mismatch") {
+      return (
+        <Badge className="bg-rose-50 text-rose-700 border-rose-200">
+          Open
+        </Badge>
+      );
+    }
+    if (s === "in_review" || s === "pending") {
+      return (
+        <Badge className="bg-amber-50 text-amber-700 border-amber-200">
+          In Review
+        </Badge>
+      );
+    }
+    if (s === "resolved" || s === "closed") {
+      return (
+        <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">
+          Resolved
+        </Badge>
+      );
+    }
+    return (
+      <Badge className="bg-blue-50 text-blue-700 border-blue-200 capitalize">
+        {s}
+      </Badge>
+    );
+  }
+
+  const s = (item.severity || "").toLowerCase();
   if (s === "high") {
     return (
       <Badge className="bg-rose-50 text-rose-700 border-rose-200">High</Badge>
@@ -125,6 +215,13 @@ export default function MismatchReportDialog({
   const searchInputId = useId();
 
   // Reset to initial category and page when opening or initialCategory changes
+  useEffect(() => {
+    if (open) {
+      setCategory(initialCategory);
+      setPage(1);
+    }
+  }, [open, initialCategory]);
+
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
       setCategory(initialCategory);
@@ -156,8 +253,7 @@ export default function MismatchReportDialog({
                 Mismatch Report
               </DialogTitle>
               <DialogDescription className="text-sm text-gray-500 mt-1">
-                Detailed breakdown of discrepancies between approved purchase
-                orders and shipper files.
+                Detailed breakdown of discrepancies across quote-vs-BOM comparisons and construction site delivery mismatches.
               </DialogDescription>
             </div>
 
@@ -237,8 +333,11 @@ export default function MismatchReportDialog({
                   className="flex items-center justify-between gap-4 py-2 border-b last:border-b-0"
                 >
                   <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-24" />
                   <Skeleton className="h-4 w-32" />
                   <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-4 w-20" />
                   <Skeleton className="h-4 w-20" />
                   <Skeleton className="h-4 w-48" />
                   <Skeleton className="h-6 w-16" />
@@ -273,7 +372,7 @@ export default function MismatchReportDialog({
               <p className="text-xs text-gray-500 mt-1">
                 {search || category
                   ? "Try adjusting your search terms or category filter."
-                  : "All items match between quotes and shipper documents for this period."}
+                  : "All items match between quotes and delivery documents for this period."}
               </p>
             </div>
           ) : (
@@ -281,11 +380,12 @@ export default function MismatchReportDialog({
               <thead className="sticky top-0 bg-gray-50 border-b text-gray-600 font-semibold uppercase tracking-wider">
                 <tr>
                   <th className="py-2.5 px-4">Date</th>
+                  <th className="py-2.5 px-4">Source</th>
                   <th className="py-2.5 px-4">Project / Job</th>
-                  <th className="py-2.5 px-4">Vendor</th>
-                  <th className="py-2.5 px-4">File Name</th>
+                  <th className="py-2.5 px-4">Vendor / Bundle</th>
+                  <th className="py-2.5 px-4">Reference / File</th>
                   <th className="py-2.5 px-4">Status</th>
-                  <th className="py-2.5 px-4">Severity</th>
+                  <th className="py-2.5 px-4">Severity / State</th>
                   <th className="py-2.5 px-4">Discrepancy Reason</th>
                   <th className="py-2.5 px-4 text-right">Action</th>
                 </tr>
@@ -293,13 +393,18 @@ export default function MismatchReportDialog({
               <tbody className="divide-y divide-gray-100">
                 {items.map((item, index) => {
                   const comparisonId = item.shipperRequestId || item.resultId;
+                  const isDelivery = isDeliveryMismatch(item);
+
                   return (
                     <tr
-                      key={item.resultId || index}
+                      key={item.resultId || item.mismatchOrderId || index}
                       className="hover:bg-slate-50/70 transition-colors"
                     >
                       <td className="py-3 px-4 text-gray-500 whitespace-nowrap">
                         {formatDate(item.createdAt)}
+                      </td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        {getSourceBadge(item)}
                       </td>
                       <td className="py-3 px-4">
                         <div className="font-semibold text-gray-900">
@@ -312,34 +417,96 @@ export default function MismatchReportDialog({
                         )}
                       </td>
                       <td className="py-3 px-4">
-                        <div className="text-gray-900 font-medium">
-                          {item.vendorName || "-"}
-                        </div>
-                        {item.vendorCode && (
-                          <div className="text-[11px] text-gray-500">
-                            {item.vendorCode}
-                          </div>
+                        {isDelivery ? (
+                          <>
+                            <div className="text-gray-900 font-medium">
+                              {item.bundleNo
+                                ? `Bundle: ${item.bundleNo}`
+                                : "Site Delivery"}
+                            </div>
+                            {item.reportedBy?.name && (
+                              <div className="text-[11px] text-gray-500">
+                                By {item.reportedBy.name}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-gray-900 font-medium">
+                              {item.vendorName || "-"}
+                            </div>
+                            {item.vendorCode && (
+                              <div className="text-[11px] text-gray-500">
+                                {item.vendorCode}
+                              </div>
+                            )}
+                          </>
                         )}
                       </td>
-                      <td
-                        className="py-3 px-4 text-gray-600 max-w-[140px] truncate"
-                        title={item.fileName}
-                      >
-                        {item.fileName || "-"}
+                      <td className="py-3 px-4">
+                        {isDelivery ? (
+                          <div className="font-mono text-[11px] font-semibold text-indigo-700 bg-indigo-50/80 px-2 py-0.5 rounded border border-indigo-100 inline-block">
+                            {item.mismatchOrderId || item.mismatchId || "MMO"}
+                          </div>
+                        ) : (
+                          <span
+                            className="text-gray-600 max-w-[140px] truncate block"
+                            title={item.fileName}
+                          >
+                            {item.fileName || "-"}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
-                        {getStatusBadge(item.status)}
+                        {getStatusBadge(item)}
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
-                        {getSeverityBadge(item.severity)}
+                        {getSeverityBadge(item)}
                       </td>
                       <td className="py-3 px-4 text-gray-700 max-w-[220px]">
-                        <span className="line-clamp-2" title={item.reason}>
-                          {item.reason || "-"}
-                        </span>
+                        {isDelivery ? (
+                          <div>
+                            <span
+                              className="font-medium text-gray-800 line-clamp-2"
+                              title={item.reason}
+                            >
+                              {formatReason(item.reason)}
+                            </span>
+                            {(item.expected?.qty !== undefined ||
+                              item.received?.qty !== undefined) && (
+                              <div className="text-[11px] text-gray-500 font-mono mt-0.5">
+                                Exp: {item.expected?.qty ?? "-"} | Rec:{" "}
+                                {item.received?.qty ?? "-"}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="line-clamp-2" title={item.reason}>
+                            {item.reason || "-"}
+                          </span>
+                        )}
                       </td>
                       <td className="py-3 px-4 text-right whitespace-nowrap">
-                        {comparisonId ? (
+                        {isDelivery ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                            asChild
+                          >
+                            <Link
+                              to={
+                                item.leadId
+                                  ? `/construction/mismatch-orders?leadId=${encodeURIComponent(item.leadId)}`
+                                  : "/construction/mismatch-orders"
+                              }
+                              onClick={() => onOpenChange(false)}
+                            >
+                              View Order
+                              <ExternalLink className="w-3.5 h-3.5 ml-1" />
+                            </Link>
+                          </Button>
+                        ) : comparisonId ? (
                           <Button
                             variant="ghost"
                             size="sm"

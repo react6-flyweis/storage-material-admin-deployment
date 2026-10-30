@@ -156,11 +156,15 @@ export interface MismatchSummaryData {
   qtyMismatches?: number;
   specMismatches?: number;
   extraItemsInShipper?: number;
+  deliveryMismatches?: number;
+  constructionDeliveryMismatches?: number;
+  deliveryMismatchItems?: number;
   totalComparedLines?: number;
   statusBreakdown?: {
     missing_in_vendor_quote?: number;
     qty_mismatch?: number;
     part_mismatch?: number;
+    delivery_mismatch?: number;
     [key: string]: number | undefined;
   };
 }
@@ -172,7 +176,14 @@ export interface MismatchSummaryResponse {
 }
 
 // 10. Mismatch Report
-export type MismatchCategory = "missing" | "qty" | "spec" | "extra";
+export type MismatchCategory =
+  | "missing"
+  | "qty"
+  | "spec"
+  | "extra"
+  | "delivery"
+  | "construction"
+  | "all";
 
 export interface MismatchReportParams extends DashboardFilterParams {
   page?: number;
@@ -183,18 +194,38 @@ export interface MismatchReportParams extends DashboardFilterParams {
 
 export interface MismatchReportItem {
   resultId: string;
-  shipperRequestId: string;
-  leadId: string;
-  projectName: string;
+  source?: "delivery_mismatch" | "quote_comparison" | string;
+  shipperRequestId?: string;
+  leadId?: string;
+  projectName?: string;
   jobId?: string;
-  vendorName: string;
+  vendorName?: string;
   vendorCode?: string;
   fileName?: string;
+  bundleNo?: string;
   status: string;
+  orderStatus?: string;
   severity?: "high" | "medium" | "low" | string;
   reason?: string;
-  expected?: Record<string, unknown>;
-  received?: Record<string, unknown>;
+  expected?: {
+    qty?: number;
+    items?: Array<unknown>;
+    [key: string]: unknown;
+  } | Record<string, unknown>;
+  received?: {
+    qty?: number;
+    items?: Array<unknown>;
+    [key: string]: unknown;
+  } | Record<string, unknown>;
+  mismatchId?: string;
+  mismatchOrderId?: string;
+  items?: Array<unknown>;
+  photos?: Array<unknown>;
+  reportedBy?: {
+    _id?: string;
+    name?: string;
+    email?: string;
+  };
   createdAt?: string;
 }
 
@@ -297,9 +328,17 @@ export async function getMismatchSummary(params?: DashboardFilterParams): Promis
 }
 
 export async function getMismatchReport(params?: MismatchReportParams): Promise<MismatchReportResponse> {
+  const queryParams = params ? { ...params } : undefined;
+  if (queryParams) {
+    if (queryParams.category === "delivery" || queryParams.category === "construction") {
+      queryParams.category = "qty";
+    } else if (queryParams.category === "all") {
+      queryParams.category = undefined;
+    }
+  }
   const response = await apiClient.get<MismatchReportResponse>(
     "/api/admin/plant/dashboard/mismatch-report",
-    { params }
+    { params: queryParams }
   );
   return response.data;
 }
