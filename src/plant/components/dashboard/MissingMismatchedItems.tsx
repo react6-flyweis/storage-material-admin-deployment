@@ -31,6 +31,7 @@ export default function MissingMismatchedItems({
   const qtyMismatches = summary?.quantityMismatches ?? summary?.qtyMismatches ?? 0;
   const specMismatches = summary?.specificationMismatches ?? summary?.specMismatches ?? 0;
   const extraItems = summary?.extraItems ?? summary?.extraItemsInShipper ?? 0;
+  const deliveryMismatches = summary?.deliveryMismatches ?? summary?.constructionDeliveryMismatches ?? 0;
 
   const handleOpenReport = (category: MismatchCategory | "" = "") => {
     setSelectedCategory(category);
@@ -46,7 +47,7 @@ export default function MissingMismatchedItems({
         <CardContent className="flex-1 p-0">
           {isLoading ? (
             <div className="divide-y divide-gray-100">
-              {Array.from({ length: 4 }).map((_, idx) => (
+              {Array.from({ length: 5 }).map((_, idx) => (
                 <div key={idx} className="flex items-center justify-between px-5 py-4">
                   <Skeleton className="h-4 w-44" />
                   <Skeleton className="h-6 w-8" />
@@ -112,6 +113,20 @@ export default function MissingMismatchedItems({
                 </span>
                 <span className={`text-lg font-bold ${extraItems > 0 ? "text-orange-600" : "text-blue-600"}`}>
                   {extraItems}
+                </span>
+              </div>
+
+              {/* Row 5: Delivery Mismatches */}
+              <div
+                onClick={() => handleOpenReport("qty")}
+                className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors group"
+                title="Click to view Delivery Mismatches"
+              >
+                <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors">
+                  Delivery Mismatches
+                </span>
+                <span className={`text-lg font-bold ${deliveryMismatches > 0 ? "text-rose-600" : "text-blue-600"}`}>
+                  {deliveryMismatches}
                 </span>
               </div>
             </div>
