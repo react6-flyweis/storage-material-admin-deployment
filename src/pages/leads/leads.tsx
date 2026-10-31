@@ -305,7 +305,7 @@ export default function LeadsPage() {
           : "Unknown Customer",
         name: lead.projectName || "",
         businessUnit: lead.businessUnit,
-        businessUnitLabel: lead.businessUnitLabel || formatBusinessUnit(lead.businessUnit),
+        businessUnitLabel: formatBusinessUnit(lead.businessUnit, lead.businessUnitLabel),
         workshop: lead.buildingType
           ? formatTitleCase(lead.buildingType)
           : "Not set",
