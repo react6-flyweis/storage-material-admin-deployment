@@ -190,12 +190,59 @@ export async function getCustomerLeadsProvider(customerId: string) {
   return response.data;
 }
 
+export type LeadImportJobStatus = "queued" | "processing" | "completed" | "failed";
+
+export type LeadImportErrorItem = {
+  row: number;
+  reason: string;
+  leadId?: string;
+};
+
+export type LeadImportJobData = {
+  async?: boolean;
+  inProgress?: boolean;
+  jobId?: string;
+  status: LeadImportJobStatus;
+  totalRows: number;
+  processedRows: number;
+  created?: number;
+  imported?: number;
+  skipped: number;
+  progressPct: number;
+  errors?: LeadImportErrorItem[];
+  headerRowIndex?: number;
+  sheetName?: string;
+  sourceFileName?: string;
+  processingStartedAt?: string | null;
+  processingEndedAt?: string | null;
+  errorMessage?: string | null;
+};
+
+export type ImportLeadsSyncData = {
+  created?: number;
+  imported?: number;
+  skipped: number;
+  totalRows: number;
+  errors?: LeadImportErrorItem[];
+  headerRowIndex?: number;
+  sheetName?: string;
+};
+
+export type ImportLeadsApiResponse = {
+  success: boolean;
+  message: string;
+  data: LeadImportJobData & ImportLeadsSyncData;
+};
+
 export type ImportLeadsResponse = {
   success: boolean;
   message: string;
   data?: {
-    imported: number;
-    failed: number;
+    created?: number;
+    imported?: number;
+    skipped?: number;
+    failed?: number;
+    errors?: unknown[];
   };
 };
 
@@ -203,6 +250,48 @@ export async function importLeadsProvider(csv: string) {
   const response = await apiClient.post<ImportLeadsResponse>(
     "/api/admin/leads/import",
     { csv }
+  );
+
+  return response.data;
+}
+
+export type ImportLeadsFileOptions = {
+  async?: boolean;
+  sync?: boolean;
+};
+
+export async function importLeadsFileProvider(
+  file: File,
+  options?: ImportLeadsFileOptions
+) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const params: Record<string, boolean> = {};
+  if (options?.async) {
+    params.async = true;
+  }
+  if (options?.sync) {
+    params.sync = true;
+  }
+
+  const response = await apiClient.post<ImportLeadsApiResponse>(
+    "/api/admin/leads/import",
+    formData,
+    {
+      params,
+      headers: {
+        "Content-Type": undefined,
+      },
+    }
+  );
+
+  return response.data;
+}
+
+export async function getLeadImportJobStatusProvider(jobId: string) {
+  const response = await apiClient.get<ImportLeadsApiResponse>(
+    `/api/admin/leads/import/jobs/${jobId}`
   );
 
   return response.data;
