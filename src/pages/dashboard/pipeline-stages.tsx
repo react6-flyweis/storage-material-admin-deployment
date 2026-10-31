@@ -2,8 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router";
 import { ManageStagesDialog } from "@/components/dashboard/manage-stages-dialog";
+import { useAppBack } from "@/modules/navigation";
 
 interface Lead {
   id: string;
@@ -20,7 +20,7 @@ interface Stage {
 }
 
 export default function PipelineStages() {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack("/");
 
   const stages: Stage[] = [
     {
@@ -96,7 +96,7 @@ export default function PipelineStages() {
           <Button
             variant="default"
             size="default"
-            onClick={() => navigate('/')}
+            onClick={() => goBack()}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />

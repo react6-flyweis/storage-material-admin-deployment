@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -25,15 +26,20 @@ import { toast } from "sonner";
 import ApproveQuotationDialog from "@/components/leads/approve-quotation-dialog";
 import RejectQuotationDialog from "@/components/leads/reject-quotation-dialog";
 import SendQuotationDialog from "@/components/leads/send-quotation-dialog";
+import SubmitQuotationApprovalDialog from "@/components/leads/submit-quotation-approval-dialog";
+import QuotationStatusBadge from "@/components/quotations/quotation-status-badge";
 import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
 import { ApprovalHistoryTimeline } from "@/components/timeline/approval-history-timeline";
 import {
   getQuotationSalesSubmission,
   formatDate,
+  resolveQuotationLifecycle,
 } from "@/modules/quotations/quotations.utils";
 
 export default function QuotationDetailsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { goBack } = useAppBack("/leads");
   const { id } = useParams<{ id: string }>();
 
   const { data, isLoading, isError } = useQuotationQuery(id);
@@ -49,6 +55,7 @@ export default function QuotationDetailsPage() {
   const [isApproveOpen, setIsApproveOpen] = useState(false);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
   const [isSendOpen, setIsSendOpen] = useState(false);
+  const [isSubmitOpen, setIsSubmitOpen] = useState(false);
 
   const q = data?.data?.quotation;
   const leadIdStr = typeof q?.leadId === "object" ? q?.leadId?._id : q?.leadId;
@@ -78,7 +85,7 @@ export default function QuotationDetailsPage() {
         <Button
           variant="outline"
           className="mt-4"
-          onClick={() => navigate("/leads")}
+          onClick={() => goBack("/leads")}
         >
           Go Back
         </Button>
@@ -86,14 +93,15 @@ export default function QuotationDetailsPage() {
     );
   }
 
-  const effectiveStatus =
-    q.workflowStatus || q.approval?.status || q.status || "draft";
-  const isApproved = effectiveStatus === "approved";
-  const isPending =
-    effectiveStatus === "pending" || effectiveStatus === "pending_approval";
-  const isRejected = effectiveStatus === "rejected";
-  const isSent = effectiveStatus === "sent";
-  const canSend = isApproved || isSent;
+  const lifecycle = resolveQuotationLifecycle(q);
+  const effectiveStatus = lifecycle.lifecycleStatus;
+  const isApproved = lifecycle.isApproved;
+  const isPending = lifecycle.isPendingApproval;
+  const isAdminRejected = lifecycle.isAdminRejected;
+  const isCustomerRejected = lifecycle.isCustomerRejected;
+  const isCustomerAccepted = lifecycle.isCustomerAccepted;
+  const isSent = lifecycle.isSent;
+  const canSend = (isApproved || isSent) && !isCustomerRejected;
 
   const salesSubmission = getQuotationSalesSubmission(q);
 
@@ -128,45 +136,42 @@ export default function QuotationDetailsPage() {
   return (
     <div className="p-4 sm:p-6 space-y-6 ">
       {/* Top Action Bar */}
-      <div className="flex items-center justify-between">
-        <Button
-          size="sm"
-          variant="outline"
-          className="bg-white hover:bg-gray-50 border-gray-200 text-gray-600 h-9 px-4 text-sm font-normal rounded-md flex items-center gap-2"
-          onClick={() => navigate(-1)}
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back
-        </Button>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          {/* Timeline Jump button */}
           <Button
             size="sm"
             variant="outline"
-            className="bg-white hover:bg-gray-50 border-gray-300 text-gray-700 h-9 px-3.5 text-xs font-medium rounded-md flex items-center gap-1.5"
-            onClick={scrollToTimeline}
-            title="View Workflow & Approval Timeline"
+            className="bg-white hover:bg-gray-50 border-gray-200 text-gray-600 h-9 px-4 text-sm font-normal rounded-md flex items-center gap-2 shrink-0"
+            onClick={() => goBack()}
           >
-            <History className="h-4 w-4 text-gray-500" />
-            <span>Timeline</span>
+            <ArrowLeft className="h-4 w-4" />
+            Back
           </Button>
-
-          {/* Download PDF button */}
-          <Button
-            size="sm"
-            variant="outline"
-            className="bg-white hover:bg-gray-50 border-gray-300 text-gray-700 h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5"
-            onClick={handleDownloadPdf}
-            disabled={downloadPdfMutation.isPending}
-            title="Download PDF"
-          >
-            {downloadPdfMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4 text-gray-600" />
-            )}
-            <span>{downloadPdfMutation.isPending ? "Downloading..." : "Download PDF"}</span>
-          </Button>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-lg font-bold text-gray-900 tracking-tight">
+              Quotation #{q.quoteNumber}
+            </h1>
+            <span className="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+              v{q.versionNumber}
+            </span>
+            <QuotationStatusBadge
+              workflowStatus={q.workflowStatus}
+              sendMethod={q.sendMethod}
+              showSendMethod
+            />
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Send for Approval (when draft, admin_rejected, or client_rejected) */}
+          {(lifecycle.isDraft || lifecycle.isAdminRejected || lifecycle.isClientRejected) && (
+            <Button
+              className="bg-[#1D51A4] hover:bg-[#174287] text-white h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm"
+              onClick={() => setIsSubmitOpen(true)}
+            >
+              <Send className="h-4 w-4" />
+              Send for Approval
+            </Button>
+          )}
 
           {/* Admin Approve & Reject Actions */}
           {isPending && (
@@ -189,41 +194,77 @@ export default function QuotationDetailsPage() {
             </>
           )}
 
-          {/* Send to Customer (available once approved, or re-send if already sent) */}
-          <Button
-            className={
-              !canSend
-                ? "bg-gray-200 text-gray-400 border border-gray-200 cursor-not-allowed h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5"
-                : "bg-[#1D51A4] hover:bg-[#174287] text-white h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer"
-            }
-            onClick={() => setIsSendOpen(true)}
-            disabled={!canSend}
-            title={
-              !canSend
-                ? "Quotation must be approved before sending to customer"
-                : isSent
-                  ? "Resend quotation to customer"
-                  : "Send quotation to customer"
-            }
-          >
-            <Send className="h-4 w-4" />
-            {isSent ? "Resend Quote" : "Send to Customer"}
-          </Button>
+          {/* Send to Customer (available once approved) */}
+          {lifecycle.isApproved && (
+            <Button
+              className="bg-[#1D51A4] hover:bg-[#174287] text-white h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer"
+              onClick={() => setIsSendOpen(true)}
+            >
+              <Send className="h-4 w-4" />
+              Send to customer
+            </Button>
+          )}
 
-          {/* Create Invoice */}
+          {/* Resend to Customer (when already sent) */}
+          {lifecycle.isSent && (
+            <Button
+              variant="outline"
+              className="bg-white hover:bg-gray-50 border-gray-300 text-gray-700 h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer"
+              onClick={() => setIsSendOpen(true)}
+            >
+              <Send className="h-4 w-4" />
+              Resend Quote
+            </Button>
+          )}
+
+          {/* Next steps / Invoicing */}
           <Button
             size="sm"
-            variant="outline"
-            className="bg-white hover:bg-blue-50 border-blue-200 text-blue-700 h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer"
+            variant={lifecycle.isAccepted ? "default" : "outline"}
+            className={
+              lifecycle.isAccepted
+                ? "bg-emerald-600 hover:bg-emerald-700 text-white h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer"
+                : "bg-white hover:bg-blue-50 border-blue-200 text-blue-700 h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5 shadow-sm cursor-pointer"
+            }
             onClick={() => {
               navigate(
                 `/invoice?type=quotation${leadIdStr ? `&leadId=${leadIdStr}` : ""}`,
+                { state: { from: location.pathname + location.search } },
               );
             }}
-            title="Create Invoice from Quotation"
+            title={lifecycle.isAccepted ? "Customer accepted - proceed with invoicing" : "Create Invoice from Quotation"}
           >
             <Receipt className="h-4 w-4" />
-            Create Invoice
+            {lifecycle.isAccepted ? "Next steps: Create Invoice" : "Create Invoice"}
+          </Button>
+
+          {/* Download PDF button */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="bg-white hover:bg-gray-50 border-gray-300 text-gray-700 h-9 px-4 text-xs font-medium rounded-md flex items-center gap-1.5"
+            onClick={handleDownloadPdf}
+            disabled={downloadPdfMutation.isPending}
+            title="Download PDF"
+          >
+            {downloadPdfMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 text-gray-600" />
+            )}
+            <span>{downloadPdfMutation.isPending ? "Downloading..." : "Download PDF"}</span>
+          </Button>
+
+          {/* Timeline Jump button */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="bg-white hover:bg-gray-50 border-gray-300 text-gray-700 h-9 px-3.5 text-xs font-medium rounded-md flex items-center gap-1.5"
+            onClick={scrollToTimeline}
+            title="View Workflow & Approval Timeline"
+          >
+            <History className="h-4 w-4 text-gray-500" />
+            <span>Timeline</span>
           </Button>
         </div>
       </div>
@@ -305,27 +346,72 @@ export default function QuotationDetailsPage() {
         </div>
       )}
 
-      {isRejected && (
+      {/* Customer Declined Banner */}
+      {isCustomerRejected && (
+        <div className="bg-rose-50/80 border border-rose-200 rounded-xl p-5 flex items-start gap-4">
+          <XCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+          <div className="space-y-2 w-full">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="font-semibold text-rose-950 text-sm">
+                Quotation Declined by Customer
+              </h4>
+              {lifecycle.customerDecisionAt && (
+                <span className="text-xs text-rose-700 font-medium">
+                  Declined {formatDate(lifecycle.customerDecisionAt)}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-rose-700">
+              The customer declined this quotation in the portal.
+            </p>
+
+            {/* Reason / Feedback Box */}
+            <div className="mt-2.5 p-3.5 bg-white rounded-lg border border-rose-200">
+              <div className="flex items-center gap-1.5 mb-1.5 text-xs font-semibold text-rose-950">
+                <MessageSquare className="h-3.5 w-3.5 text-rose-600" />
+                Reason / Feedback
+              </div>
+              {lifecycle.clientNotes ? (
+                <p className="text-xs text-rose-900 italic whitespace-pre-wrap pl-3 border-l-2 border-rose-400">
+                  "{lifecycle.clientNotes}"
+                </p>
+              ) : (
+                <p className="text-xs text-rose-500 italic pl-3 border-l-2 border-rose-200">
+                  No specific reason or feedback was provided by customer.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Internal Admin Rejection Banner */}
+      {isAdminRejected && (
         <div className="bg-red-50/80 border border-red-200 rounded-xl p-5 flex items-start gap-4">
           <AlertTriangle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
           <div className="space-y-1 w-full">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h4 className="font-semibold text-red-900 text-sm">
-                Quotation Rejected
-              </h4>
+              <div className="flex items-center gap-2">
+                <h4 className="font-semibold text-red-900 text-sm">
+                  Quotation Rejected by Admin
+                </h4>
+                <span className="text-[11px] font-semibold bg-red-100 text-red-800 px-2 py-0.5 rounded border border-red-200">
+                  Internal Review Gate
+                </span>
+              </div>
               {q.approval?.reviewedAt && (
                 <span className="text-xs text-red-700 font-medium">
                   Rejected {formatDate(q.approval.reviewedAt)}
                 </span>
               )}
             </div>
-            {q.approval?.rejectionReason && (
+            {lifecycle.adminRejectionReason && (
               <p className="text-sm text-red-700 mt-1">
-                <strong>Reason:</strong> {q.approval.rejectionReason}
+                <strong>Internal Reason:</strong> {lifecycle.adminRejectionReason}
               </p>
             )}
             <p className="text-xs text-red-600 mt-1">
-              Sales team has been notified to revise this quotation and resubmit for approval.
+              Sales team has been notified to revise this quotation and resubmit for approval before it can be sent to customer.
             </p>
             {salesSubmission.message && (
               <div className="mt-3 p-3 bg-white/95 rounded-lg border border-red-200 text-xs">
@@ -345,7 +431,8 @@ export default function QuotationDetailsPage() {
         </div>
       )}
 
-      {effectiveStatus === "sent" && (
+      {/* Sent Banner */}
+      {isSent && (
         <div className="bg-blue-50/80 border border-blue-200 rounded-xl p-5 flex items-start gap-4">
           <Send className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
           <div className="space-y-1 w-full">
@@ -391,21 +478,36 @@ export default function QuotationDetailsPage() {
         </div>
       )}
 
-      {effectiveStatus === "accepted" && (
-        <div className="bg-green-50/80 border border-green-200 rounded-xl p-5 flex items-start gap-4">
-          <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <h4 className="font-semibold text-green-900 text-sm">
-              Quotation Accepted by Customer
-            </h4>
-            <p className="text-xs text-green-700">
-              The customer has accepted this quotation.
+      {/* Customer Accepted Banner */}
+      {isCustomerAccepted && (
+        <div className="bg-emerald-50/90 border border-emerald-300 rounded-xl p-5 flex items-start gap-4">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+          <div className="space-y-1 w-full">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold text-emerald-950 text-sm">
+                Quotation Accepted by Customer
+              </h4>
+              {lifecycle.customerDecisionAt && (
+                <span className="text-xs text-emerald-700 font-medium">
+                  Accepted {formatDate(lifecycle.customerDecisionAt)}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-emerald-700">
+              The customer has accepted this quotation in the customer portal. You can now proceed with invoicing or order conversion.
             </p>
+            {lifecycle.clientNotes && (
+              <div className="mt-2.5 p-3 bg-white rounded border border-emerald-200 text-xs">
+                <span className="font-semibold text-emerald-900 block mb-1">Customer Note:</span>
+                <p className="text-emerald-800 italic">"{lifecycle.clientNotes}"</p>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {(effectiveStatus === "draft" || effectiveStatus === "not_submitted") && (
+      {/* Draft Banner */}
+      {lifecycle.isDraft && (
         <div className="bg-slate-50/80 border border-slate-200 rounded-xl p-5 flex items-start gap-4">
           <FileText className="h-5 w-5 text-slate-600 shrink-0 mt-0.5" />
           <div className="space-y-1">
@@ -499,9 +601,20 @@ export default function QuotationDetailsPage() {
           quoteNumber={q.quoteNumber}
           versionNumber={q.versionNumber}
           recipientEmail={customerEmail}
-          status={effectiveStatus}
+          status={q.workflowStatus}
           sendMethod={q.sendMethod}
           sentAt={q.sentAt}
+        />
+      )}
+
+      {/* Extracted Submit For Approval Modal */}
+      {id && (
+        <SubmitQuotationApprovalDialog
+          open={isSubmitOpen}
+          onOpenChange={setIsSubmitOpen}
+          quotationId={id}
+          quoteNumber={q.quoteNumber}
+          versionNumber={q.versionNumber}
         />
       )}
     </div>

@@ -11,7 +11,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import DateRangeFilter from "@/components/ui/date-range-filter";
-import MarginStatCard from "@/components/finance/margin-stat-card";
+import MarginStatCard, {
+  MarginStatCardSkeleton,
+} from "@/components/finance/margin-stat-card";
 import MarginTrendOverTimeChart from "@/components/finance/margin-trend-over-time-chart";
 import MarginByProjectsChart from "@/components/finance/margin-by-projects-chart";
 import MarginProfitLossSummaryTable from "@/components/finance/margin-profit-loss-summary-table";
@@ -51,38 +53,59 @@ export default function MarginAnalysisPage() {
     setDateRange(undefined);
   };
 
+  const formatPct = (val?: number) =>
+    val !== undefined && val !== null && !isNaN(val) ? `${val.toFixed(2)}%` : "-";
+
+  const formatUSD = (val?: number) =>
+    val !== undefined && val !== null && !isNaN(val)
+      ? new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+          maximumFractionDigits: 0,
+        }).format(val)
+      : "-";
+
+  const formatGrowth = (changePct?: number) => {
+    if (changePct === undefined || changePct === null || isNaN(changePct)) return undefined;
+    const sign = changePct > 0 ? "+" : "";
+    return `${sign}${changePct.toFixed(1)}%`;
+  };
+
+  const grossMarginVal = marginData?.kpis?.grossMarginPct?.value ?? marginData?.grossMarginPct;
+  const operatingMarginVal =
+    marginData?.kpis?.operatingMarginPct?.value ?? marginData?.operatingMarginPct;
+  const netProfitMarginVal =
+    marginData?.kpis?.netProfitMarginPct?.value ?? marginData?.netProfitMarginPct;
+  const contributionMarginVal =
+    marginData?.kpis?.contributionMarginPct?.value ?? marginData?.contributionMarginPct;
+  const avgSellingPriceVal =
+    marginData?.kpis?.avgSellingPrice?.value ?? marginData?.avgSellingPrice;
+
   const summaryCards = [
     {
       title: "Gross Margin %",
-      value: marginData ? `${marginData.grossMarginPct.toFixed(2)}%` : "-",
-      growth: "+12.5%",
+      value: formatPct(grossMarginVal),
+      growth: formatGrowth(marginData?.kpis?.grossMarginPct?.changePct),
     },
     {
       title: "Operating Margin",
-      value: marginData ? `${marginData.operatingMarginPct.toFixed(2)}%` : "-",
-      growth: "+12.5%",
+      value: formatPct(operatingMarginVal),
+      growth: formatGrowth(marginData?.kpis?.operatingMarginPct?.changePct),
     },
     {
       title: "Net Profit Margin",
-      value: marginData ? `${marginData.netProfitMarginPct.toFixed(2)}%` : "-",
-      growth: "+12.5%",
+      value: formatPct(netProfitMarginVal),
+      growth: formatGrowth(marginData?.kpis?.netProfitMarginPct?.changePct),
     },
     {
       title: "Contribution Margin",
-      value: marginData
-        ? `${marginData.contributionMarginPct.toFixed(2)}%`
-        : "-",
-      growth: "+12.5%",
+      value: formatPct(contributionMarginVal),
+      growth: formatGrowth(marginData?.kpis?.contributionMarginPct?.changePct),
     },
     {
       title: "Avg Selling Price",
-      value: marginData
-        ? new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "USD",
-        }).format(marginData.avgSellingPrice)
-        : "-",
-      growth: "+12.5%",
+      value: formatUSD(avgSellingPriceVal),
+      growth: formatGrowth(marginData?.kpis?.avgSellingPrice?.changePct),
     },
   ];
 
@@ -90,7 +113,7 @@ export default function MarginAnalysisPage() {
     <div className="min-h-full space-y-4 p-5">
       <TitleSubtitle
         title="Margin Analysis"
-        subtitle="Plan shipments by uploading shipper data, optimizing bundles, and building truckloads."
+        subtitle="Monitor quotation-backed gross margins, trends over time, project breakdowns, and P&L performance."
       />
 
       <div className="flex flex-wrap items-center gap-3">
@@ -148,28 +171,35 @@ export default function MarginAnalysisPage() {
         )}
       </div>
 
-      {isLoading ? (
-        <div className="flex h-48 items-center justify-center text-sm text-slate-500">
-          Loading margin analysis data...
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            {summaryCards.map((card) => (
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {isLoading
+          ? Array.from({ length: 5 }).map((_, i) => (
+              <MarginStatCardSkeleton key={i} />
+            ))
+          : summaryCards.map((card) => (
               <MarginStatCard key={card.title} {...card} />
             ))}
-          </div>
+      </div>
 
-          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
-            <MarginTrendOverTimeChart />
-            <MarginByProjectsChart />
-          </div>
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+        <MarginTrendOverTimeChart
+          projectId={queryParams.projectId}
+          startDate={queryParams.startDate}
+          endDate={queryParams.endDate}
+        />
+        <MarginByProjectsChart
+          projectId={queryParams.projectId}
+          startDate={queryParams.startDate}
+          endDate={queryParams.endDate}
+          onProjectChange={(newProj) => setProject(newProj)}
+        />
+      </div>
 
-          <MarginProfitLossSummaryTable
-            data={marginData?.plSummary}
-          />
-        </>
-      )}
+      <MarginProfitLossSummaryTable
+        projectId={queryParams.projectId}
+        startDate={queryParams.startDate}
+        endDate={queryParams.endDate}
+      />
     </div>
   );
 }

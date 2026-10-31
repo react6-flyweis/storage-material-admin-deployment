@@ -13,7 +13,8 @@ import {
   Hourglass,
   ArrowUpDown,
 } from "lucide-react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { Button } from "@/components/ui/button";
 import Pagination from "@/components/Pagination";
 import { usePlantVendorQuery } from "@/modules/plant/vendor.hooks";
@@ -175,6 +176,8 @@ const CommonStatusBadge: React.FC<CommonStatusBadgeProps> = ({
 
 const ShipperDetails: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { goBack } = useAppBack("/plant/shippers");
   const { id } = useParams<{ id: string }>();
   const [currentPage, setCurrentPage] = useState(1);
   const [docSort, setDocSort] = useState("Docs Type");
@@ -295,14 +298,8 @@ const ShipperDetails: React.FC = () => {
   if (isVendorLoading) {
     return (
       <PageWrapper>
-        <div className="flex items-center gap-3 mb-2">
-          <button
-            disabled
-            className="p-1.5 rounded-full transition-colors shrink-0 bg-gray-100 animate-pulse"
-            aria-label="Loading back button"
-          >
-            <ArrowLeft size={20} className="text-transparent" />
-          </button>
+        <div className="flex items-center gap-4 mb-2">
+          <div className="h-9 w-20 rounded-md bg-gray-200 animate-pulse" />
           <div className="h-7 w-28 rounded-full bg-gray-200 animate-pulse" />
         </div>
 
@@ -392,13 +389,15 @@ const ShipperDetails: React.FC = () => {
   return (
     <PageWrapper>
       {/* Header */}
-      <div className="flex items-center gap-3 mb-2">
-        <button
-          onClick={() => navigate("/plant/shippers")}
-          className="p-1.5 hover:bg-gray-100 rounded-full transition-colors shrink-0"
+      <div className="flex items-center gap-4 mb-2">
+        <Button
+          variant="default"
+          size="sm"
+          onClick={() => goBack()}
+          className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
         >
-          <ArrowLeft size={20} className="text-[#051321]" />
-        </button>
+          <ArrowLeft size={18} strokeWidth={2.5} /> Back
+        </Button>
         <h1 className="text-xl md:text-2xl font-bold text-[#051321]">
           Vendors
         </h1>
@@ -437,7 +436,11 @@ const ShipperDetails: React.FC = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate(`/plant/shippers/${id}/edit`)}
+                  onClick={() =>
+                    navigate(`/plant/shippers/${id}/edit`, {
+                      state: { from: location.pathname + location.search },
+                    })
+                  }
                   className="flex items-center gap-2 border-gray-200 shadow-sm text-gray-700 bg-white hover:bg-gray-50"
                 >
                   <PencilLine size={16} /> Edit Profile

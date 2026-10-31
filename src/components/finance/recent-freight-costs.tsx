@@ -26,7 +26,10 @@ export default function RecentFreightCosts() {
   const [page] = useState(1);
   const [limit] = useState(20);
 
-  const { data: response, isLoading } = useRecentFreightCostsQuery({ page, limit });
+  const { data: response, isLoading } = useRecentFreightCostsQuery({
+    page,
+    limit,
+  });
   const exportMutation = useExportFreightCostsMutation();
 
   const costsList = response?.data?.costs ?? [];
@@ -110,7 +113,10 @@ export default function RecentFreightCosts() {
           <TableBody className="bg-white divide-y divide-gray-100">
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-6 text-gray-500">
+                <TableCell
+                  colSpan={7}
+                  className="text-center py-6 text-gray-500"
+                >
                   <div className="flex items-center justify-center gap-2">
                     <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
                     <span>Loading recent freight costs...</span>
@@ -119,23 +125,34 @@ export default function RecentFreightCosts() {
               </TableRow>
             ) : costsList.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-6 text-gray-500">
+                <TableCell
+                  colSpan={7}
+                  className="text-center py-6 text-gray-500"
+                >
                   No freight costs found
                 </TableCell>
               </TableRow>
             ) : (
               costsList.map((f, index) => {
-                const freightId = f.freightId || f.id || f._id || `FR-${index + 1}`;
-                const projectName = f.projectName || f.project || "-";
+                const freightId =
+                  f.freightId || f.id || f._id || `FR-${index + 1}`;
+                const projectName =
+                  f.projectName || f.project?.projectName || "-";
                 const carrierName = f.carrierName || f.carrier || "-";
                 const deliveryId = f.deliveryId || "-";
-                const dateVal = f.date ? new Date(f.date).toLocaleDateString() : "-";
+                const dateVal = f.date
+                  ? new Date(f.date).toLocaleDateString()
+                  : "-";
                 const costVal =
                   typeof f.cost === "number"
                     ? `$${f.cost.toLocaleString()}`
-                    : f.cost || (typeof f.amount === "number" ? `$${f.amount.toLocaleString()}` : "-");
+                    : f.cost ||
+                      (typeof f.amount === "number"
+                        ? `$${f.amount.toLocaleString()}`
+                        : "-");
                 const statusStr = f.status || "Pending";
-                const badgeClass = statusStyles[statusStr] || "bg-gray-100 text-gray-800";
+                const badgeClass =
+                  statusStyles[statusStr] || "bg-gray-100 text-gray-800";
 
                 return (
                   <TableRow key={f._id || index} className="hover:bg-gray-50">

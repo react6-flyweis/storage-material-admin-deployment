@@ -1,19 +1,32 @@
 import React, { useMemo } from "react";
-import { Search, X, Loader2, UsersRound, Plus, MessageSquarePlus } from "lucide-react";
+import {
+  Search,
+  X,
+  Loader2,
+  UsersRound,
+  Plus,
+  MessageSquarePlus,
+  User,
+} from "lucide-react";
 import type { ChatConversation } from "@/modules/team-chat/team-chat.api";
+import type { CustomerDirectConversation } from "@/modules/customer-direct-chat/customer-direct-chat.types";
 import { type ActiveChatState, formatMessageTime } from "./types";
 
 interface ChatSidebarProps {
   currentUser: { _id?: string; name?: string; role?: string; email?: string } | null;
   isConnected: boolean;
-  activeTab: "Departments" | "Direct";
-  setActiveTab: (tab: "Departments" | "Direct") => void;
+  activeMainTab: "Customers" | "Team";
+  setActiveMainTab: (tab: "Customers" | "Team") => void;
+  teamTab: "Departments" | "Direct";
+  setTeamTab: (tab: "Departments" | "Direct") => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   activeChat: ActiveChatState | null;
   onSelectChat: (chat: ActiveChatState) => void;
   conversations: ChatConversation[];
   isLoadingConversations: boolean;
+  customerConversations: CustomerDirectConversation[];
+  isLoadingCustomerConversations: boolean;
   onOpenNewChat: () => void;
   onOpenNewGroup: () => void;
 }
@@ -21,14 +34,18 @@ interface ChatSidebarProps {
 export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   currentUser,
   isConnected,
-  activeTab,
-  setActiveTab,
+  activeMainTab,
+  setActiveMainTab,
+  teamTab,
+  setTeamTab,
   searchQuery,
   setSearchQuery,
   activeChat,
   onSelectChat,
   conversations,
   isLoadingConversations,
+  customerConversations,
+  isLoadingCustomerConversations,
   onOpenNewChat,
   onOpenNewGroup,
 }) => {
@@ -57,6 +74,36 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         (item.lastMessage && item.lastMessage.toLowerCase().includes(q))
     );
   }, [conversations, currentUser, searchQuery]);
+
+  // 3. Customer direct conversations list from API
+  const customerItems = useMemo(() => {
+    const sorted = [...customerConversations].sort((a, b) => {
+      const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+      const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+      return timeB - timeA;
+    });
+
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return sorted;
+
+    return sorted.filter(
+      (item) =>
+        (item.customerName && item.customerName.toLowerCase().includes(q)) ||
+        (item.company && item.company.toLowerCase().includes(q)) ||
+        (item.email && item.email.toLowerCase().includes(q)) ||
+        (item.phone && item.phone.toLowerCase().includes(q)) ||
+        (item.lastMessage && item.lastMessage.toLowerCase().includes(q))
+    );
+  }, [customerConversations, searchQuery]);
+
+  // Total unread counts for tabs
+  const customerUnreadTotal = useMemo(() => {
+    return customerConversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+  }, [customerConversations]);
+
+  const teamUnreadTotal = useMemo(() => {
+    return conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+  }, [conversations]);
 
   return (
     <div className="hidden md:flex w-72 lg:w-80 border-r border-gray-200 flex-col bg-white shrink-0">
@@ -88,16 +135,87 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         </div>
       </div>
 
+      {/* Primary Tabs: Customers vs Team */}
+      <div className="flex border-b border-gray-200 px-3 pt-2 bg-slate-50/50">
+        <button
+          className={`flex-1 pb-2.5 text-xs lg:text-sm font-semibold transition-all relative cursor-pointer flex items-center justify-center gap-1.5 ${
+            activeMainTab === "Customers"
+              ? "text-[#4285F4]"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+          onClick={() => setActiveMainTab("Customers")}
+        >
+          <span>Customers</span>
+          {customerUnreadTotal > 0 && (
+            <span className="bg-[#4285F4] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+              {customerUnreadTotal}
+            </span>
+          )}
+          {activeMainTab === "Customers" && (
+            <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#4285F4]" />
+          )}
+        </button>
+
+        <button
+          className={`flex-1 pb-2.5 text-xs lg:text-sm font-semibold transition-all relative cursor-pointer flex items-center justify-center gap-1.5 ${
+            activeMainTab === "Team"
+              ? "text-[#4285F4]"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+          onClick={() => setActiveMainTab("Team")}
+        >
+          <span>Team</span>
+          {teamUnreadTotal > 0 && (
+            <span className="bg-[#4285F4] text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
+              {teamUnreadTotal}
+            </span>
+          )}
+          {activeMainTab === "Team" && (
+            <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#4285F4]" />
+          )}
+        </button>
+      </div>
+
+      {/* Sub-tabs under Team: Departments vs Direct Messages */}
+      {activeMainTab === "Team" && (
+        <div className="flex border-b border-gray-100 px-3 py-1.5 bg-white gap-2">
+          <button
+            onClick={() => setTeamTab("Departments")}
+            className={`flex-1 py-1 px-2 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+              teamTab === "Departments"
+                ? "bg-blue-50 text-blue-600 font-semibold"
+                : "text-gray-500 hover:bg-gray-100"
+            }`}
+          >
+            Departments
+          </button>
+          <button
+            onClick={() => setTeamTab("Direct")}
+            className={`flex-1 py-1 px-2 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+              teamTab === "Direct"
+                ? "bg-blue-50 text-blue-600 font-semibold"
+                : "text-gray-500 hover:bg-gray-100"
+            }`}
+          >
+            Direct
+          </button>
+        </div>
+      )}
+
       {/* Search */}
-      <div className="px-4 py-3">
+      <div className="px-4 py-2.5">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 size-4" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search chats..."
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
+            placeholder={
+              activeMainTab === "Customers"
+                ? "Search customers..."
+                : "Search team chats..."
+            }
+            className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-gray-400"
           />
           {searchQuery && (
             <button
@@ -110,39 +228,104 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-100 mb-2 px-2">
-        <button
-          className={`flex-1 py-2.5 text-sm font-semibold transition-all relative cursor-pointer ${
-            activeTab === "Departments"
-              ? "text-[#4285F4]"
-              : "text-gray-400 hover:text-gray-600"
-          }`}
-          onClick={() => setActiveTab("Departments")}
-        >
-          Departments
-          {activeTab === "Departments" && (
-            <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#4285F4]" />
-          )}
-        </button>
-        <button
-          className={`flex-1 py-2.5 text-sm font-semibold transition-all relative cursor-pointer ${
-            activeTab === "Direct"
-              ? "text-[#4285F4]"
-              : "text-gray-400 hover:text-gray-600"
-          }`}
-          onClick={() => setActiveTab("Direct")}
-        >
-          Direct Messages
-          {activeTab === "Direct" && (
-            <div className="absolute bottom-0 left-0 w-full h-0.5 bg-[#4285F4]" />
-          )}
-        </button>
-      </div>
-
       {/* List content */}
       <div className="flex-1 overflow-y-auto px-2 space-y-1">
-        {activeTab === "Departments" ? (
+        {/* CUSTOMERS TAB */}
+        {activeMainTab === "Customers" ? (
+          isLoadingCustomerConversations ? (
+            <div className="p-6 text-center text-xs text-gray-400">
+              <Loader2 className="animate-spin h-5 w-5 mx-auto mb-2 text-blue-500" />
+              Loading customer conversations...
+            </div>
+          ) : customerItems.length === 0 ? (
+            <div className="p-6 text-center text-xs text-gray-400 flex flex-col items-center">
+              <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-2">
+                <User size={20} />
+              </div>
+              <p className="font-semibold text-slate-700 mb-1">No customer chats yet</p>
+              <p className="text-[11px] text-gray-400 text-center mb-2 leading-relaxed">
+                Active customer threads will appear here. You can start a conversation anytime by clicking &quot;Message Customer&quot; on any customer profile.
+              </p>
+            </div>
+          ) : (
+            customerItems.map((conv) => {
+              const customerId = conv.customerId;
+              const isSelected =
+                activeChat?.type === "customer" && activeChat.id === customerId;
+              const senderPrefix =
+                conv.lastSenderType === "admin" || conv.lastSenderType === "sales"
+                  ? "You: "
+                  : "";
+
+              return (
+                <div
+                  key={customerId}
+                  onClick={() =>
+                    onSelectChat({
+                      type: "customer",
+                      id: customerId,
+                      name: conv.customerName || "Customer",
+                      email: conv.email,
+                      phone: conv.phone,
+                      category: "Customer",
+                      color: "bg-emerald-600",
+                      leadId: conv.leadId,
+                    })
+                  }
+                  className={`flex items-center justify-between p-3 cursor-pointer rounded-xl transition-all group ${
+                    isSelected
+                      ? "bg-blue-50/70 border border-blue-100 shadow-xs"
+                      : "hover:bg-gray-50 border border-transparent"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="relative shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-sm border border-emerald-200">
+                        {conv.customerName
+                          ? conv.customerName.charAt(0).toUpperCase()
+                          : "C"}
+                      </div>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span
+                          className={`text-xs lg:text-sm font-semibold transition-colors truncate ${
+                            isSelected
+                              ? "text-[#4285F4]"
+                              : "text-[#051321] group-hover:text-[#4285F4]"
+                          }`}
+                        >
+                          {conv.customerName || "Customer"}
+                          {conv.company && (
+                            <span className="block text-[11px] text-gray-400 font-normal truncate">
+                              {conv.company}
+                            </span>
+                          )}
+                        </span>
+                        {conv.lastMessageAt && (
+                          <span className="text-[10px] text-gray-400 shrink-0">
+                            {formatMessageTime(conv.lastMessageAt)}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-gray-400 block truncate">
+                        {conv.lastMessage
+                          ? `${senderPrefix}${conv.lastMessage}`
+                          : conv.email || "Direct message"}
+                      </span>
+                    </div>
+                  </div>
+                  {conv.unreadCount && conv.unreadCount > 0 ? (
+                    <span className="ml-2 bg-[#4285F4] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-5 text-center shrink-0">
+                      {conv.unreadCount}
+                    </span>
+                  ) : null}
+                </div>
+              );
+            })
+          )
+        ) : teamTab === "Departments" ? (
+          /* TEAM -> DEPARTMENTS */
           isLoadingConversations ? (
             <div className="p-6 text-center text-xs text-gray-400">
               <Loader2 className="animate-spin h-5 w-5 mx-auto mb-2 text-blue-500" />
@@ -234,121 +417,126 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
               );
             })
           )
-        ) : isLoadingConversations ? (
-          <div className="p-6 text-center text-xs text-gray-400">
-            <Loader2 className="animate-spin h-5 w-5 mx-auto mb-2 text-blue-500" />
-            Loading direct messages...
-          </div>
-        ) : directItems.length === 0 ? (
-          <div className="p-6 text-center text-xs text-gray-400 flex flex-col items-center">
-            <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-2">
-              <MessageSquarePlus size={20} />
-            </div>
-            <p className="font-semibold text-slate-700 mb-1">No direct chats yet</p>
-            <p className="text-[11px] text-gray-400 text-center mb-3">
-              Start a new conversation with anyone on your team
-            </p>
-            <button
-              onClick={onOpenNewChat}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#4285F4] text-white text-xs font-semibold rounded-lg hover:bg-blue-600 shadow-xs transition-all cursor-pointer"
-            >
-              <Plus size={14} />
-              Start New Chat
-            </button>
-          </div>
         ) : (
-          directItems.map((conv) => {
-            const userId = conv.userId as string;
-            const isSelected =
-              activeChat?.type === "direct" && activeChat.id === userId;
-            return (
-              <div
-                key={userId}
-                onClick={() =>
-                  onSelectChat({
-                    type: "direct",
-                    id: userId,
-                    name: conv.name,
-                    role: conv.role,
-                    avatar: conv.avatar,
-                  })
-                }
-                className={`flex items-center justify-between p-3 cursor-pointer rounded-xl transition-all group ${
-                  isSelected
-                    ? "bg-blue-50/70 border border-blue-100 shadow-xs"
-                    : "hover:bg-gray-50 border border-transparent"
-                }`}
-              >
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="relative shrink-0">
-                    {conv.avatar ? (
-                      <img
-                        src={conv.avatar}
-                        alt={conv.name}
-                        className="w-10 h-10 rounded-full border border-gray-100 object-cover"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-sm border border-gray-100">
-                        {conv.name ? conv.name.charAt(0).toUpperCase() : "U"}
-                      </div>
-                    )}
-                    <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <span
-                        className={`text-xs lg:text-sm font-semibold transition-colors truncate ${
-                          isSelected
-                            ? "text-[#4285F4]"
-                            : "text-[#051321] group-hover:text-[#4285F4]"
-                        }`}
-                      >
-                        {conv.name}
-                      </span>
-                      {conv.lastMessageAt && (
-                        <span className="text-[10px] text-gray-400 shrink-0">
-                          {formatMessageTime(conv.lastMessageAt)}
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-[11px] text-gray-400 block truncate">
-                      {conv.lastMessage || conv.role || "Direct message"}
-                    </span>
-                  </div>
-                </div>
-                {conv.unreadCount && conv.unreadCount > 0 ? (
-                  <span className="ml-2 bg-[#4285F4] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-5 text-center shrink-0">
-                    {conv.unreadCount}
-                  </span>
-                ) : null}
+          /* TEAM -> DIRECT MESSAGES */
+          isLoadingConversations ? (
+            <div className="p-6 text-center text-xs text-gray-400">
+              <Loader2 className="animate-spin h-5 w-5 mx-auto mb-2 text-blue-500" />
+              Loading direct messages...
+            </div>
+          ) : directItems.length === 0 ? (
+            <div className="p-6 text-center text-xs text-gray-400 flex flex-col items-center">
+              <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-2">
+                <MessageSquarePlus size={20} />
               </div>
-            );
-          })
+              <p className="font-semibold text-slate-700 mb-1">No direct chats yet</p>
+              <p className="text-[11px] text-gray-400 text-center mb-3">
+                Start a new conversation with anyone on your team
+              </p>
+              <button
+                onClick={onOpenNewChat}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#4285F4] text-white text-xs font-semibold rounded-lg hover:bg-blue-600 shadow-xs transition-all cursor-pointer"
+              >
+                <Plus size={14} />
+                Start New Chat
+              </button>
+            </div>
+          ) : (
+            directItems.map((conv) => {
+              const userId = conv.userId as string;
+              const isSelected =
+                activeChat?.type === "direct" && activeChat.id === userId;
+              return (
+                <div
+                  key={userId}
+                  onClick={() =>
+                    onSelectChat({
+                      type: "direct",
+                      id: userId,
+                      name: conv.name,
+                      role: conv.role,
+                      avatar: conv.avatar,
+                    })
+                  }
+                  className={`flex items-center justify-between p-3 cursor-pointer rounded-xl transition-all group ${
+                    isSelected
+                      ? "bg-blue-50/70 border border-blue-100 shadow-xs"
+                      : "hover:bg-gray-50 border border-transparent"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="relative shrink-0">
+                      {conv.avatar ? (
+                        <img
+                          src={conv.avatar}
+                          alt={conv.name}
+                          className="w-10 h-10 rounded-full border border-gray-100 object-cover"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-sm border border-gray-100">
+                          {conv.name ? conv.name.charAt(0).toUpperCase() : "U"}
+                        </div>
+                      )}
+                      <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1">
+                        <span
+                          className={`text-xs lg:text-sm font-semibold transition-colors truncate ${
+                            isSelected
+                              ? "text-[#4285F4]"
+                              : "text-[#051321] group-hover:text-[#4285F4]"
+                          }`}
+                        >
+                          {conv.name}
+                        </span>
+                        {conv.lastMessageAt && (
+                          <span className="text-[10px] text-gray-400 shrink-0">
+                            {formatMessageTime(conv.lastMessageAt)}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] text-gray-400 block truncate">
+                        {conv.lastMessage || conv.role || "Direct message"}
+                      </span>
+                    </div>
+                  </div>
+                  {conv.unreadCount && conv.unreadCount > 0 ? (
+                    <span className="ml-2 bg-[#4285F4] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-5 text-center shrink-0">
+                      {conv.unreadCount}
+                    </span>
+                  ) : null}
+                </div>
+              );
+            })
+          )
         )}
       </div>
 
-      {/* Footer info & New Chat Button */}
-      <div className="p-3 border-t border-gray-100 flex flex-col gap-2">
-        {activeTab === "Departments" ? (
-          <button
-            type="button"
-            onClick={onOpenNewGroup}
-            className="w-full flex items-center justify-center gap-2 py-2 bg-[#4285F4] hover:bg-blue-600 active:scale-[0.99] text-white rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer"
-          >
-            <Plus size={15} />
-            <span>New Department / Group</span>
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onOpenNewChat}
-            className="w-full flex items-center justify-center gap-2 py-2 bg-[#4285F4] hover:bg-blue-600 active:scale-[0.99] text-white rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer"
-          >
-            <Plus size={15} />
-            <span>New Direct Chat</span>
-          </button>
-        )}
-      </div>
+      {/* Footer info & New Chat Button (Only for Team tabs) */}
+      {activeMainTab === "Team" && (
+        <div className="p-3 border-t border-gray-100 flex flex-col gap-2">
+          {teamTab === "Departments" ? (
+            <button
+              type="button"
+              onClick={onOpenNewGroup}
+              className="w-full flex items-center justify-center gap-2 py-2 bg-[#4285F4] hover:bg-blue-600 active:scale-[0.99] text-white rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer"
+            >
+              <Plus size={15} />
+              <span>New Department / Group</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onOpenNewChat}
+              className="w-full flex items-center justify-center gap-2 py-2 bg-[#4285F4] hover:bg-blue-600 active:scale-[0.99] text-white rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer"
+            >
+              <Plus size={15} />
+              <span>New Direct Chat</span>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

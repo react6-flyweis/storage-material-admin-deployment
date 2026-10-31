@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
@@ -22,6 +22,7 @@ interface CommunicationItem {
 
 export default function LeadCommunicationTimeline() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [status, setStatus] = useState("completed");
@@ -224,7 +225,7 @@ export default function LeadCommunicationTimeline() {
               <Card
                 key={item.id}
                 className="py-0 rounded-md ring-0 border-none cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={() => navigate(`/leads/${item.id}/timeline`)}
+                onClick={() => navigate(`/leads/${item.id}/timeline`, { state: { from: location.pathname + location.search } })}
               >
                 <CardContent className="p-4">
                   {/* Client Name */}

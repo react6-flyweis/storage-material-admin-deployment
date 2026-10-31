@@ -29,18 +29,22 @@ import IncomeVsExpenseTrendChart from "@/modules/financials/components/IncomeVsE
 import ProfitLossExpenseBreakdownChart from "@/modules/financials/components/ProfitLossExpenseBreakdownChart";
 import ProfitLossSummaryTable from "@/modules/financials/components/ProfitLossSummaryTable";
 
-const formatCurrency = (val?: number) => {
+const formatCurrency = (val?: number | string | null) => {
   if (val === undefined || val === null) return "$0";
+  const num = typeof val === "number" ? val : Number(val);
+  if (isNaN(num)) return "$0";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 2,
-  }).format(val);
+  }).format(num);
 };
 
-const formatPercent = (val?: number) => {
+const formatPercent = (val?: number | string | null) => {
   if (val === undefined || val === null) return "0.00%";
-  return `${val.toFixed(2)}%`;
+  const num = typeof val === "number" ? val : Number(val);
+  if (isNaN(num)) return "0.00%";
+  return `${num.toFixed(2)}%`;
 };
 
 export default function ProfitLossPage() {

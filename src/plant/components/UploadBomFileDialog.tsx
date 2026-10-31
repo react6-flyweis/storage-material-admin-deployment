@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { X, Upload, FileText, Loader2, ArrowRight } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,7 @@ export default function UploadBomFileDialog({
   isUploading = false,
 }: UploadBomFileDialogProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   // suppress unused parameter warning if needed
   void isUploading;
 
@@ -158,11 +159,12 @@ export default function UploadBomFileDialog({
       setErrorMessage(null);
       await generateConsolidatedBOM(leadId);
       handleDialogClose();
-      if (customerId) {
-        navigate(`/customers/${customerId}/project-bom/${leadId}`);
-      } else {
-        navigate(`/customers/unknown/project-bom/${leadId}`);
-      }
+      const targetUrl = customerId
+        ? `/customers/${customerId}/project-bom/${leadId}`
+        : `/customers/unknown/project-bom/${leadId}`;
+      navigate(targetUrl, {
+        state: { from: location.pathname + location.search },
+      });
     } catch (err: unknown) {
       console.error("Failed to generate consolidated BOM:", err);
       const errorObj = err as { data?: { message?: string }; message?: string };
@@ -302,7 +304,9 @@ export default function UploadBomFileDialog({
                               className="text-slate-600 hover:text-slate-900 border border-slate-200"
                               onClick={() => {
                                 handleDialogClose();
-                                navigate(`/plant/uploaded-bom-files/${latestJob.bomJobId}`);
+                                navigate(`/plant/uploaded-bom-files/${latestJob.bomJobId}`, {
+                                  state: { from: location.pathname + location.search },
+                                });
                               }}
                             >
                               {latestJob.isConfirmed ? "View" : "View and Confirm"}

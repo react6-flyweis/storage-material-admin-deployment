@@ -1,9 +1,13 @@
 import { useEmployeePerformanceQuery } from "@/modules/employees/employees.hooks";
 import MetricCard from "@/components/employee-performance/MetricCard";
 import PerformanceChart from "@/components/employee-performance/PerformanceChart";
-import TopPerformerCard from "@/components/employee-performance/TopPerformerCard";
+import TopPerformerCard, {
+  formatCurrency,
+  type PerformanceDatum,
+} from "@/components/employee-performance/TopPerformerCard";
 // import PerformanceTable from "@/components/employee-performance/PerformanceTable";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { DollarSign } from "lucide-react";
 
 const CHART_COLORS = [
   "#16a34a",
@@ -23,46 +27,28 @@ export default function EmployeePerformancePage() {
     error,
   } = useEmployeePerformanceQuery();
 
-  const performanceData = (performanceResponse?.data.performance ?? []).map(
-    (item, index) => ({
-      id: item.employee._id,
-      name: item.employee.name,
-      value: item.totalLeads,
-      color: CHART_COLORS[index % CHART_COLORS.length],
-      department: "N/A",
-      role: item.employee.email,
-      deals: item.closedLeads,
-      commission: `${Math.round(item.conversionRate)}%`,
-      perf: item.conversionRate,
-    }),
-  );
+  const responseData = performanceResponse?.data;
+  const topPerformer = responseData?.topPerformer ?? null;
+  const totalRevenue = responseData?.totalRevenue ?? 0;
+  const totalDeals = responseData?.totalDeals ?? 0;
 
-  const totalLeads = performanceData.reduce((sum, item) => sum + item.value, 0);
-  const totalClosedLeads = performanceData.reduce(
-    (sum, item) => sum + item.deals,
-    0,
-  );
-  const avgConversionRate = performanceData.length
-    ? Math.round(
-        performanceData.reduce((sum, item) => sum + item.perf, 0) /
-          performanceData.length,
-      )
-    : 0;
-
-  const topPerformer = performanceData.reduce(
-    (top, current) => (current.value > top.value ? current : top),
-    performanceData[0],
-  ) ?? {
-    id: "",
-    name: "N/A",
-    value: 0,
-    color: CHART_COLORS[0],
-    department: "N/A",
-    role: "N/A",
-    deals: 0,
-    commission: "0%",
-    perf: 0,
-  };
+  const performanceData: PerformanceDatum[] = (
+    responseData?.performance ?? []
+  ).map((item, index) => ({
+    id: item.employee._id,
+    name: item.employee.name,
+    value: item.revenue,
+    revenue: item.revenue,
+    revenueSharePercent: item.revenueSharePercent,
+    leads: item.totalLeads,
+    deals: item.closedLeads,
+    conversionRate: item.conversionRate,
+    color: CHART_COLORS[index % CHART_COLORS.length],
+    department: "Sales",
+    role: item.employee.email,
+    commission: `${Math.round(item.conversionRate)}%`,
+    perf: item.conversionRate,
+  }));
 
   if (isLoading) {
     return (
@@ -104,7 +90,9 @@ export default function EmployeePerformancePage() {
         <div className="lg:col-span-2 bg-white rounded-lg p-6 shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-lg font-semibold">Revenue Distribution</h2>
-            <div className="text-sm text-gray-500">Total: {totalLeads}</div>
+            <div className="text-sm text-gray-500">
+              Total: {formatCurrency(totalRevenue)}
+            </div>
           </div>
           <div className="flex flex-col md:flex-row items-center gap-6">
             <PerformanceChart data={performanceData} />
@@ -125,15 +113,19 @@ export default function EmployeePerformancePage() {
                         className="inline-block w-3 h-3 rounded-full"
                         style={{ background: d.color }}
                       />
-                      <div className="text-sm font-medium">{d.name}</div>
+                      <div>
+                        <div className="text-sm font-medium">{d.name}</div>
+                        <div className="text-xs text-gray-400">
+                          {d.deals} {d.deals === 1 ? "deal" : "deals"} · {d.leads} {d.leads === 1 ? "lead" : "leads"}
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-600">
-                      <div className="font-semibold">{d.value}</div>
+                    <div className="text-sm text-gray-600 text-right">
+                      <div className="font-semibold">
+                        {formatCurrency(d.revenue ?? 0)}
+                      </div>
                       <div className="text-xs text-gray-400">
-                        {totalLeads
-                          ? Math.round((d.value / totalLeads) * 100)
-                          : 0}
-                        %
+                        {d.revenueSharePercent}%
                       </div>
                     </div>
                   </div>
@@ -144,11 +136,18 @@ export default function EmployeePerformancePage() {
         </div>
 
         <div className="space-y-4">
-          <TopPerformerCard top={topPerformer} total={totalLeads} />
+          <TopPerformerCard topPerformer={topPerformer} />
+
+          <MetricCard
+            title="Total Revenue"
+            value={formatCurrency(totalRevenue)}
+            icon={<DollarSign className="h-5 w-5 text-emerald-600" />}
+            accent="green"
+          />
 
           <MetricCard
             title="Total Deals"
-            value={totalClosedLeads}
+            value={totalDeals}
             icon={
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -159,12 +158,7 @@ export default function EmployeePerformancePage() {
                 <path d="M2 11a1 1 0 011-1h3V5a1 1 0 112 0v5h3a1 1 0 110 2H8v3a1 1 0 11-2 0v-3H3a1 1 0 01-1-1z" />
               </svg>
             }
-          />
-          <MetricCard
-            title="Avg Commission"
-            value={`${avgConversionRate}%`}
-            icon={<span className="text-orange-500 font-semibold">%</span>}
-            accent={"orange"}
+            accent="indigo"
           />
         </div>
       </div>

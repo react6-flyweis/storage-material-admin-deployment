@@ -1,5 +1,6 @@
 import React from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { ArrowLeft } from "lucide-react";
 import xlxsIcon from "@/assets/icon/dashboard/xlxs.svg";
 
@@ -16,6 +17,8 @@ import { BOMListContent } from "./bom-list-content-view";
 
 const BOMView: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { goBack } = useAppBack();
   const { id, projectId: paramProjectId } = useParams<{ id?: string; projectId?: string }>();
   const projectId = paramProjectId || id || "";
 
@@ -51,7 +54,7 @@ const BOMView: React.FC = () => {
           <Button
             variant="blueFilled"
             size="sm"
-            onClick={() => navigate(-1)}
+            onClick={() => goBack()}
             className="flex items-center gap-2 shrink-0"
           >
             <ArrowLeft size={18} strokeWidth={2.5} /> Back
@@ -102,7 +105,7 @@ const BOMView: React.FC = () => {
           <Button
             variant="blueFilled"
             size="sm"
-            onClick={() => navigate(-1)}
+            onClick={() => goBack()}
             className="flex items-center gap-2 shrink-0"
           >
             <ArrowLeft size={18} strokeWidth={2.5} /> Back
@@ -125,7 +128,11 @@ const BOMView: React.FC = () => {
           <Button
             size="sm"
             variant="purpleFilled"
-            onClick={() => navigate(`generate-shipper-order`)}
+            onClick={() =>
+              navigate(`generate-shipper-order`, {
+                state: { from: location.pathname + location.search },
+              })
+            }
           >
             Share with Shippers
           </Button>

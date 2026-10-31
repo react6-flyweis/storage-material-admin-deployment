@@ -1,4 +1,5 @@
 
+import { useEffect, useMemo } from "react";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -17,8 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useCreateSmdtItemMutation, useUpdateSmdtItemMutation } from "@/modules/plant/smdt.hooks";
+import {
+  useCreateSmdtItemMutation,
+  useUpdateSmdtItemMutation,
+  useSmdtItemQuery,
+} from "@/modules/plant/smdt.hooks";
 import type { SmdtItem } from "@/modules/plant/smdt.api";
 import { CATEGORY_OPTIONS, COST_UNIT_OPTIONS } from "../../constants/costing";
 
@@ -26,6 +32,8 @@ interface AddEditPartCostModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialData?: SmdtItem | null;
+  itemId?: string | null;
+  categories?: string[];
 }
 
 const smdtSchema = z.object({
@@ -47,8 +55,18 @@ export default function AddEditPartCostModal({
   isOpen,
   onClose,
   initialData,
+  itemId,
+  categories,
 }: AddEditPartCostModalProps) {
-  const isEditing = !!initialData;
+  // If itemId is provided without initialData, fetch details from the API
+  const shouldFetch = isOpen && !initialData && !!itemId;
+  const { data: fetchedItem, isLoading: isFetchingItem } = useSmdtItemQuery(
+    shouldFetch ? itemId : null
+  );
+
+  const activeItem = initialData || fetchedItem || null;
+  const isEditing = !!activeItem || !!itemId;
+
   const { mutateAsync: createItem, isPending: isCreating } = useCreateSmdtItemMutation();
   const { mutateAsync: updateItem, isPending: isUpdating } = useUpdateSmdtItemMutation();
   const isSaving = isCreating || isUpdating;
@@ -57,25 +75,74 @@ export default function AddEditPartCostModal({
     register,
     control,
     handleSubmit,
+    reset,
     formState: { errors },
-  } = useForm({
+  } = useForm<SmdtSchemaType>({
     resolver: zodResolver(smdtSchema),
     defaultValues: {
-      category: initialData?.category || "",
-      partName: initialData?.partName || "",
-      partColor: initialData?.partColor || "",
-      costUnit: initialData?.costUnit || "",
-      description: initialData?.description || "",
-      mbsCost: initialData?.mbsCost || "",
-      currentMarketCost: initialData?.currentMarketCost || "",
-      laborCost: initialData?.laborCost || "",
-      additionalCost: initialData?.additionalCost || "",
-      materialCost: initialData?.materialCost || "",
+      category: "",
+      partName: "",
+      partColor: "",
+      costUnit: "",
+      description: "",
+      mbsCost: "" as unknown as number,
+      currentMarketCost: "" as unknown as number,
+      laborCost: 0,
+      additionalCost: 0,
+      materialCost: 0,
     },
   });
 
   const categoryValue = useWatch({ control, name: "category" });
 
+  // Reset form when modal opens or active item changes
+  useEffect(() => {
+    if (isOpen) {
+      if (activeItem) {
+        reset({
+          category: activeItem.category || "",
+          partName: activeItem.partName || "",
+          partColor: activeItem.partColor || "",
+          costUnit: activeItem.costUnit || "",
+          description: activeItem.description || "",
+          mbsCost: activeItem.mbsCost ?? ("" as unknown as number),
+          currentMarketCost: activeItem.currentMarketCost ?? ("" as unknown as number),
+          laborCost: activeItem.laborCost ?? 0,
+          additionalCost: activeItem.additionalCost ?? 0,
+          materialCost: activeItem.materialCost ?? 0,
+        });
+      } else if (!itemId) {
+        reset({
+          category: "",
+          partName: "",
+          partColor: "",
+          costUnit: "",
+          description: "",
+          mbsCost: "" as unknown as number,
+          currentMarketCost: "" as unknown as number,
+          laborCost: 0,
+          additionalCost: 0,
+          materialCost: 0,
+        });
+      }
+    }
+  }, [isOpen, activeItem, itemId, reset]);
+
+  // Combine predefined categories with any dynamic categories from API or activeItem
+  const activeCategory = activeItem?.category;
+  const categoryOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    CATEGORY_OPTIONS.forEach((opt) => map.set(opt.value, opt.label));
+    if (categories) {
+      categories.forEach((cat) => {
+        if (!map.has(cat)) map.set(cat, cat);
+      });
+    }
+    if (activeCategory && !map.has(activeCategory)) {
+      map.set(activeCategory, activeCategory);
+    }
+    return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+  }, [categories, activeCategory]);
 
   const onSubmit = async (data: SmdtSchemaType) => {
     const payload = {
@@ -93,8 +160,9 @@ export default function AddEditPartCostModal({
 
     try {
       if (isEditing) {
-        if (initialData?._id) {
-          await updateItem({ itemId: initialData._id, body: payload });
+        const idToUpdate = activeItem?._id || itemId;
+        if (idToUpdate) {
+          await updateItem({ itemId: idToUpdate, body: payload });
           toast.success("Part cost updated successfully!");
           onClose();
         }
@@ -119,43 +187,50 @@ export default function AddEditPartCostModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[650px] p-0 border-none bg-white rounded-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <DialogHeader className="px-8 pt-8 pb-4 shrink-0">          <DialogTitle className="text-xl font-bold text-slate-900">
-          {isEditing ? "Edit Part Cost" : "Add New Part Cost"}
-        </DialogTitle>
+        <DialogHeader className="px-8 pt-8 pb-4 shrink-0">
+          <DialogTitle className="text-xl font-bold text-slate-900">
+            {isEditing ? "Edit Part Cost" : "Add New Part Cost"}
+          </DialogTitle>
         </DialogHeader>
 
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="flex-1 overflow-y-auto px-8 pb-8 space-y-6"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-            {/* Category */}
-            <div className="md:col-span-2 space-y-1.5">
-              <label className="text-sm font-semibold text-slate-900">
-                Category <span className="text-red-500">*</span>
-              </label>
-              <Controller
-                control={control}
-                name="category"
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger className="w-full bg-[#FAFAFA] border-gray-200 h-11 shadow-sm">
-                      <SelectValue placeholder="Select Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CATEGORY_OPTIONS.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+        {isFetchingItem ? (
+          <div className="flex flex-col items-center justify-center py-16 space-y-3">
+            <Loader2 className="w-8 h-8 animate-spin text-[#7C3AED]" />
+            <p className="text-sm text-gray-500">Loading part cost details...</p>
+          </div>
+        ) : (
+          <form
+            onSubmit={handleSubmit(onSubmit)}
+            className="flex-1 overflow-y-auto px-8 pb-8 space-y-6"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+              {/* Category */}
+              <div className="md:col-span-2 space-y-1.5">
+                <label className="text-sm font-semibold text-slate-900">
+                  Category <span className="text-red-500">*</span>
+                </label>
+                <Controller
+                  control={control}
+                  name="category"
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger className="w-full bg-[#FAFAFA] border-gray-200 h-11 shadow-sm">
+                        <SelectValue placeholder="Select Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categoryOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.category && (
+                  <p className="text-xs text-red-500">{errors.category.message}</p>
                 )}
-              />
-              {errors.category && (
-                <p className="text-xs text-red-500">{errors.category.message}</p>
-              )}
-            </div>
+              </div>
 
             {/* Part Name */}
             <div className="md:col-span-2 space-y-1.5">
@@ -336,6 +411,7 @@ export default function AddEditPartCostModal({
             </Button>
           </div>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );

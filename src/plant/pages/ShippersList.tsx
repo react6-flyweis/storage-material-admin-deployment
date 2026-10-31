@@ -4,8 +4,8 @@ import {
   Search,
   Filter,
   Plus,
-  Mail,
-  Phone,
+  // Mail,
+  // Phone,
   Store,
   Eye,
   Pencil,
@@ -152,8 +152,8 @@ export default function ShippersList() {
   const headers = [
     "Shipper",
     "Contact",
-    "Email",
-    "Phone",
+    // "Email",
+    // "Phone",
     "Material Types",
     "Orders",
     "Status",
@@ -264,7 +264,7 @@ export default function ShippersList() {
                     <td className="px-3 py-4 font-medium text-gray-700">
                       {vendor.contact}
                     </td>
-                    <td className="px-3 py-4">
+                    {/* <td className="px-3 py-4">
                       <a
                         href={`mailto:${vendor.email}`}
                         className="text-blue-500 hover:underline flex items-center gap-1 whitespace-nowrap"
@@ -281,7 +281,7 @@ export default function ShippersList() {
                         <Phone className="w-3.5 h-3.5" />
                         <span>{vendor.phone}</span>
                       </a>
-                    </td>
+                    </td> */}
                     <td className="px-3 py-4">
                       <div className="flex flex-wrap gap-1">
                         {vendor.materialTypes.map((type) => (

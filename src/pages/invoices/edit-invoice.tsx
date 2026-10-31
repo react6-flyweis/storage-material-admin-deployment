@@ -11,15 +11,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import steelLogo from "@/assets/steel-building-depot-logo.png";
 import { useNavigate, useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { getApiErrorMessage } from "@/lib/api-error";
 import {
   useCreateInvoiceMutation,
   useCreatePaymentScheduleMutation,
   useUpdateInvoiceMutation,
   useGetInvoiceDetailQuery,
-  usePaymentScheduleQuery
+  usePaymentScheduleQuery,
 } from "@/modules/invoices/invoices.hooks";
-import type { CreateInvoicePayload, CreateInvoiceResponse } from "@/modules/invoices/invoices.api";
+import type {
+  CreateInvoicePayload,
+  CreateInvoiceResponse,
+  InvoiceAddress,
+  InvoiceBankDetails,
+} from "@/modules/invoices/invoices.api";
+import EditAddressDialog from "@/components/invoices/edit-address-dialog";
+import EditBankInfoDialog from "@/components/invoices/edit-bank-info-dialog";
 import AddProjectDialog from "@/components/add-project-dialog";
 import { useCustomerProjectsQuery, useCustomersQuery } from "@/modules/customers/customers.hooks";
 import { toast } from "sonner";
@@ -58,7 +66,73 @@ export interface InvoiceFormValues {
   projectId: string;
   projectName: string;
   taxes: { name: string; rate: string; type?: "%" | "$" }[];
+  billingAddress: InvoiceAddress;
+  recipientAddress: InvoiceAddress;
+  bankDetails: InvoiceBankDetails;
 }
+
+function parseLocationToAddress(location?: string): {
+  line1?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+} {
+  if (!location || location === "N/A" || location === "—" || location === "-") {
+    return {};
+  }
+  const parts = location.split(",").map((p) => p.trim()).filter(Boolean);
+  if (parts.length === 1) {
+    return { line1: parts[0] };
+  }
+  if (parts.length === 2) {
+    const [city, stateZip] = parts;
+    const szParts = stateZip.split(/\s+/).filter(Boolean);
+    const state = szParts[0] || "";
+    const postalCode = szParts.slice(1).join(" ") || "";
+    return { city, state, postalCode };
+  }
+  if (parts.length >= 3) {
+    const line1 = parts.slice(0, parts.length - 2).join(", ");
+    const city = parts[parts.length - 2];
+    const stateZip = parts[parts.length - 1];
+    const szParts = stateZip.split(/\s+/).filter(Boolean);
+    const state = szParts[0] || "";
+    const postalCode = szParts.slice(1).join(" ") || "";
+    return { line1, city, state, postalCode };
+  }
+  return { line1: location };
+}
+
+const defaultBillingAddress: InvoiceAddress = {
+  companyName: "STEEL BUILDING DEPOT",
+  line1: "1851 Madison Ave Suite 300",
+  line2: "",
+  city: "Council Bluffs",
+  state: "IA",
+  postalCode: "51503",
+  country: "United States",
+};
+
+const defaultRecipientAddress: InvoiceAddress = {
+  companyName: "",
+  line1: "",
+  line2: "",
+  city: "",
+  state: "",
+  postalCode: "",
+  country: "United States",
+};
+
+const defaultBankDetails: InvoiceBankDetails = {
+  bankName: "Example Bank",
+  accountName: "Steel Building Depot LLC",
+  accountNumber: "",
+  routingNumber: "",
+  swiftCode: "",
+  iban: "",
+  branchAddress: "",
+  paymentInstructions: "Include invoice number in memo.",
+};
 
 export default function EditInvoice() {
   const { id } = useParams<{ id: string }>();
@@ -93,6 +167,9 @@ export default function EditInvoice() {
         projectId: "",
         projectName: "",
         taxes: [{ name: "Argyle", rate: "8.25" }],
+        billingAddress: defaultBillingAddress,
+        recipientAddress: defaultRecipientAddress,
+        bankDetails: defaultBankDetails,
         lineItems: [
           {
             id: "1",
@@ -110,8 +187,15 @@ export default function EditInvoice() {
     });
 
   const watchedValues = useWatch({ control }) as InvoiceFormValues;
+  const billingAddress =
+    watchedValues?.billingAddress || defaultBillingAddress;
+  const recipientAddress =
+    watchedValues?.recipientAddress || defaultRecipientAddress;
+  const bankDetails =
+    watchedValues?.bankDetails || defaultBankDetails;
 
   const navigate = useNavigate();
+  const { goBack } = useAppBack("/invoice/list");
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -170,14 +254,83 @@ export default function EditInvoice() {
   useEffect(() => {
     if (isEditMode && invoiceDetailRes?.success && invoiceDetailRes.data?.invoice) {
       const inv = invoiceDetailRes.data.invoice;
+      const targetLeadId =
+        typeof inv.leadId === "object" && inv.leadId !== null
+          ? inv.leadId._id
+          : inv.leadId || "";
+      const customerLocation =
+        typeof inv.leadId === "object" && inv.leadId !== null
+          ? inv.leadId.location
+          : undefined;
+      const parsedLoc = parseLocationToAddress(customerLocation);
+
+      const leadObj =
+        typeof inv.leadId === "object" && inv.leadId !== null ? inv.leadId : null;
+      const custObj =
+        typeof inv.customerId === "object" && inv.customerId !== null
+          ? inv.customerId
+          : null;
+      const resolvedCustomerName =
+        inv.recipientAddress?.companyName ||
+        (leadObj?.customer && leadObj.customer !== "N/A"
+          ? leadObj.customer
+          : "") ||
+        leadObj?.customerName ||
+        (custObj
+          ? `${custObj.firstName || ""} ${custObj.lastName || ""}`.trim()
+          : "") ||
+        custObj?.companyName ||
+        leadObj?.name ||
+        "";
+
       reset({
         ...getValues(),
         invoiceNumber: inv.invoiceNumber || "",
         date: inv.date ? inv.date.split("T")[0] : "",
         daysToPay: String(inv.daysToPay || ""),
         poNumber: inv.poNumber || "",
-        projectId: inv.leadId || "",
+        projectId: targetLeadId,
         clientId: inv.customerId || "",
+        billingAddress: {
+          companyName:
+            inv.billingAddress?.companyName || defaultBillingAddress.companyName,
+          line1: inv.billingAddress?.line1 || defaultBillingAddress.line1,
+          line2: inv.billingAddress?.line2 || "",
+          city: inv.billingAddress?.city || defaultBillingAddress.city,
+          state: inv.billingAddress?.state || defaultBillingAddress.state,
+          postalCode:
+            inv.billingAddress?.postalCode || defaultBillingAddress.postalCode,
+          country:
+            inv.billingAddress?.country || defaultBillingAddress.country,
+        },
+        recipientAddress: {
+          companyName: resolvedCustomerName,
+          line1:
+            inv.recipientAddress?.line1 || parsedLoc.line1 || "",
+          line2: inv.recipientAddress?.line2 || "",
+          city:
+            inv.recipientAddress?.city || parsedLoc.city || "",
+          state:
+            inv.recipientAddress?.state || parsedLoc.state || "",
+          postalCode:
+            inv.recipientAddress?.postalCode || parsedLoc.postalCode || "",
+          country:
+            inv.recipientAddress?.country || "United States",
+        },
+        bankDetails: {
+          bankName:
+            inv.bankDetails?.bankName || defaultBankDetails.bankName,
+          accountName:
+            inv.bankDetails?.accountName || defaultBankDetails.accountName,
+          accountNumber: inv.bankDetails?.accountNumber || "",
+          routingNumber: inv.bankDetails?.routingNumber || "",
+          swiftCode: inv.bankDetails?.swiftCode || "",
+          iban: inv.bankDetails?.iban || "",
+          branchAddress: inv.bankDetails?.branchAddress || "",
+          paymentInstructions:
+            inv.bankDetails?.paymentInstructions ||
+            defaultBankDetails.paymentInstructions,
+        },
         lineItems: (inv.lineItems || []).map((item: any, idx: number) => ({
           id: String(idx),
           description: item.items?.[0] || "",
@@ -369,6 +522,56 @@ export default function EditInvoice() {
       totalAmount,
     );
 
+    const buildAddressLines = (addr?: InvoiceAddress) => {
+      if (!addr) return undefined;
+      const lines: string[] = [];
+      if (addr.line1?.trim()) lines.push(addr.line1.trim());
+      if (addr.line2?.trim()) lines.push(addr.line2.trim());
+      const cityStateZip = [
+        addr.city?.trim(),
+        [addr.state?.trim(), addr.postalCode?.trim()].filter(Boolean).join(" "),
+      ]
+        .filter(Boolean)
+        .join(", ");
+      if (cityStateZip) lines.push(cityStateZip);
+      if (addr.country?.trim()) lines.push(addr.country.trim());
+      return lines.length > 0 ? lines : undefined;
+    };
+
+    const billingAddressPayload: InvoiceAddress = {
+      companyName: data.billingAddress?.companyName?.trim() || undefined,
+      line1: data.billingAddress?.line1?.trim() || undefined,
+      line2: data.billingAddress?.line2?.trim() || undefined,
+      city: data.billingAddress?.city?.trim() || undefined,
+      state: data.billingAddress?.state?.trim() || undefined,
+      postalCode: data.billingAddress?.postalCode?.trim() || undefined,
+      country: data.billingAddress?.country?.trim() || undefined,
+      lines: buildAddressLines(data.billingAddress),
+    };
+
+    const recipientAddressPayload: InvoiceAddress = {
+      companyName: data.recipientAddress?.companyName?.trim() || undefined,
+      line1: data.recipientAddress?.line1?.trim() || undefined,
+      line2: data.recipientAddress?.line2?.trim() || undefined,
+      city: data.recipientAddress?.city?.trim() || undefined,
+      state: data.recipientAddress?.state?.trim() || undefined,
+      postalCode: data.recipientAddress?.postalCode?.trim() || undefined,
+      country: data.recipientAddress?.country?.trim() || undefined,
+      lines: buildAddressLines(data.recipientAddress),
+    };
+
+    const bankDetailsPayload: InvoiceBankDetails = {
+      bankName: data.bankDetails?.bankName?.trim() || undefined,
+      accountName: data.bankDetails?.accountName?.trim() || undefined,
+      accountNumber: data.bankDetails?.accountNumber?.trim() || undefined,
+      routingNumber: data.bankDetails?.routingNumber?.trim() || undefined,
+      swiftCode: data.bankDetails?.swiftCode?.trim() || undefined,
+      iban: data.bankDetails?.iban?.trim() || undefined,
+      branchAddress: data.bankDetails?.branchAddress?.trim() || undefined,
+      paymentInstructions:
+        data.bankDetails?.paymentInstructions?.trim() || undefined,
+    };
+
     return {
       leadId: data.projectId || "",
       quotationId: (data.poNumber || "").trim(),
@@ -383,6 +586,9 @@ export default function EditInvoice() {
       discount,
       depositAmount,
       totalAmount,
+      billingAddress: billingAddressPayload,
+      recipientAddress: recipientAddressPayload,
+      bankDetails: bankDetailsPayload,
     };
   };
 
@@ -504,6 +710,7 @@ export default function EditInvoice() {
     }));
 
     navigate("/invoice/preview", {
+      replace: true,
       state: {
         invoiceId: savedInvoice?._id || id,
         invoiceNumber: savedInvoice?.invoiceNumber || values.invoiceNumber || invoiceNumber,
@@ -526,14 +733,14 @@ export default function EditInvoice() {
         <div className="flex items-center gap-3 ml-auto">
           <Button
             variant="outline"
-            onClick={() => navigate('/invoice/list')}
+            onClick={() => goBack()}
             className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200"
           >
             Back
           </Button>
           <Button
             variant="outline"
-            onClick={() => navigate('/invoice/list')}
+            onClick={() => goBack()}
             className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200"
           >
             Cancel
@@ -556,48 +763,169 @@ export default function EditInvoice() {
 
       <div className="bg-white rounded-md p-4 sm:p-8 lg:p-10 shadow-sm mx-auto max-w-7xl">
         <div className="flex flex-col lg:flex-row justify-between gap-10 mb-12">
-          <div className="space-y-6">
+          {/* Left: Seller Address */}
+          <div className="space-y-4">
             <div className="flex items-center gap-2">
               <div className="flex items-center shrink-0">
                 <img src={steelLogo} alt="The Steel" className="h-10" />
               </div>
             </div>
 
-            <div className="text-sm text-gray-500 leading-relaxed max-w-62.5">
-              1851 Madison Ave Suite 300
-              <br />
-              Council Bluffs, IA
-              <br />
-              51503
-              <br />
-              United States
-              <br />
-              travis@storagematerials.com
-              <br />
-              www.storagematerials.com
+            <div className="text-base font-bold text-gray-900 tracking-tight">
+              {billingAddress.companyName || "STEEL BUILDING DEPOT"}
             </div>
+
+            <div className="text-sm text-gray-600 leading-relaxed space-y-0.5 max-w-62.5">
+              <div>
+                {billingAddress.line1 || "1851 Madison Ave Suite 300"}
+              </div>
+              {billingAddress.line2 && <div>{billingAddress.line2}</div>}
+              <div>
+                {[
+                  billingAddress.city || "Council Bluffs",
+                  [
+                    billingAddress.state || "IA",
+                    billingAddress.postalCode || "51503",
+                  ]
+                    .filter(Boolean)
+                    .join(" "),
+                ]
+                  .filter(Boolean)
+                  .join(", ")}
+              </div>
+              <div>{billingAddress.country || "United States"}</div>
+              <div>travis@storagematerials.com</div>
+              <div>www.storagematerials.com</div>
+            </div>
+
+            <EditAddressDialog
+              initialValues={billingAddress}
+              title="Edit Address"
+              description="Update the seller address details for this invoice."
+              onDone={(newAddr) => {
+                setValue("billingAddress", newAddr, { shouldDirty: true });
+              }}
+            >
+              <button
+                type="button"
+                className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline cursor-pointer block pt-1 text-left"
+              >
+                Edit address
+              </button>
+            </EditAddressDialog>
           </div>
 
           <div className="flex-1 max-w-2xl flex flex-col gap-6">
-            <div className="flex flex-wrap justify-end gap-3">
-              {clientName ? (
-                <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border border-gray-200 rounded-md opacity-80 cursor-not-allowed w-fit">
-                  <img
-                    src={clientAvatar}
-                    alt={clientName}
-                    className="w-8 h-8 rounded-full object-cover grayscale"
-                  />
-                  <div className="text-sm font-medium text-gray-500">
-                    {clientName}
+            <div className="flex flex-col items-end gap-4">
+              <div className="flex flex-wrap justify-end gap-3">
+                {clientName ? (
+                  <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border border-gray-200 rounded-md opacity-80 cursor-not-allowed w-fit">
+                    <img
+                      src={clientAvatar}
+                      alt={clientName}
+                      className="w-8 h-8 rounded-full object-cover grayscale"
+                    />
+                    <div className="text-sm font-medium text-gray-500">
+                      {clientName}
+                    </div>
                   </div>
+                ) : (
+                  <div className="h-12 w-32 bg-gray-100 animate-pulse rounded-md"></div>
+                )}
+                {errors.clientId && (
+                  <span className="text-red-500 text-xs w-full text-right block mt-1">
+                    Client is required *
+                  </span>
+                )}
+              </div>
+
+              {/* Recipient Address Preview (Clean, Unboxed, Aligned) */}
+              {Boolean(
+                recipientAddress.companyName ||
+                  recipientAddress.line1 ||
+                  recipientAddress.city,
+              ) ? (
+                <div className="w-full max-w-xs space-y-1 text-left self-end pt-1">
+                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
+                    Billed To
+                  </span>
+                  <div className="text-base font-bold text-gray-900 tracking-tight">
+                    {recipientAddress.companyName}
+                  </div>
+
+                  <div className="text-sm text-gray-600 leading-relaxed space-y-0.5">
+                    {recipientAddress.line1 && (
+                      <div>{recipientAddress.line1}</div>
+                    )}
+                    {recipientAddress.line2 && (
+                      <div>{recipientAddress.line2}</div>
+                    )}
+                    {(recipientAddress.city ||
+                      recipientAddress.state ||
+                      recipientAddress.postalCode) && (
+                      <div>
+                        {[
+                          recipientAddress.city,
+                          [
+                            recipientAddress.state,
+                            recipientAddress.postalCode,
+                          ]
+                            .filter(Boolean)
+                            .join(" "),
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </div>
+                    )}
+                    {recipientAddress.country && (
+                      <div>{recipientAddress.country}</div>
+                    )}
+                  </div>
+
+                  <EditAddressDialog
+                    initialValues={recipientAddress}
+                    title="Edit Recipient Address"
+                    description="Update the bill-to / customer address details for this invoice."
+                    onDone={(newAddr) => {
+                      setValue("recipientAddress", newAddr, {
+                        shouldDirty: true,
+                      });
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline cursor-pointer block pt-1 text-left"
+                    >
+                      Edit address
+                    </button>
+                  </EditAddressDialog>
                 </div>
               ) : (
-                <div className="h-12 w-32 bg-gray-100 animate-pulse rounded-md"></div>
-              )}
-              {errors.clientId && (
-                <span className="text-red-500 text-xs w-full text-right block mt-1">
-                  Client is required *
-                </span>
+                <div className="w-full max-w-xs space-y-1 text-left self-end pt-1">
+                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
+                    Billed To
+                  </span>
+                  <div className="text-xs text-gray-400 italic">
+                    No recipient address added
+                  </div>
+                  <EditAddressDialog
+                    initialValues={recipientAddress}
+                    title="Edit Recipient Address"
+                    description="Update the bill-to / customer address details for this invoice."
+                    onDone={(newAddr) => {
+                      setValue("recipientAddress", newAddr, {
+                        shouldDirty: true,
+                      });
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline cursor-pointer block pt-1 text-left"
+                    >
+                      + Edit recipient details
+                    </button>
+                  </EditAddressDialog>
+                </div>
               )}
             </div>
 
@@ -743,7 +1071,81 @@ export default function EditInvoice() {
           </Button>
         </div>
 
-        <div className="mt-12 flex justify-end">
+        <div className="mt-12 flex flex-col lg:flex-row justify-between items-start gap-10">
+          {/* Left: Banking & Wire Info */}
+          <div className="w-full max-w-md bg-white">
+            <div className="flex justify-between items-center pb-2 border-b border-gray-200">
+              <h3 className="text-base font-bold text-gray-900">
+                Banking & Wire Info
+              </h3>
+              <EditBankInfoDialog
+                initialValues={bankDetails}
+                onDone={(newBank) => {
+                  setValue("bankDetails", newBank, { shouldDirty: true });
+                }}
+              >
+                <button
+                  type="button"
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700 hover:underline cursor-pointer"
+                >
+                  Edit
+                </button>
+              </EditBankInfoDialog>
+            </div>
+
+            <div className="py-2.5 space-y-2 text-sm">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500">Bank</span>
+                <span className="font-semibold text-gray-900">
+                  {bankDetails.bankName || "Example Bank"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500">Account Name</span>
+                <span className="font-semibold text-gray-900">
+                  {bankDetails.accountName || "Steel Building Depot LLC"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500">Account #</span>
+                <span className="font-semibold text-gray-900 font-mono">
+                  {bankDetails.accountNumber || "****1234"}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-gray-500">Routing #</span>
+                <span className="font-semibold text-gray-900 font-mono">
+                  {bankDetails.routingNumber || "021000021"}
+                </span>
+              </div>
+              {Boolean(bankDetails.swiftCode) && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">SWIFT</span>
+                  <span className="font-semibold text-gray-900 font-mono">
+                    {bankDetails.swiftCode}
+                  </span>
+                </div>
+              )}
+              {Boolean(bankDetails.iban) && (
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-500">IBAN</span>
+                  <span className="font-semibold text-gray-900 font-mono">
+                    {bankDetails.iban}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 border-t border-gray-200">
+              <p className="text-sm text-gray-500 italic">
+                Memo:{" "}
+                {bankDetails.paymentInstructions ||
+                  "Include invoice number in memo."}
+              </p>
+            </div>
+          </div>
+
+          {/* Right: Totals Summary */}
           <div className="w-full max-w-sm space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">Subtotal</span>

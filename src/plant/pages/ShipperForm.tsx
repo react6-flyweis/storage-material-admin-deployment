@@ -213,7 +213,7 @@ const ShipperForm: React.FC<ShipperFormProps> = ({
                 render={({ field }) => (
                   <div className="flex flex-col gap-2">
                     <label className="text-sm font-semibold text-[#212B36] flex items-center">
-                      Shippers ID (Auto-generated + Editable) <span className="text-red-500 ml-1">*</span>
+                      Shippers ID (Auto-generated + Editable)
                     </label>
                     <Input
                       placeholder="e.g. SHP-2026-10482"

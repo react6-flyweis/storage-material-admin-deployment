@@ -18,7 +18,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import {
   Upload,
   RefreshCcw,
@@ -35,18 +34,28 @@ import {
   Loader2,
 } from "lucide-react";
 import TaxDetailsSheet from "@/components/payments/tax-details-sheet";
+import TaxComplianceBanner from "@/components/payments/tax-compliance-banner";
+import TaxStatusBadge from "@/components/payments/tax-status-badge";
 import StatCardV2 from "@/components/ui/stat-card-v2";
 import DateRangeFilter from "@/components/ui/date-range-filter";
 import {
   useProjectWiseTaxQuery,
   useProjectWiseTaxStatsQuery,
   useExportProjectWiseTaxMutation,
+  useTaxComplianceStatusQuery,
+  useSyncTaxMutation,
 } from "@/modules/payments/payments.hooks";
 import {
   useBudgetVsActualProjectsQuery,
   useExpensesFiltersQuery,
 } from "@/modules/financials/financials.hooks";
-import type { ProjectWiseTaxItem, TaxFilingItem } from "@/modules/payments/payments.api";
+import {
+  getTaxFilingProvider,
+  prepareTaxFilingProvider,
+  type ProjectWiseTaxItem,
+  type TaxFilingItem,
+  type TaxStatusObject,
+} from "@/modules/payments/payments.api";
 
 const AVATAR_COLORS = [
   "bg-blue-900",
@@ -122,9 +131,11 @@ export default function ProjectWiseTax() {
   const [lastSyncedTime, setLastSyncedTime] = useState<Date>(new Date());
 
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [preparingRowId, setPreparingRowId] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<{
     state: string;
-    status: string;
+    status: TaxStatusObject | string;
+    taxRecordId?: string;
     item?: TaxFilingItem;
   } | null>(null);
 
@@ -210,9 +221,14 @@ export default function ProjectWiseTax() {
     refetch: refetchStats,
   } = useProjectWiseTaxStatsQuery(statsParams);
 
+  const complianceQuery = useTaxComplianceStatusQuery();
+  const syncMutation = useSyncTaxMutation();
   const exportMutation = useExportProjectWiseTaxMutation();
 
-  const projects: ProjectWiseTaxItem[] = data?.data?.projects || [];
+  const projects: ProjectWiseTaxItem[] = useMemo(
+    () => data?.data?.projects || [],
+    [data?.data?.projects]
+  );
   const totalItems: number = data?.data?.total || 0;
   const totalPages: number = Math.max(1, Math.ceil(totalItems / limit));
 
@@ -234,8 +250,10 @@ export default function ProjectWiseTax() {
   const fallbackPendingProjects = projects.filter(
     (p) =>
       Number(p.payable) > 0 ||
-      p.status?.toLowerCase().includes("due") ||
-      p.status?.toLowerCase().includes("pending")
+      (typeof p.status === "object"
+        ? p.status.code === "due_soon" || p.status.code === "payment_due"
+        : p.status?.toLowerCase().includes("due") ||
+          p.status?.toLowerCase().includes("pending"))
   );
 
   const finalTaxCollected =
@@ -271,10 +289,15 @@ export default function ProjectWiseTax() {
     statsData?.nextFilingDue?.location ||
     fallbackPendingProjects[0]?.location ||
     fallbackPendingProjects[0]?.projectName ||
-    "No Due";
+    "";
 
   const handleSyncNow = async () => {
-    await Promise.all([refetch(), refetchStats()]);
+    try {
+      await syncMutation.mutateAsync();
+    } catch (err) {
+      console.error("Sync error:", err);
+    }
+    await Promise.all([refetch(), refetchStats(), complianceQuery.refetch()]);
     setLastSyncedTime(new Date());
   };
 
@@ -318,7 +341,7 @@ export default function ProjectWiseTax() {
           p.paidFiled ?? 0,
           p.payable ?? 0,
           `"${formatDateDisplay(p.dueDate)}"`,
-          `"${p.status || ""}"`,
+          `"${typeof p.status === "object" ? p.status.label : p.status || ""}"`,
         ]);
         const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join(
           "\n"
@@ -336,49 +359,116 @@ export default function ProjectWiseTax() {
     }
   };
 
-  const handleOpenSheet = (state: string, status: string, item?: ProjectWiseTaxItem) => {
-    const taxItem: TaxFilingItem | undefined = item
-      ? {
-          _id: item.leadId || "",
-          state: item.location || state,
-          filingFrequency: "monthly",
-          dueDate: item.dueDate || "",
-          amount: item.payable ?? item.taxCollected ?? 0,
-          status: item.status || status,
-          createdAt: "",
-          updatedAt: "",
+  const handlePayTax = async (row: ProjectWiseTaxItem) => {
+    const displayName =
+      row.projectName?.trim() ||
+      row.jobId ||
+      (row.customerName ? `Customer: ${row.customerName}` : "");
+    const loc = row.location || displayName || "Project";
+    let effectiveTaxRecordId = row.taxRecordId;
+    const rowKey =
+      row.taxRecordId ||
+      row.leadId ||
+      row._id ||
+      displayName;
+
+    setPreparingRowId(rowKey);
+
+    if (!effectiveTaxRecordId && row.leadId) {
+      try {
+        const fallbackRes = await getTaxFilingProvider({
+          projectId: row.leadId,
+          limit: 1,
+        });
+        const firstItem =
+          fallbackRes.data?.pendingFiling?.[0] ||
+          fallbackRes.data?.filingHistory?.[0];
+        if (firstItem?._id) {
+          effectiveTaxRecordId = firstItem._id;
         }
-      : undefined;
-    setSelectedProject({ state, status, item: taxItem });
+      } catch (err) {
+        console.error("Failed to fetch taxRecordId fallback for project payment:", err);
+      }
+    }
+
+    if (effectiveTaxRecordId) {
+      try {
+        await prepareTaxFilingProvider(effectiveTaxRecordId);
+      } catch (err) {
+        console.warn("Prepare filing notice:", err);
+      }
+    }
+    setPreparingRowId(null);
+
+    const taxItem: TaxFilingItem = {
+      _id: effectiveTaxRecordId || row.leadId || "",
+      state: loc,
+      filingFrequency: "monthly",
+      dueDate: row.dueDate || "",
+      taxDue: Number(row.payable) || Number(row.taxCollected) || 0,
+      payable: Number(row.payable) || 0,
+      status: row.status,
+      salesTaxRateLabel: row.salesTaxRateLabel,
+      projectName: row.projectName,
+      jobId: row.jobId,
+      customerName: row.customerName,
+      leadId: row.leadId,
+    };
+    setSelectedProject({
+      state: loc,
+      status: row.status,
+      taxRecordId: effectiveTaxRecordId,
+      item: taxItem,
+    });
     setIsSheetOpen(true);
   };
 
-  const getStatusBadge = (status: string) => {
-    const normalized = (status || "").trim().toLowerCase();
-    switch (normalized) {
-      case "payment due":
-      case "due":
-        return (
-          <Badge className="bg-orange-400 hover:bg-orange-500 text-white font-normal rounded-sm">
-            Payment Due
-          </Badge>
-        );
-      case "filed":
-        return (
-          <Badge className="bg-cyan-500 hover:bg-cyan-600 text-white font-normal rounded-sm px-3">
-            Filed
-          </Badge>
-        );
-      case "no due":
-      case "paid":
-        return (
-          <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-normal rounded-sm">
-            {status || "No Due"}
-          </Badge>
-        );
-      default:
-        return <Badge className="font-normal rounded-sm">{status}</Badge>;
+  const handleOpenSheet = async (row: ProjectWiseTaxItem) => {
+    const displayName =
+      row.projectName?.trim() ||
+      row.jobId ||
+      (row.customerName ? `Customer: ${row.customerName}` : "");
+    const loc = row.location || displayName || "Project";
+    let effectiveTaxRecordId = row.taxRecordId;
+
+    if (!effectiveTaxRecordId && row.leadId) {
+      try {
+        const fallbackRes = await getTaxFilingProvider({
+          projectId: row.leadId,
+          limit: 1,
+        });
+        const firstItem =
+          fallbackRes.data?.pendingFiling?.[0] ||
+          fallbackRes.data?.filingHistory?.[0];
+        if (firstItem?._id) {
+          effectiveTaxRecordId = firstItem._id;
+        }
+      } catch (err) {
+        console.error("Failed to fetch taxRecordId fallback for project:", err);
+      }
     }
+
+    const taxItem: TaxFilingItem = {
+      _id: effectiveTaxRecordId || row.leadId || "",
+      state: loc,
+      filingFrequency: "monthly",
+      dueDate: row.dueDate || "",
+      taxDue: Number(row.payable) || Number(row.taxCollected) || 0,
+      payable: Number(row.payable) || 0,
+      status: row.status,
+      salesTaxRateLabel: row.salesTaxRateLabel,
+      projectName: row.projectName,
+      jobId: row.jobId,
+      customerName: row.customerName,
+      leadId: row.leadId,
+    };
+    setSelectedProject({
+      state: loc,
+      status: row.status,
+      taxRecordId: effectiveTaxRecordId,
+      item: taxItem,
+    });
+    setIsSheetOpen(true);
   };
 
   const getPageNumbers = () => {
@@ -399,7 +489,12 @@ export default function ProjectWiseTax() {
 
   const startRecordIndex = totalItems === 0 ? 0 : (page - 1) * limit + 1;
   const endRecordIndex = Math.min(page * limit, totalItems);
-  const isSyncing = isFetching || isStatsFetching;
+  const lastSyncedDateVal =
+    data?.data?.meta?.lastSyncedAt || complianceQuery.data?.data?.lastSyncedAt;
+  const lastSyncedDisplay = lastSyncedDateVal
+    ? format(new Date(lastSyncedDateVal), "MMM dd, yyyy HH:mm")
+    : format(lastSyncedTime, "MMM dd, yyyy HH:mm");
+  const isSyncing = isFetching || isStatsFetching || syncMutation.isPending;
 
   return (
     <div className="p-5 space-y-6">
@@ -427,6 +522,12 @@ export default function ProjectWiseTax() {
           Export
         </Button>
       </div>
+
+      {/* Compliance banner */}
+      <TaxComplianceBanner
+        onSync={handleSyncNow}
+        isSyncing={syncMutation.isPending}
+      />
 
       <Card className="p-4 flex flex-col md:flex-row md:items-end justify-between gap-4 border-none shadow-sm">
         <div className="flex flex-wrap gap-4">
@@ -470,8 +571,12 @@ export default function ProjectWiseTax() {
 
         <div className="flex items-center gap-4">
           <div className="text-sm text-gray-500 flex items-center gap-2">
-            Last Synced: {format(lastSyncedTime, "MMM dd, yyyy HH:mm")}{" "}
-            <span className="text-emerald-500">Synced</span>
+            Last Synced: {lastSyncedDisplay}{" "}
+            <span className="text-emerald-500">
+              {data?.data?.meta?.syncState ||
+                complianceQuery.data?.data?.syncState ||
+                "Synced"}
+            </span>
           </div>
           <Button
             variant="outline"
@@ -553,9 +658,11 @@ export default function ProjectWiseTax() {
           title="Next Filing Due"
           value={<span className="text-xl font-bold">{nextDueDateDisplay}</span>}
           subtitle={
-            <span className="text-emerald-500 text-sm flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" /> {nextDueLocationDisplay}
-            </span>
+            nextDueLocationDisplay ? (
+              <span className="text-emerald-500 text-sm flex items-center gap-1">
+                <TrendingUp className="w-3 h-3" /> {nextDueLocationDisplay}
+              </span>
+            ) : undefined
           }
           icon={
             <div className="flex items-center justify-center p-1.5 rounded-md border border-purple-200 text-purple-600">
@@ -634,14 +741,13 @@ export default function ProjectWiseTax() {
                 const displayName =
                   row.projectName?.trim() ||
                   row.jobId ||
-                  row.customerName ||
-                  "Unnamed Project";
-                const initialLetter = displayName.charAt(0).toUpperCase();
+                  (row.customerName ? `Customer: ${row.customerName}` : "-");
+                const initialLetter = (displayName || "P").charAt(0).toUpperCase();
 
                 const secondaryInfo = [
-                  row.jobId,
-                  row.location ||
-                    (row.customerName ? `Customer: ${row.customerName}` : null),
+                  row.jobId && row.projectName ? row.jobId : null,
+                  row.location,
+                  row.customerName && !row.projectName ? null : row.customerName ? `Customer: ${row.customerName}` : null,
                 ]
                   .filter(Boolean)
                   .join(" • ");
@@ -669,6 +775,9 @@ export default function ProjectWiseTax() {
                           </span>
                           <span className="text-xs text-gray-500">
                             {secondaryInfo || "-"}
+                            {row.salesTaxRateLabel
+                              ? ` • ${row.salesTaxRateLabel}`
+                              : ""}
                           </span>
                         </div>
                       </div>
@@ -695,34 +804,80 @@ export default function ProjectWiseTax() {
                       {formatDateDisplay(row.dueDate)}
                     </TableCell>
                     <TableCell className="py-4">
-                      {getStatusBadge(row.status)}
+                      <TaxStatusBadge status={row.status} />
                     </TableCell>
                     <TableCell className="py-4">
-                      {row.status?.toLowerCase().includes("due") ||
-                      (row.payable || 0) > 0 ? (
+                      {row.showPayTax !== undefined ? (
+                        row.showPayTax ? (
+                          <Button
+                            disabled={
+                              preparingRowId ===
+                              (row.taxRecordId ||
+                                row.leadId ||
+                                row._id ||
+                                (row.projectName?.trim() || row.jobId || ""))
+                            }
+                            className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs font-medium px-6 cursor-pointer"
+                            onClick={() => handlePayTax(row)}
+                          >
+                            {preparingRowId ===
+                            (row.taxRecordId ||
+                              row.leadId ||
+                              row._id ||
+                              (row.projectName?.trim() || row.jobId || "")) ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                                Preparing...
+                              </>
+                            ) : (
+                              "Pay Tax"
+                            )}
+                          </Button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="text-sm font-medium text-blue-600 hover:text-blue-800 px-2 cursor-pointer"
+                            onClick={() => handleOpenSheet(row)}
+                          >
+                            View Details
+                          </button>
+                        )
+                      ) : (row.payable || 0) > 0 ||
+                        (typeof row.status === "object"
+                          ? row.status?.code === "due_soon" ||
+                            row.status?.code === "payment_due"
+                          : String(row.status || "")
+                              .toLowerCase()
+                              .includes("due")) ? (
                         <Button
-                          className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs font-medium px-6 cursor-pointer"
-                          onClick={() =>
-                            handleOpenSheet(
-                              row.location || displayName,
-                              row.status,
-                              row
-                            )
+                          disabled={
+                            preparingRowId ===
+                            (row.taxRecordId ||
+                              row.leadId ||
+                              row._id ||
+                              (row.projectName?.trim() || row.jobId || ""))
                           }
+                          className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs font-medium px-6 cursor-pointer"
+                          onClick={() => handlePayTax(row)}
                         >
-                          Pay Tax
+                          {preparingRowId ===
+                          (row.taxRecordId ||
+                            row.leadId ||
+                            row._id ||
+                            (row.projectName?.trim() || row.jobId || "")) ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                              Preparing...
+                            </>
+                          ) : (
+                            "Pay Tax"
+                          )}
                         </Button>
                       ) : (
                         <button
                           type="button"
                           className="text-sm font-medium text-blue-600 hover:text-blue-800 px-2 cursor-pointer"
-                          onClick={() =>
-                            handleOpenSheet(
-                              row.location || displayName,
-                              row.status,
-                              row
-                            )
-                          }
+                          onClick={() => handleOpenSheet(row)}
                         >
                           View Details
                         </button>
@@ -741,6 +896,7 @@ export default function ProjectWiseTax() {
             status={selectedProject.status}
             isOpen={isSheetOpen}
             onOpenChange={setIsSheetOpen}
+            taxRecordId={selectedProject.taxRecordId}
             item={selectedProject.item}
           />
         )}

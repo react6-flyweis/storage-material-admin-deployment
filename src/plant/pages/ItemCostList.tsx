@@ -453,8 +453,13 @@ export default function ItemCostList() {
 
       <AddEditPartCostModal
         isOpen={isAddEditOpen}
-        onClose={() => setIsAddEditOpen(false)}
+        onClose={() => {
+          setIsAddEditOpen(false);
+          setEditingItem(null);
+        }}
         initialData={editingItem}
+        itemId={editingItem?._id}
+        categories={categories}
       />
 
     </div>

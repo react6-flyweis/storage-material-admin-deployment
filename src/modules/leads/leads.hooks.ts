@@ -22,9 +22,19 @@ import {
   getActivityLogProvider,
   getLeadBudgetProvider,
   updateLeadBudgetProvider,
+  updateLeadBudgetCategoryProvider,
+  addLeadBudgetCustomLineProvider,
+  updateLeadBudgetCustomLineProvider,
+  deleteLeadBudgetCustomLineProvider,
   getLeadTimelineProvider,
   type GetActivityLogParams,
   type LeadBudgetPayload,
+  type CustomBudgetLine,
+  type PlanningCard,
+  type LeadBudgetData,
+  type UpdateLeadBudgetCategoryPayload,
+  type AddCustomLinePayload,
+  type UpdateCustomLinePayload,
   terminateLeadProvider,
   type TerminateLeadPayload,
   deleteLeadProvider,
@@ -33,7 +43,21 @@ import {
   uploadLeadDocumentProvider,
   getAdminLeadsProvider,
   getLeadsStatsProvider,
+  getArchivedLeadsProvider,
+  archiveLeadProvider,
+  unarchiveLeadProvider,
+  type GetArchivedLeadsParams,
 } from "./leads.api";
+
+export type {
+  CustomBudgetLine,
+  LeadBudgetPayload,
+  PlanningCard,
+  LeadBudgetData,
+  UpdateLeadBudgetCategoryPayload,
+  AddCustomLinePayload,
+  UpdateCustomLinePayload,
+};
 
 type EscalationStatus = "pending" | "assigned" | "resolved";
 
@@ -51,6 +75,9 @@ type EscalationEmployee = {
 type EscalationLead = {
   _id: string;
   customerId?: EscalationCustomer | string | null;
+  projectName?: string;
+  businessUnit?: string | null;
+  businessUnitLabel?: string;
   buildingType?: string;
   location?: string;
   assignedSales?: string | EscalationEmployee | null;
@@ -149,6 +176,7 @@ export function useLeadsQuery(
     customerId?: string;
     search?: string;
     lifecycleStatus?: string;
+    businessUnit?: string;
   }
 ) {
   return useQuery({
@@ -361,10 +389,15 @@ export function useLeadImport() {
   };
 }
 
-export function useTerminatedLeadsQuery(page = 1, limit = 20, search?: string) {
+export function useTerminatedLeadsQuery(
+  page = 1,
+  limit = 20,
+  search?: string,
+  businessUnit?: string,
+) {
   return useQuery({
-    queryKey: ["leads", "terminated", page, limit, search],
-    queryFn: () => getTerminatedLeadsProvider(page, limit, search),
+    queryKey: ["leads", "terminated", page, limit, search, businessUnit],
+    queryFn: () => getTerminatedLeadsProvider(page, limit, search, businessUnit),
     staleTime: 60 * 1000,
   });
 }
@@ -407,6 +440,7 @@ export function useLeadScoringQuery(
     endDate?: string;
     status?: string;
     client?: string;
+    businessUnit?: string;
   }
 ) {
   return useQuery({
@@ -471,6 +505,79 @@ export function useUpdateLeadBudgetMutation() {
       updateLeadBudgetProvider(leadId, payload),
     onSuccess: (_, { leadId }) => {
       void queryClient.invalidateQueries({ queryKey: ["leads", "budget", leadId] });
+      void queryClient.invalidateQueries({ queryKey: ["leads", "detail", leadId] });
+    },
+  });
+}
+
+export function useUpdateLeadBudgetCategoryMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      leadId,
+      categoryKey,
+      payload,
+    }: {
+      leadId: string;
+      categoryKey: string;
+      payload: UpdateLeadBudgetCategoryPayload;
+    }) => updateLeadBudgetCategoryProvider(leadId, categoryKey, payload),
+    onSuccess: (_, { leadId }) => {
+      void queryClient.invalidateQueries({ queryKey: ["leads", "budget", leadId] });
+      void queryClient.invalidateQueries({ queryKey: ["leads", "detail", leadId] });
+    },
+  });
+}
+
+export function useAddLeadBudgetCustomLineMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      leadId,
+      payload,
+    }: {
+      leadId: string;
+      payload: AddCustomLinePayload;
+    }) => addLeadBudgetCustomLineProvider(leadId, payload),
+    onSuccess: (_, { leadId }) => {
+      void queryClient.invalidateQueries({ queryKey: ["leads", "budget", leadId] });
+      void queryClient.invalidateQueries({ queryKey: ["leads", "detail", leadId] });
+    },
+  });
+}
+
+export function useUpdateLeadBudgetCustomLineMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      leadId,
+      lineKey,
+      payload,
+    }: {
+      leadId: string;
+      lineKey: string;
+      payload: UpdateCustomLinePayload;
+    }) => updateLeadBudgetCustomLineProvider(leadId, lineKey, payload),
+    onSuccess: (_, { leadId }) => {
+      void queryClient.invalidateQueries({ queryKey: ["leads", "budget", leadId] });
+      void queryClient.invalidateQueries({ queryKey: ["leads", "detail", leadId] });
+    },
+  });
+}
+
+export function useDeleteLeadBudgetCustomLineMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      leadId,
+      lineKey,
+    }: {
+      leadId: string;
+      lineKey: string;
+    }) => deleteLeadBudgetCustomLineProvider(leadId, lineKey),
+    onSuccess: (_, { leadId }) => {
+      void queryClient.invalidateQueries({ queryKey: ["leads", "budget", leadId] });
+      void queryClient.invalidateQueries({ queryKey: ["leads", "detail", leadId] });
     },
   });
 }
@@ -553,11 +660,77 @@ type LeadsAdminListResponse = {
   [key: string]: unknown;
 };
 
-export function useAdminLeadsQuery(filters: Record<string, unknown>) {
+export function useAdminLeadsQuery(
+  filters: Record<string, unknown>,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: ["leads", "admin", "list", filters],
     queryFn: () => getAdminLeadsProvider(filters),
     staleTime: 60 * 1000,
+    enabled: options?.enabled ?? true,
+  });
+}
+
+// Query hook for archived leads
+export function useArchivedLeadsQuery(
+  params: GetArchivedLeadsParams,
+  options?: { enabled?: boolean },
+) {
+  return useQuery({
+    queryKey: ["leads", "archived", params],
+    queryFn: () => getArchivedLeadsProvider(params),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+// Mutation hook to archive lead
+export function useArchiveLeadMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ leadId, reason }: { leadId: string; reason?: string }) =>
+      archiveLeadProvider(leadId, { reason }),
+    onSuccess: (response, variables) => {
+      if (!response.success) return;
+
+      void queryClient.invalidateQueries({ queryKey: ["leads"] });
+      void queryClient.invalidateQueries({ queryKey: ["lead"] });
+      void queryClient.invalidateQueries({ queryKey: ["sales", "leads"] });
+      if (variables?.leadId) {
+        void queryClient.invalidateQueries({
+          queryKey: ["leads", "detail", variables.leadId],
+        });
+        void queryClient.invalidateQueries({
+          queryKey: ["lead", "detail", variables.leadId],
+        });
+      }
+    },
+  });
+}
+
+// Mutation hook to unarchive/restore lead
+export function useUnarchiveLeadMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ leadId }: { leadId: string }) =>
+      unarchiveLeadProvider(leadId),
+    onSuccess: (response, variables) => {
+      if (!response.success) return;
+
+      void queryClient.invalidateQueries({ queryKey: ["leads"] });
+      void queryClient.invalidateQueries({ queryKey: ["lead"] });
+      void queryClient.invalidateQueries({ queryKey: ["sales", "leads"] });
+      if (variables?.leadId) {
+        void queryClient.invalidateQueries({
+          queryKey: ["leads", "detail", variables.leadId],
+        });
+        void queryClient.invalidateQueries({
+          queryKey: ["lead", "detail", variables.leadId],
+        });
+      }
+    },
   });
 }
 

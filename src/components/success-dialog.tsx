@@ -14,6 +14,7 @@ type SuccessDialogProps = {
   open: boolean;
   onClose: () => void;
   title?: string;
+  description?: string;
   okLabel?: string;
   actionLabel?: string;
   onAction?: () => void;
@@ -24,6 +25,7 @@ export default function SuccessDialog({
   open,
   onClose,
   title = "Success!",
+  description,
   okLabel = "Ok",
   actionLabel,
   onAction,
@@ -33,9 +35,12 @@ export default function SuccessDialog({
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
       <DialogContent className="w-full max-w-md rounded-2xl p-8 text-center shadow-lg">
         <DialogHeader>
-          <DialogTitle className="mx-auto mb-6 max-w-xs text-2xl font-semibold leading-tight text-slate-900">
+          <DialogTitle className="mx-auto mb-2 max-w-xs text-2xl font-semibold leading-tight text-slate-900">
             {title}
           </DialogTitle>
+          {description && (
+            <p className="text-sm text-slate-500 mb-2">{description}</p>
+          )}
         </DialogHeader>
 
         {icon ? (

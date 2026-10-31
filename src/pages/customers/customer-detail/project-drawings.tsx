@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import {
   ArrowLeft,
   ArrowDown,
@@ -30,7 +31,12 @@ import { downloadFile } from "@/lib/utils";
 function mapStatusString(rawStatus?: string): string {
   const s = rawStatus ? rawStatus.toLowerCase() : "";
   if (s.includes("approved")) return "Approved";
-  if (s.includes("revision") || s.includes("required") || s.includes("rejected")) return "Revision Requested";
+  if (
+    s.includes("revision") ||
+    s.includes("required") ||
+    s.includes("rejected")
+  )
+    return "Revision Requested";
   if (s.includes("pending")) return "Pending Review";
   return rawStatus || "Pending Review";
 }
@@ -54,7 +60,11 @@ const mapStatusInfo = (status: string) => {
       badgeClass: "bg-[#DCFCE7] text-[#16A34A] border-[#BBF7D0]",
     };
   }
-  if (s.includes("revision") || s.includes("required") || s.includes("rejected")) {
+  if (
+    s.includes("revision") ||
+    s.includes("required") ||
+    s.includes("rejected")
+  ) {
     return {
       text: "Revision Requested",
       value: "revision-requested",
@@ -68,9 +78,27 @@ const mapStatusInfo = (status: string) => {
   };
 };
 
-const isPhotoFile = (fileName: string) => {
-  const ext = fileName ? fileName.split(".").pop()?.toLowerCase() : "";
-  return ["png", "jpg", "jpeg", "webp", "gif", "svg"].includes(ext || "");
+const isPhotoFile = (fileName?: string, url?: string) => {
+  const getExt = (val?: string) => {
+    if (!val) return "";
+    const clean = val.split("?")[0].split("#")[0];
+    return clean.split(".").pop()?.toLowerCase() || "";
+  };
+  const extName = getExt(fileName);
+  const extUrl = getExt(url);
+  const imageExts = ["png", "jpg", "jpeg", "webp", "gif", "svg"];
+  return imageExts.includes(extName) || imageExts.includes(extUrl);
+};
+
+const isPdfFile = (fileName?: string, url?: string) => {
+  const getExt = (val?: string) => {
+    if (!val) return "";
+    const clean = val.split("?")[0].split("#")[0];
+    return clean.split(".").pop()?.toLowerCase() || "";
+  };
+  const extName = getExt(fileName);
+  const extUrl = getExt(url);
+  return extName === "pdf" || extUrl === "pdf";
 };
 
 // --- Sub-Components ---
@@ -79,8 +107,11 @@ const FileCard: React.FC<{
   file: DrawingFile;
   onView: (file: DrawingFile) => void;
   type?: "drawing" | "photo";
-}> = ({ file, onView, type = "drawing" }) => {
+}> = ({ file, onView }) => {
   const statusInfo = mapStatusInfo(file.status);
+  const isImage = isPhotoFile(file.name, file.imageUrl);
+  const isPdf = isPdfFile(file.name, file.imageUrl);
+  const [imgError, setImgError] = useState(false);
 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs relative transition-all hover:shadow-md flex items-center">
@@ -96,13 +127,22 @@ const FileCard: React.FC<{
       <div className="flex items-center gap-4 w-full">
         {/* Thumbnail / Icon */}
         <div className="shrink-0">
-          {type === "photo" ? (
+          {isImage && !imgError ? (
             <div className="w-12 h-12 rounded-lg overflow-hidden border border-slate-100 bg-slate-50">
               <img
                 src={file.imageUrl}
                 alt={file.name}
+                crossOrigin="anonymous"
+                onError={() => setImgError(true)}
                 className="w-full h-full object-cover"
               />
+            </div>
+          ) : isPdf ? (
+            <div className="w-10 h-10 rounded-lg bg-red-50 border border-red-100 flex flex-col items-center justify-center text-red-600">
+              <FileText className="w-5 h-5 text-red-500" />
+              <span className="text-[8px] font-bold tracking-tight text-red-600 uppercase leading-none mt-0.5">
+                PDF
+              </span>
             </div>
           ) : (
             <div className="w-10 h-10 rounded-lg bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1D51A4]">
@@ -127,16 +167,18 @@ const FileCard: React.FC<{
         {/* Actions */}
         <div className="flex items-center gap-2 shrink-0">
           <button
+            type="button"
             onClick={() => downloadFile(file.imageUrl, file.name)}
             title="Download"
-            className="p-1.5 hover:bg-slate-100 text-slate-600 rounded-full transition-colors"
+            className="p-1.5 hover:bg-slate-100 text-slate-600 rounded-full transition-colors cursor-pointer"
           >
             <ArrowDown className="w-4 h-4" />
           </button>
           <button
+            type="button"
             onClick={() => onView(file)}
             title="View Details"
-            className="p-1.5 hover:bg-blue-50 text-[#1D51A4] rounded-full transition-colors"
+            className="p-1.5 hover:bg-blue-50 text-[#1D51A4] rounded-full transition-colors cursor-pointer"
           >
             <Eye className="w-4 h-4" />
           </button>
@@ -149,26 +191,37 @@ const FileCard: React.FC<{
 // --- Main Page Component ---
 
 export default function ProjectDrawingsPage() {
-  const navigate = useNavigate();
   const { id, projectId } = useParams<{ id?: string; projectId?: string }>();
 
-  const cusotmerId = id || ""
-  const leadId = projectId || ""
-
+  const cusotmerId = id || "";
+  const leadId = projectId || "";
+  const defaultFallback =
+    cusotmerId && leadId
+      ? `/customers/${cusotmerId}/project-details/${leadId}`
+      : "/customers";
+  const { goBack } = useAppBack(defaultFallback);
 
   const { data: leadData } = useLeadDetailQuery(leadId);
-  const { data: drawingsApiData, isLoading: isDrawingsLoading } = useGetProjectDrawingsQuery(leadId, Boolean(leadId));
+  const { data: drawingsApiData, isLoading: isDrawingsLoading } =
+    useGetProjectDrawingsQuery(leadId, Boolean(leadId));
   const { data: projectDetailData } = useGetPlantProjectDetailQuery(leadId);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeStatus, setActiveStatus] = useState("all");
-  const [localBuildingGroups, setLocalBuildingGroups] = useState<BuildingDrawingsGroup[]>([]);
+  const [localBuildingGroups, setLocalBuildingGroups] = useState<
+    BuildingDrawingsGroup[]
+  >([]);
 
-  const [selectedDrawing, setSelectedDrawing] = useState<DrawingFile | null>(null);
+  const [selectedDrawing, setSelectedDrawing] = useState<DrawingFile | null>(
+    null,
+  );
   const [isViewDrawingOpen, setIsViewDrawingOpen] = useState(false);
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
-  const projectName = projectDetailData?.lead?.projectName || leadData?.data?.lead?.projectName || "Project";
+  const projectName =
+    projectDetailData?.lead?.projectName ||
+    leadData?.data?.lead?.projectName ||
+    "Project";
 
   // Compute building groups combining API drawings data when available
   const buildingGroups: BuildingDrawingsGroup[] = useMemo(() => {
@@ -182,8 +235,12 @@ export default function ProjectDrawingsPage() {
           const latestComment =
             commentsList.length > 0
               ? [...commentsList].sort((a, b) => {
-                  const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                  const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                  const dateA = a.createdAt
+                    ? new Date(a.createdAt).getTime()
+                    : 0;
+                  const dateB = b.createdAt
+                    ? new Date(b.createdAt).getTime()
+                    : 0;
                   return dateB - dateA;
                 })[0]?.text
               : undefined;
@@ -193,9 +250,17 @@ export default function ProjectDrawingsPage() {
             name: d.fileName || `Building ${b.buildingNumber} Drawing`,
             size: `v${d.versionNumber || 1} • ${d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString() : "PDF"}`,
             status: mapStatusString(d.status),
-            imageUrl: d.fileUrl || "https://placehold.co/800x600/E2E8F0/1E51A4?text=Drawing+Preview",
+            imageUrl:
+              d.fileUrl ||
+              "https://placehold.co/800x600/E2E8F0/1E51A4?text=Drawing+Preview",
             uploadedBy: "Plant Admin",
-            receivedDate: d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Recent",
+            receivedDate: d.uploadedAt
+              ? new Date(d.uploadedAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : "Recent",
             location: `Building ${b.buildingNumber}`,
             rejectionReason: d.rejectionReason,
             comments: commentsList,
@@ -205,7 +270,7 @@ export default function ProjectDrawingsPage() {
               (d as any).suggestions,
           };
 
-          if (isPhotoFile(d.fileName || "")) {
+          if (isPhotoFile(d.fileName, d.fileUrl)) {
             photosList.push(fileObj);
           } else {
             drawingsList.push(fileObj);
@@ -240,7 +305,8 @@ export default function ProjectDrawingsPage() {
           f.status?.toLowerCase().includes("revision") ||
           f.status?.toLowerCase().includes("required") ||
           f.status?.toLowerCase().includes("rejected")
-        ) revision++;
+        )
+          revision++;
       });
     });
 
@@ -284,22 +350,30 @@ export default function ProjectDrawingsPage() {
   const handleUpdateDrawingStatus = (
     drawingId: string,
     newStatus: DrawingFile["status"],
-    comment?: string
+    comment?: string,
   ) => {
     setLocalBuildingGroups((prev: BuildingDrawingsGroup[]) =>
       prev.map((group: BuildingDrawingsGroup) => ({
         ...group,
         drawings: group.drawings.map((d: DrawingFile) =>
           d.id === drawingId
-            ? { ...d, status: newStatus, rejectionReason: comment || d.rejectionReason }
-            : d
+            ? {
+                ...d,
+                status: newStatus,
+                rejectionReason: comment || d.rejectionReason,
+              }
+            : d,
         ),
         photos: group.photos.map((p: DrawingFile) =>
           p.id === drawingId
-            ? { ...p, status: newStatus, rejectionReason: comment || p.rejectionReason }
-            : p
+            ? {
+                ...p,
+                status: newStatus,
+                rejectionReason: comment || p.rejectionReason,
+              }
+            : p,
         ),
-      }))
+      })),
     );
   };
 
@@ -307,7 +381,9 @@ export default function ProjectDrawingsPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
         <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#1D51A4]"></div>
-        <p className="text-slate-500 font-medium text-sm font-sans">Loading drawings...</p>
+        <p className="text-slate-500 font-medium text-sm font-sans">
+          Loading drawings...
+        </p>
       </div>
     );
   }
@@ -319,7 +395,7 @@ export default function ProjectDrawingsPage() {
         <div className="flex items-center gap-4">
           <Button
             variant="default"
-            onClick={() => navigate(`/customers/${cusotmerId}/project-details/${leadId}`)}
+            onClick={() => goBack()}
             className="bg-[#3B82F6] hover:bg-[#3B82F6]/90 text-white rounded-md px-4 py-2"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -360,7 +436,10 @@ export default function ProjectDrawingsPage() {
       <Card className="rounded-xl border border-slate-200 shadow-xs">
         <CardContent className=" flex flex-wrap items-center justify-between gap-4">
           <div className="relative w-full sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              size={18}
+            />
             <Input
               type="text"
               placeholder="Search drawings or photos..."
@@ -371,7 +450,9 @@ export default function ProjectDrawingsPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Status:</span>
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Status:
+            </span>
             {[
               { label: "All Status", value: "all" },
               { label: "Approved", value: "approved" },
@@ -381,10 +462,11 @@ export default function ProjectDrawingsPage() {
               <button
                 key={option.value}
                 onClick={() => setActiveStatus(option.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${activeStatus === option.value
-                  ? "bg-[#1D51A4] text-white shadow-xs"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  activeStatus === option.value
+                    ? "bg-[#1D51A4] text-white shadow-xs"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
               >
                 {option.label}
               </button>
@@ -399,15 +481,24 @@ export default function ProjectDrawingsPage() {
           const allFiles = [...building.drawings, ...building.photos];
           const filteredFiles = allFiles.filter((file) => {
             const statusInfo = mapStatusInfo(file.status);
-            const matchesStatus = activeStatus === "all" || statusInfo.value === activeStatus;
-            const matchesSearch = file.name.toLowerCase().includes(searchTerm.toLowerCase());
+            const matchesStatus =
+              activeStatus === "all" || statusInfo.value === activeStatus;
+            const matchesSearch = file.name
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase());
             return matchesStatus && matchesSearch;
           });
 
-          const filteredDrawings = filteredFiles.filter((f) => !isPhotoFile(f.name));
-          const filteredPhotos = filteredFiles.filter((f) => isPhotoFile(f.name));
+          const filteredDrawings = filteredFiles.filter(
+            (f) => !isPhotoFile(f.name),
+          );
+          const filteredPhotos = filteredFiles.filter((f) =>
+            isPhotoFile(f.name),
+          );
 
-          const buildingBadge = mapStatusInfo(building.latestDrawingStatus || "Pending Review");
+          const buildingBadge = mapStatusInfo(
+            building.latestDrawingStatus || "Pending Review",
+          );
 
           return (
             <Card key={building.buildingId} className="pt-0">
@@ -420,7 +511,9 @@ export default function ProjectDrawingsPage() {
                   <h3 className="text-lg font-bold text-slate-900">
                     Building {building.buildingNumber}
                   </h3>
-                  <span className={`px-3 py-0.5 rounded-full text-xs font-medium border ${buildingBadge.badgeClass}`}>
+                  <span
+                    className={`px-3 py-0.5 rounded-full text-xs font-medium border ${buildingBadge.badgeClass}`}
+                  >
                     {buildingBadge.text}
                   </span>
                 </div>
@@ -430,7 +523,8 @@ export default function ProjectDrawingsPage() {
               <CardContent className="space-y-6">
                 {filteredFiles.length === 0 ? (
                   <div className="text-center py-8 text-sm text-slate-400 font-medium bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
-                    No drawings or photos match the current criteria for Building {building.buildingNumber}.
+                    No drawings or photos match the current criteria for
+                    Building {building.buildingNumber}.
                   </div>
                 ) : (
                   <>
@@ -442,7 +536,12 @@ export default function ProjectDrawingsPage() {
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           {filteredDrawings.map((file) => (
-                            <FileCard key={file.id} file={file} onView={handleOpenDrawing} type="drawing" />
+                            <FileCard
+                              key={file.id}
+                              file={file}
+                              onView={handleOpenDrawing}
+                              type="drawing"
+                            />
                           ))}
                         </div>
                       </div>
@@ -456,7 +555,12 @@ export default function ProjectDrawingsPage() {
                         </h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                           {filteredPhotos.map((file) => (
-                            <FileCard key={file.id} file={file} onView={handleOpenDrawing} type="photo" />
+                            <FileCard
+                              key={file.id}
+                              file={file}
+                              onView={handleOpenDrawing}
+                              type="photo"
+                            />
                           ))}
                         </div>
                       </div>
@@ -505,4 +609,3 @@ export default function ProjectDrawingsPage() {
     </div>
   );
 }
-

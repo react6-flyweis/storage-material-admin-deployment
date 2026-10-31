@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -78,7 +78,7 @@ import { cn } from "@/lib/utils";
 // ];
 
 export default function SalesTaxReporting() {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack("/");
   const [reportPeriod, setReportPeriod] = useState("this-month");
   const [stateFilter, setStateFilter] = useState("all");
   const [reportType, setReportType] = useState("monthly");
@@ -151,7 +151,7 @@ export default function SalesTaxReporting() {
           <Button
             variant="default"
             size="default"
-            onClick={() => navigate('/')}
+            onClick={() => goBack()}
             className="gap-3 px-4"
           >
             <ArrowLeft className="w-4 h-4" />

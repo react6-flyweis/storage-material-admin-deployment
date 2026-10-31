@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { format } from "date-fns";
+import { format, isValid } from "date-fns";
 import type { DateRange as RDateRange } from "react-day-picker";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,12 +17,15 @@ import {
   Handbag,
   Hourglass,
   Search,
-  RefreshCcw,
+  RefreshCw,
+  TrendingUp,
+  TrendingDown,
 } from "lucide-react";
 import StatCardV2 from "@/components/ui/stat-card-v2";
 import DateRangeFilter from "@/components/ui/date-range-filter";
 import SuccessDialog from "@/components/success-dialog";
 import TaxDetailsSheet from "@/components/payments/tax-details-sheet";
+import TaxComplianceBanner from "@/components/payments/tax-compliance-banner";
 import {
   FilingHistoryTab,
   PendingFilingTab,
@@ -30,9 +33,16 @@ import {
 import {
   useTaxFilingFiltersQuery,
   useTaxFilingQuery,
+  useTaxFilingStatsQuery,
   useExportTaxFilingMutation,
+  useTaxComplianceStatusQuery,
+  useSyncTaxMutation,
 } from "@/modules/payments/payments.hooks";
-import type { TaxFilingItem } from "@/modules/payments/payments.api";
+import {
+  downloadTaxFilingReceiptPdfProvider,
+  prepareTaxFilingProvider,
+  type TaxFilingItem,
+} from "@/modules/payments/payments.api";
 
 function formatCurrency(val?: number | null) {
   if (val === undefined || val === null || isNaN(val)) return "-";
@@ -41,6 +51,17 @@ function formatCurrency(val?: number | null) {
     currency: "USD",
     maximumFractionDigits: 2,
   }).format(val);
+}
+
+function formatDate(dateStr?: string | null, pattern: string = "MMM dd, yyyy HH:mm") {
+  if (!dateStr) return "-";
+  try {
+    const d = new Date(dateStr);
+    if (!isValid(d)) return dateStr;
+    return format(d, pattern);
+  } catch {
+    return dateStr;
+  }
 }
 
 export default function SalesTaxFiling() {
@@ -60,7 +81,12 @@ export default function SalesTaxFiling() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [selectedTaxItem, setSelectedTaxItem] = useState<TaxFilingItem | null>(null);
 
-  // 1. Fetch Filters Data
+  // 1. Fetch Compliance Status
+  const { data: complianceRes, isLoading: isComplianceLoading, refetch: refetchCompliance } =
+    useTaxComplianceStatusQuery();
+  const complianceData = complianceRes?.data;
+
+  // 2. Fetch Filters Data
   const { data: filtersRes, isLoading: isFiltersLoading } =
     useTaxFilingFiltersQuery();
 
@@ -68,7 +94,7 @@ export default function SalesTaxFiling() {
   const projects = filtersRes?.data?.projects || [];
   const clients = filtersRes?.data?.clients || [];
 
-  // 2. Prepare Query Parameters
+  // 3. Prepare Query Parameters
   const startDateStr = dateRange?.from
     ? format(dateRange.from, "yyyy-MM-dd")
     : undefined;
@@ -76,13 +102,10 @@ export default function SalesTaxFiling() {
     ? format(dateRange.to, "yyyy-MM-dd")
     : undefined;
 
-  const effectiveSearch = searchQuery.trim()
-    ? searchQuery.trim()
-    : selectedState !== "all"
-    ? selectedState
-    : undefined;
+  const effectiveSearch = searchQuery.trim() || undefined;
 
   const queryParams = {
+    state: selectedState !== "all" ? selectedState : undefined,
     projectId: selectedProjectId !== "all" ? selectedProjectId : undefined,
     clientId: selectedClientId !== "all" ? selectedClientId : undefined,
     search: effectiveSearch,
@@ -92,7 +115,7 @@ export default function SalesTaxFiling() {
     limit,
   };
 
-  // 3. Fetch Tax Filing Data & Stats
+  // 4. Fetch Tax Filing Data & Stats
   const {
     data: taxFilingRes,
     isLoading: isTaxFilingLoading,
@@ -100,14 +123,29 @@ export default function SalesTaxFiling() {
     refetch,
   } = useTaxFilingQuery(queryParams);
 
-  const exportMutation = useExportTaxFilingMutation();
+  const {
+    data: kpiStatsRes,
+    refetch: refetchStats,
+  } = useTaxFilingStatsQuery({
+    state: selectedState !== "all" ? selectedState : undefined,
+    projectId: selectedProjectId !== "all" ? selectedProjectId : undefined,
+    clientId: selectedClientId !== "all" ? selectedClientId : undefined,
+    search: effectiveSearch,
+  });
 
-  const stats = taxFilingRes?.data?.stats;
+  const exportMutation = useExportTaxFilingMutation();
+  const syncMutation = useSyncTaxMutation();
+
+  const kpiStats = kpiStatsRes?.data;
+  const fallbackStats = taxFilingRes?.data?.stats;
   const pendingFiling = taxFilingRes?.data?.pendingFiling || [];
   const filingHistory = taxFilingRes?.data?.filingHistory || [];
+  const meta = taxFilingRes?.data?.meta || complianceData;
   const totalCount =
     taxFilingRes?.data?.total ||
     (activeTab === "Pending Filing" ? pendingFiling.length : filingHistory.length);
+
+  const lastSyncedDate = meta?.lastSyncedAt || complianceData?.lastSyncedAt;
 
   const handleStateChange = (val: string) => {
     setSelectedState(val);
@@ -139,22 +177,51 @@ export default function SalesTaxFiling() {
     setIsSheetOpen(true);
   };
 
-  const handlePrepareFiling = (item: TaxFilingItem) => {
-    if (item.websiteLink) {
-      window.open(item.websiteLink, "_blank", "noopener,noreferrer");
-    } else {
-      setSelectedTaxItem(item);
-      setIsSheetOpen(true);
+  const handlePrepareFiling = async (item: TaxFilingItem) => {
+    try {
+      if (item._id) {
+        await prepareTaxFilingProvider(item._id);
+      }
+    } catch {
+      // Continue to open review sheet
     }
+    setSelectedTaxItem(item);
+    setIsSheetOpen(true);
   };
 
-  const handleDownloadItem = (item?: TaxFilingItem) => {
+  const handleDownloadItem = async (item?: TaxFilingItem) => {
+    if (item?._id) {
+      try {
+        const blob = await downloadTaxFilingReceiptPdfProvider(item._id);
+        const url = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+        const link = document.createElement("a");
+        link.href = url;
+        const filename = item.receipt?.confirmationNumber
+          ? `receipt-${item.receipt.confirmationNumber}.pdf`
+          : `filing-receipt-${item._id.slice(-6)}.pdf`;
+        link.setAttribute("download", filename);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        setDownloadMessage("Receipt downloaded successfully");
+        setDownloadSuccessOpen(true);
+        return;
+      } catch {
+        // Fallback to client CSV if PDF not available
+      }
+    }
+
     if (item) {
       const csvContent = `data:text/csv;charset=utf-8,State,Due Date,Amount,Status,Project ID,Customer\n"${
         item.state
-      }","${item.dueDate}","${item.amount}","${item.status}","${
-        item.leadId?.jobId || ""
-      }","${item.customerId?.firstName || ""}"`;
+      }","${item.dueDate || ""}","${item.amount ?? 0}","${
+        typeof item.status === "object" ? item.status.label : item.status || ""
+      }","${
+        typeof item.leadId === "object" ? item.leadId?.jobId || "" : ""
+      }","${
+        typeof item.customerId === "object" ? item.customerId?.firstName || "" : ""
+      }"`;
       const encodedUri = encodeURI(csvContent);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
@@ -167,9 +234,26 @@ export default function SalesTaxFiling() {
     setDownloadSuccessOpen(true);
   };
 
+  const handleSyncNow = async () => {
+    try {
+      const res = await syncMutation.mutateAsync();
+      await Promise.all([refetch(), refetchStats(), refetchCompliance()]);
+      const regionCount = res.data?.regions ?? 0;
+      const projectCount = res.data?.projects ?? 0;
+      setDownloadMessage(
+        `Tax data synced successfully: ${regionCount} regions, ${projectCount} projects`
+      );
+      setDownloadSuccessOpen(true);
+    } catch {
+      setDownloadMessage("Failed to sync tax data. Please try again.");
+      setDownloadSuccessOpen(true);
+    }
+  };
+
   const handleExport = async () => {
     try {
       const blob = await exportMutation.mutateAsync({
+        state: selectedState !== "all" ? selectedState : undefined,
         projectId: selectedProjectId !== "all" ? selectedProjectId : undefined,
         clientId: selectedClientId !== "all" ? selectedClientId : undefined,
         search: effectiveSearch,
@@ -206,10 +290,10 @@ export default function SalesTaxFiling() {
           `"${row.dueDate || ""}"`,
           `"${row.amount ?? 0}"`,
           `"${row.filingFrequency || ""}"`,
-          `"${row.status || ""}"`,
-          `"${row.leadId?.jobId || ""}"`,
-          `"${row.leadId?.projectName || ""}"`,
-          `"${row.customerId?.firstName || ""}"`,
+          `"${typeof row.status === "object" ? row.status.label : row.status || ""}"`,
+          `"${typeof row.leadId === "object" ? row.leadId?.jobId || "" : ""}"`,
+          `"${typeof row.leadId === "object" ? row.leadId?.projectName || "" : ""}"`,
+          `"${typeof row.customerId === "object" ? row.customerId?.firstName || "" : ""}"`,
         ]);
         const csvContent =
           "data:text/csv;charset=utf-8," +
@@ -239,18 +323,23 @@ export default function SalesTaxFiling() {
             Track sales tax collected on invoices and manage filing by state
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {lastSyncedDate && (
+            <span className="text-xs text-gray-500 hidden sm:inline mr-1">
+              Last Synced: {formatDate(lastSyncedDate)}
+            </span>
+          )}
           <Button
             variant="outline"
             size="sm"
-            onClick={() => refetch()}
-            disabled={isFetching}
+            onClick={handleSyncNow}
+            disabled={syncMutation.isPending || isFetching || complianceData?.canSync === false}
             className="bg-white text-gray-700"
           >
-            <RefreshCcw
-              className={`w-4 h-4 mr-2 ${isFetching ? "animate-spin" : ""}`}
+            <RefreshCw
+              className={`w-4 h-4 mr-2 ${syncMutation.isPending || isFetching ? "animate-spin" : ""}`}
             />
-            Refresh
+            {syncMutation.isPending || isFetching ? "Syncing..." : "Sync Now"}
           </Button>
           <Button
             variant="outline"
@@ -264,6 +353,14 @@ export default function SalesTaxFiling() {
           </Button>
         </div>
       </div>
+
+      {/* Compliance / Empty State Banner */}
+      <TaxComplianceBanner
+        compliance={complianceData}
+        isLoading={isComplianceLoading}
+        onSync={handleSyncNow}
+        isSyncing={syncMutation.isPending}
+      />
 
       {/* Filters */}
       <Card className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 bg-white shadow-xs">
@@ -348,11 +445,32 @@ export default function SalesTaxFiling() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCardV2
           title="Total Sales (Taxable)"
-          value={formatCurrency(stats?.totalTaxable)}
+          value={formatCurrency(
+            kpiStats?.totalSalesTaxable?.value ?? fallbackStats?.totalTaxable
+          )}
           subtitle={
-            <span className="text-gray-400 font-normal text-xs">
-              Based on active invoices
-            </span>
+            kpiStats?.totalSalesTaxable?.pctChangeFromLastMonth !== undefined ? (
+              <span
+                className={`flex items-center font-medium text-xs ${
+                  kpiStats.totalSalesTaxable.pctChangeFromLastMonth >= 0
+                    ? "text-emerald-500"
+                    : "text-rose-500"
+                }`}
+              >
+                {kpiStats.totalSalesTaxable.pctChangeFromLastMonth >= 0 ? (
+                  <TrendingUp className="w-3 h-3 mr-1" />
+                ) : (
+                  <TrendingDown className="w-3 h-3 mr-1" />
+                )}
+                {kpiStats.totalSalesTaxable.pctChangeFromLastMonth >= 0 ? "+" : ""}
+                {kpiStats.totalSalesTaxable.pctChangeFromLastMonth}%{" "}
+                <span className="text-gray-400 font-normal ml-1">from last month</span>
+              </span>
+            ) : (
+              <span className="text-gray-400 font-normal text-xs">
+                Based on active invoices
+              </span>
+            )
           }
           icon={
             <div className="flex items-center justify-center p-1 rounded bg-purple-50 text-purple-600">
@@ -363,11 +481,32 @@ export default function SalesTaxFiling() {
         />
         <StatCardV2
           title="Total Sales Tax Collected"
-          value={formatCurrency(stats?.totalCollected)}
+          value={formatCurrency(
+            kpiStats?.totalSalesTaxCollected?.value ?? fallbackStats?.totalCollected
+          )}
           subtitle={
-            <span className="text-gray-400 font-normal text-xs">
-              Collected to date
-            </span>
+            kpiStats?.totalSalesTaxCollected?.pctChangeFromLastMonth !== undefined ? (
+              <span
+                className={`flex items-center font-medium text-xs ${
+                  kpiStats.totalSalesTaxCollected.pctChangeFromLastMonth >= 0
+                    ? "text-emerald-500"
+                    : "text-rose-500"
+                }`}
+              >
+                {kpiStats.totalSalesTaxCollected.pctChangeFromLastMonth >= 0 ? (
+                  <TrendingUp className="w-3 h-3 mr-1" />
+                ) : (
+                  <TrendingDown className="w-3 h-3 mr-1" />
+                )}
+                {kpiStats.totalSalesTaxCollected.pctChangeFromLastMonth >= 0 ? "+" : ""}
+                {kpiStats.totalSalesTaxCollected.pctChangeFromLastMonth}%{" "}
+                <span className="text-gray-400 font-normal ml-1">from last month</span>
+              </span>
+            ) : (
+              <span className="text-gray-400 font-normal text-xs">
+                Collected to date
+              </span>
+            )
           }
           icon={
             <div className="flex items-center justify-center p-1 rounded bg-emerald-50 text-emerald-600">
@@ -379,10 +518,16 @@ export default function SalesTaxFiling() {
         <StatCardV2
           title="Tax Payable by States"
           value={
-            stats?.taxPayableByStates !== undefined && stats?.taxPayableByStates !== null
-              ? typeof stats.taxPayableByStates === "number" && stats.taxPayableByStates < 100
-                ? `${stats.taxPayableByStates} State${stats.taxPayableByStates === 1 ? "" : "s"}`
-                : formatCurrency(stats.taxPayableByStates)
+            kpiStats?.taxPayableByStates?.value !== undefined
+              ? formatCurrency(kpiStats.taxPayableByStates.value)
+              : fallbackStats?.taxPayableByStates !== undefined &&
+                fallbackStats?.taxPayableByStates !== null
+              ? typeof fallbackStats.taxPayableByStates === "number" &&
+                fallbackStats.taxPayableByStates < 100
+                ? `${fallbackStats.taxPayableByStates} State${
+                    fallbackStats.taxPayableByStates === 1 ? "" : "s"
+                  }`
+                : formatCurrency(fallbackStats.taxPayableByStates)
               : "-"
           }
           subtitle={
@@ -402,10 +547,16 @@ export default function SalesTaxFiling() {
           value={
             <div className="flex flex-col text-sm font-semibold space-y-1 mt-1">
               <span className="text-emerald-600">
-                Filed: {stats?.filed ?? "-"}
+                Filed:{" "}
+                {kpiStats?.fileVsUnfiledTax?.filed !== undefined
+                  ? formatCurrency(kpiStats.fileVsUnfiledTax.filed)
+                  : (fallbackStats?.filed ?? "-")}
               </span>
               <span className="text-rose-500">
-                Unfiled: {stats?.unfiled ?? "-"}
+                Unfiled:{" "}
+                {kpiStats?.fileVsUnfiledTax?.unfiled !== undefined
+                  ? formatCurrency(kpiStats.fileVsUnfiledTax.unfiled)
+                  : (fallbackStats?.unfiled ?? "-")}
               </span>
             </div>
           }

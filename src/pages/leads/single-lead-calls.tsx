@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import {
   Card,
   CardContent,
@@ -18,7 +18,7 @@ interface Call {
 }
 
 export default function SingleLeadCalls() {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack("/leads");
   //   const { leadId } = useParams();
 
   // Mock data - replace with actual data from API
@@ -89,7 +89,7 @@ export default function SingleLeadCalls() {
     <div className="w-full">
       {/* Header */}
       <div className="bg-[#4ECDC4] text-white px-6 py-3 flex items-center gap-3">
-        <Button onClick={() => navigate('/leads')}>
+        <Button onClick={() => goBack()}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>

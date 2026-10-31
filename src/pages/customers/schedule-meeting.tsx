@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useLocation, useNavigate } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,6 +54,7 @@ type MeetingRouteState = {
 
 export default function ScheduleMeeting() {
   const navigate = useNavigate();
+  const { goBack } = useAppBack("/customers/meetings");
   const location = useLocation();
   const [implicitCustomerId, setImplicitCustomerId] = useState("");
   const [selectedLead, setSelectedLead] = useState("");
@@ -128,7 +130,7 @@ export default function ScheduleMeeting() {
       }
 
       setSuccessOpen(true);
-      setTimeout(() => navigate("/customers/meetings"), 500);
+      setTimeout(() => navigate("/customers/meetings", { replace: true }), 500);
     } catch (error) {
       setErrorMessage(getApiErrorMessage(error, "Unable to schedule meeting."));
     }
@@ -141,7 +143,7 @@ export default function ScheduleMeeting() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate('/customers/meetings')}
+          onClick={() => goBack("/customers/meetings")}
           className="bg-blue-600 text-white hover:bg-blue-700 hover:text-white h-9 px-4"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -334,7 +336,7 @@ export default function ScheduleMeeting() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate("/customers/meetings")}
+            onClick={() => goBack("/customers/meetings")}
             className="w-full sm:w-auto px-6"
           >
             Cancel
@@ -355,7 +357,7 @@ export default function ScheduleMeeting() {
         open={successOpen}
         onClose={() => {
           setSuccessOpen(false);
-          navigate("/customers/meetings");
+          navigate("/customers/meetings", { replace: true });
         }}
         title="Meeting scheduled"
         okLabel="Go to meetings"

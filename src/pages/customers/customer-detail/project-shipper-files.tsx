@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { ArrowLeft, Eye, Filter, Search, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -61,6 +62,8 @@ const displayStatus = (fileStatus: string, comparisonStatus?: string) => {
 
 export default function ProjectShipperFilesPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { goBack } = useAppBack();
   const { id, projectId } = useParams<{ id: string; projectId: string }>();
   const leadId = projectId || id || "";
 
@@ -138,7 +141,7 @@ export default function ProjectShipperFilesPage() {
         <div className="flex items-center gap-4">
           <Button
             variant="default"
-            onClick={() => navigate(-1)}
+            onClick={() => goBack()}
             className="px-4 bg-[#3B82F6] hover:bg-[#2563EB] text-white"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -302,7 +305,11 @@ export default function ProjectShipperFilesPage() {
                       <TableCell>
                         <Button
                           variant="ghost"
-                          onClick={() => navigate(`/plant/shipper-quotation/${leadId}/file/${row.requestId}`)}
+                          onClick={() =>
+                            navigate(`/plant/shipper-quotation/${leadId}/file/${row.requestId}`, {
+                              state: { from: location.pathname + location.search },
+                            })
+                          }
                           disabled={isEyeDisabled}
                           className="text-slate-500 hover:text-slate-900 p-2 rounded-full disabled:opacity-40 disabled:cursor-not-allowed"
                         >

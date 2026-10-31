@@ -19,13 +19,10 @@ import { Link } from "react-router";
 import { useUpcomingShipmentsQuery } from "@/modules/plant/dashboard.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 import Pagination from "../Pagination";
+import type { DashboardFilterParams } from "@/modules/plant/dashboard.api";
 
 interface UpcomingShipmentsTableProps {
-  filters: {
-    startDate?: string;
-    endDate?: string;
-    assignedTo?: string;
-  };
+  filters: DashboardFilterParams;
 }
 
 function formatDateString(dateStr?: string) {
@@ -58,13 +55,11 @@ export default function UpcomingShipmentsTable({ filters }: UpcomingShipmentsTab
   const limit = 5; // Using 5 per page for a compact dashboard layout
 
   const queryParams = {
+    ...filters,
     page,
     limit,
     search: search.trim() || undefined,
     status: status === "all" ? undefined : status,
-    startDate: filters.startDate,
-    endDate: filters.endDate,
-    assignedTo: filters.assignedTo,
   };
 
   const { data, isLoading, isError } = useUpcomingShipmentsQuery(queryParams);

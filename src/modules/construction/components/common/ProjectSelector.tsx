@@ -1,65 +1,93 @@
 import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getProjectsApi } from "@/api/projects.api";
 import CustomSelect from "./CustomSelect";
-import { useLeadsQuery } from "@/modules/leads/leads.hooks";
-import { Loader2 } from "lucide-react";
+import type { Project } from "@/types/projects.types";
 
-type ProjectSelectorProps = {
+export interface ProjectSelectorProps {
   value: string;
-  onValueChange: (value: string) => void;
+  onChange?: (val: string, project?: Project) => void;
+  onValueChange?: (val: string, project?: Project) => void;
+  showAllOption?: boolean;
+  includeAllOption?: boolean;
   placeholder?: string;
   error?: boolean;
-  includeAllOption?: boolean;
-};
+  width?: string;
+  hasDelivery?: boolean;
+  options?: Array<{ label: string; value: string }>;
+}
 
 export default function ProjectSelector({
   value,
+  onChange,
   onValueChange,
-  placeholder = "Select Project",
+  showAllOption = false,
   includeAllOption = false,
+  placeholder = "Select Project",
+  width = "100%",
+  hasDelivery,
+  options: propOptions,
 }: ProjectSelectorProps) {
-  const { data: leadsData, isLoading } = useLeadsQuery(1, 100);
+  const { data, isLoading } = useQuery({
+    queryKey: ["projects-selector-list", hasDelivery],
+    queryFn: () => getProjectsApi({ page: 1, limit: 100, hasDelivery }),
+    enabled: !propOptions,
+  });
+
+  const projects: Project[] = useMemo(() => {
+    return data?.data?.data?.projects || [];
+  }, [data]);
+
+  const shouldIncludeAll = showAllOption || includeAllOption;
 
   const options = useMemo(() => {
-    const list = leadsData?.data?.leads
-      ? leadsData.data.leads.map((lead) => {
-          let label = "";
-          if (lead.projectName) {
-            label = lead.projectName;
-          } else if (lead.buildingType) {
-            label = lead.buildingType;
-          } else {
-            label = `Lead ${lead._id.substring(0, 6)}`;
-          }
-          return {
-            label,
-            value: lead._id,
-          };
-        })
-      : [];
+    if (propOptions && propOptions.length > 0) {
+      if (shouldIncludeAll && !propOptions.some((o) => o.value === "" || o.value === "all")) {
+        return [{ label: "All Projects", value: "all" }, ...propOptions];
+      }
+      return propOptions;
+    }
+    const list = projects.map((proj) => ({
+      label:
+        proj.projectName ||
+        `${proj.buildingType || "Project"} - ${proj.location || "Site"}${
+          proj.jobId ? ` (${proj.jobId})` : ""
+        }`,
+      value: proj._id,
+    }));
 
-    if (includeAllOption) {
+    if (shouldIncludeAll) {
       return [{ label: "All Projects", value: "all" }, ...list];
     }
     return list;
-  }, [leadsData, includeAllOption]);
+  }, [projects, shouldIncludeAll, propOptions]);
 
-  if (isLoading && options.length === 0) {
-    return (
-      <div className="w-full bg-white px-4 h-[40px] rounded-[8px] border flex items-center gap-2 text-sm text-gray-500">
-        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-        <span>Loading projects...</span>
-      </div>
+  const effectiveValue =
+    value === "" || value === "all"
+      ? (options.find((o) => o.value === value || o.value === "" || o.value === "all")?.value ?? value)
+      : projects.find((p) => p._id === value || (p.leadId && p.leadId === value))?._id || value;
+
+  const handleChange = (val: string) => {
+    const selectedProj = projects.find(
+      (p: Project) => p._id === val || (p.leadId && p.leadId === val)
     );
-  }
+    if (onChange) {
+      onChange(val, selectedProj);
+    }
+    if (onValueChange) {
+      onValueChange(val, selectedProj);
+    }
+  };
 
   return (
     <CustomSelect
       title={placeholder}
       options={options}
-      value={value}
-      onChange={onValueChange}
-      width="100%"
+      value={effectiveValue}
+      onChange={handleChange}
+      width={width}
       searchable
+      loading={!propOptions && isLoading}
     />
   );
 }

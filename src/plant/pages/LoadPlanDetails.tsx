@@ -1,7 +1,9 @@
-import { Link, useParams } from "react-router";
+import { useParams } from "react-router";
 import { ArrowLeft, Check, AlertTriangle } from "lucide-react";
 import { useBundlePlanDetailsQuery } from "@/modules/plant/load-planning.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { useAppBack } from "@/modules/navigation";
 
 const formatDecimal = (val: number | undefined | null) => {
   return (val ?? 0).toLocaleString(undefined, {
@@ -12,6 +14,7 @@ const formatDecimal = (val: number | undefined | null) => {
 
 export default function LoadPlanDetails() {
   const { projectId, loadId } = useParams();
+  const { goBack } = useAppBack(projectId ? `/plant/load-planning/${projectId}` : "/plant/load-planning");
 
   // Fetch bundle plan details
   const { data: response, isLoading, error } = useBundlePlanDetailsQuery(loadId || "");
@@ -82,13 +85,14 @@ export default function LoadPlanDetails() {
   if (error || !bundlePlan) {
     return (
       <div className="flex-1 space-y-6 p-6 bg-[#fbfbfe] min-h-screen font-sans">
-        <Link 
-          to={`/plant/load-planning/${projectId || "PRJ-001"}`} 
-          className="inline-flex items-center text-sm font-bold text-gray-900 hover:underline"
+        <Button
+          variant="default"
+          size="sm"
+          onClick={() => goBack()}
+          className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Load Plan
-        </Link>
+          <ArrowLeft size={18} strokeWidth={2.5} /> Back
+        </Button>
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 flex flex-col items-center justify-center min-h-[300px] text-center space-y-4">
           <AlertTriangle className="w-12 h-12 text-red-500" />
           <h3 className="text-xl font-bold text-gray-900">Failed to Load Plan Details</h3>
@@ -102,13 +106,14 @@ export default function LoadPlanDetails() {
 
   return (
     <div className="flex-1 space-y-6 p-6 bg-[#fbfbfe] min-h-screen font-sans">
-      <Link 
-        to={`/plant/load-planning/${projectId || "PRJ-001"}`} 
-        className="inline-flex items-center text-sm font-bold text-gray-900 hover:underline"
+      <Button
+        variant="default"
+        size="sm"
+        onClick={() => goBack()}
+        className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
       >
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Load Plan
-      </Link>
+        <ArrowLeft size={18} strokeWidth={2.5} /> Back
+      </Button>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 space-y-10">
         

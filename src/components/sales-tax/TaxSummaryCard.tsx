@@ -1,11 +1,22 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
+import type { TaxSummary } from "@/modules/dashboard/dashboard.types";
 
-export default function TaxSummaryCard() {
-  const totalTax = 17788.25;
-  const totalSales = 83000; // example total sales shown in UI
-  const avgRate = "6.5%";
+function formatUSD(amount?: number, precision?: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: precision ?? 0,
+    maximumFractionDigits: precision ?? 0,
+  }).format(amount ?? 0);
+}
+
+export default function TaxSummaryCard({ data }: { data?: TaxSummary }) {
+  const totalTax = data?.totalTaxDue ?? 0;
+  const totalSales = data?.totalSales ?? 0;
+  const avgRate = data?.avgTaxRate !== undefined ? `${data.avgTaxRate}%` : "0.0%";
+
   const summaries = [
     {
       id: "tax",
@@ -40,42 +51,44 @@ export default function TaxSummaryCard() {
   const navigate = useNavigate();
 
   return (
-    <Card className="bg-white">
-      <CardHeader className="border-b">
+    <Card className="bg-white h-full flex flex-col">
+      <CardHeader className="border-b flex flex-row items-center justify-between">
         <CardTitle>Tax Summary</CardTitle>
+        <Link to="/sales-tax">
+          <Button variant="link" size="sm">
+            View
+          </Button>
+        </Link>
       </CardHeader>
-      <CardContent className="px-4">
+      <CardContent className="pt-6 px-6 flex-1 flex flex-col justify-between">
         <div className="space-y-4">
           {summaries.map((s) => (
             <div
               key={s.id}
-              className={`${s.bg} p-2 rounded flex items-center justify-between`}
+              className={`${s.bg} p-2.5 rounded-md flex items-center justify-between`}
             >
               <div>
                 <div className="text-sm text-gray-500">{s.title}</div>
                 <div className={`text-2xl font-bold ${s.textClass}`}>
                   {s.format === "currency"
-                    ? s.precision !== undefined
-                      ? `$${s.value.toLocaleString(undefined, {
-                          minimumFractionDigits: s.precision,
-                          maximumFractionDigits: s.precision,
-                        })}`
-                      : `$${s.value.toLocaleString()}`
+                    ? typeof s.value === "number"
+                      ? formatUSD(s.value, s.precision)
+                      : s.value
                     : s.value}
                 </div>
               </div>
               <div className={`${s.textClass} text-xl`}>{s.icon}</div>
             </div>
           ))}
+        </div>
 
-          <div className="mt-2">
-            <Button
-              onClick={() => navigate("/sales-tax")}
-              className="w-full  bg-linear-to-r from-blue-600 from-70% to-blue-800  font-medium"
-            >
-              View Full Report
-            </Button>
-          </div>
+        <div className="mt-4 pt-2">
+          <Button
+            onClick={() => navigate("/sales-tax")}
+            className="w-full bg-linear-to-r from-blue-600 from-70% to-blue-800 font-medium"
+          >
+            View Full Report
+          </Button>
         </div>
       </CardContent>
     </Card>

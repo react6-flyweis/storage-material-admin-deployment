@@ -9,7 +9,7 @@ import {
   AlertCircle,
   Eye,
 } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,8 +34,6 @@ import Pagination from "@/components/Pagination";
 import { useGetInvoicesQuery, useGetInvoiceStatsQuery } from "@/modules/invoices/invoices.hooks";
 import InvoiceStatusBadge from "@/components/invoices/invoice-status-badge";
 
-
-
 function formatCurrency(n: number) {
   return `$${n.toLocaleString()}`;
 }
@@ -47,6 +45,7 @@ function cleanProjectName(name: string) {
 
 export default function InvoiceListPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [dateRange, setDateRange] = useState<RDateRange | undefined>(undefined);
@@ -304,6 +303,7 @@ export default function InvoiceListPage() {
                           <button
                             onClick={() => navigate(`/invoice/preview`, { 
                               state: { 
+                                from: location.pathname + location.search,
                                 invoiceId: inv.invoice?._id || inv.invoice?.id,
                                 invoiceNumber: inv.invoiceNumber, 
                                 date: inv.dueDate, 

@@ -13,6 +13,7 @@ type CustomSelectProps = {
   width?: string;
   upperSide?: boolean;
   searchable?: boolean;
+  loading?: boolean;
 };
 
 export default function CustomSelect({
@@ -23,6 +24,7 @@ export default function CustomSelect({
   width = "150px",
   upperSide = false,
   searchable,
+  loading = false,
 }: CustomSelectProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -50,6 +52,7 @@ export default function CustomSelect({
     <div ref={ref} className="relative" style={{ width }}>
       <button
         type="button"
+        disabled={loading}
         onClick={() => setOpen(!open)}
         className="
           w-full bg-white px-4 h-[40px]
@@ -58,21 +61,27 @@ export default function CustomSelect({
           text-sm
         "
       >
-        <span className="truncate text-[#111827]">{selectedLabel}</span>
+        <span className="truncate text-[#111827]">
+          {loading ? "Loading..." : selectedLabel}
+        </span>
 
-        <svg
-          className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M19 9l-7 7-7-7"
-          />
-        </svg>
+        {loading ? (
+          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+        ) : (
+          <svg
+            className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        )}
       </button>
 
       {open && (

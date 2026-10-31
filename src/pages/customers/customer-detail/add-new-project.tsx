@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Minus, Plus } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import SuccessDialog from "@/components/success-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,12 +13,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import BusinessUnitSelector from "@/components/leads/business-unit-selector";
+import InstallAddressFields from "@/components/common/install-address-fields";
+import { buildLocationString } from "@/lib/address";
 import { useCustomerDetailQuery, useCreateCustomerLeadMutation } from "@/modules/customers/customers.hooks";
 
 export default function AddNewProjectPage() {
   const navigate = useNavigate();
   const params = useParams();
   const customerId = params.id ?? "unknown";
+  const { goBack } = useAppBack(`/customers/${customerId}/projects`);
   const [showSuccess, setShowSuccess] = useState(false);
 
   const { data: customerData, isLoading: isLoadingCustomer } = useCustomerDetailQuery(customerId);
@@ -29,10 +34,13 @@ export default function AddNewProjectPage() {
     email: "",
     phone: "",
     projectName: "",
+    businessUnit: "",
+    addressLine1: "",
+    addressLine2: "",
     city: "",
-    landmark: "",
-    fullAddress: "",
     state: "",
+    postalCode: "",
+    country: "US",
     width: 0,
     length: 0,
     height: 0,
@@ -95,7 +103,7 @@ export default function AddNewProjectPage() {
   };
 
   const handleCancel = () => {
-    navigate(`/customers/${customerId}`);
+    goBack(`/customers/${customerId}/projects`);
   };
 
   const validateForm = () => {
@@ -105,8 +113,10 @@ export default function AddNewProjectPage() {
     if (!formData.email.trim()) newErrors.email = "Email is required";
     if (!formData.phone.trim()) newErrors.phone = "Phone is required";
     if (!formData.projectName.trim()) newErrors.projectName = "Project Name is required";
+    if (!formData.addressLine1.trim()) newErrors.addressLine1 = "Street address is required";
     if (!formData.city.trim()) newErrors.city = "City is required";
     if (!formData.state.trim()) newErrors.state = "State is required";
+    if (!formData.postalCode.trim()) newErrors.postalCode = "ZIP / Postal code is required";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -117,12 +127,34 @@ export default function AddNewProjectPage() {
 
     if (!validateForm()) return;
 
+    const compiledLocation = buildLocationString({
+      line1: formData.addressLine1,
+      line2: formData.addressLine2,
+      city: formData.city,
+      state: formData.state,
+      postalCode: formData.postalCode,
+    });
+
     createLeadMutation.mutate({
       customerId,
       leadData: {
         projectName: formData.projectName,
+        businessUnit: formData.businessUnit ? formData.businessUnit.trim().toLowerCase() : null,
         buildingType: formData.buildingType,
-        location: formData.city || formData.state || "Location not provided",
+        location: compiledLocation,
+        city: formData.city.trim(),
+        state: formData.state.trim(),
+        pincode: formData.postalCode.trim(),
+        installAddress: {
+          companyName: "",
+          line1: formData.addressLine1.trim(),
+          line2: formData.addressLine2?.trim() || "",
+          city: formData.city.trim(),
+          state: formData.state.trim(),
+          postalCode: formData.postalCode.trim(),
+          country: formData.country?.trim() || "US",
+          lines: [],
+        },
         roofStyle: formData.roofStyle,
         width: formData.width,
         length: formData.length,
@@ -144,13 +176,13 @@ export default function AddNewProjectPage() {
 
   const handleSuccessClose = () => {
     setShowSuccess(false);
-    navigate(`/customers/${customerId}`);
+    navigate(`/customers/${customerId}`, { replace: true });
   };
 
   return (
     <div className="p-4 sm:p-6 space-y-6 min-h-screen">
       <div className="space-y-2 flex gap-2">
-        <Button onClick={() => navigate('/customers')} className="px-4">
+        <Button onClick={() => goBack(`/customers/${customerId}/projects`)} className="px-4">
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back
         </Button>
@@ -251,50 +283,46 @@ export default function AddNewProjectPage() {
               />
               {errors.projectName && <p className="text-xs text-red-500">{errors.projectName}</p>}
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="city">City *</Label>
-              <Input
-                id="city"
-                name="city"
-                placeholder="Enter City"
-                value={formData.city}
-                onChange={handleInputChange}
-                aria-invalid={!!errors.city}
-                className={errors.city ? "border-red-500" : ""}
-              />
-              {errors.city && <p className="text-xs text-red-500">{errors.city}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="state">State *</Label>
-              <Input
-                id="state"
-                name="state"
-                placeholder="Enter State"
-                value={formData.state}
-                onChange={handleInputChange}
-                aria-invalid={!!errors.state}
-                className={errors.state ? "border-red-500" : ""}
-              />
-              {errors.state && <p className="text-xs text-red-500">{errors.state}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="landmark">Landmark</Label>
-              <Input
-                id="landmark"
-                name="landmark"
-                placeholder="Near this -----"
-                value={formData.landmark}
-                onChange={handleInputChange}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="fullAddress">Full Address</Label>
-              <Input
-                id="fullAddress"
-                name="fullAddress"
-                placeholder="Enter Full Address"
-                value={formData.fullAddress}
-                onChange={handleInputChange}
+            <div className="md:col-span-2">
+              <InstallAddressFields
+                idPrefix="add-project"
+                values={{
+                  line1: formData.addressLine1,
+                  line2: formData.addressLine2,
+                  city: formData.city,
+                  state: formData.state,
+                  postalCode: formData.postalCode,
+                  country: formData.country,
+                }}
+                onChange={(field, val) => {
+                  const fieldMap: Record<string, string> = {
+                    line1: "addressLine1",
+                    line2: "addressLine2",
+                    city: "city",
+                    state: "state",
+                    postalCode: "postalCode",
+                    country: "country",
+                  };
+                  const formKey = fieldMap[field];
+                  if (formKey) {
+                    setFormData((prev) => ({ ...prev, [formKey]: val }));
+                    if (errors[formKey]) {
+                      setErrors((prev) => {
+                        const newErrors = { ...prev };
+                        delete newErrors[formKey];
+                        return newErrors;
+                      });
+                    }
+                  }
+                }}
+                errors={{
+                  line1: errors.addressLine1,
+                  line2: errors.addressLine2,
+                  city: errors.city,
+                  state: errors.state,
+                  postalCode: errors.postalCode,
+                  country: errors.country,
+                }}
               />
             </div>
           </div>
@@ -431,6 +459,18 @@ export default function AddNewProjectPage() {
                   <SelectItem value="Shed">Shed Roof</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="businessUnit">Business Unit</Label>
+              <BusinessUnitSelector
+                id="businessUnit"
+                value={formData.businessUnit}
+                onChange={(value) => handleSelectChange("businessUnit", value)}
+                includeClear
+                clearLabel="Not set"
+                placeholder="Select Business Unit"
+              />
             </div>
 
             <div className="space-y-2">

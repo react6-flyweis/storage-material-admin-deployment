@@ -1,9 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon, Mail, Phone, Clipboard } from "lucide-react";
-import { useNavigate } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 
 export default function CustomerPaymentProfile() {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack("/payments");
   //   const { customerId } = useParams();
 
   // Mock data - replace with actual data fetching
@@ -40,7 +40,7 @@ export default function CustomerPaymentProfile() {
     <div className="lg:pr-5 lg:pt-5 p-5 lg:p-0 space-y-5">
       {/* Header with Back Button */}
       <div className="flex items-center space-x-4">
-        <Button onClick={() => navigate('/payments')}>
+        <Button onClick={() => goBack()}>
           <ArrowLeftIcon />
           <span>Back</span>
         </Button>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +24,7 @@ import { toast } from "sonner";
 
 export default function RescheduleMeeting() {
   const navigate = useNavigate();
+  const { goBack } = useAppBack("/customers/meetings");
   const { meetingId } = useParams<{ meetingId: string }>();
 
   const { data: meetingResponse, isLoading: isLoadingMeeting } =
@@ -134,7 +136,7 @@ export default function RescheduleMeeting() {
 
       toast.success("Meeting updated successfully!");
       setSuccessOpen(true);
-      setTimeout(() => navigate("/customers/meetings"), 500);
+      setTimeout(() => navigate("/customers/meetings", { replace: true }), 500);
     } catch (error) {
       setErrorMessage(getApiErrorMessage(error, "Unable to update meeting."));
     }
@@ -155,7 +157,7 @@ export default function RescheduleMeeting() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate('/customers/meetings')}
+          onClick={() => goBack("/customers/meetings")}
           className="bg-blue-600 text-white hover:bg-blue-700 hover:text-white h-9 px-4"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -322,7 +324,7 @@ export default function RescheduleMeeting() {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate("/customers/meetings")}
+            onClick={() => goBack("/customers/meetings")}
             className="w-full sm:w-auto px-6"
           >
             Cancel
@@ -341,7 +343,7 @@ export default function RescheduleMeeting() {
         open={successOpen}
         onClose={() => {
           setSuccessOpen(false);
-          navigate("/customers/meetings");
+          navigate("/customers/meetings", { replace: true });
         }}
         title="Meeting Updated Successfully!"
         okLabel="Go to meetings"

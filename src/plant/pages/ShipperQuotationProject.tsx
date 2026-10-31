@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Eye, Filter, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Eye, Loader2, ChevronLeft, ChevronRight, ArrowLeft, X } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import { useAppBack } from "@/modules/navigation";
 import {
   useProjectShipperStatsQuery,
   useProjectShipperRequestsQuery,
@@ -47,7 +48,24 @@ const displayStatus = (fileStatus: string, comparisonStatus?: string) => {
   return fileStatus || "File Received";
 };
 
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
 export default function ShipperQuotationProject() {
+  const { goBack } = useAppBack("/plant/shipper-quotation");
   const { projectId } = useParams<{ projectId: string }>();
   const leadId = projectId || "";
 
@@ -55,6 +73,9 @@ export default function ShipperQuotationProject() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [statusFilter, setStatusFilter] = useState("all");
+  const [comparisonStatusFilter, setComparisonStatusFilter] = useState("all");
+
+  const debouncedSearch = useDebounce(searchTerm.trim(), 400);
 
   const { data: statsResponse, isLoading: isStatsLoading } = useProjectShipperStatsQuery(leadId, {
     enabled: !!leadId,
@@ -62,17 +83,24 @@ export default function ShipperQuotationProject() {
 
   const { data: requestsResponse, isLoading: isRequestsLoading, refetch } = useProjectShipperRequestsQuery(
     leadId,
-    currentPage,
-    rowsPerPage,
-    searchTerm.trim() || undefined,
+    {
+      page: currentPage,
+      limit: rowsPerPage,
+      search: debouncedSearch || undefined,
+      status: statusFilter !== "all" ? statusFilter : undefined,
+      comparisonStatus: comparisonStatusFilter !== "all" ? comparisonStatusFilter : undefined,
+    },
     {
       enabled: !!leadId,
     }
   );
 
   const statsData = statsResponse?.data;
-  const requests = useMemo(() => requestsResponse?.data?.shipperRequests || [], [requestsResponse]);
-  const total = requestsResponse?.data?.total || 0;
+  const requests = useMemo(
+    () => requestsResponse?.data?.shipperRequests || requestsResponse?.shipperRequests || [],
+    [requestsResponse]
+  );
+  const total = requestsResponse?.data?.total ?? requestsResponse?.total ?? 0;
   const totalPages = Math.ceil(total / rowsPerPage) || 1;
 
   const isAnyProcessing = useMemo(() => {
@@ -91,15 +119,6 @@ export default function ShipperQuotationProject() {
     return () => clearInterval(interval);
   }, [isAnyProcessing, refetch]);
 
-  // Filter requests based on status filter locally if needed
-  const filteredRequests = useMemo(() => {
-    if (statusFilter === "all") return requests;
-    return requests.filter((r) => {
-      const statusVal = displayStatus(r.fileStatus, r.comparisonStatus);
-      return statusVal.toLowerCase() === statusFilter.toLowerCase();
-    });
-  }, [requests, statusFilter]);
-
   if (isStatsLoading || isRequestsLoading) {
     return (
       <div className="flex-1 min-h-screen flex items-center justify-center bg-[#eef2fa]">
@@ -111,13 +130,23 @@ export default function ShipperQuotationProject() {
   return (
     <div className="flex-1 space-y-6 p-6 bg-[#eef2fa] min-h-screen font-sans">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[#0f172a]">
-            {statsData?.projectName || "Project"} - Shipper Quotation
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage vendor shipment files and prepare for validation
-          </p>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => goBack()}
+            className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
+          >
+            <ArrowLeft size={18} strokeWidth={2.5} /> Back
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-[#0f172a]">
+              {statsData?.projectName || "Project"} - Shipper Quotation
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Manage vendor shipment files and prepare for validation
+            </p>
+          </div>
         </div>
       </div>
 
@@ -133,26 +162,79 @@ export default function ShipperQuotationProject() {
                 setCurrentPage(1);
               }}
               placeholder="Search"
-              className="pl-9 bg-white"
+              className="pl-9 pr-8 bg-white"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm("");
+                  setCurrentPage(1);
+                }}
+                className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
-          <Button variant="outline" className="bg-white text-gray-600 gap-2">
-            <Filter className="w-4 h-4" />
-            Filter
-          </Button>
         </div>
-        <Select value={statusFilter} onValueChange={(val) => setStatusFilter(val)}>
-          <SelectTrigger className="w-[160px] bg-white text-gray-700">
-            <SelectValue placeholder="Select Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="File Received">File Received</SelectItem>
-            <SelectItem value="Order Sent">Order Sent</SelectItem>
-            <SelectItem value="Revision Sent">Revision Sent</SelectItem>
-            <SelectItem value="Compared">Compared</SelectItem>
-          </SelectContent>
-        </Select>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Select
+            value={statusFilter}
+            onValueChange={(val) => {
+              setStatusFilter(val);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-[170px] bg-white text-gray-700">
+              <SelectValue placeholder="File Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All File Statuses</SelectItem>
+              <SelectItem value="submitted">File Received</SelectItem>
+              <SelectItem value="order sent">Order Sent</SelectItem>
+              <SelectItem value="revision sent">Revision Sent</SelectItem>
+              <SelectItem value="approved">Approved</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="resubmit_requested">Resubmit Requested</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={comparisonStatusFilter}
+            onValueChange={(val) => {
+              setComparisonStatusFilter(val);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-[195px] bg-white text-gray-700">
+              <SelectValue placeholder="Comparison Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Comparisons</SelectItem>
+              <SelectItem value="completed">Comparison Completed</SelectItem>
+              <SelectItem value="processing">Comparison Processing</SelectItem>
+              <SelectItem value="failed">Comparison Failed</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {(statusFilter !== "all" || comparisonStatusFilter !== "all" || searchTerm.trim()) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchTerm("");
+                setStatusFilter("all");
+                setComparisonStatusFilter("all");
+                setCurrentPage(1);
+              }}
+              className="text-gray-500 hover:text-gray-900 text-xs h-9 px-2"
+            >
+              Reset Filters
+            </Button>
+          )}
+        </div>
       </div>
 
       <Card className="shadow-sm border-gray-100 rounded-xl overflow-hidden gap-0 pt-0">
@@ -173,14 +255,14 @@ export default function ShipperQuotationProject() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
-              {filteredRequests.length === 0 ? (
+              {requests.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
                     No shipper requests found.
                   </td>
                 </tr>
               ) : (
-                filteredRequests.map((row) => {
+                requests.map((row) => {
                   const statusVal = displayStatus(row.fileStatus, row.comparisonStatus);
                   const isProcessing =
                     statusVal === "Comparison Processing" ||

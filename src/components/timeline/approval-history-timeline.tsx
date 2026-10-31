@@ -10,7 +10,10 @@ import {
   AlertCircle,
 } from "lucide-react";
 import type { Quotation } from "@/modules/quotations/quotations.api";
-import { getQuotationSalesSubmission } from "@/modules/quotations/quotations.utils";
+import {
+  getQuotationSalesSubmission,
+  resolveQuotationLifecycle,
+} from "@/modules/quotations/quotations.utils";
 
 export interface ApprovalHistoryItem {
   status:
@@ -113,6 +116,19 @@ function getStatusConfig(status?: string | null) {
         bg: "bg-emerald-600",
         icon: CheckCircle2,
       };
+    case "customer_rejected":
+    case "declined_by_customer":
+      return {
+        label: "Declined by Customer",
+        bg: "bg-rose-600",
+        icon: XCircle,
+      };
+    case "admin_rejected":
+      return {
+        label: "Admin Rejected",
+        bg: "bg-red-600",
+        icon: XCircle,
+      };
     case "rejected":
       return {
         label: "Rejected",
@@ -190,10 +206,9 @@ function getQuotationTimelineHistory(
   if (!quotation) return [];
   const approval = quotation.approval;
   const history = (approval?.history || []) as Array<Record<string, unknown>>;
-  const effectiveStatus =
-    quotation.workflowStatus || approval?.status || quotation.status || "draft";
+  const lifecycle = resolveQuotationLifecycle(quotation);
   const isSent =
-    effectiveStatus === "sent" || Boolean(quotation.sentAt || quotation.sendMethod);
+    lifecycle.isSent || Boolean(quotation.sentAt || quotation.sendMethod);
 
   const items: ApprovalHistoryItem[] = [];
 
@@ -204,7 +219,6 @@ function getQuotationTimelineHistory(
         note: (item.note as string) || undefined,
         by: item.by,
         at: (item.at as string) || undefined,
-        // Take version per item directly from the API object
         version:
           (item.version as number | string | undefined) ??
           (item.versionNumber as number | string | undefined) ??
@@ -232,24 +246,52 @@ function getQuotationTimelineHistory(
       });
     }
 
+    // If declined by customer but not in history, append customer decline event
+    const hasCustomerRejected = history.some(
+      (h) =>
+        (h.status as string) === "customer_rejected" ||
+        (h.status as string) === "declined"
+    );
+    if (lifecycle.isCustomerRejected && !hasCustomerRejected) {
+      items.push({
+        status: "customer_rejected",
+        by: quotation.customerName || quotation.customerId || "Customer",
+        at: lifecycle.customerDecisionAt || quotation.updatedAt,
+        note: lifecycle.clientNotes || undefined,
+      });
+    }
+
     // If accepted by customer but not in history, append accepted event
-    const hasAccepted = history.some((h) => (h.status as string) === "accepted");
-    if (effectiveStatus === "accepted" && !hasAccepted) {
+    const hasAccepted = history.some(
+      (h) => (h.status as string) === "accepted"
+    );
+    if (lifecycle.isCustomerAccepted && !hasAccepted) {
       items.push({
         status: "accepted",
-        by: quotation.customerId || "Customer",
-        at: quotation.updatedAt || undefined,
+        by: quotation.customerName || quotation.customerId || "Customer",
+        at: lifecycle.customerDecisionAt || quotation.updatedAt,
+        note: lifecycle.clientNotes || undefined,
       });
     }
   } else {
     // Fallback if history array is not yet initialized
     const salesSubmission = getQuotationSalesSubmission(quotation);
 
-    if (effectiveStatus === "accepted") {
+    if (lifecycle.isCustomerAccepted) {
       items.push({
         status: "accepted",
-        by: quotation.customerId || "Customer",
-        at: quotation.updatedAt || undefined,
+        by: quotation.customerName || quotation.customerId || "Customer",
+        at: lifecycle.customerDecisionAt || quotation.updatedAt,
+        note: lifecycle.clientNotes || undefined,
+      });
+    }
+
+    if (lifecycle.isCustomerRejected) {
+      items.push({
+        status: "customer_rejected",
+        by: quotation.customerName || quotation.customerId || "Customer",
+        at: lifecycle.customerDecisionAt || quotation.updatedAt,
+        note: lifecycle.clientNotes || undefined,
       });
     }
 
@@ -262,26 +304,25 @@ function getQuotationTimelineHistory(
       });
     }
 
-    if (approval?.status === "approved" || effectiveStatus === "approved") {
+    if (lifecycle.isApproved) {
       items.push({
         status: "approved",
         by: approval?.reviewedBy || "Admin",
         at: approval?.reviewedAt || quotation.updatedAt,
         note: approval?.note,
       });
-    } else if (approval?.status === "rejected" || effectiveStatus === "rejected") {
+    } else if (lifecycle.isAdminRejected) {
       items.push({
-        status: "rejected",
+        status: "admin_rejected",
         by: approval?.reviewedBy || "Admin",
         at: approval?.reviewedAt || quotation.updatedAt,
-        note: approval?.rejectionReason,
+        note: lifecycle.adminRejectionReason || approval?.rejectionReason,
       });
     }
 
     if (
       approval?.submittedAt ||
-      effectiveStatus === "pending" ||
-      effectiveStatus === "pending_approval" ||
+      lifecycle.isPendingApproval ||
       salesSubmission.message
     ) {
       items.push({

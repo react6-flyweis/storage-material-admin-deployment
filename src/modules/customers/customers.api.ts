@@ -1,4 +1,13 @@
+import axios from "axios";
 import { apiClient } from "@/modules/auth/auth.api";
+import { useAuthStore } from "@/modules/auth/auth.store";
+export * from "./customer-documents.types";
+import type {
+  CreateCustomerDocumentPayload,
+  CreateCustomerDocumentResponse,
+  DeleteCustomerDocumentResponse,
+  GetCustomerDocumentsResponse,
+} from "./customer-documents.types";
 import type {
   GetAdminCustomersResponse,
   GetAdminCustomerDetailResponse,
@@ -62,19 +71,64 @@ export async function getAdminCustomersProvider(
 }
 
 export async function getAdminCustomerDetailProvider(customerId: string) {
-  const response = await apiClient.get<GetAdminCustomerDetailResponse>(
-    `/api/admin/customers/${customerId}`,
-  );
+  const role = useAuthStore.getState().role?.toLowerCase();
+  const primaryEndpoint =
+    role === "sales"
+      ? `/api/sales/customers/${customerId}`
+      : `/api/admin/customers/${customerId}`;
 
-  return response.data;
+  try {
+    const response = await apiClient.get<GetAdminCustomerDetailResponse>(primaryEndpoint);
+    return response.data;
+  } catch (error: any) {
+    if (error?.response?.status === 404 || error?.response?.status === 403) {
+      const fallbackEndpoint =
+        role === "sales"
+          ? `/api/admin/customers/${customerId}`
+          : `/api/sales/customers/${customerId}`;
+      const response = await apiClient.get<GetAdminCustomerDetailResponse>(fallbackEndpoint);
+      return response.data;
+    }
+    throw error;
+  }
 }
 
-export async function getCustomerProjectsProvider(customerId: string) {
-  const response = await apiClient.get<GetCustomerProjectsResponse>(
-    `/api/admin/customers/${customerId}/projects`,
-  );
+export async function getCustomerProjectsProvider(
+  customerId: string,
+  page = 1,
+  limit = 20,
+  businessUnit?: string
+) {
+  const params: { page: number; limit: number; businessUnit?: string } = { page, limit };
+  if (businessUnit && businessUnit !== "all") {
+    params.businessUnit = businessUnit;
+  }
+  const role = useAuthStore.getState().role?.toLowerCase();
+  const primaryEndpoint =
+    role === "sales"
+      ? `/api/sales/customers/${customerId}/projects`
+      : `/api/admin/customers/${customerId}/projects`;
 
-  return response.data;
+  try {
+    const response = await apiClient.get<GetCustomerProjectsResponse>(
+      primaryEndpoint,
+      { params }
+    );
+    return response.data;
+  } catch (error: any) {
+    if (error?.response?.status === 404 || error?.response?.status === 403) {
+      const fallbackEndpoint =
+        role === "sales"
+          ? `/api/admin/customers/${customerId}/projects`
+          : `/api/sales/customers/${customerId}/projects`;
+      const response = await apiClient.get<GetCustomerProjectsResponse>(
+        fallbackEndpoint,
+        { params }
+      );
+      return response.data;
+    }
+    throw error;
+  }
 }
 
 export async function getCustomerInvoicesProvider(customerId: string, page = 1, limit = 10) {
@@ -195,3 +249,90 @@ export async function getCustomersProjectsListProvider(scope: string, page = 1, 
   );
   return response.data;
 }
+
+// 1. GET Customer Documents (Admin)
+export async function getAdminCustomerDocumentsProvider(customerId: string) {
+  const response = await apiClient.get<GetCustomerDocumentsResponse>(
+    `/api/admin/customers/${customerId}/documents`,
+  );
+  return response.data;
+}
+
+// 2. Register Document on Customer Record (Admin)
+export async function createAdminCustomerDocumentProvider(
+  customerId: string,
+  payload: CreateCustomerDocumentPayload,
+) {
+  const response = await apiClient.post<CreateCustomerDocumentResponse>(
+    `/api/admin/customers/${customerId}/documents`,
+    payload,
+  );
+  return response.data;
+}
+
+// 3. Delete Document from Customer Record (Admin)
+export async function deleteAdminCustomerDocumentProvider(
+  customerId: string,
+  docId: string,
+) {
+  const response = await apiClient.delete<DeleteCustomerDocumentResponse>(
+    `/api/admin/customers/${customerId}/documents/${docId}`,
+  );
+  return response.data;
+}
+
+// 4. Presigned S3 Upload Helper
+export async function uploadCustomerDocumentToS3(
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<{ fileUrl: string; key: string }> {
+  const contentType = file.type || "application/octet-stream";
+
+  // Step A: Presigned URL
+  const presignResponse = await apiClient.post<{
+    success?: boolean;
+    message?: string;
+    data?: {
+      uploadUrl: string;
+      fileUrl: string;
+      key: string;
+    };
+    uploadUrl?: string;
+    fileUrl?: string;
+    key?: string;
+  }>("/api/upload/presigned-url", {
+    fileName: file.name,
+    fileType: contentType,
+    folder: "documents",
+  });
+
+  const resData = presignResponse.data;
+  const payload = resData?.data ?? resData;
+  const uploadUrl = payload?.uploadUrl;
+  const fileUrl = payload?.fileUrl;
+  const key = payload?.key || "";
+
+  if (!uploadUrl || !fileUrl) {
+    throw new Error(
+      presignResponse.data?.message || "Failed to retrieve upload URL from server.",
+    );
+  }
+
+  // Step B: S3 PUT without Staff JWT Authorization header
+  await axios.put(uploadUrl, file, {
+    headers: {
+      "Content-Type": contentType,
+    },
+    onUploadProgress: (progressEvent) => {
+      if (progressEvent.total && onProgress) {
+        const percent = Math.round(
+          (progressEvent.loaded * 100) / progressEvent.total,
+        );
+        onProgress(percent);
+      }
+    },
+  });
+
+  return { fileUrl, key };
+}
+

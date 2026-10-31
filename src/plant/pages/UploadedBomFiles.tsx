@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -24,13 +24,27 @@ import SummaryCard from "@/plant/components/SummaryCard";
 
 export default function UploadedBomFiles() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Search state synced with URL search params
+  const search = searchParams.get("search") || "";
 
   // Pagination & Filtering State
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
-  const [search, setSearch] = useState("");
   const [projectId, setProjectId] = useState("all-projects");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const handleSearchChange = (value: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (value.trim()) {
+      nextParams.set("search", value);
+    } else {
+      nextParams.delete("search");
+    }
+    setSearchParams(nextParams, { replace: true });
+    setPage(1);
+  };
 
   // Fetch Projects List for Filter Options
   const { data: projectsRes } = useBudgetVsActualProjectsQuery();
@@ -197,7 +211,7 @@ export default function UploadedBomFiles() {
             <Input
               placeholder="Search"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-9 w-[240px] h-10 bg-white border-0 shadow-sm rounded-lg"
             />
           </div>

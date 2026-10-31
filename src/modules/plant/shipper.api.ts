@@ -132,16 +132,48 @@ export async function getProjectShipperStatsProvider(
   return response.data;
 }
 
+export type GetProjectShipperRequestsParams = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  comparisonStatus?: string;
+};
+
 export async function getProjectShipperRequestsProvider(
   leadId: string,
-  page = 1,
+  paramsOrPage: number | GetProjectShipperRequestsParams = 1,
   limit = 20,
-  search?: string
+  search?: string,
+  status?: string,
+  comparisonStatus?: string
 ): Promise<ProjectShipperRequestsResponse> {
+  let params: GetProjectShipperRequestsParams;
+  if (typeof paramsOrPage === "object" && paramsOrPage !== null) {
+    params = paramsOrPage;
+  } else {
+    params = {
+      page: paramsOrPage,
+      limit,
+      search,
+      status,
+      comparisonStatus,
+    };
+  }
+
+  const queryParams: Record<string, string | number | undefined> = {};
+  if (params.page !== undefined) queryParams.page = params.page;
+  if (params.limit !== undefined) queryParams.limit = params.limit;
+  if (params.search && params.search.trim()) queryParams.search = params.search.trim();
+  if (params.status && params.status !== "all" && params.status.trim()) queryParams.status = params.status.trim();
+  if (params.comparisonStatus && params.comparisonStatus !== "all" && params.comparisonStatus.trim()) {
+    queryParams.comparisonStatus = params.comparisonStatus.trim();
+  }
+
   const response = await apiClient.get<ProjectShipperRequestsResponse>(
     `/api/admin/plant/shipper-files/projects/${encodeURIComponent(leadId)}/requests`,
     {
-      params: { page, limit, search },
+      params: queryParams,
     }
   );
   return response.data;

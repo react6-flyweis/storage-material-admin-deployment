@@ -29,7 +29,11 @@ interface RescheduleDeliveryDialogProps {
   initialTimeWindowStart?: string;
   initialTimeWindowEnd?: string;
   initialAdditionalNotes?: string;
-  onSubmit?: (data: { date: string; timeWindowStart: string; timeWindowEnd: string }) => void;
+  onSubmit?: (data: {
+    date: string;
+    timeWindowStart: string;
+    timeWindowEnd: string;
+  }) => void;
 }
 
 interface RescheduleDeliveryFormProps {
@@ -39,7 +43,11 @@ interface RescheduleDeliveryFormProps {
   initialTimeWindowEnd: string;
   initialAdditionalNotes: string;
   onClose: () => void;
-  onSubmit?: (data: { date: string; timeWindowStart: string; timeWindowEnd: string }) => void;
+  onSubmit?: (data: {
+    date: string;
+    timeWindowStart: string;
+    timeWindowEnd: string;
+  }) => void;
 }
 
 function RescheduleDeliveryForm({
@@ -51,11 +59,17 @@ function RescheduleDeliveryForm({
   onClose,
   onSubmit,
 }: RescheduleDeliveryFormProps) {
-  const [date, setDate] = useState(initialDate ? initialDate.split("T")[0] : "");
-  const [timeWindowStart, setTimeWindowStart] = useState(initialTimeWindowStart);
+  const [date, setDate] = useState(
+    initialDate ? initialDate.split("T")[0] : "",
+  );
+  const [timeWindowStart, setTimeWindowStart] = useState(
+    initialTimeWindowStart,
+  );
   const [timeWindowEnd, setTimeWindowEnd] = useState(initialTimeWindowEnd);
   const [rescheduleReason, setRescheduleReason] = useState("");
-  const [additionalNotes, setAdditionalNotes] = useState(initialAdditionalNotes);
+  const [additionalNotes, setAdditionalNotes] = useState(
+    initialAdditionalNotes,
+  );
   const [errorMsg, setErrorMsg] = useState("");
 
   const queryClient = useQueryClient();
@@ -110,15 +124,19 @@ function RescheduleDeliveryForm({
       }
     } catch (err: unknown) {
       console.error(err);
-      const apiError = (err as { response?: { data?: { message?: string } } })?.response?.data || (err as { message?: string });
-      setErrorMsg(apiError?.message || "Failed to reschedule delivery. Please try again.");
+      const apiError =
+        (err as { response?: { data?: { message?: string } } })?.response
+          ?.data || (err as { message?: string });
+      setErrorMsg(
+        apiError?.message || "Failed to reschedule delivery. Please try again.",
+      );
     }
   };
 
   const today = new Date();
   const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, "0");
+  const dd = String(today.getDate()).padStart(2, "0");
   const minDateStr = `${yyyy}-${mm}-${dd}`;
 
   return (
@@ -145,7 +163,9 @@ function RescheduleDeliveryForm({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 py-2 text-left animate-none">
         <div className="md:col-span-2 space-y-2">
-          <Label className="text-sm font-semibold text-slate-700">New Delivery Date</Label>
+          <Label className="text-sm font-semibold text-slate-700">
+            New Delivery Date
+          </Label>
           <Input
             type="date"
             value={date}
@@ -198,11 +218,17 @@ function RescheduleDeliveryForm({
               <SelectValue placeholder="Select Reschedule Reason" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="Equipment Failure">Equipment Failure</SelectItem>
+              <SelectItem value="Equipment Failure">
+                Equipment Failure
+              </SelectItem>
               <SelectItem value="Weather Delay">Weather Delay</SelectItem>
-              <SelectItem value="Site Access Issue">Site Access Issue</SelectItem>
+              <SelectItem value="Site Access Issue">
+                Site Access Issue
+              </SelectItem>
               <SelectItem value="Vendor Delay">Vendor Delay</SelectItem>
               <SelectItem value="Customer Request">Customer Request</SelectItem>
+              {/* other */}
+              <SelectItem value="Other">Other</SelectItem>
             </SelectContent>
           </Select>
         </div>

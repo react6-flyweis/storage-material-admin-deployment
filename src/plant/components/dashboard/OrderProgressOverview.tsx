@@ -11,13 +11,10 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { Link } from "react-router";
 import { useOrderProgressReviewQuery } from "@/modules/plant/dashboard.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { DashboardFilterParams } from "@/modules/plant/dashboard.api";
 
 interface OrderProgressOverviewProps {
-  filters: {
-    startDate?: string;
-    endDate?: string;
-    assignedTo?: string;
-  };
+  filters?: DashboardFilterParams;
 }
 
 export default function OrderProgressOverview({ filters }: OrderProgressOverviewProps) {

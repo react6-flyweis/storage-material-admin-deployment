@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { ArrowLeft, Search, ArrowUpDown, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SuccessModal from "../components/common_component/SuccessModal";
@@ -12,6 +13,8 @@ import type { ComparisonResultItem, ComparisonPartItem } from "@/modules/plant/s
 
 const ComparisonResultView: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { goBack } = useAppBack("/plant/uploaded-bom-files");
   const { requestId } = useParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
@@ -141,7 +144,7 @@ const ComparisonResultView: React.FC = () => {
           <Button
             variant="default"
             size="sm"
-            onClick={() => navigate(-1)}
+            onClick={() => goBack()}
             className="flex items-center gap-2 bg-[#1E51A4] hover:bg-[#154085] text-white"
           >
             <ArrowLeft size={18} />
@@ -265,7 +268,7 @@ const ComparisonResultView: React.FC = () => {
             <Button
               variant="default"
               size="sm"
-              onClick={() => navigate(-1)}
+              onClick={() => goBack()}
               className="flex items-center gap-2 bg-[#1E51A4] hover:bg-[#154085] text-white font-inter font-bold"
             >
               <ArrowLeft size={18} />
@@ -310,7 +313,7 @@ const ComparisonResultView: React.FC = () => {
               size="sm"
               onClick={() => {
                 const targetLeadId = data?.leadId || data?.projectId || "";
-                navigate(`/plant/shipper-quotation/${targetLeadId}/file/${requestId}`);
+                goBack(`/plant/shipper-quotation/${targetLeadId}/file/${requestId}`);
               }}
               className="font-inter font-bold text-[#212B36] border-gray-200 bg-white hover:bg-gray-50"
             >
@@ -319,7 +322,7 @@ const ComparisonResultView: React.FC = () => {
             <Button
               variant="default"
               size="sm"
-              onClick={() => navigate(`/plant/load-planning/${data.leadId}`)}
+              onClick={() => navigate(`/plant/load-planning/${data.leadId}`, { state: { from: location.pathname + location.search } })}
               className="flex items-center gap-2 font-inter font-bold bg-[#7C3AED] hover:bg-[#6D28D9] text-white"
             >
               Start Load Planning
@@ -522,7 +525,7 @@ const ComparisonResultView: React.FC = () => {
         onClose={() => {
           setIsSuccessModalOpen(false);
           if (navigateOnClose) {
-            navigate(navigateOnClose);
+            navigate(navigateOnClose, { replace: true });
             setNavigateOnClose(null);
           }
         }}

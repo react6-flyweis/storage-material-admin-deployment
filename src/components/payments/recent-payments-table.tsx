@@ -13,6 +13,7 @@ import type { RecentPaymentItem } from "@/modules/payments/payments.api";
 interface RecentPaymentsTableProps {
   data?: RecentPaymentItem[];
   isLoading?: boolean;
+  total?: number;
 }
 
 type FormattedPayment = {
@@ -82,7 +83,7 @@ const DEFAULT_PAYMENTS: FormattedPayment[] = [
 const getStatusBadgeStyle = (status: string) => {
   const s = status.toLowerCase();
   if (s === "paid") return "bg-emerald-100 text-emerald-800";
-  if (s === "partial" || s === "sent") return "bg-amber-100 text-amber-800";
+  if (s === "partial" || s === "sent" || s === "pending") return "bg-amber-100 text-amber-800";
   if (s === "overdue") return "bg-rose-100 text-rose-800";
   return "bg-gray-100 text-gray-800";
 };
@@ -102,37 +103,53 @@ const formatDate = (dateStr?: string) => {
   };
 };
 
-export default function RecentPaymentsTable({ data, isLoading }: RecentPaymentsTableProps) {
+export default function RecentPaymentsTable({ data, isLoading, total }: RecentPaymentsTableProps) {
   let payments: FormattedPayment[] = DEFAULT_PAYMENTS;
 
   if (data && data.length > 0) {
-    payments = data.map((item) => {
+    payments = data.map((item, idx) => {
       const { date, time } = formatDate(item.date || item.createdAt);
       
       const clientName =
-        item.customerId?.firstName || item.customerId?.lastName
+        item.clientName ||
+        (item.customerId?.firstName || item.customerId?.lastName
           ? `${item.customerId?.firstName || ""} ${item.customerId?.lastName || ""}`.trim()
-          : item.leadId?.projectName || "N/A";
+          : item.projectName || item.leadId?.projectName || "N/A");
           
-      const projectSub = item.leadId?.projectName && clientName !== item.leadId.projectName
-        ? item.leadId.projectName
-        : "Customer";
+      const projectSub =
+        item.projectName ||
+        (item.leadId?.projectName && clientName !== item.leadId.projectName
+          ? item.leadId.projectName
+          : "Customer");
 
-      const statusCapitalized = (item.status || "Pending").charAt(0).toUpperCase() + (item.status || "Pending").slice(1);
+      const statusText = item.statusLabel || item.status || "Pending";
+      const statusCapitalized =
+        statusText.charAt(0).toUpperCase() + statusText.slice(1);
       
-      const paymentMode = item.paymentMethod
-        ? item.paymentMethod.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-        : "N/A";
+      const paymentMode =
+        item.paymentMode && item.paymentMode !== "N/A"
+          ? item.paymentMode.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+          : item.paymentMethod
+          ? item.paymentMethod.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+          : "N/A";
+
+      const amountVal = item.amount ?? item.totalAmount ?? item.subtotal ?? 0;
+      const receivedVal =
+        item.received !== undefined
+          ? item.received
+          : item.status?.toLowerCase() === "paid"
+          ? amountVal
+          : 0;
 
       return {
-        id: item._id,
+        id: item.id || item._id || `payment-${idx}`,
         date,
         time,
         client: clientName,
         clientType: projectSub,
         invoice: item.invoiceNumber || item.poNumber || "N/A",
-        amount: formatCurrency(item.totalAmount || item.subtotal),
-        received: item.status?.toLowerCase() === "paid" ? formatCurrency(item.totalAmount || item.subtotal) : "$0.00",
+        amount: formatCurrency(amountVal),
+        received: formatCurrency(receivedVal),
         paymentMode,
         status: statusCapitalized,
       };
@@ -144,7 +161,7 @@ export default function RecentPaymentsTable({ data, isLoading }: RecentPaymentsT
       <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 border-b border-gray-200">
         <div>
           <h3 className="text-lg font-semibold text-gray-900">
-            Recent Payments
+            Recent Payments {total !== undefined ? `(${total})` : ""}
           </h3>
         </div>
         <Link
@@ -190,7 +207,7 @@ export default function RecentPaymentsTable({ data, isLoading }: RecentPaymentsT
               </TableRow>
             </TableHeader>
             <TableBody className="bg-white divide-y divide-gray-100">
-              {payments.slice(0, 5).map((payment) => (
+              {payments.map((payment) => (
                 <TableRow key={payment.id} className="hover:bg-gray-50">
                   <TableCell className="">
                     <div className="text-sm font-semibold text-gray-900">

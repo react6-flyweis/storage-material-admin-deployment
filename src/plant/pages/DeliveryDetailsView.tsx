@@ -1,18 +1,27 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, AlertTriangle, RotateCcw, Edit3 } from "lucide-react";
 import RescheduleDeliveryDialog from "@/plant/components/RescheduleDeliveryDialog";
 import MarkDeliveredSuccessDialog from "@/plant/components/MarkDeliveredSuccessDialog";
 import { useDeliveryStatusUpdate } from "./useDeliveryStatusUpdate";
-import { RescheduleSuccessModal, InTransitSuccessModal } from "./DeliveryActionModals";
+import {
+  RescheduleSuccessModal,
+  InTransitSuccessModal,
+  StatusUpdatedSuccessModal,
+} from "./DeliveryActionModals";
 import EditDeliveryModal from "@/plant/components/EditDeliveryModal";
+import StatusConfirmationModal from "./StatusConfirmationModal";
+import { formatStatusLabel, isFinalStatus } from "./deliveryStatusConstants";
 
 import { convertTo24Hour } from "./delivery-details/utils";
 import { DeliveryDetailsSkeleton } from "./delivery-details/components/DeliverySkeleton";
 import { DeliveryOverview, SiteCoordinationAndFreight } from "./delivery-details/components/DeliveryOverview";
 import { DeliveryContacts } from "./delivery-details/components/DeliveryContacts";
 import { ReceivingPocCard, QuickActionsCard, StatusHistoryCard } from "./delivery-details/components/DeliverySidebar";
+import SendReminderDialog from "@/plant/components/SendReminderDialog";
+import DeliveryDocumentsModal from "@/plant/components/DeliveryDocumentsModal";
+import { handleDownloadDeliveryDetailsPdf } from "@/plant/utils/deliveryActionHelpers";
 import type { DeliveryDetails as DeliveryDetailsType } from "@/modules/plant/freight.api";
 
 export interface DeliveryDetailsViewProps {
@@ -30,7 +39,7 @@ export default function DeliveryDetailsView({
   showQuickActions = true,
   refetch,
 }: DeliveryDetailsViewProps) {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack("/plant/all-deliveries");
 
   // Modal / Dialog States
   const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
@@ -38,6 +47,13 @@ export default function DeliveryDetailsView({
   const [isRescheduleSuccessOpen, setIsRescheduleSuccessOpen] = useState(false);
   const [isInTransitSuccessOpen, setIsInTransitSuccessOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isStatusConfirmOpen, setIsStatusConfirmOpen] = useState(false);
+  const [isStatusSuccessOpen, setIsStatusSuccessOpen] = useState(false);
+  const [lastUpdatedStatusLabel, setLastUpdatedStatusLabel] = useState("");
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isSendReminderOpen, setIsSendReminderOpen] = useState(false);
+  const [isDocumentsOpen, setIsDocumentsOpen] = useState(false);
+  const [isDownloadingDetails, setIsDownloadingDetails] = useState(false);
 
   // Data / Status States
   const [rescheduleData, setRescheduleData] = useState<{ date: string; timeWindowStart: string; timeWindowEnd: string } | null>(null);
@@ -67,8 +83,8 @@ export default function DeliveryDetailsView({
           We couldn't find any delivery details for this project.
         </p>
         <Button
-          className="px-6 font-semibold bg-blue-600 hover:bg-blue-700 text-white"
-          onClick={() => navigate(-1)}
+          className="px-6 font-semibold bg-[#1E51A4] hover:bg-[#154085] text-white"
+          onClick={() => goBack()}
         >
           Go Back
         </Button>
@@ -134,7 +150,8 @@ export default function DeliveryDetailsView({
     });
   }
 
-  const activeDeliveryId = delivery.deliveryId || deliveryId;
+  const activeDeliveryId =
+    (delivery as { _id?: string })._id || delivery.deliveryId || deliveryId;
 
   return (
     <div className="xl:pr-5 px-2 pb-10 space-y-6 relative font-inter">
@@ -150,7 +167,14 @@ export default function DeliveryDetailsView({
       {/* Header */}
       <div className="flex flex-wrap md:items-center justify-between gap-4 mt-2">
         <div className="flex items-center gap-4">
-          <ArrowLeft size={18} strokeWidth={2.5} className="cursor-pointer" onClick={() => navigate(-1)} />
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => goBack()}
+            className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
+          >
+            <ArrowLeft size={18} strokeWidth={2.5} /> Back
+          </Button>
           <div>
             <h1 className="text-xl md:text-2xl font-bold tracking-tight text-[#212B36]">
               Delivery Details
@@ -162,7 +186,7 @@ export default function DeliveryDetailsView({
         </div>
 
         <div className="flex items-center gap-3">
-          {currentStatus.toLowerCase() !== "delivered" && (
+          {!isFinalStatus(currentStatus) && (
             <>
               <Button
                 variant="outline"
@@ -231,21 +255,20 @@ export default function DeliveryDetailsView({
           {showQuickActions && (
             <QuickActionsCard
               currentStatus={currentStatus}
+              onOpenStatusModal={() => setIsStatusConfirmOpen(true)}
               onReschedule={() => setIsRescheduleOpen(true)}
-              onMarkInTransit={() => {
-                updateDeliveryStatus(activeDeliveryId, "in_transit", () => {
-                  setLocalStatus("in_transit");
-                  setIsInTransitSuccessOpen(true);
-                  if (refetch) refetch();
-                });
+              isUpdatingStatus={isUpdatingStatus}
+              onSendReminder={() => setIsSendReminderOpen(true)}
+              onDownloadDetails={async () => {
+                setIsDownloadingDetails(true);
+                await handleDownloadDeliveryDetailsPdf(
+                  activeDeliveryId,
+                  delivery.deliveryNumber
+                );
+                setIsDownloadingDetails(false);
               }}
-              onMarkDelivered={() => {
-                updateDeliveryStatus(activeDeliveryId, "delivered", () => {
-                  setLocalStatus("delivered");
-                  setIsMarkDeliveredOpen(true);
-                  if (refetch) refetch();
-                });
-              }}
+              isDownloadingDetails={isDownloadingDetails}
+              onViewDocuments={() => setIsDocumentsOpen(true)}
             />
           )}
 
@@ -302,6 +325,51 @@ export default function DeliveryDetailsView({
         onSaveSuccess={() => {
           if (refetch) refetch();
         }}
+      />
+
+      <StatusConfirmationModal
+        isOpen={isStatusConfirmOpen}
+        onClose={() => setIsStatusConfirmOpen(false)}
+        projectName={delivery.formDetails?.description || delivery.project?.projectName || "Delivery"}
+        deliveryId={activeDeliveryId}
+        currentStatus={currentStatus}
+        isLoading={isUpdatingStatus}
+        onConfirm={(targetStatus) => {
+          setIsUpdatingStatus(true);
+          const targetLabel = formatStatusLabel(targetStatus);
+          setLastUpdatedStatusLabel(targetLabel);
+          updateDeliveryStatus(activeDeliveryId, targetStatus, () => {
+            setIsUpdatingStatus(false);
+            setLocalStatus(targetStatus);
+            setIsStatusConfirmOpen(false);
+            setIsStatusSuccessOpen(true);
+            if (refetch) refetch();
+          });
+        }}
+      />
+
+      <StatusUpdatedSuccessModal
+        isOpen={isStatusSuccessOpen}
+        onClose={() => setIsStatusSuccessOpen(false)}
+        projectName={delivery.formDetails?.description || delivery.project?.projectName || "Delivery"}
+        statusLabel={lastUpdatedStatusLabel}
+      />
+
+      <SendReminderDialog
+        open={isSendReminderOpen}
+        onOpenChange={setIsSendReminderOpen}
+        deliveryId={activeDeliveryId}
+        deliveryNumber={delivery.deliveryNumber}
+        projectName={delivery.project?.projectName || delivery.formDetails?.description}
+        customerName={delivery.customer?.customerName || delivery.receivingPocDetails?.receivingPoc}
+      />
+
+      <DeliveryDocumentsModal
+        open={isDocumentsOpen}
+        onOpenChange={setIsDocumentsOpen}
+        deliveryId={activeDeliveryId}
+        deliveryNumber={delivery.deliveryNumber}
+        title={delivery.project?.projectName || delivery.formDetails?.description}
       />
     </div>
   );

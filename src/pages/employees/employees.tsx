@@ -23,10 +23,32 @@ const formatJoinedDate = (date?: string) => {
 };
 
 export default function EmployeesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawRoleParam = searchParams.get("role") || searchParams.get("team");
+  const roleFilter = rawRoleParam ? rawRoleParam.trim().toLowerCase() : "all";
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const deferredSearchQuery = useDeferredValue(searchQuery);
+
+  const handleRoleFilterChange = (newRole: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (!newRole || newRole === "all") {
+        next.delete("role");
+        next.delete("team");
+      } else {
+        if (next.has("role")) {
+          next.set("role", newRole);
+          next.delete("team");
+        } else {
+          next.set("team", newRole);
+          next.delete("role");
+        }
+      }
+      return next;
+    });
+  };
 
   const { data: employeesResponse, isLoading: isEmployeesLoading } =
     useAdminEmployeesQuery({
@@ -42,10 +64,27 @@ export default function EmployeesPage() {
     (state) => state.setEmployeeCounts,
   );
 
-  const [searchParams] = useSearchParams();
-  const teamFilter = searchParams.get("team") ?? undefined;
-
   useEffect(() => {
+    const statsData = employeeStatsResponse?.data;
+    if (statsData) {
+      const countsByTeam = (statsData.byRole ?? []).reduce<Record<string, number>>(
+        (counts, item) => {
+          const team = item._id?.trim().toLowerCase();
+          if (team) {
+            counts[team] = item.count;
+          }
+          return counts;
+        },
+        {},
+      );
+
+      setEmployeeCounts({
+        total: statsData.total ?? 0,
+        byTeam: countsByTeam,
+      });
+      return;
+    }
+
     const employees = employeesResponse?.data.employees ?? [];
 
     const countsByTeam = employees.reduce<Record<string, number>>(
@@ -66,7 +105,7 @@ export default function EmployeesPage() {
       total: employeesResponse?.data.total ?? employees.length,
       byTeam: countsByTeam,
     });
-  }, [employeesResponse, setEmployeeCounts]);
+  }, [employeeStatsResponse, employeesResponse, setEmployeeCounts]);
 
   const employees: Employee[] = (employeesResponse?.data.employees ?? []).map(
     (employee) => ({
@@ -81,12 +120,6 @@ export default function EmployeesPage() {
       leads: employee.assignedLeadCount ?? 0,
     }),
   );
-
-  const filteredEmployees = teamFilter
-    ? employees.filter(
-        (emp) => emp.role?.toLowerCase() === teamFilter.toLowerCase() || emp.team?.toLowerCase() === teamFilter.toLowerCase(),
-      )
-    : employees;
 
   const employeeStatsData = employeeStatsResponse?.data;
 
@@ -123,12 +156,12 @@ export default function EmployeesPage() {
 
       {/* Employee Table */}
       <EmployeeTable
-        employees={filteredEmployees}
+        employees={employees}
         loading={isEmployeesLoading}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         roleFilter={roleFilter}
-        setRoleFilter={setRoleFilter}
+        setRoleFilter={handleRoleFilterChange}
         statusFilter={statusFilter}
         setStatusFilter={setStatusFilter}
       />

@@ -1,5 +1,6 @@
-import { useNavigate, useLocation } from "react-router";
+import { useNavigate, useLocation, useParams } from "react-router";
 import { useState } from "react";
+import { useAppBack } from "@/modules/navigation";
 import {
   useGetInvoiceDetailQuery,
   useMarkInvoicePaidMutation,
@@ -22,11 +23,48 @@ import {
 import ApprovalTimeline from "@/components/invoices/approval-timeline";
 import InvoiceStatusBadge from "@/components/invoices/invoice-status-badge";
 import SendInvoiceDialog from "@/components/invoices/send-invoice-dialog";
+import type {
+  InvoiceAddress,
+  InvoiceBankDetails,
+} from "@/modules/invoices/invoices.api";
 import { toast } from "sonner";
+
+const DEFAULT_COMPANY_ADDRESS_LINES = [
+  "1851 Madison Ave Suite 300",
+  "Council Bluffs, IA 51503",
+  "United States",
+  "travis@storagematerials.com",
+  "www.storagematerials.com",
+];
+
+function getAddressLines(
+  address?: InvoiceAddress | null,
+  fallbackLines?: string[],
+): string[] {
+  if (!address) return fallbackLines ?? [];
+  if (address.lines && address.lines.length > 0) {
+    return address.lines;
+  }
+  const lines: string[] = [];
+  if (address.line1) lines.push(address.line1);
+  if (address.line2) lines.push(address.line2);
+  const cityStateZip = [
+    address.city,
+    [address.state, address.postalCode].filter(Boolean).join(" "),
+  ]
+    .filter(Boolean)
+    .join(", ");
+  if (cityStateZip) lines.push(cityStateZip);
+  if (address.country) lines.push(address.country);
+
+  return lines.length > 0 ? lines : (fallbackLines ?? []);
+}
 
 export default function InvoicePreview() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { id } = useParams<{ id: string }>();
+  const { goBack } = useAppBack("/invoice/list");
   const [showSuccess, setShowSuccess] = useState(false);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
@@ -59,7 +97,8 @@ export default function InvoicePreview() {
     },
   ];
 
-  const { invoiceId, ...fallbackState } = location.state || {};
+  const { invoiceId: stateInvoiceId, ...fallbackState } = location.state || {};
+  const invoiceId = id || stateInvoiceId;
 
   const queryClient = useQueryClient();
   const markPaidMutation = useMarkInvoicePaidMutation();
@@ -82,6 +121,44 @@ export default function InvoicePreview() {
   const total = invoiceData?.totalAmount ?? fallbackState?.total ?? 0;
   const deposit = invoiceData?.depositAmount ?? 0;
   const discount = invoiceData?.discount ?? 0;
+
+  const sellerAddress =
+    invoiceData?.billingAddress || fallbackState?.billingAddress;
+  const sellerCompanyName =
+    sellerAddress?.companyName || "STEEL BUILDING DEPOT";
+  const sellerLines = getAddressLines(
+    sellerAddress,
+    DEFAULT_COMPANY_ADDRESS_LINES,
+  );
+
+  const recipientAddress =
+    invoiceData?.recipientAddress || fallbackState?.recipientAddress;
+  const customerObj =
+    typeof invoiceData?.customerId === "object" &&
+    invoiceData?.customerId !== null
+      ? invoiceData.customerId
+      : null;
+  const customerFullName = customerObj
+    ? `${customerObj.firstName ?? ""} ${customerObj.lastName ?? ""}`.trim()
+    : "";
+  const recipientCompanyName =
+    recipientAddress?.companyName || customerFullName || "Valued Customer";
+  const recipientLines = getAddressLines(recipientAddress);
+  const hasRecipientInfo = Boolean(
+    recipientAddress?.companyName ||
+      recipientLines.length > 0 ||
+      customerFullName ||
+      (customerObj as any)?.email,
+  );
+
+  const bank = invoiceData?.bankDetails || fallbackState?.bankDetails;
+  const hasBankInfo = Boolean(
+    bank?.bankName ||
+      bank?.accountNumber ||
+      bank?.routingNumber ||
+      bank?.accountName ||
+      bank?.paymentInstructions,
+  );
 
   // Approval & Workflow calculation
   const approval = invoiceData?.approval;
@@ -203,7 +280,7 @@ export default function InvoicePreview() {
             <Button
               variant="outline"
               className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200 min-w-[100px] gap-1.5"
-              onClick={() => navigate("/invoice/list")}
+              onClick={() => goBack()}
             >
               <ArrowLeft className="w-4 h-4" />
               Back
@@ -211,7 +288,7 @@ export default function InvoicePreview() {
             {/* <Button
               variant="outline"
               className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200 min-w-[100px]"
-              onClick={() => navigate("/invoice/list")}
+              onClick={() => goBack()}
             >
               Cancel
             </Button> */}
@@ -240,12 +317,13 @@ export default function InvoicePreview() {
 
             <Button
               variant="outline"
-              className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200 min-w-[100px]"
+              className="bg-white hover:bg-gray-50 text-gray-700 border-gray-200 min-w-25"
               onClick={() =>
                 navigate(
                   invoiceId
                     ? `/invoice/${invoiceId}/edit`
                     : `/invoice/${invoiceNumber}/edit`,
+                  { state: { from: location.pathname + location.search } },
                 )
               }
             >
@@ -319,43 +397,75 @@ export default function InvoicePreview() {
           </div>
 
           {/* Header Section */}
-          <div className="flex flex-col md:flex-row justify-between gap-12 mb-16 ">
-            <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-12 lg:gap-16 mb-16 items-start">
+            {/* Seller / Billing Address */}
+            <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <div className="flex items-center shrink-0">
-                  <img src={logo} alt="Logo" className="h-12  object-contain" />
+                  <img
+                    src={logo}
+                    alt="Logo"
+                    className="h-10 max-w-56 object-contain object-left"
+                  />
                 </div>
               </div>
 
-              <div className="text-xs text-gray-500 leading-relaxed">
-                1851 Madison Ave Suite 300
-                <br />
-                Council Bluffs, IA
-                <br />
-                51503
-                <br />
-                United States
-                <br />
-                travis@storagematerials.com
-                <br />
-                www.storagematerials.com
+              <div>
+                <h2 className="text-xs font-bold text-gray-800 uppercase tracking-wide">
+                  {sellerCompanyName}
+                </h2>
+                <div className="text-xs text-gray-500 leading-relaxed mt-1">
+                  {sellerLines.map((line, idx) => (
+                    <div key={idx}>{line}</div>
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="min-w-[200px] space-y-2">
-              <div className="flex justify-between text-xs">
+            {/* Billed To / Recipient Address */}
+            <div className="space-y-2 md:pl-2">
+              <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block">
+                Billed To
+              </span>
+              {hasRecipientInfo ? (
+                <div className="text-xs text-gray-600 space-y-1">
+                  <p className="font-semibold text-gray-900">
+                    {recipientCompanyName}
+                  </p>
+                  {(customerObj as any)?.email &&
+                    recipientCompanyName !== (customerObj as any)?.email && (
+                      <p className="text-gray-500">
+                        {(customerObj as any)?.email}
+                      </p>
+                    )}
+                  {recipientLines.map((line, idx) => (
+                    <p key={idx} className="text-gray-500">
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-xs text-gray-400 italic">
+                  Client details on file
+                </div>
+              )}
+            </div>
+
+            {/* Invoice Meta */}
+            <div className="min-w-50 space-y-2 md:text-right">
+              <div className="flex md:justify-end justify-between gap-4 text-sm">
                 <span className="text-gray-500 font-medium">Payment terms</span>
                 <span className="text-gray-900">{daysToPay} days</span>
               </div>
-              <div className="flex justify-between text-xs">
+              <div className="flex md:justify-end justify-between gap-4 text-sm">
                 <span className="text-gray-500 font-medium">Invoice #</span>
-                <span className="text-gray-900">{invoiceNumber}</span>
+                <span className="text-gray-900 font-bold">{invoiceNumber}</span>
               </div>
-              <div className="flex justify-between text-xs">
+              <div className="flex md:justify-end justify-between gap-4 text-sm">
                 <span className="text-gray-500 font-medium">Date</span>
                 <span className="text-gray-900">{date}</span>
               </div>
-              <div className="flex justify-between text-xs">
+              <div className="flex md:justify-end justify-between gap-4 text-sm">
                 <span className="text-gray-500 font-medium">
                   Business/Tax #
                 </span>
@@ -459,7 +569,72 @@ export default function InvoicePreview() {
           </div>
 
           {/* Summary Section */}
-          <div className="flex justify-end mb-12">
+          <div className="flex flex-col lg:flex-row justify-between items-start gap-10 mb-12">
+            {/* Left: Banking & Wire Info */}
+            {hasBankInfo ? (
+              <div className="w-full max-w-md">
+                <div className="pb-2 border-b border-gray-200">
+                  <h3 className="text-sm font-bold text-gray-900">
+                    Banking & Wire Info
+                  </h3>
+                </div>
+
+                <div className="py-2.5 space-y-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Bank</span>
+                    <span className="font-semibold text-gray-900">
+                      {bank?.bankName || "Example Bank"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Account Name</span>
+                    <span className="font-semibold text-gray-900">
+                      {bank?.accountName || "Steel Building Depot LLC"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Account #</span>
+                    <span className="font-semibold text-gray-900 font-mono">
+                      {bank?.accountNumber || "****1234"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Routing #</span>
+                    <span className="font-semibold text-gray-900 font-mono">
+                      {bank?.routingNumber || "021000021"}
+                    </span>
+                  </div>
+                  {Boolean(bank?.swiftCode) && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500">SWIFT</span>
+                      <span className="font-semibold text-gray-900 font-mono">
+                        {bank?.swiftCode}
+                      </span>
+                    </div>
+                  )}
+                  {Boolean(bank?.iban) && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500">IBAN</span>
+                      <span className="font-semibold text-gray-900 font-mono">
+                        {bank?.iban}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-gray-200">
+                  <p className="text-xs text-gray-500 italic">
+                    Memo:{" "}
+                    {bank?.paymentInstructions ||
+                      "Include invoice number in memo."}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div />
+            )}
+
+            {/* Right: Totals */}
             <div className="w-64 space-y-3">
               <div className="flex justify-between text-xs">
                 <span className="text-gray-900 font-bold">Subtotal</span>

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useParams, useNavigate } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -136,6 +137,7 @@ export default function PurchaseOrderDetailsPage() {
   };
 
   const navigate = useNavigate();
+  const { goBack } = useAppBack("/leads/purchase-orders");
   const { poId: poOrderId } = useParams();
   const [assignPlantDialogOpen, setAssignPlantDialogOpen] = useState(false);
 
@@ -171,7 +173,7 @@ export default function PurchaseOrderDetailsPage() {
       {
         onSuccess: () => {
           toast.success("Purchase order rejected");
-          navigate("/leads/purchase-orders");
+          navigate("/leads/purchase-orders", { replace: true });
         },
         onError: (err: any) => {
           toast.error(err?.response?.data?.message || "Failed to reject PO");
@@ -186,7 +188,7 @@ export default function PurchaseOrderDetailsPage() {
         <div>
           <button
             type="button"
-            onClick={() => navigate("/leads/purchase-orders")}
+            onClick={() => goBack("/leads/purchase-orders")}
             className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-slate-900"
           >
             <ArrowLeft className="h-4 w-4" />

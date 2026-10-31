@@ -7,6 +7,7 @@ import {
 import { CarrierInvoiceHeader } from "./components/carrier-invoice-header";
 import { CarrierInvoiceFilters } from "./components/carrier-invoice-filters";
 import { CarrierInvoiceTable } from "./components/carrier-invoice-table";
+import { ManualPayableUploadDialog } from "./components/manual-payable-upload-dialog";
 
 function formatDateISO(date?: Date) {
   if (!date) return undefined;
@@ -16,9 +17,10 @@ function formatDateISO(date?: Date) {
 export default function CarrierInvoicesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  // const [carrierFilter, setCarrierFilter] = useState("All");
+  const [payableStatusFilter, setPayableStatusFilter] = useState("All");
   const [projectFilter, setProjectFilter] = useState("All");
   const [dateRange, setDateRange] = useState<RDateRange | undefined>(undefined);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -28,17 +30,30 @@ export default function CarrierInvoicesPage() {
   const queryParams = useMemo(() => {
     return {
       status: statusFilter !== "All" ? statusFilter : undefined,
+      payableStatus:
+        payableStatusFilter !== "All" ? payableStatusFilter : undefined,
       projectId: projectFilter !== "All" ? projectFilter : undefined,
-      // carrier: carrierFilter !== "All" ? carrierFilter : undefined,
       startDate: formatDateISO(dateRange?.from),
       endDate: formatDateISO(dateRange?.to),
       search: searchQuery || undefined,
       page: currentPage,
       limit: rowsPerPage,
     };
-  }, [statusFilter, projectFilter, dateRange, searchQuery, currentPage, rowsPerPage]);
+  }, [
+    statusFilter,
+    payableStatusFilter,
+    projectFilter,
+    dateRange,
+    searchQuery,
+    currentPage,
+    rowsPerPage,
+  ]);
 
-  const { data: apiResponse, isLoading } = useGetCarrierInvoicesQuery(queryParams);
+  const {
+    data: apiResponse,
+    isLoading,
+    refetch,
+  } = useGetCarrierInvoicesQuery(queryParams);
   const exportMutation = useExportCarrierInvoicesMutation();
 
   const invoices = useMemo(() => apiResponse?.data?.invoices ?? [], [apiResponse]);
@@ -61,12 +76,20 @@ export default function CarrierInvoicesPage() {
     } catch {
       // Fallback CSV generation if endpoint returns error
       const csv = [
-        ["Carrier", "Invoice Number", "Total Amount", "Status", "Due Date"],
+        [
+          "Carrier",
+          "Invoice Number",
+          "Total Amount",
+          "Status",
+          "Payable Status",
+          "Due Date",
+        ],
         ...invoices.map((inv) => [
           inv.carrierId?.carrierName || inv.payeeName || "",
           inv.invoiceNumber,
           inv.totalAmount,
           inv.status,
+          inv.payableStatus || "",
           inv.dueDate || "",
         ]),
       ]
@@ -82,19 +105,12 @@ export default function CarrierInvoicesPage() {
     }
   };
 
-  const handleUpload = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".csv,.xlsx,.xls";
-    input.click();
-  };
-
   return (
     <div className="p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         <CarrierInvoiceHeader
           onExport={handleExport}
-          onUpload={handleUpload}
+          onUpload={() => setIsUploadDialogOpen(true)}
           isExporting={exportMutation.isPending}
         />
 
@@ -103,8 +119,8 @@ export default function CarrierInvoicesPage() {
           setDateRange={setDateRange}
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}
-          // carrierFilter={carrierFilter}
-          // setCarrierFilter={setCarrierFilter}
+          payableStatusFilter={payableStatusFilter}
+          setPayableStatusFilter={setPayableStatusFilter}
           projectFilter={projectFilter}
           setProjectFilter={setProjectFilter}
         />
@@ -120,9 +136,16 @@ export default function CarrierInvoicesPage() {
           totalItems={totalItems}
           rowsPerPage={rowsPerPage}
           onRowsPerPageChange={setRowsPerPage}
+          onRefetch={refetch}
         />
       </div>
+
+      <ManualPayableUploadDialog
+        open={isUploadDialogOpen}
+        onOpenChange={setIsUploadDialogOpen}
+        type="freight_carrier"
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 }
-

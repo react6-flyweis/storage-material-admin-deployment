@@ -11,9 +11,14 @@ import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 import { Link } from "react-router";
 import { useLoadPlanningStatusQuery } from "@/modules/plant/dashboard.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { DashboardFilterParams } from "@/modules/plant/dashboard.api";
 
-export default function LoadPlanningStatus() {
-  const { data, isLoading, isError } = useLoadPlanningStatusQuery();
+interface LoadPlanningStatusProps {
+  filters?: DashboardFilterParams;
+}
+
+export default function LoadPlanningStatus({ filters }: LoadPlanningStatusProps = {}) {
+  const { data, isLoading, isError } = useLoadPlanningStatusQuery(filters);
 
   const chartData = useMemo(() => {
     if (!data?.data) return [];

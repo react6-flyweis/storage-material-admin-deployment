@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Bell } from "lucide-react";
@@ -18,29 +18,28 @@ interface RecentFollowUp {
 }
 
 export default function SingleReminder() {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack("/leads");
 
   const [openAddFollowUp, setOpenAddFollowUp] = useState(false);
 
   const [recommendedTimes] = useState<RecommendedTime[]>([
-    { id: "1", label: "Today 10:30 AM" },
-    { id: "2", label: "Tomorrow 9:30 AM" },
-    { id: "3", label: "Wednesday, April 17 1:30 PM" },
-    { id: "4", label: "Friday, Apr 19 11:00 AM" },
+    { id: "1", label: "Today at 4:00 PM" },
+    { id: "2", label: "Tomorrow at 10:00 AM" },
+    { id: "3", label: "In 2 days at 2:00 PM" },
   ]);
 
   const [recentFollowUps] = useState<RecentFollowUp[]>([
     {
       id: "1",
-      name: "John Smith",
-      description: "Sent project proposal and timeline for Q1 initiatives...",
-      timestamp: "2024-01-15 at 3:45 PM",
+      name: "Sarah Johnson",
+      description: "Discussed budget constraints and timeline adjustments...",
+      timestamp: "Today at 2:30 PM",
     },
     {
       id: "2",
-      name: "Sarah Johnson",
-      description: "Sent project proposal and timeline for Q1 initiatives...",
-      timestamp: "2024-01-15 at 3:45 PM",
+      name: "Michael Chen",
+      description: "Followed up on technical specifications for the new module...",
+      timestamp: "Yesterday at 11:15 AM",
     },
     {
       id: "3",
@@ -51,7 +50,7 @@ export default function SingleReminder() {
   ]);
 
   const handleBack = () => {
-    navigate('/leads');
+    goBack("/leads");
   };
 
   const handleApply = () => {
