@@ -158,7 +158,7 @@ const getEscalationRows = (escalations: EscalationItem[]): EscalatedLead[] =>
     name: getLeadName(escalation),
     projectName: escalation.projectName || "",
     businessUnit: escalation.businessUnit,
-    businessUnitLabel: escalation.businessUnitLabel || formatBusinessUnit(escalation.businessUnit),
+    businessUnitLabel: formatBusinessUnit(escalation.businessUnit, escalation.businessUnitLabel),
     quoteId: escalation.jobId || escalation.projectId || escalation._id || "N/A",
     type: formatLeadType(escalation),
     assignedTo: getAssignedName(escalation) ?? undefined,
@@ -322,7 +322,7 @@ export default function EscalatedLeadsPage() {
                                 variant="outline"
                                 className="text-[11px] font-normal px-1.5 py-0 border-slate-300 text-slate-700 bg-slate-50"
                               >
-                                {lead.businessUnitLabel || formatBusinessUnit(lead.businessUnit)}
+                                {formatBusinessUnit(lead.businessUnit, lead.businessUnitLabel)}
                               </Badge>
                             </div>
                           )}
