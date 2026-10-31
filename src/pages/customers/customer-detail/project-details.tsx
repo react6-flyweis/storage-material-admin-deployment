@@ -266,7 +266,7 @@ export default function ProjectDetailsPage() {
                   variant="outline"
                   className="text-xs font-normal border-slate-200 text-slate-700 bg-slate-50"
                 >
-                  {project?.businessUnitLabel || formatBusinessUnit(project?.businessUnit)}
+                  {formatBusinessUnit(project?.businessUnit, project?.businessUnitLabel)}
                 </Badge>
               </div>
               <p className="text-[13px] text-slate-500 mt-1">
@@ -308,7 +308,7 @@ export default function ProjectDetailsPage() {
               <div>
                 <p className="text-[12px] text-slate-500">Business Unit</p>
                 <p className="text-[14px] font-medium text-slate-800">
-                  {project?.businessUnitLabel || formatBusinessUnit(project?.businessUnit)}
+                  {formatBusinessUnit(project?.businessUnit, project?.businessUnitLabel)}
                 </p>
               </div>
             </div>
