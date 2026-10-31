@@ -77,14 +77,25 @@ const mapApiDeliveryToDelivery = (item: CalendarDeliveryItem, dateStr: string): 
   };
 };
 
+const parseDateSafe = (dateStr: string) => {
+  if (!dateStr) return new Date();
+  if (dateStr.includes("T")) return new Date(dateStr);
+  return new Date(`${dateStr}T00:00:00`);
+};
+
 const MiniDeliveryCard = ({ delivery, onClick }: { delivery: Delivery; onClick?: () => void }) => {
   const normalizedKey = delivery.status?.toLowerCase().replace(/\s+/g, "_") || "";
   const config = statusConfig[delivery.status] || statusConfig[normalizedKey] || { dotColor: "#2563EB" };
+  const projectName = delivery.project && delivery.project !== "N/A" ? delivery.project : delivery.title;
   return (
-    <div onClick={onClick} className="bg-white p-3 rounded-xl border-l-4 shadow-sm border border-gray-100 space-y-2 text-left cursor-pointer font-inter" style={{ borderLeftColor: config.dotColor }}>
+    <div
+      onClick={onClick}
+      className="bg-white p-3 rounded-xl border-l-4 shadow-sm border border-gray-100 space-y-2 text-left cursor-pointer font-inter"
+      style={{ borderLeftColor: config.dotColor }}
+    >
       <div className="flex items-center gap-2">
         <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: config.dotColor }} />
-        <p className="text-[11px] font-semibold text-[#212B36] truncate">{delivery.project}</p>
+        <p className="text-[11px] font-semibold text-[#212B36] truncate">{projectName}</p>
       </div>
       <p className="text-[9px] font-medium text-[#637381]">{delivery.customer}</p>
       <div className="space-y-1">
@@ -423,6 +434,22 @@ const DeliveryCalendarView: React.FC = () => {
     }
   };
 
+  const handleEventClick = (clickInfo: any) => {
+    clickInfo.jsEvent?.preventDefault?.();
+    const delivery = clickInfo.event.extendedProps as Delivery;
+    if (activeView === "Month") {
+      const eventDate =
+        clickInfo.event.start ||
+        (delivery?.date ? parseDateSafe(delivery.date) : null);
+      if (eventDate) {
+        setSelectedDay(eventDate);
+        setIsDailyModalOpen(true);
+      }
+    } else if (activeView === "Week") {
+      setSelectedDeliveryForModal(delivery);
+    }
+  };
+
   const handleReschedule = (id: string) => {
     setActiveDeliveryId(id);
     setIsRescheduleModalOpen(true);
@@ -483,21 +510,43 @@ const DeliveryCalendarView: React.FC = () => {
         />
       );
     } else if (activeView === "Week") {
-      return <MiniDeliveryCard delivery={delivery} onClick={() => setSelectedDeliveryForModal(delivery)} />;
+      return (
+        <MiniDeliveryCard
+          delivery={delivery}
+          onClick={() => setSelectedDeliveryForModal(delivery)}
+        />
+      );
     } else {
       // Month view summary
+      const projectName = delivery.project && delivery.project !== "N/A" ? delivery.project : delivery.title;
       return (
-        <div className="mt-1 space-y-1 w-full px-1">
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            const eventDate = delivery?.date ? parseDateSafe(delivery.date) : null;
+            if (eventDate) {
+              setSelectedDay(eventDate);
+              setIsDailyModalOpen(true);
+            }
+          }}
+          className="mt-1 space-y-1 w-full px-1 cursor-pointer"
+        >
           <div className="h-1 bg-[#2B7FFF] rounded-full w-full" />
-          <p className="text-[10px] font-bold text-[#212B36] truncate">{delivery.title}</p>
+          <p className="text-[10px] font-bold text-[#212B36] truncate hover:text-[#1E51A4]">
+            {projectName}
+          </p>
         </div>
       );
     }
   };
 
-  const filteredDeliveries = selectedDay
-    ? deliveries.filter(d => isSameDay(new Date(d.date), selectedDay))
-    : [];
+  const filteredDeliveries = useMemo(() => {
+    if (!selectedDay) return [];
+    return deliveries.filter((d) => {
+      const dDate = d.date ? parseDateSafe(d.date) : null;
+      return dDate ? isSameDay(dDate, selectedDay) : false;
+    });
+  }, [deliveries, selectedDay]);
 
   return (
     <div className="flex-1 space-y-6 p-6">
@@ -572,12 +621,13 @@ const DeliveryCalendarView: React.FC = () => {
           }
           events={deliveries.map(d => ({
             id: d.id,
-            title: d.title,
+            title: d.project && d.project !== "N/A" ? d.project : d.title,
             start: d.date,
             extendedProps: d
           }))}
           eventContent={renderEventContent}
           dateClick={handleDateClick}
+          eventClick={handleEventClick}
           dayCellClassNames={() => "calendar-day-cell cursor-pointer"}
           eventClassNames={() => "calendar-event-item cursor-pointer"}
           height="auto"
@@ -610,6 +660,7 @@ const DeliveryCalendarView: React.FC = () => {
         onStatusUpdate={handleStatusUpdate}
         onMarkDelivered={handleMarkDelivered}
         onSendReminder={handleSendReminder}
+        onViewDetails={() => setIsDailyModalOpen(false)}
       />
 
       {(() => {
@@ -711,7 +762,7 @@ const DeliveryCalendarView: React.FC = () => {
         .calendar-custom .fc-col-header-cell { background: white; padding: 16px 0; }
         .calendar-custom .fc-col-header-cell-cushion { font-size: 14px; font-weight: 700; color: #212B36; text-transform: uppercase; }
         .calendar-custom .fc-daygrid-day-number { font-weight: 700; color: #212B36; padding: 12px; }
-        .calendar-custom .fc-event { background: transparent; border: none; padding: 0; }
+        .calendar-custom .fc-event { background: transparent; border: none; padding: 0; cursor: pointer; }
         .fc-h-event { background-color: transparent !important; border: none !important; }
         .calendar-custom .fc-daygrid-day-frame { min-height: 120px; }
         .calendar-custom.calendar-view-week .fc,
