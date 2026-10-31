@@ -98,7 +98,7 @@ function mapApiProject(project: CustomerProject): ProjectRow {
     id: project._id,
     name: cleanProjectName(project.projectName),
     businessUnit: project.businessUnit,
-    businessUnitLabel: project.businessUnitLabel || formatBusinessUnit(project.businessUnit),
+    businessUnitLabel: formatBusinessUnit(project.businessUnit, project.businessUnitLabel),
     building: project.numberOfBuildings != null
       ? String(project.numberOfBuildings)
       : "-",
@@ -470,7 +470,7 @@ export default function AllProjectsPage() {
                           variant="outline"
                           className="font-normal text-xs bg-slate-50 border-slate-200 text-slate-700"
                         >
-                          {project.businessUnitLabel || formatBusinessUnit(project.businessUnit)}
+                          {formatBusinessUnit(project.businessUnit, project.businessUnitLabel)}
                         </Badge>
                       </td>
                       {/* Budget */}
