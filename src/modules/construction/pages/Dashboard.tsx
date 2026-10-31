@@ -98,16 +98,20 @@ export default function Dashboard() {
     const list = rawBUs
       .map((bu) => {
         if (typeof bu === "string") {
+          const val = bu.toLowerCase().trim();
+          if (val === "platform") return null;
           return {
             value: bu,
             label: formatBusinessUnit(bu),
           };
         }
         const value = bu.value || "";
-        const label = bu.label || bu.name || formatBusinessUnit(value);
+        const val = value.toLowerCase().trim();
+        if (val === "platform") return null;
+        const label = formatBusinessUnit(value, bu.label || bu.name);
         return { value, label };
       })
-      .filter((bu) => bu.value && bu.value !== "all");
+      .filter((bu): bu is { value: string; label: string } => Boolean(bu && bu.value && bu.value !== "all"));
 
     return [{ value: "all", label: "All Business Units" }, ...list];
   }, [filtersData?.businessUnits]);
