@@ -66,7 +66,7 @@ export default function LeadScoring() {
                     <span>{lead.projectName}</span>
                     {(lead.businessUnitLabel || lead.businessUnit) && (
                       <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                        {lead.businessUnitLabel || formatBusinessUnit(lead.businessUnit)}
+                        {formatBusinessUnit(lead.businessUnit, lead.businessUnitLabel)}
                       </span>
                     )}
                   </div>

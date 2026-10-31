@@ -20,6 +20,7 @@ import {
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
+import { formatBusinessUnit } from "@/modules/leads/business-unit";
 import SuccessDialog from "@/components/success-dialog";
 import {
   useGetLeadBudgetQuery,
@@ -559,9 +560,7 @@ export default function BudgetPlanning() {
               <div>
                 <p className="text-xs text-gray-500">Business Unit</p>
                 <p className="text-sm font-medium text-gray-900">
-                  {project?.businessUnitLabel ||
-                    project?.businessUnit ||
-                    "Storage Material"}
+                  {formatBusinessUnit(project?.businessUnit, project?.businessUnitLabel)}
                 </p>
               </div>
             </div>

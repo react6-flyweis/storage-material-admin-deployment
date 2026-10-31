@@ -1,5 +1,6 @@
 import { apiClient } from "@/modules/auth/auth.api";
 import { getLeadsProvider } from "@/modules/leads/leads.api";
+import { formatBusinessUnit } from "@/modules/leads/business-unit";
 import type { Project } from "@/types/projects.types";
 import {
   getDeliveries,
@@ -37,7 +38,7 @@ export async function getProjectsApi(params?: GetProjectsParams) {
     location: l.location,
     jobId: (l as unknown as { jobId?: string }).jobId,
     businessUnit: l.businessUnit,
-    businessUnitLabel: l.businessUnitLabel,
+    businessUnitLabel: formatBusinessUnit(l.businessUnit, l.businessUnitLabel),
     lifecycleStatus: l.lifecycleStatus,
   }));
 

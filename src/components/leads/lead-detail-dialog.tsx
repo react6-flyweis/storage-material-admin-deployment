@@ -582,7 +582,7 @@ export default function LeadDetailDialog({
                 variant="outline"
                 className="text-xs font-normal border-slate-200 text-slate-700 bg-slate-50"
               >
-                {leadDetail?.businessUnitLabel || formatBusinessUnit(leadDetail?.businessUnit)}
+                {formatBusinessUnit(leadDetail?.businessUnit, leadDetail?.businessUnitLabel)}
               </Badge>
               {/* badge or edit lead button */}
               {escalationReason ? (
@@ -769,7 +769,7 @@ export default function LeadDetailDialog({
                           variant="outline"
                           className="text-xs font-normal border-slate-200 text-slate-700 bg-slate-50"
                         >
-                          {leadDetail?.businessUnitLabel || formatBusinessUnit(leadDetail?.businessUnit)}
+                          {formatBusinessUnit(leadDetail?.businessUnit, leadDetail?.businessUnitLabel)}
                         </Badge>
                       </div>
                     </div>

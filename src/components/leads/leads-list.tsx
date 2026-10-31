@@ -179,7 +179,7 @@ export default function LeadsList({
                           variant="outline"
                           className="text-[11px] font-normal px-1.5 py-0 border-slate-300 text-slate-700 bg-slate-50"
                         >
-                          {lead.businessUnitLabel || formatBusinessUnit(lead.businessUnit)}
+                          {formatBusinessUnit(lead.businessUnit, lead.businessUnitLabel)}
                         </Badge>
                         <span className="text-xs text-gray-500">
                           · {lead.workshop || "-"} · {lead.category || "-"}

@@ -355,7 +355,7 @@ export default function LeadDetails() {
                           variant="outline"
                           className="text-xs font-normal border-slate-200 text-slate-700 bg-slate-50"
                         >
-                          {lead?.businessUnitLabel || formatBusinessUnit(lead?.businessUnit)}
+                          {formatBusinessUnit(lead?.businessUnit, lead?.businessUnitLabel)}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">
@@ -384,7 +384,7 @@ export default function LeadDetails() {
                         Business Unit
                       </p>
                       <p className="text-sm text-gray-500 mt-1">
-                        {lead?.businessUnitLabel || formatBusinessUnit(lead?.businessUnit)}
+                        {formatBusinessUnit(lead?.businessUnit, lead?.businessUnitLabel)}
                       </p>
                     </div>
                   </div>

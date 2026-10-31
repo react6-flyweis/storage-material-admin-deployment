@@ -100,6 +100,7 @@ export type CustomerProject = {
   lifecycleStatus?: string;
   assignedSales?: { _id: string; name: string };
   quoteValue?: number;
+  buildingType?: string;
   isTerminated?: boolean;
   budget?: CustomerProjectBudget | number | null;
   createdAt?: string;
@@ -143,13 +144,47 @@ export type AdminCustomerInvoice = {
   __v?: number;
 };
 
+export type CustomerFinancials = {
+  totalPaid?: number;
+  pendingPayment?: number;
+  totalInvoices?: number;
+  revenueGenerated?: number;
+  totalInvoiced?: number;
+  totalQuotedValue?: number;
+  overdueAmount?: number;
+  [key: string]: any;
+};
+
+export type CustomerRevenue = {
+  totalQuotedValue?: number;
+  totalInvoiced?: number;
+  totalReceived?: number;
+  outstandingAmount?: number;
+  overdue?: number;
+  [key: string]: any;
+};
+
+export type CustomerKpis = {
+  totalPaid?: number;
+  pendingPayment?: number;
+  totalInvoices?: number;
+  revenueGenerated?: number;
+  [key: string]: any;
+};
+
 export type GetAdminCustomerDetailData = {
   customer: AdminCustomer;
-  totalPaid: number;
-  totalPending: number;
-  totalInvoices: number;
-  projects: AdminCustomerProject[];
-  invoices: AdminCustomerInvoice[];
+  financials?: CustomerFinancials;
+  customerRevenue?: CustomerRevenue;
+  kpis?: CustomerKpis;
+  totalPaid?: number;
+  pendingPayment?: number;
+  totalPending?: number;
+  totalInvoices?: number;
+  revenueGenerated?: number;
+  projects?: AdminCustomerProject[];
+  invoices?: AdminCustomerInvoice[];
+  [key: string]: any;
 };
 
 export type GetAdminCustomerDetailResponse = {

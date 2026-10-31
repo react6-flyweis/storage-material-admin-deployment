@@ -1,5 +1,6 @@
 import axios from "axios";
 import { apiClient } from "@/modules/auth/auth.api";
+import { useAuthStore } from "@/modules/auth/auth.store";
 export * from "./customer-documents.types";
 import type {
   CreateCustomerDocumentPayload,
@@ -70,11 +71,26 @@ export async function getAdminCustomersProvider(
 }
 
 export async function getAdminCustomerDetailProvider(customerId: string) {
-  const response = await apiClient.get<GetAdminCustomerDetailResponse>(
-    `/api/admin/customers/${customerId}`,
-  );
+  const role = useAuthStore.getState().role?.toLowerCase();
+  const primaryEndpoint =
+    role === "sales"
+      ? `/api/sales/customers/${customerId}`
+      : `/api/admin/customers/${customerId}`;
 
-  return response.data;
+  try {
+    const response = await apiClient.get<GetAdminCustomerDetailResponse>(primaryEndpoint);
+    return response.data;
+  } catch (error: any) {
+    if (error?.response?.status === 404 || error?.response?.status === 403) {
+      const fallbackEndpoint =
+        role === "sales"
+          ? `/api/admin/customers/${customerId}`
+          : `/api/sales/customers/${customerId}`;
+      const response = await apiClient.get<GetAdminCustomerDetailResponse>(fallbackEndpoint);
+      return response.data;
+    }
+    throw error;
+  }
 }
 
 export async function getCustomerProjectsProvider(
@@ -87,12 +103,32 @@ export async function getCustomerProjectsProvider(
   if (businessUnit && businessUnit !== "all") {
     params.businessUnit = businessUnit;
   }
-  const response = await apiClient.get<GetCustomerProjectsResponse>(
-    `/api/admin/customers/${customerId}/projects`,
-    { params }
-  );
+  const role = useAuthStore.getState().role?.toLowerCase();
+  const primaryEndpoint =
+    role === "sales"
+      ? `/api/sales/customers/${customerId}/projects`
+      : `/api/admin/customers/${customerId}/projects`;
 
-  return response.data;
+  try {
+    const response = await apiClient.get<GetCustomerProjectsResponse>(
+      primaryEndpoint,
+      { params }
+    );
+    return response.data;
+  } catch (error: any) {
+    if (error?.response?.status === 404 || error?.response?.status === 403) {
+      const fallbackEndpoint =
+        role === "sales"
+          ? `/api/admin/customers/${customerId}/projects`
+          : `/api/sales/customers/${customerId}/projects`;
+      const response = await apiClient.get<GetCustomerProjectsResponse>(
+        fallbackEndpoint,
+        { params }
+      );
+      return response.data;
+    }
+    throw error;
+  }
 }
 
 export async function getCustomerInvoicesProvider(customerId: string, page = 1, limit = 10) {

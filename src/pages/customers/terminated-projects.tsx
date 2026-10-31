@@ -183,7 +183,7 @@ export default function TerminatedProjectsPage() {
                             variant="outline"
                             className="text-[11px] font-normal px-1.5 py-0 border-slate-300 text-slate-700 bg-slate-50"
                           >
-                            {project.businessUnitLabel || formatBusinessUnit(project.businessUnit)}
+                            {formatBusinessUnit(project.businessUnit, project.businessUnitLabel)}
                           </Badge>
                         </div>
                       )}
