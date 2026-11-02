@@ -1,8 +1,8 @@
-import { useState } from "react";
+// import { useState } from "react";
 import { Card } from "@/components/ui/card";
 
-import { Button } from "../ui/button";
-import { cn } from "@/lib/utils";
+// import { Button } from "../ui/button";
+// import { cn } from "@/lib/utils";
 import { Link } from "react-router";
 
 import EmptyState from "@/components/ui/empty-state";
@@ -26,7 +26,7 @@ export default function SalesFunnel({
   title = "Sales Conversion Funnel",
   items,
 }: SalesFunnelProps) {
-  const [timeframe, setTimeframe] = useState<string>("month");
+  // const [timeframe, setTimeframe] = useState<string>("month");
 
   const rows = items ?? [];
 
@@ -34,7 +34,7 @@ export default function SalesFunnel({
     <Card className="h-full flex flex-col p-5 gap-0">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-        <div className="flex gap-2">
+        {/* <div className="flex gap-2">
           <Button
             variant="ghost"
             size="sm"
@@ -53,10 +53,9 @@ export default function SalesFunnel({
             })}
             onClick={() => setTimeframe("year")}
           >
-            {/* this year  */}
             This year
           </Button>
-        </div>
+        </div> */}
       </div>
 
       {rows.length === 0 ? (
@@ -92,7 +91,9 @@ export default function SalesFunnel({
                     {r.count}
                   </div>
                   {r.percent ? (
-                    <div className="text-xs text-slate-500 mt-1">{r.percent}</div>
+                    <div className="text-xs text-slate-500 mt-1">
+                      {r.percent}
+                    </div>
                   ) : null}
                 </div>
               </div>
