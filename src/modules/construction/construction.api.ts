@@ -854,6 +854,7 @@ export interface OverviewStats {
   completed: number;
   completionRate: number;
   upcomingDeadlinesCount: number;
+  taskDeadlineDays?: number;
 }
 
 export interface DeliveryOverview {
@@ -912,6 +913,48 @@ export interface TaskStats {
   total: number;
 }
 
+export interface UpcomingConstructionTaskTimelineBadge {
+  label: string;
+  tone: "danger" | "warning" | "success" | "info" | "neutral" | string;
+}
+
+export interface UpcomingConstructionTaskAssignedTo {
+  _id: string;
+  name: string;
+  email?: string;
+}
+
+export interface UpcomingConstructionTaskProject {
+  leadId?: string;
+  projectName?: string;
+  jobId?: string;
+  location?: string;
+  lifecycleStatus?: string;
+}
+
+export interface UpcomingConstructionTask {
+  taskId: string;
+  title: string;
+  status: "todo" | "in_progress" | "done" | string;
+  priority: "low" | "medium" | "high" | string;
+  startDate: string | null;
+  estimatedEndDate: string | null;
+  completedDate: string | null;
+  timelineBadge?: UpcomingConstructionTaskTimelineBadge;
+  timelineStatusLine?: string | null;
+  onTimeStatus?: string;
+  daysLeft?: number | null;
+  assignedTo?: UpcomingConstructionTaskAssignedTo | null;
+  project?: UpcomingConstructionTaskProject;
+}
+
+export interface UpcomingScheduleItem extends UpcomingConstructionTask {
+  projectName?: string;
+  location?: string;
+  endDate?: string | null;
+  expectedCloseDate?: string | null;
+}
+
 export interface UpcomingDeadlineItem {
   _id?: string;
   title?: string;
@@ -958,7 +1001,10 @@ export interface ConstructionOverviewData {
   deliveryOverview: DeliveryOverview;
   materialRequestOverview: MaterialRequestOverview;
   taskStats: TaskStats;
-  upcomingDeadlines: UpcomingDeadlineItem[];
+  upcomingConstructionTasks?: UpcomingConstructionTask[];
+  upcomingSchedule?: UpcomingScheduleItem[];
+  upcomingDeadlines?: UpcomingDeadlineItem[];
+  upcomingProjectCloseDates?: UpcomingDeadlineItem[];
   liveSiteConstruction: LiveSiteConstructionItem[];
   liveSiteActivity: LiveSiteActivity;
   bottomStats: BottomStats;
@@ -977,6 +1023,8 @@ export interface GetConstructionOverviewParams {
   businessUnit?: string;
   startDate?: string;
   endDate?: string;
+  taskDeadlineDays?: number;
+  taskLimit?: number;
 }
 
 export async function getConstructionOverview(params?: GetConstructionOverviewParams) {
@@ -998,6 +1046,12 @@ export async function getConstructionOverview(params?: GetConstructionOverviewPa
   }
   if (params?.endDate) {
     queryParams.endDate = params.endDate;
+  }
+  if (params?.taskDeadlineDays !== undefined) {
+    queryParams.taskDeadlineDays = String(params.taskDeadlineDays);
+  }
+  if (params?.taskLimit !== undefined) {
+    queryParams.taskLimit = String(params.taskLimit);
   }
 
   const response = await apiClient.get<ConstructionOverviewResponse>(
