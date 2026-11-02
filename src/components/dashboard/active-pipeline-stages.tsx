@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Link } from "react-router";
+// import { Button } from "@/components/ui/button";
+// import { Link } from "react-router";
 import EmptyState from "@/components/ui/empty-state";
 import { GitBranch } from "lucide-react";
 
@@ -28,9 +28,9 @@ export default function ActivePipelineStages({
     <Card className="h-full flex flex-col">
       <CardHeader className="flex flex-row justify-between items-center border-b">
         <CardTitle>Active Pipeline Stages</CardTitle>
-        <Link to="/pipeline-stages">
+        {/* <Link to="/pipeline-stages">
           <Button variant="link" size="sm">Manage Stages</Button>
-        </Link>
+        </Link> */}
       </CardHeader>
 
       <CardContent className="pt-6 flex-1 flex flex-col">
@@ -61,7 +61,9 @@ export default function ActivePipelineStages({
                 <div className="space-y-3 flex-1 flex flex-col">
                   {stage.deals.length === 0 ? (
                     <div className="flex-1 flex items-center justify-center min-h-[100px] rounded-md border border-dashed border-gray-300/70 bg-white/40">
-                      <p className="text-xs text-gray-400 font-medium">No deals</p>
+                      <p className="text-xs text-gray-400 font-medium">
+                        No deals
+                      </p>
                     </div>
                   ) : (
                     stage.deals.map((deal, index) => (
