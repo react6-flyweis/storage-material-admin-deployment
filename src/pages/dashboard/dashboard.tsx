@@ -76,7 +76,13 @@ function formatDate(dateStr?: string) {
   if (!dateStr) return "";
   try {
     const d = new Date(dateStr);
-    return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return isNaN(d.getTime())
+      ? dateStr
+      : d.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+          year: "numeric",
+        });
   } catch {
     return dateStr;
   }
@@ -220,13 +226,15 @@ export default function Dashboard() {
       "bg-rose-500",
     ];
     return (
-      overview?.dealSizeDistribution?.buckets?.slice(0, 5).map((bucket, idx) => ({
-        label: bucket.label,
-        deals: `${bucket.count} deals`,
-        percentLabel: `${bucket.pct}%`,
-        fillPercent: bucket.pct,
-        colorClass: dealColors[idx % dealColors.length],
-      })) ?? []
+      overview?.dealSizeDistribution?.buckets
+        ?.slice(0, 5)
+        .map((bucket, idx) => ({
+          label: bucket.label,
+          deals: `${bucket.count} deals`,
+          percentLabel: `${bucket.pct}%`,
+          fillPercent: bucket.pct,
+          colorClass: dealColors[idx % dealColors.length],
+        })) ?? []
     );
   }, [overview?.dealSizeDistribution]);
 
@@ -360,6 +368,7 @@ export default function Dashboard() {
   }, [overview?.pipelineStageOverview?.stages]);
 
   // 9. Query Handling Distribution
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const queryHandlingData = useMemo(() => {
     if (!overview?.queryHandling) return [];
     return [
@@ -619,7 +628,7 @@ export default function Dashboard() {
             <DealSizeDistribution
               items={dealBuckets}
               averageDealSize={formatCurrency(
-                overview?.dealSizeDistribution?.averageDealSize
+                overview?.dealSizeDistribution?.averageDealSize,
               )}
             />
           </div>
@@ -752,7 +761,9 @@ export default function Dashboard() {
             <div className="space-y-6 lg:col-span-3">
               <CustomerActivitiesApprovals activities={customerActivities} />
               <TotalInvoicesGenerated
-                totalCount={overview?.customerApprovals?.totalInvoicesGenerated ?? 0}
+                totalCount={
+                  overview?.customerApprovals?.totalInvoicesGenerated ?? 0
+                }
                 invoices={[]}
               />
             </div>
