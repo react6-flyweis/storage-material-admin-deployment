@@ -28,6 +28,38 @@ function formatDateISO(date?: Date) {
   return `${year}-${month}-${day}`;
 }
 
+function formatTaskDate(dateStr?: string | null) {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "-";
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function getTimelineBadgeToneClass(tone?: string) {
+  switch (tone?.toLowerCase()) {
+    case "danger":
+    case "red":
+    case "error":
+      return "bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5]";
+    case "warning":
+    case "amber":
+    case "orange":
+      return "bg-[#FEF3C7] text-[#92400E] border-[#FCD34D]";
+    case "success":
+    case "green":
+      return "bg-[#DCFCE7] text-[#166534] border-[#86EFAC]";
+    case "info":
+    case "blue":
+      return "bg-[#EFF6FF] text-[#1E40AF] border-[#93C5FD]";
+    default:
+      return "bg-gray-100 text-gray-700 border-gray-200";
+  }
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const [selectedProject, setSelectedProject] = useState("all");
@@ -55,6 +87,8 @@ export default function Dashboard() {
         : selectedBusinessUnit,
     startDate: formatDateISO(dateRange?.from),
     endDate: formatDateISO(dateRange?.to),
+    taskDeadlineDays: 30,
+    taskLimit: 10,
   });
 
   const overview = overviewResponse?.data;
@@ -360,24 +394,9 @@ export default function Dashboard() {
     },
   ];
 
-  // Upcoming Project Deadlines Data (strictly from API)
-  const upcomingDeadlines = (overview?.upcomingDeadlines ?? [])
-    .slice(0, 5)
-    .map((item) => ({
-      title: item.projectName || item.title || item.jobId || "Project",
-      subtitle: item.buildingLabel || item.jobId || "Site",
-      date:
-        item.date ||
-        item.dueDate ||
-        (item.requiredBy
-          ? new Date(item.requiredBy).toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            })
-          : ""),
-      daysLeft: item.daysLeft != null ? `${item.daysLeft} Days Left` : "",
-    }));
+  // Upcoming Project Deadlines / Schedule Tasks (strictly from API timeline tasks)
+  const upcomingTasks =
+    overview?.upcomingConstructionTasks ?? overview?.upcomingSchedule ?? [];
 
   // Live Site Construction Section (strictly from API)
   const liveSites = overview?.liveSiteConstruction ?? [];
@@ -710,37 +729,105 @@ export default function Dashboard() {
               Deadlines
             </h3>
             <button
-              onClick={() => navigate("/construction/projects")}
+              onClick={() => navigate("/construction/tasks")}
               className="text-xs text-[#64748B] border border-[#E2E8F0] px-2.5 py-1 rounded-md font-medium hover:bg-gray-50"
             >
               View All
             </button>
           </div>
 
-          {upcomingDeadlines.length > 0 ? (
-            <div className="space-y-4">
-              {upcomingDeadlines.map((item, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between text-xs"
-                >
-                  <div>
-                    <p className="font-bold text-[#1E293B]">{item.title}</p>
-                    <p className="text-[#94A3B8] text-[11px] flex items-center gap-1">
-                      {item.subtitle}{" "}
-                      <span className="text-[#F97316] font-bold">•</span>
+          {upcomingTasks.length > 0 ? (
+            <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+              {upcomingTasks.map((task, index) => {
+                const subline =
+                  task.timelineStatusLine ||
+                  (task.daysLeft != null
+                    ? task.daysLeft < 0
+                      ? `${Math.abs(task.daysLeft)} days overdue`
+                      : task.daysLeft === 0
+                      ? "Due today"
+                      : `Due in ${task.daysLeft} days`
+                    : null);
+
+                const isOverdue =
+                  task.daysLeft != null && task.daysLeft < 0;
+
+                const projectName =
+                  task.project?.projectName ||
+                  (task as any).projectName ||
+                  "Project";
+                const jobId = task.project?.jobId;
+                const location =
+                  task.project?.location || (task as any).location;
+
+                return (
+                  <div
+                    key={task.taskId || index}
+                    onClick={() => {
+                      const leadId = task.project?.leadId;
+                      navigate(
+                        `/construction/tasks?search=${encodeURIComponent(
+                          task.title
+                        )}`,
+                        { state: { leadId, taskId: task.taskId } }
+                      );
+                    }}
+                    className="p-3 rounded-lg border border-[#F1F5F9] hover:border-[#CBD5E1] hover:bg-[#F8FAFC] transition-colors cursor-pointer space-y-1.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p
+                        className="font-bold text-[#1E293B] text-xs leading-snug line-clamp-1"
+                        title={task.title}
+                      >
+                        {task.title}
+                      </p>
+                      {task.timelineBadge?.label && (
+                        <span
+                          className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 border ${getTimelineBadgeToneClass(
+                            task.timelineBadge.tone
+                          )}`}
+                        >
+                          {task.timelineBadge.label}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-[#64748B] text-[11px] truncate">
+                      {projectName}
+                      {jobId ? ` (${jobId})` : ""}
+                      {location ? ` · ${location}` : ""}
                     </p>
+
+                    <div className="flex items-center justify-between text-[11px] pt-0.5">
+                      <div className="flex items-center gap-1 text-[#94A3B8] text-[10px]">
+                        <span>{formatTaskDate(task.startDate)}</span>
+                        <span>·</span>
+                        <span className="font-semibold text-[#475569]">
+                          {formatTaskDate(task.estimatedEndDate)}
+                        </span>
+                        {task.completedDate && (
+                          <>
+                            <span>·</span>
+                            <span className="text-[#16A34A]">
+                              {formatTaskDate(task.completedDate)}
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+                      {subline && (
+                        <span
+                          className={`text-[10px] font-semibold shrink-0 ${
+                            isOverdue ? "text-[#EF4444]" : "text-[#F59E0B]"
+                          }`}
+                        >
+                          {subline}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[#EF4444] font-medium text-[11px]">
-                      {item.date}
-                    </p>
-                    <p className="text-[#1E293B] font-bold text-[10px]">
-                      {item.daysLeft}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="text-xs text-[#94A3B8] text-center py-8">
