@@ -25,6 +25,8 @@ export type PlantProject = {
   name?: string;
   customerId?: PlantProjectCustomer | string;
   customerName?: string;
+  businessUnit?: string | null;
+  businessUnitLabel?: string;
   buildingType?: string;
   location?: string;
   assignedSales?: PlantProjectSales | null;

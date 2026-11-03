@@ -15,6 +15,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useMarginTrendQuery } from "@/modules/financials/financials.hooks";
 import type { MarginTrendPeriod, MarginTrendApiItem } from "@/modules/financials/financials.api";
 
@@ -33,38 +34,58 @@ const MONTH_NAMES = [
   "Dec",
 ];
 
-function formatPeriodLabel(periodStr: string): string {
-  if (!periodStr) return "";
-  const parts = periodStr.split("-");
+function formatPeriodLabel(periodStr: string, labelStr?: string): string {
+  const str = labelStr || periodStr;
+  if (!str) return "";
+  const parts = str.split("-");
   if (parts.length === 2) {
+    if (parts[1].toUpperCase().startsWith("Q")) {
+      return `${parts[1].toUpperCase()} ${parts[0]}`;
+    }
     const monthNum = parseInt(parts[1], 10);
     if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
       return `${MONTH_NAMES[monthNum - 1]} ${parts[0]}`;
     }
   }
-  return periodStr;
+  return str;
 }
 
 interface MarginTrendOverTimeChartProps {
   initialPeriod?: MarginTrendPeriod;
-  grossMarginPct?: number;
-  operatingMarginPct?: number;
-  netProfitMarginPct?: number;
-  contributionMarginPct?: number;
+  projectId?: string;
+  leadId?: string;
+  businessUnit?: string;
+  company?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export default function MarginTrendOverTimeChart({
   initialPeriod = "month",
+  projectId,
+  leadId,
+  businessUnit,
+  company,
+  startDate,
+  endDate,
 }: MarginTrendOverTimeChartProps) {
   const [period, setPeriod] = useState<MarginTrendPeriod>(initialPeriod);
-  const { data, isLoading } = useMarginTrendQuery({ period });
+  const { data, isLoading } = useMarginTrendQuery({
+    period,
+    projectId,
+    leadId,
+    businessUnit,
+    company,
+    startDate,
+    endDate,
+  });
 
   const trendList: MarginTrendApiItem[] = data?.data?.trend || [];
 
   const chartData = trendList.map((item) => ({
-    period: formatPeriodLabel(item.period),
+    period: formatPeriodLabel(item.period, item.label),
     revenue: item.revenue ?? 0,
-    expense: item.expense ?? 0,
+    expense: item.expense ?? item.cogs ?? 0,
     grossMarginPct: item.grossMarginPct ?? 0,
   }));
 
@@ -106,8 +127,32 @@ export default function MarginTrendOverTimeChart({
 
       <div className="h-80">
         {isLoading ? (
-          <div className="flex h-full items-center justify-center text-sm text-slate-500">
-            Loading trend data...
+          <div className="flex h-full flex-col justify-between py-2">
+            <div className="flex items-center justify-between px-1 text-xs text-slate-400">
+              <Skeleton className="h-3 w-10" />
+              <Skeleton className="h-3 w-8" />
+            </div>
+            <div className="relative flex flex-1 items-end justify-between gap-2 px-2 pb-6 pt-4">
+              <div className="absolute inset-x-0 top-1/4 border-b border-dashed border-slate-100" />
+              <div className="absolute inset-x-0 top-2/4 border-b border-dashed border-slate-100" />
+              <div className="absolute inset-x-0 top-3/4 border-b border-dashed border-slate-100" />
+
+              {[35, 60, 45, 80, 55, 70, 40, 85, 65, 75, 50, 68].map((h, i) => (
+                <div
+                  key={i}
+                  className="z-10 flex flex-1 flex-col items-center justify-end gap-2 h-full"
+                >
+                  <div className="relative flex w-full justify-center">
+                    <Skeleton
+                      className="w-1.5 rounded-full bg-slate-200"
+                      style={{ height: `${h * 1.8}px` }}
+                    />
+                    <div className="absolute -top-1 h-2.5 w-2.5 rounded-full bg-slate-300 animate-pulse" />
+                  </div>
+                  <Skeleton className="h-3 w-6" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : chartData.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm text-slate-400">

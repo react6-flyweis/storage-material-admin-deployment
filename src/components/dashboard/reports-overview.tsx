@@ -30,20 +30,36 @@ const overviewChartConfig = {
 
 type Period = "Today" | "Week" | "Month";
 
-const overviewDataBase = [
-  { day: "Mon", customers: 12, revenue: 18, income: 15, expense: 7 },
-  { day: "Tue", customers: 18, revenue: 24, income: 17, expense: 9 },
-  { day: "Wed", customers: 28, revenue: 32, income: 23, expense: 14 },
-  { day: "Thu", customers: 34, revenue: 38, income: 27, expense: 18 },
-  { day: "Fri", customers: 29, revenue: 30, income: 22, expense: 16 },
-  { day: "Sat", customers: 33, revenue: 34, income: 26, expense: 20 },
-  { day: "Sun", customers: 26, revenue: 28, income: 21, expense: 15 },
-];
+import EmptyState from "@/components/ui/empty-state";
+import { TrendingUp } from "lucide-react";
 
-const summaryStatsBase = [
+type OverviewDataPoint = {
+  day: string;
+  customers: number;
+  revenue: number;
+  income: number;
+  expense: number;
+};
+
+type SummaryStat = {
+  label: string;
+  value: number;
+  emphasis: string;
+  accentClass: string;
+  highlight: boolean;
+  accentBorder: string;
+};
+
+type Props = {
+  period?: Period;
+  data?: OverviewDataPoint[];
+  summaryStats?: SummaryStat[];
+};
+
+const defaultSummaryStats: SummaryStat[] = [
   {
     label: "Customers",
-    value: 240,
+    value: 0,
     emphasis: "Customers",
     accentClass: "text-blue-600",
     highlight: true,
@@ -51,7 +67,7 @@ const summaryStatsBase = [
   },
   {
     label: "Revenue",
-    value: 250000,
+    value: 0,
     emphasis: "Revenue",
     accentClass: "text-orange-500",
     highlight: false,
@@ -59,15 +75,15 @@ const summaryStatsBase = [
   },
   {
     label: "Income",
-    value: 190000,
+    value: 0,
     emphasis: "Income",
-    accentClass: "text-emerald-500",
+    accentClass: "text-emerald-600",
     highlight: false,
     accentBorder: "bg-emerald-200/80",
   },
   {
     label: "Expense",
-    value: 160000,
+    value: 0,
     emphasis: "Expense",
     accentClass: "text-rose-500",
     highlight: false,
@@ -75,40 +91,27 @@ const summaryStatsBase = [
   },
 ];
 
-export default function ReportsOverview({ period }: { period?: Period }) {
+export default function ReportsOverview({
+  data = [],
+  summaryStats = defaultSummaryStats,
+}: Props) {
   const [selected, setSelected] = useState<string | null>(null);
 
-  const scale = period === "Today" ? 0.06 : period === "Week" ? 0.5 : 1;
-
-  const overviewData = overviewDataBase.map((d) => ({
-    ...d,
-    customers: Math.max(1, Math.round(d.customers * scale)),
-    revenue: Math.max(1, Math.round(d.revenue * scale)),
-    income: Math.max(1, Math.round(d.income * scale)),
-    expense: Math.max(1, Math.round(d.expense * scale)),
-  }));
-
-  const summaryStats = summaryStatsBase.map((s) => ({
-    ...s,
-    value:
-      s.label === "Customers"
-        ? Math.max(1, Math.round(s.value * scale))
-        : Math.max(1, Math.round(s.value * scale)),
-  }));
+  const overviewData = data;
 
   const handleToggle = (key: string) => {
     setSelected((s) => (s === key ? null : key));
   };
 
   return (
-    <Card className="h-full  border border-slate-100 p-6 shadow-sm gap-2">
+    <Card className="h-full border border-slate-100 p-6 shadow-sm gap-2">
       <div className="flex flex-col gap-1">
         <h2 className="text-xl font-semibold text-slate-900">
           Reports & Overview
         </h2>
         <div className="flex items-baseline justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold  text-slate-400">Last Month</p>
+            <p className="text-xs font-semibold text-slate-400">Overview</p>
           </div>
         </div>
       </div>
@@ -160,6 +163,14 @@ export default function ReportsOverview({ period }: { period?: Period }) {
           );
         })}
       </div>
+
+      {overviewData.length === 0 ? (
+        <EmptyState
+          title="No overview data"
+          description="No financial or customer trends recorded for this period."
+          icon={TrendingUp}
+        />
+      ) : (
 
       <div className="mt-2">
         <ChartContainer
@@ -237,6 +248,7 @@ export default function ReportsOverview({ period }: { period?: Period }) {
           </LineChart>
         </ChartContainer>
       </div>
+      )}
     </Card>
   );
 }

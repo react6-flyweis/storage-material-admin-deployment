@@ -7,15 +7,16 @@ import {
 } from "@/components/ui/chart";
 import { Label, Pie, PieChart, Cell } from "recharts";
 
+import EmptyState from "@/components/ui/empty-state";
+import { PieChart as PieChartIcon } from "lucide-react";
+
 type Period = "Today" | "Week" | "Month";
 
-const leadSourcesBase = [
-  { id: "website", label: "Website", value: 456 },
-  { id: "social", label: "Social Media", value: 296 },
-  { id: "email", label: "Email Campaign", value: 234 },
-  { id: "referrals", label: "Referrals", value: 156 },
-  { id: "direct", label: "Direct", value: 103 },
-];
+export type LeadSourceItem = {
+  id: string;
+  label: string;
+  value: number;
+};
 
 const chartConfig = {
   website: {
@@ -40,24 +41,31 @@ const chartConfig = {
   },
 } satisfies ChartConfig;
 
-export default function LeadSourcesChart({ period }: { period?: Period }) {
-  const scale = period === "Today" ? 0.06 : period === "Week" ? 0.45 : 1;
-
-  const leadSourcesData = leadSourcesBase.map((d) => ({
-    ...d,
-    value: Math.max(1, Math.round(d.value * scale)),
-  }));
-
+export default function LeadSourcesChart({
+  data = [],
+}: {
+  period?: Period;
+  data?: LeadSourceItem[];
+}) {
+  const leadSourcesData = data;
   const totalLeads = leadSourcesData.reduce((acc, item) => acc + item.value, 0);
 
   return (
     <Card className="h-full p-4 gap-0 rounded-2xl shadow">
-      <div className="mt-6 flex flex-col ">
-        <div className="mx-auto w-full max-w-[320px]">
-          <ChartContainer
-            config={chartConfig}
-            className="mx-auto h-40 w-full border-0 bg-transparent p-0 shadow-none"
-          >
+      <h2 className="text-xl font-semibold text-gray-900 mb-2">Lead Sources</h2>
+      {leadSourcesData.length === 0 ? (
+        <EmptyState
+          title="No lead sources"
+          description="No lead source distribution data available for this period."
+          icon={PieChartIcon}
+        />
+      ) : (
+        <div className="mt-6 flex flex-col ">
+          <div className="mx-auto w-full max-w-[320px]">
+            <ChartContainer
+              config={chartConfig}
+              className="mx-auto h-40 w-full border-0 bg-transparent p-0 shadow-none"
+            >
             <PieChart>
               <ChartTooltip content={<ChartTooltipContent hideLabel />} />
               <Pie
@@ -154,6 +162,7 @@ export default function LeadSourcesChart({ period }: { period?: Period }) {
           })}
         </div>
       </div>
+      )}
     </Card>
   );
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useLocation, useSearchParams } from "react-router";
+import { useLocation, useSearchParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import BackArrow from "../assets/backarrowicon.svg";
 import EyeIcon from "../assets/EyeIcon.svg";
 import EditIcon from "../assets/EditIcon.svg";
@@ -173,7 +174,7 @@ const statusStyle: Record<string, string> = {
 };
 
 export default function ProjectViewPage() {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack("/construction/projects");
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const search = searchParams.get("search") || "";
@@ -240,7 +241,7 @@ export default function ProjectViewPage() {
       <div className="flex lg:flex-row flex-col lg:items-center justify-between gap-2 mb-8">
         <div className="flex sm:flex-row flex-col sm:items-center justify-start gap-5">
           <button
-            onClick={() => navigate("/projects")}
+            onClick={() => goBack()}
             className="flex items-center gap-2 bg-[#3F63E1] text-white px-3 w-fit h-[36px] rounded-[8px] text-[14px] font-medium hover:opacity-90"
           >
             <img src={BackArrow} alt="" />

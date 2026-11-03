@@ -8,7 +8,9 @@ import {
   createAdminEmployeeProvider,
   updateAdminEmployeeProvider,
   deleteAdminEmployeeProvider,
+  resetEmployeePasswordProvider,
   type AdminEmployeesParams,
+  type AdminEmployeeProfileQueryParams,
   type CreateEmployeeData,
   type UpdateEmployeeData,
 } from "./employees.api";
@@ -45,10 +47,13 @@ export function useEmployeeAuditLogQuery(page = 1, limit = 20) {
   });
 }
 
-export function useAdminEmployeeProfileQuery(employeeId: string) {
+export function useAdminEmployeeProfileQuery(
+  employeeId: string,
+  params?: AdminEmployeeProfileQueryParams,
+) {
   return useQuery({
-    queryKey: ["employees", "admin", "detail", employeeId],
-    queryFn: () => getAdminEmployeeProfileProvider(employeeId),
+    queryKey: ["employees", "admin", "profile", employeeId, params],
+    queryFn: () => getAdminEmployeeProfileProvider(employeeId, params),
     staleTime: 60 * 1000,
     enabled: Boolean(employeeId),
   });
@@ -89,4 +94,23 @@ export function useDeleteAdminEmployeeMutation() {
     },
   });
 }
+
+export function useResetEmployeePasswordMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      employeeId,
+      newPassword,
+    }: {
+      employeeId: string;
+      newPassword: string;
+    }) => resetEmployeePasswordProvider(employeeId, newPassword),
+    onSuccess: (_, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: ["employees", "admin", "detail", variables.employeeId],
+      });
+    },
+  });
+}
+
 

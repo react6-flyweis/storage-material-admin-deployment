@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { Eye } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +26,7 @@ export default function AllPurchaseOrdersPage() {
   const [assignPlantDialogOpen, setAssignPlantDialogOpen] = useState(false);
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { data: purchaseOrdersData, isLoading } = usePurchaseOrdersQuery();
   const updateStatusMutation = useUpdatePurchaseOrderStatusMutation();
@@ -131,7 +132,7 @@ export default function AllPurchaseOrdersPage() {
                 const leadName = order.customerId ? `${order.customerId.firstName || ""} ${order.customerId.lastName || ""}`.trim() || "Unknown Customer" : "Unknown Customer";
                 const projectName = order.leadId?.projectName || "";
                 const quoteId = order.leadId?.jobId || order.quotationId?.quoteNumber || "Unknown Project";
-                const location = order.leadId?.location || order.customerId?.location || "Unknown Location";
+                const orderLocation = order.leadId?.location || order.customerId?.location || "Unknown Location";
                 const assignedToName = order.assignedTo?.name || "Unassigned";
                 const assignedCount = order.assignedTo ? "1 person assigned" : "No one assigned";
                 const quoteValue = order.leadId?.quoteValue || order.invoiceId?.totalAmount || 0;
@@ -171,7 +172,7 @@ export default function AllPurchaseOrdersPage() {
                           {quoteId}
                         </p>
                         <p className="text-[11px] text-slate-400 mt-0.5">
-                          {location}
+                          {orderLocation}
                         </p>
                       </div>
                     </TableCell>
@@ -232,7 +233,9 @@ export default function AllPurchaseOrdersPage() {
                           aria-label={`View ${leadName}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/leads/purchase-orders/${order._id}`);
+                            navigate(`/leads/purchase-orders/${order._id}`, {
+                              state: { from: location.pathname + location.search },
+                            });
                           }}
                           className="text-purple-600"
                         >

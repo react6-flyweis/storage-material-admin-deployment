@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Filter,
-  Download,
   Search,
   Ribbon,
   Truck,
@@ -15,12 +14,18 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Download,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -28,8 +33,10 @@ import {
   useAwardedStatsQuery,
   useAwardedLoadsQuery,
   useFreightFiltersQuery,
+  useExportAwardedLoadsMutation,
 } from "@/modules/plant/freight.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatStatusLabel, getStatusBadgeStyle } from "./deliveryStatusConstants";
 
 export default function AwardedLoads() {
   const navigate = useNavigate();
@@ -79,7 +86,11 @@ export default function AwardedLoads() {
   const requests = loadsResponse?.data?.requests || [];
   const total = loadsResponse?.data?.total || 0;
 
-  const statusesList = filtersResponse?.data?.statuses || [];
+  const bidStatusesList =
+    filtersResponse?.data?.bidStatuses && filtersResponse.data.bidStatuses.length > 0
+      ? filtersResponse.data.bidStatuses
+      : filtersResponse?.data?.statuses || [];
+  const deliveryStatusesList = filtersResponse?.data?.deliveryStatuses || [];
   const projectsList = filtersResponse?.data?.projects || [];
   const customersList = filtersResponse?.data?.customers || [];
   const carriersList = filtersResponse?.data?.carriers || [];
@@ -103,7 +114,119 @@ export default function AwardedLoads() {
     carrierId !== "all" ||
     fromDate !== "" ||
     toDate !== "" ||
-    search !== "";
+    search !== "" ||
+    searchInput !== "";
+
+  const exportMutation = useExportAwardedLoadsMutation();
+
+  const handleExport = async () => {
+    try {
+      toast.info("Generating Awarded Loads export...");
+      const exportParams: Record<string, string> = {};
+      if (search.trim()) exportParams.search = search.trim();
+      if (status && status !== "all") exportParams.status = status;
+      if (projectId && projectId !== "all") exportParams.projectId = projectId;
+      if (customerId && customerId !== "all") exportParams.customerId = customerId;
+      if (carrierId && carrierId !== "all") exportParams.carrierId = carrierId;
+      if (fromDate.trim()) exportParams.fromDate = fromDate.trim();
+      if (toDate.trim()) exportParams.toDate = toDate.trim();
+
+      const blob = await exportMutation.mutateAsync(exportParams);
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `awarded-loads-export-${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success("Awarded loads exported successfully!");
+    } catch (err: any) {
+      console.error("Failed to export awarded loads:", err);
+      toast.error(err?.response?.data?.message || "Failed to export awarded loads");
+    }
+  };
+
+  const getStatusBadge = (statusStr: string) => {
+    const s = (statusStr || "").toLowerCase();
+    switch (s) {
+      case "awarded":
+      case "selected":
+        return (
+          <span className="px-2.5 py-0.5 bg-green-100 text-green-700 text-xs font-semibold rounded-full border border-green-200">
+            Selected
+          </span>
+        );
+      case "sent":
+        return (
+          <span className="px-2.5 py-0.5 bg-sky-100 text-sky-700 text-xs font-semibold rounded-full border border-sky-200">
+            Sent
+          </span>
+        );
+      case "submitted":
+      case "bids_received":
+        return (
+          <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">
+            Submitted
+          </span>
+        );
+      case "resubmit_requested":
+        return (
+          <span className="px-2.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full border border-amber-200">
+            Resubmit Requested
+          </span>
+        );
+      case "rejected":
+        return (
+          <span className="px-2.5 py-0.5 bg-red-100 text-red-700 text-xs font-semibold rounded-full border border-red-200">
+            Rejected
+          </span>
+        );
+      case "expired":
+        return (
+          <span className="px-2.5 py-0.5 bg-slate-100 text-slate-700 text-xs font-semibold rounded-full border border-slate-200">
+            Expired
+          </span>
+        );
+      case "requested":
+        return (
+          <span className="px-2.5 py-0.5 bg-orange-100 text-orange-700 text-xs font-semibold rounded-full border border-orange-200">
+            Requested
+          </span>
+        );
+      case "bidding_sent":
+      case "carrier_selected":
+      case "scheduled":
+      case "confirmed":
+      case "material_prepared":
+      case "loaded":
+      case "picked_up":
+      case "in_transit":
+      case "staged":
+      case "dispatched_to_site":
+      case "delivered":
+      case "partial_received":
+      case "received":
+      case "delayed":
+      case "cancelled":
+      case "rescheduled": {
+        const style = getStatusBadgeStyle(s);
+        return (
+          <span
+            className={`px-2.5 py-0.5 text-xs font-semibold rounded-full border ${style.bg} ${style.text} ${style.border}`}
+          >
+            {formatStatusLabel(statusStr)}
+          </span>
+        );
+      }
+      default:
+        return (
+          <span className="px-2.5 py-0.5 bg-gray-100 text-gray-700 text-xs font-semibold rounded-full uppercase">
+            {(statusStr || "").replace(/_/g, " ")}
+          </span>
+        );
+    }
+  };
 
   return (
     <div className="flex-1 space-y-6 p-6 bg-[#f9fafb] min-h-screen">
@@ -117,27 +240,25 @@ export default function AwardedLoads() {
             Track all awarded freight loads
           </p>
         </div>
-        {/* <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
             className="bg-white gap-2 font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 rounded-xl"
-            onClick={() => setIsFilterOpen((prev) => !prev)}
+            onClick={handleExport}
+            disabled={exportMutation.isPending}
           >
-            <Filter className="w-4 h-4" />
-            {isFilterOpen ? "Hide Filters" : "Filter"}
+            {exportMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+            ) : (
+              <Download className="w-4 h-4 text-slate-500" />
+            )}
+            {exportMutation.isPending ? "Exporting..." : "Export"}
           </Button>
-          <Button 
-            variant="outline" 
-            className="bg-white gap-2 font-semibold text-slate-700 border-slate-200 hover:bg-slate-50 rounded-xl"
-          >
-            <Download className="w-4 h-4" />
-            Export
-          </Button>
-        </div> */}
+        </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {/* Total Awarded */}
         <Card className="rounded-2xl border-[2px] border-green-500 shadow-sm bg-white overflow-hidden">
           <CardContent className="p-5 flex items-center justify-between">
@@ -204,18 +325,32 @@ export default function AwardedLoads() {
       </div>
 
       {/* Search and Table Area */}
-      <div className="bg-white rounded-3xl p-6 shadow-sm">
-        {/* Search Bar & Filter Controls */}
-        <div className="flex flex-col space-y-4 mb-6">
+      <div className="bg-white rounded-[14px] shadow-sm border border-gray-200 overflow-hidden flex flex-col font-inter">
+        {/* Toolbar */}
+        <div className="p-6 border-b border-gray-200 flex flex-col space-y-4">
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
               <Input
-                placeholder="Search awarded loads..."
+                placeholder="Search by client / project"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
-                className="pl-10 h-11 bg-slate-50 border-0 rounded-xl text-sm"
+                className="pl-10 pr-10 h-11 bg-slate-50 border-0 rounded-xl text-sm"
               />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput("");
+                    setSearch("");
+                    setPage(1);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 focus:outline-none"
+                  aria-label="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
               {hasActiveFilters && (
@@ -256,15 +391,37 @@ export default function AwardedLoads() {
                   <SelectTrigger className="bg-white border-slate-200 rounded-xl">
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-72">
                     <SelectItem value="all">All Statuses</SelectItem>
-                    {statusesList.map((st) => (
-                      <SelectItem key={st} value={st}>
-                        {st
-                          .replace(/_/g, " ")
-                          .replace(/\b\w/g, (c) => c.toUpperCase())}
-                      </SelectItem>
-                    ))}
+                    {bidStatusesList.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel className="text-xs font-semibold text-slate-400 px-2 py-1">
+                          Bid Statuses
+                        </SelectLabel>
+                        {bidStatusesList.map((st) => (
+                          <SelectItem key={`bid_${st}`} value={st}>
+                            {st
+                              .replace(/_/g, " ")
+                              .replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                    {deliveryStatusesList.length > 0 && (
+                      <>
+                        {bidStatusesList.length > 0 && <SelectSeparator />}
+                        <SelectGroup>
+                          <SelectLabel className="text-xs font-semibold text-slate-400 px-2 py-1">
+                            Delivery Statuses
+                          </SelectLabel>
+                          {deliveryStatusesList.map((st) => (
+                            <SelectItem key={`delivery_${st}`} value={st}>
+                              {formatStatusLabel(st)}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -385,75 +542,75 @@ export default function AwardedLoads() {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-slate-100">
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Request ID
+        <div className="overflow-x-auto flex-1">
+          <table className="w-full text-left border-collapse border border-gray-200 text-nowrap font-inter text-sm">
+            <thead className="bg-[linear-gradient(90deg,_#DBEAFE_0%,_#F3E8FF_100%)]">
+              <tr className="border-b border-gray-200">
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  REQUEST ID
                 </th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Project
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  PROJECT
                 </th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Description
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  DESCRIPTION
                 </th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Pickup Location
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  PICKUP LOCATION
                 </th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Delivery Location
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  DELIVERY LOCATION
                 </th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Dates
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  DATES
                 </th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Carrier
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  CARRIER
                 </th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Awarded Amount
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  AWARDED AMOUNT
                 </th>
-                <th className="pb-4 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                  Status
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap text-center">
+                  STATUS
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-gray-200 bg-white">
               {isLoadsLoading ? (
                 Array.from({ length: 5 }).map((_, index) => (
                   <tr key={index}>
-                    <td className="py-5">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-24" />
                     </td>
-                    <td className="py-5">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-32" />
                     </td>
-                    <td className="py-5">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-40" />
                     </td>
-                    <td className="py-5">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-28" />
                     </td>
-                    <td className="py-5">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-28" />
                     </td>
-                    <td className="py-5">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-10 w-24" />
                     </td>
-                    <td className="py-5">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-8 w-32" />
                     </td>
-                    <td className="py-5">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-20" />
                     </td>
-                    <td className="py-5">
-                      <Skeleton className="h-6 w-16" />
+                    <td className="px-4 py-3 border border-gray-200 text-center">
+                      <Skeleton className="h-6 w-16 mx-auto" />
                     </td>
                   </tr>
                 ))
               ) : requests.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-slate-500">
+                  <td colSpan={9} className="py-8 text-center text-slate-500 border border-gray-200">
                     No awarded loads found
                   </td>
                 </tr>
@@ -461,14 +618,14 @@ export default function AwardedLoads() {
                 requests.map((load, index) => (
                   <tr
                     key={load._id || index}
-                    className="group hover:bg-slate-50/50 transition-colors cursor-pointer"
+                    className="hover:bg-gray-50/60 transition-colors group cursor-pointer"
                     onClick={() =>
                       navigate(
                         `/plant/freight-loads/details/${load._id || load.requestId}`,
                       )
                     }
                   >
-                    <td className="py-5 align-top">
+                    <td className="px-4 py-3 border border-gray-200 align-top">
                       <p className="font-bold text-slate-900 mb-1">
                         {load.deliveryNumber}
                       </p>
@@ -478,55 +635,67 @@ export default function AwardedLoads() {
                           ? new Date(load.createdAt).toLocaleDateString()
                           : "-"}
                       </p>
-                      <Badge
-                        variant="outline"
-                        className={`text-[10px] rounded-full px-2 py-0.5 font-medium border
-                          ${load.status === "delivered" ? "text-emerald-600 bg-emerald-50 border-emerald-200" : "text-blue-600 bg-blue-50 border-blue-200"}
-                        `}
-                      >
-                        {load.status.replace("_", " ")}
-                      </Badge>
+                      <div className="mt-1">
+                        {getStatusBadge(load.status)}
+                      </div>
                     </td>
-                    <td className="py-5 align-top">
+                    <td className="px-4 py-3 border border-gray-200 align-top">
                       <p className="text-sm font-medium text-slate-700">
                         {load.project?.projectName ||
                           load.project?.jobId ||
                           "-"}
                       </p>
+                      {load.project?.jobId && load.project?.projectName && (
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          {load.project.jobId}
+                        </p>
+                      )}
+                      {(load.customer as { name?: string } | undefined)?.name && (
+                        <p className="text-xs text-slate-500 mt-0.5" title={(load.customer as { name?: string }).name}>
+                          {(load.customer as { name?: string }).name}
+                        </p>
+                      )}
                     </td>
-                    <td className="py-5 align-top">
-                      <p className="text-sm text-slate-600 max-w-[150px]">
-                        {load.description}
+                    <td className="px-4 py-3 border border-gray-200 align-top max-w-[200px] whitespace-normal">
+                      <p
+                        className="text-sm text-slate-600 break-words leading-snug line-clamp-2 whitespace-normal"
+                        title={load.description || undefined}
+                      >
+                        {load.description || "-"}
                       </p>
                     </td>
-                    <td className="py-5 align-top">
-                      <p className="text-sm text-slate-600 w-20">
+                    <td className="px-4 py-3 border border-gray-200 align-top">
+                      <p className="text-sm text-slate-600 max-w-[150px] truncate" title={load.pickupLocation || undefined}>
                         {load.pickupLocation || "-"}
                       </p>
                     </td>
-                    <td className="py-5 align-top">
-                      <p className="text-sm text-slate-600 w-20">
+                    <td className="px-4 py-3 border border-gray-200 align-top">
+                      <p className="text-sm text-slate-600 max-w-[150px] truncate" title={load.deliveryLocation || undefined}>
                         {load.deliveryLocation || "-"}
                       </p>
                     </td>
-                    <td className="py-5 align-top">
-                      <p className="text-[12px] text-slate-500 w-24">
-                        Pickup:
-                        <br />
-                        {load.pickupDate
-                          ? new Date(load.pickupDate).toLocaleDateString()
-                          : "-"}
-                      </p>
-                      <p className="text-[12px] text-slate-500 w-24 mt-1">
-                        Delivery:
-                        <br />
-                        {load.deliveryDate
-                          ? new Date(load.deliveryDate).toLocaleDateString()
-                          : "-"}
-                      </p>
+                    <td className="px-4 py-3 border border-gray-200 align-top">
+                      <div className="flex flex-col text-xs text-slate-500 space-y-1 max-w-[130px]">
+                        <span>
+                          Pickup:{" "}
+                          <span className="font-medium text-slate-700">
+                            {load.pickupDate
+                              ? new Date(load.pickupDate).toLocaleDateString()
+                              : "-"}
+                          </span>
+                        </span>
+                        <span className="mt-0.5">
+                          Delivery:{" "}
+                          <span className="font-medium text-slate-700">
+                            {load.deliveryDate
+                              ? new Date(load.deliveryDate).toLocaleDateString()
+                              : "-"}
+                          </span>
+                        </span>
+                      </div>
                     </td>
-                    <td className="py-5 align-top">
-                      <p className="text-sm font-semibold text-slate-900 mb-1 w-28">
+                    <td className="px-4 py-3 border border-gray-200 align-top">
+                      <p className="text-sm font-semibold text-slate-900 mb-1 max-w-[160px]">
                         {load.carrier?.carrierName || "-"}
                       </p>
                       {load.poc?.pickupContactPhone && (
@@ -540,17 +709,20 @@ export default function AwardedLoads() {
                         </a>
                       )}
                     </td>
-                    <td className="py-5 align-top">
-                      <p className="text-sm font-bold text-slate-900 mb-1">
-                        {load.awardedBidAmount !== undefined &&
-                        load.awardedBidAmount !== null
-                          ? `$${load.awardedBidAmount.toLocaleString()}`
-                          : "-"}
-                      </p>
+                    <td className="px-4 py-3 border border-gray-200 align-top font-semibold text-slate-900">
+                      {load.awardedBidAmount !== undefined &&
+                      load.awardedBidAmount !== null
+                        ? `$${load.awardedBidAmount.toLocaleString()}`
+                        : "-"}
                     </td>
-                    <td className="py-5 align-top">
-                      <Badge className="bg-green-100 hover:bg-green-100 text-green-700 border border-green-200 rounded-full px-3 font-medium uppercase text-[10px]">
-                        {load.status === "delivered" ? "Delivered" : "Awarded"}
+                    <td className="px-4 py-3 border border-gray-200 align-top text-center">
+                      <Badge
+                        variant="outline"
+                        className={`rounded-full px-3 py-1 font-semibold uppercase text-[10px] tracking-wider border ${
+                          getStatusBadgeStyle(load.status || "awarded").bg
+                        } ${getStatusBadgeStyle(load.status || "awarded").text} ${getStatusBadgeStyle(load.status || "awarded").border}`}
+                      >
+                        {formatStatusLabel(load.status || "awarded")}
                       </Badge>
                     </td>
                   </tr>
@@ -562,7 +734,7 @@ export default function AwardedLoads() {
 
         {/* Pagination */}
         {!isLoadsLoading && total > 0 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-white">
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-white">
             <div className="flex flex-1 items-center justify-between">
               <div>
                 <p className="text-sm text-gray-700">

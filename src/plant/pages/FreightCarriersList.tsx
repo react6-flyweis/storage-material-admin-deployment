@@ -173,8 +173,8 @@ export default function FreightCarriersList() {
   const headers = [
     "Carrier",
     "Contact",
-    "Email",
-    "Phone",
+    // "Email",
+    // "Phone",
     "Bids",
     "Awarded",
     "Avg Bid",
@@ -285,7 +285,7 @@ export default function FreightCarriersList() {
                     <td className="px-4 py-4">
                       <div className="font-medium text-gray-900 leading-tight">{row.contact}</div>
                     </td>
-                    <td className="px-4 py-4">
+                    {/* <td className="px-4 py-4">
                       <a
                         href={`mailto:${row.email}`}
                         className="text-blue-500 flex items-center gap-1 hover:underline whitespace-nowrap"
@@ -319,7 +319,7 @@ export default function FreightCarriersList() {
                         </svg>
                         <span>{row.phone}</span>
                       </a>
-                    </td>
+                    </td> */}
                     <td className="px-4 py-4">
                       <div className="font-bold text-gray-900 text-sm leading-tight">
                         {row.bids.active} <br />

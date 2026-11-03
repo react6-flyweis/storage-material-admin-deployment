@@ -1,7 +1,8 @@
 import { ArrowLeft, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 
 // Mock data - replace with actual API call
 const contractData = {
@@ -347,7 +348,7 @@ const contractData = {
 };
 
 export default function ContractDetail() {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack("/customers/contracts");
   const { id } = useParams();
 
   const handleDownload = () => {
@@ -361,7 +362,7 @@ export default function ContractDetail() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <Button
-            onClick={() => navigate("/customers/contracts")}
+            onClick={() => goBack("/customers/contracts")}
             className="gap-2 bg-blue-600 hover:bg-blue-700"
           >
             <ArrowLeft className="h-4 w-4" />

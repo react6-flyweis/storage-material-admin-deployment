@@ -1,14 +1,15 @@
 import React from "react";
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Download, Eye, FileText, ArrowDownToLine, Loader2, Image as ImageIcon } from "lucide-react";
 import { useLeadDocumentsQuery } from "@/modules/leads/leads.hooks";
 import { format } from "date-fns";
+import { useAppBack } from "@/modules/navigation";
 
 export default function LeadDocuments() {
-  const navigate = useNavigate();
   const { leadId } = useParams();
+  const { goBack } = useAppBack(leadId ? `/leads/${leadId}` : "/leads");
 
   const { data: response, isLoading } = useLeadDocumentsQuery(leadId || "");
 
@@ -86,7 +87,7 @@ export default function LeadDocuments() {
       <div className="flex items-center gap-4">
         <Button 
           className="bg-blue-600 hover:bg-blue-700 text-white"
-          onClick={() => navigate(`/leads/${leadId}`)}
+          onClick={() => goBack()}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back

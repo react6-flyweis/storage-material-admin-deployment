@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
+import { Button } from "@/components/ui/button";
 import SuccessModal from "../components/common_component/SuccessModal";
 import CarrierForm from "./CarrierForm";
 import { type CarrierFormValues, type CarrierFormInput } from "./carrierSchema";
@@ -23,6 +25,7 @@ const PageWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const EditFreightCarrier: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { goBack } = useAppBack("/plant/freight-carriers");
 
   const { data: carrierResponse, isLoading: isCarrierLoading } = usePlantCarrierQuery(id ?? "", {
     enabled: !!id,
@@ -65,7 +68,7 @@ const EditFreightCarrier: React.FC = () => {
       fleetCapacity: {
         totalVehicles: carrier.fleetCapacity?.totalVehicleCount || 0,
         maxLoadCapacity: carrier.fleetCapacity?.maximumLoadCapacity ? `${carrier.fleetCapacity.maximumLoadCapacity} lbs` : "0 lbs",
-        avgFleetAge: carrier.fleetCapacity?.averageFleetAge || 0,
+        avgFleetAge: carrier.fleetCapacity?.averageFleetAge != null ? Math.round(carrier.fleetCapacity.averageFleetAge) : 0,
       },
       documents: (carrier.documents || []).map((doc) => ({
         name: doc.name || "",
@@ -102,7 +105,7 @@ const EditFreightCarrier: React.FC = () => {
         fleetCapacity: {
           totalVehicleCount: values.fleetCapacity.totalVehicles,
           maximumLoadCapacity: Number.parseFloat(values.fleetCapacity.maxLoadCapacity.replace(/[^0-9.]/g, "")) || 0,
-          averageFleetAge: values.fleetCapacity.avgFleetAge,
+          averageFleetAge: Math.round(values.fleetCapacity.avgFleetAge),
         },
         documents: values.documents?.map((doc) => ({
           name: doc.name,
@@ -136,11 +139,15 @@ const EditFreightCarrier: React.FC = () => {
   return (
     <PageWrapper>
       <div className="flex items-center justify-between mb-6 pt-2">
-        <div
-          className="flex items-center gap-3 cursor-pointer text-gray-800 hover:text-black transition-colors select-none"
-          onClick={() => navigate(-1)}
-        >
-          <ArrowLeft className="w-5 h-5" />
+        <div className="flex items-center gap-4">
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => goBack("/plant/freight-carriers")}
+            className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
+          >
+            <ArrowLeft size={18} strokeWidth={2.5} /> Back
+          </Button>
           <h1 className="text-lg md:text-xl font-semibold">Edit Freight Courier</h1>
         </div>
       </div>
@@ -156,7 +163,7 @@ const EditFreightCarrier: React.FC = () => {
         isOpen={isSuccessOpen}
         onClose={() => {
           setIsSuccessOpen(false);
-          navigate(`/plant/freight-carriers/${id}`);
+          navigate(`/plant/freight-carriers/${id}`, { replace: true });
         }}
         title="Courier Updated Successfully"
         subTitle={initialValues?.vendorName ? `Name: ${initialValues.vendorName}` : undefined}

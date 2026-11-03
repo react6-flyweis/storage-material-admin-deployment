@@ -4,6 +4,7 @@ import successmodalimg from "../../assets/successmodalimg.svg";
 type SuccessModalProps = {
   open: boolean;
   title: string;
+  description?: string;
   onClose: () => void;
   redirectTo?: string;
 };
@@ -11,6 +12,7 @@ type SuccessModalProps = {
 export default function SuccessModal({
   open,
   title,
+  description,
   onClose,
   redirectTo,
 }: SuccessModalProps) {
@@ -50,6 +52,12 @@ export default function SuccessModal({
         >
           {title}
         </h2>
+
+        {description && (
+          <p className="text-gray-500 text-sm mt-2 max-w-[400px]">
+            {description}
+          </p>
+        )}
 
         <img
           src={successmodalimg}

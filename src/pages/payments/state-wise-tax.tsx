@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { format, isValid, differenceInDays } from "date-fns";
+import { format, isValid } from "date-fns";
 import type { DateRange as RDateRange } from "react-day-picker";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import {
   Upload,
   RefreshCcw,
@@ -31,10 +30,11 @@ import {
   TrendingDown,
   ChevronLeft,
   ChevronRight,
-  MoreHorizontal,
   Loader2,
 } from "lucide-react";
 import TaxDetailsSheet from "@/components/payments/tax-details-sheet";
+import TaxComplianceBanner from "@/components/payments/tax-compliance-banner";
+import TaxStatusBadge from "@/components/payments/tax-status-badge";
 import StatCardV2 from "@/components/ui/stat-card-v2";
 import DateRangeFilter from "@/components/ui/date-range-filter";
 import UpcomingFilingDeadlines from "@/components/payments/upcoming-filing-deadlines";
@@ -42,12 +42,19 @@ import {
   useStateWiseTaxQuery,
   useStateWiseTaxStatsQuery,
   useExportStateWiseTaxMutation,
+  useTaxComplianceStatusQuery,
+  useSyncTaxMutation,
 } from "@/modules/payments/payments.hooks";
 import {
   useBudgetVsActualProjectsQuery,
   useExpensesFiltersQuery,
 } from "@/modules/financials/financials.hooks";
-import type { StateOverviewItem } from "@/modules/payments/payments.api";
+import {
+  prepareTaxFilingProvider,
+  type StateOverviewItem,
+  type TaxFilingItem,
+  type TaxStatusObject,
+} from "@/modules/payments/payments.api";
 
 const STATE_COLORS: Record<string, string> = {
   Texas: "bg-blue-900",
@@ -90,22 +97,6 @@ function formatDateDisplay(dateStr?: string) {
   return format(dateObj, "MMM dd, yyyy");
 }
 
-function formatDeadlineDate(dateStr?: string) {
-  if (!dateStr) return "-";
-  const dateObj = new Date(dateStr);
-  if (!isValid(dateObj)) return dateStr;
-  return format(dateObj, "dd MMM yyyy").toUpperCase();
-}
-
-function getDaysLeftText(dateStr?: string) {
-  if (!dateStr) return "";
-  const dateObj = new Date(dateStr);
-  if (!isValid(dateObj)) return "";
-  const diff = differenceInDays(dateObj, new Date());
-  if (diff < 0) return `${Math.abs(diff)} days overdue`;
-  if (diff === 0) return `Due today`;
-  return `${diff} days left`;
-}
 
 const TrendText = ({ value }: { value?: number }) => {
   if (value === undefined || value === null) return null;
@@ -135,9 +126,12 @@ export default function StateWiseTax() {
   const [lastSyncedTime, setLastSyncedTime] = useState<Date>(new Date());
 
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [preparingRowId, setPreparingRowId] = useState<string | null>(null);
   const [selectedState, setSelectedState] = useState<{
     state: string;
-    status: string;
+    status: TaxStatusObject | string;
+    taxRecordId?: string;
+    item?: TaxFilingItem;
   } | null>(null);
 
   // Fetch project options from budget vs actual and expenses filters
@@ -207,6 +201,8 @@ export default function StateWiseTax() {
 
   const statsParams = {
     projectId: activeProjectId,
+    startDate: startDateStr,
+    endDate: endDateStr,
   };
 
   const { data, isLoading, isFetching, isError, refetch } =
@@ -218,9 +214,14 @@ export default function StateWiseTax() {
     refetch: refetchStats,
   } = useStateWiseTaxStatsQuery(statsParams);
 
+  const complianceQuery = useTaxComplianceStatusQuery();
+  const syncMutation = useSyncTaxMutation();
   const exportMutation = useExportStateWiseTaxMutation();
 
-  const stateOverview: StateOverviewItem[] = data?.data?.stateOverview || [];
+  const stateOverview: StateOverviewItem[] = useMemo(
+    () => data?.data?.stateOverview || [],
+    [data?.data?.stateOverview]
+  );
   const statsData = statsRes?.data;
   const apiMainStats = data?.data?.stats;
 
@@ -248,8 +249,10 @@ export default function StateWiseTax() {
   const fallbackPendingStates = stateOverview.filter(
     (s) =>
       Number(s.payable) > 0 ||
-      s.status?.toLowerCase().includes("due") ||
-      s.status?.toLowerCase().includes("pending")
+      (typeof s.status === "object"
+        ? s.status.code === "due_soon" || s.status.code === "payment_due"
+        : s.status?.toLowerCase().includes("due") ||
+          s.status?.toLowerCase().includes("pending"))
   );
 
   const finalTaxCollected =
@@ -287,17 +290,26 @@ export default function StateWiseTax() {
     ? formatDateDisplay(statsData.nextFilingDue.date)
     : apiMainStats?.nextFilingDue
     ? formatDateDisplay(apiMainStats.nextFilingDue)
-    : fallbackPendingStates[0]?.nextDue
-    ? formatDateDisplay(fallbackPendingStates[0].nextDue)
+    : fallbackPendingStates[0]?.dueDate || fallbackPendingStates[0]?.nextDue
+    ? formatDateDisplay(
+        fallbackPendingStates[0]?.dueDate || fallbackPendingStates[0]?.nextDue
+      )
     : "-";
 
   const nextDueStateDisplay =
     statsData?.nextFilingDue?.state ||
+    fallbackPendingStates[0]?.state ||
+    fallbackPendingStates[0]?.stateLabel ||
     fallbackPendingStates[0]?._id ||
-    "No Due";
+    "";
 
   const handleSyncNow = async () => {
-    await Promise.all([refetch(), refetchStats()]);
+    try {
+      await syncMutation.mutateAsync();
+    } catch (err) {
+      console.error("Sync error:", err);
+    }
+    await Promise.all([refetch(), refetchStats(), complianceQuery.refetch()]);
     setLastSyncedTime(new Date());
   };
 
@@ -323,63 +335,61 @@ export default function StateWiseTax() {
     }
   };
 
-  const handleOpenSheet = (stateName: string, statusName: string) => {
-    setSelectedState({ state: stateName, status: statusName });
+  const handlePayTax = async (row: StateOverviewItem) => {
+    const stateName = row.state || row.stateLabel || row._id || "";
+    const effectiveTaxRecordId = row.taxRecordId || row._id;
+    const rowKey = row.taxRecordId || row._id || stateName;
+
+    setPreparingRowId(rowKey);
+    if (effectiveTaxRecordId) {
+      try {
+        await prepareTaxFilingProvider(effectiveTaxRecordId);
+      } catch (err) {
+        console.warn("Prepare filing notice:", err);
+      }
+    }
+    setPreparingRowId(null);
+
+    const taxItem: TaxFilingItem = {
+      _id: effectiveTaxRecordId || "",
+      state: stateName,
+      filingFrequency: "Monthly",
+      dueDate: row.dueDate || row.nextDue,
+      taxDue: Number(row.payable) || Number(row.taxCollected) || 0,
+      payable: Number(row.payable) || 0,
+      status: row.status,
+      salesTaxRateLabel: row.salesTaxRateLabel || row.rate,
+    };
+    setSelectedState({
+      state: stateName,
+      status: row.status,
+      taxRecordId: effectiveTaxRecordId,
+      item: taxItem,
+    });
     setIsSheetOpen(true);
   };
 
-  const getStatusBadge = (status: string) => {
-    const s = status?.toLowerCase() || "";
-    if (s.includes("due") || s.includes("pending")) {
-      return (
-        <Badge className="bg-orange-400 hover:bg-orange-500 text-white font-normal rounded-sm">
-          {status || "Payment Due"}
-        </Badge>
-      );
-    }
-    if (s.includes("filed") || s.includes("paid")) {
-      return (
-        <Badge className="bg-cyan-500 hover:bg-cyan-600 text-white font-normal rounded-sm px-3">
-          Filed
-        </Badge>
-      );
-    }
-    if (s.includes("no due") || s.includes("none")) {
-      return (
-        <Badge className="bg-emerald-500 hover:bg-emerald-600 text-white font-normal rounded-sm">
-          No Due
-        </Badge>
-      );
-    }
-    return <Badge>{status}</Badge>;
-  };
-
-  // Build upcoming filing deadlines list dynamically from state overview data
-  const filingDeadlines = useMemo(() => {
-    const pendingList = stateOverview.filter(
-      (s) =>
-        s.nextDue ||
-        s.status?.toLowerCase().includes("pending") ||
-        s.status?.toLowerCase().includes("due")
-    );
-
-    const cards = pendingList.map((s) => ({
-      title: s._id,
-      subtitle: "Monthly Return",
-      detail: getDaysLeftText(s.nextDue) || "Pending Filing",
-      date: formatDeadlineDate(s.nextDue),
-    }));
-
-    cards.push({
-      title: "Never Miss A Deadline",
-      subtitle: "Never miss notification",
-      cta: "Manage Notifications",
-      detail: undefined,
-      date: undefined,
+  const handleOpenSheet = (row: StateOverviewItem) => {
+    const stateName = row.state || row.stateLabel || row._id || "";
+    const effectiveTaxRecordId = row.taxRecordId || row._id;
+    const taxItem: TaxFilingItem = {
+      _id: effectiveTaxRecordId || "",
+      state: stateName,
+      filingFrequency: "Monthly",
+      dueDate: row.dueDate || row.nextDue,
+      taxDue: Number(row.payable) || Number(row.taxCollected) || 0,
+      payable: Number(row.payable) || 0,
+      status: row.status,
+      salesTaxRateLabel: row.salesTaxRateLabel || row.rate,
+    };
+    setSelectedState({
+      state: stateName,
+      status: row.status,
+      taxRecordId: effectiveTaxRecordId,
+      item: taxItem,
     });
-
-    return cards;
-  }, [stateOverview]);
+    setIsSheetOpen(true);
+  };
 
   return (
     <div className="p-5 space-y-6">
@@ -394,7 +404,7 @@ export default function StateWiseTax() {
         </div>
         <Button
           variant="outline"
-          className="bg-white text-gray-700 border-gray-200"
+          className="bg-white text-gray-700 border-gray-200 cursor-pointer"
           onClick={handleExport}
           disabled={exportMutation.isPending}
         >
@@ -406,6 +416,12 @@ export default function StateWiseTax() {
           Export
         </Button>
       </div>
+
+      {/* Compliance banner */}
+      <TaxComplianceBanner
+        onSync={handleSyncNow}
+        isSyncing={syncMutation.isPending}
+      />
 
       {/* Filters and Sync */}
       <Card className="p-4 flex flex-col md:flex-row md:items-end justify-between gap-4 border-none shadow-sm">
@@ -444,8 +460,8 @@ export default function StateWiseTax() {
               Date Range
             </label>
             <DateRangeFilter
-              dateRange={dateRange}
-              onDateRangeChange={(range) => {
+              value={dateRange}
+              onChange={(range) => {
                 setDateRange(range);
                 setPage(1);
               }}
@@ -455,19 +471,33 @@ export default function StateWiseTax() {
 
         <div className="flex items-center gap-4">
           <div className="text-sm text-gray-500 flex items-center gap-2">
-            Last Synced: {format(lastSyncedTime, "MMM dd, yyyy HH:mm")}{" "}
-            <span className="text-emerald-500">Synced</span>
+            Last Synced:{" "}
+            {data?.data?.meta?.lastSyncedAt
+              ? format(new Date(data.data.meta.lastSyncedAt), "MMM dd, yyyy HH:mm")
+              : complianceQuery.data?.data?.lastSyncedAt
+              ? format(
+                  new Date(complianceQuery.data.data.lastSyncedAt),
+                  "MMM dd, yyyy HH:mm"
+                )
+              : format(lastSyncedTime, "MMM dd, yyyy HH:mm")}{" "}
+            <span className="text-emerald-500">
+              {data?.data?.meta?.syncState ||
+                complianceQuery.data?.data?.syncState ||
+                "Synced"}
+            </span>
           </div>
           <Button
             variant="outline"
-            className="bg-white border-gray-200 text-gray-700"
+            className="bg-white border-gray-200 text-gray-700 cursor-pointer"
             onClick={handleSyncNow}
-            disabled={isFetching || isStatsFetching}
+            disabled={isFetching || isStatsFetching || syncMutation.isPending}
           >
             Sync Now
             <RefreshCcw
               className={`w-4 h-4 ml-2 ${
-                isFetching || isStatsFetching ? "animate-spin" : ""
+                isFetching || isStatsFetching || syncMutation.isPending
+                  ? "animate-spin"
+                  : ""
               }`}
             />
           </Button>
@@ -559,9 +589,11 @@ export default function StateWiseTax() {
             )
           }
           subtitle={
-            <span className="text-emerald-500 text-sm flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" /> {nextDueStateDisplay}
-            </span>
+            nextDueStateDisplay ? (
+              <span className="text-emerald-500 text-sm flex items-center gap-1">
+                <TrendingUp className="w-3 h-3" /> {nextDueStateDisplay}
+              </span>
+            ) : undefined
           }
           icon={
             <div className="flex items-center justify-center p-1.5 rounded-md border border-purple-200 text-purple-600">
@@ -639,19 +671,29 @@ export default function StateWiseTax() {
                 </TableRow>
               ) : (
                 paginatedStates.map((row, idx) => {
-                  const stateName = row._id || "Unknown";
+                  const stateName =
+                    row.state || row.stateLabel || row._id || "-";
                   const avatarColor = getStateColor(
                     stateName,
                     (page - 1) * limit + idx
                   );
                   const isPayablePositive = Number(row.payable) > 0;
+                  const statusCode =
+                    typeof row.status === "object" ? row.status?.code : "";
+                  const statusStr =
+                    typeof row.status === "string"
+                      ? row.status.toLowerCase()
+                      : "";
                   const isPendingOrDue =
-                    row.status?.toLowerCase().includes("due") ||
-                    row.status?.toLowerCase().includes("pending");
+                    statusCode === "due_soon" ||
+                    statusCode === "payment_due" ||
+                    statusStr.includes("due") ||
+                    statusStr.includes("pending") ||
+                    isPayablePositive;
 
                   return (
                     <TableRow
-                      key={row._id || idx}
+                      key={row.taxRecordId || row._id || idx}
                       className="border-b last:border-none hover:bg-gray-50/50"
                     >
                       <TableCell className="py-4">
@@ -668,7 +710,7 @@ export default function StateWiseTax() {
                               {stateName}
                             </span>
                             <span className="text-xs text-gray-500">
-                              {row.rate || "8.25% Sales Tax"}
+                              {row.salesTaxRateLabel || row.rate || "-"}
                             </span>
                           </div>
                         </div>
@@ -690,27 +732,42 @@ export default function StateWiseTax() {
                         {formatCurrency(row.payable)}
                       </TableCell>
                       <TableCell className="py-4 text-gray-500">
-                        {formatDateDisplay(row.nextDue)}
+                        {formatDateDisplay(row.dueDate || row.nextDue)}
                       </TableCell>
                       <TableCell className="py-4">
-                        {getStatusBadge(row.status)}
+                        <TaxStatusBadge status={row.status} />
                       </TableCell>
                       <TableCell className="py-4">
                         {isPendingOrDue ? (
                           <Button
-                            className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs font-medium px-6"
-                            onClick={() =>
-                              handleOpenSheet(stateName, row.status)
+                            disabled={
+                              preparingRowId ===
+                              (row.taxRecordId ||
+                                row._id ||
+                                row.state ||
+                                row.stateLabel)
                             }
+                            className="bg-blue-600 hover:bg-blue-700 text-white h-8 text-xs font-medium px-6 cursor-pointer"
+                            onClick={() => handlePayTax(row)}
                           >
-                            Pay Tax
+                            {preparingRowId ===
+                            (row.taxRecordId ||
+                              row._id ||
+                              row.state ||
+                              row.stateLabel) ? (
+                              <>
+                                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                                Preparing...
+                              </>
+                            ) : (
+                              "Pay Tax"
+                            )}
                           </Button>
                         ) : (
                           <button
+                            type="button"
                             className="text-sm font-medium text-blue-600 hover:text-blue-800 px-2 cursor-pointer"
-                            onClick={() =>
-                              handleOpenSheet(stateName, row.status)
-                            }
+                            onClick={() => handleOpenSheet(row)}
                           >
                             View Details
                           </button>
@@ -783,7 +840,30 @@ export default function StateWiseTax() {
         </div>
       </div>
 
-      <UpcomingFilingDeadlines limit={5} />
+      <UpcomingFilingDeadlines
+        projectId={activeProjectId}
+        limit={6}
+        scope="state"
+        onSelectDeadline={(deadline) => {
+          const effectiveId = deadline.taxRecordId || deadline._id;
+          const stateName = deadline.state || "";
+          setSelectedState({
+            state: stateName,
+            status: deadline.status || "Pending",
+            taxRecordId: effectiveId,
+            item: {
+              _id: effectiveId,
+              state: stateName,
+              filingFrequency: "Monthly",
+              dueDate: deadline.dueDate,
+              taxDue: Number(deadline.payable) || 0,
+              payable: Number(deadline.payable) || 0,
+              status: deadline.status || "Pending",
+            },
+          });
+          setIsSheetOpen(true);
+        }}
+      />
 
       {/* Controlled Tax Details Sheet */}
       {selectedState && (
@@ -792,6 +872,8 @@ export default function StateWiseTax() {
           status={selectedState.status}
           isOpen={isSheetOpen}
           onOpenChange={setIsSheetOpen}
+          taxRecordId={selectedState.taxRecordId}
+          item={selectedState.item}
         />
       )}
     </div>

@@ -11,7 +11,7 @@ export const VENDOR_TYPES = [
 
 export const vendorSchema = z.object({
   vendorName: z.string().min(1, "Vendor Name is required"),
-  vendorCode: z.string().min(1, "Vendor Code is required"),
+  vendorCode: z.string().optional(),
   contactName: z.string().min(1, "Contact Name is required"),
   email: z.string().email("Invalid email address"),
   phone: z.string().min(1, "Phone number is required"),

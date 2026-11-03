@@ -1,11 +1,12 @@
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer } from "recharts";
-import type { RevenueTrendItem } from "@/modules/payments/payments.api";
+import type { RevenueTrendItem, RevenueTrendChartItem } from "@/modules/payments/payments.api";
 
 interface RevenueTrendProps {
   className?: string;
   data?: RevenueTrendItem[];
+  chartData?: RevenueTrendChartItem[];
   isLoading?: boolean;
 }
 
@@ -33,10 +34,21 @@ const DEFAULT_DATA = [
   { month: "Dec", received: 250000, projected: 220000 },
 ];
 
-export default function RevenueTrend({ className, data, isLoading }: RevenueTrendProps) {
+export default function RevenueTrend({
+  className,
+  data,
+  chartData: serverChartData,
+  isLoading,
+}: RevenueTrendProps) {
   let chartData = DEFAULT_DATA;
 
-  if (data && data.length > 0) {
+  if (serverChartData && serverChartData.length > 0) {
+    chartData = serverChartData.map((item) => ({
+      month: item.label,
+      received: item.received,
+      projected: item.projected,
+    }));
+  } else if (data && data.length > 0) {
     const monthMap = new Map<string, { month: string; received: number; projected: number }>();
 
     data.forEach((item) => {

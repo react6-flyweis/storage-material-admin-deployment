@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router";
 import { ArrowLeft, Check, ChevronUp, ChevronDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useGetBundleDetailsQuery, useEditBundleMutation } from "@/modules/plant/load-planning.hooks";
 
 interface TableItem {
@@ -223,12 +224,14 @@ const EditBundleView: React.FC = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-4">
-          <button
+          <Button
+            variant="default"
+            size="sm"
             onClick={() => navigate(`/plant/load-planning/${projectId}/bundle-planner`)}
-            className="text-[#212B36] hover:opacity-80 transition-opacity cursor-pointer"
+            className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
           >
-            <ArrowLeft size={24} />
-          </button>
+            <ArrowLeft size={18} strokeWidth={2.5} /> Back
+          </Button>
           <div>
             <h1 className="text-2xl font-bold text-[#212B36]">Edit Bundle</h1>
             <p className="text-sm text-[#637381] mt-1">

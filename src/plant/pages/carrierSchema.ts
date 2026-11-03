@@ -35,9 +35,15 @@ export const carrierSchema = z.object({
       return Number.isNaN(num) ? 0 : num;
     }).refine((val) => val > 0, { message: "Total vehicle count must be greater than 0" }),
     maxLoadCapacity: z.string().min(1, "Maximum load capacity is required"),
-    avgFleetAge: z.union([z.string(), z.number()]).transform((val) => {
+    avgFleetAge: z.union([z.string(), z.number()]).refine((val) => {
+      if (typeof val === "string") {
+        if (!val.trim()) return true;
+        return !val.includes(".");
+      }
+      return Number.isInteger(val);
+    }, { message: "Average fleet age cannot contain decimals" }).transform((val) => {
       const num = Number(val);
-      return Number.isNaN(num) ? 0 : num;
+      return Number.isNaN(num) ? 0 : Math.round(num);
     }).refine((val) => val >= 0, { message: "Average fleet age must be 0 or greater" }),
   }),
   documents: z.array(

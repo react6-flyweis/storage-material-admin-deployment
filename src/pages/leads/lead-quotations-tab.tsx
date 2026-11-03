@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link } from "react-router";
-import { Eye, Plus, Send } from "lucide-react";
+import { Link, useNavigate, useLocation } from "react-router";
+import { Eye, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,7 +13,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import CreateQuotationDialog from "@/components/leads/create-quotation-dialog";
 import QuotationDetailsDialog from "@/components/leads/quotation-details-dialog";
 import SendQuotationDialog from "@/components/leads/send-quotation-dialog";
 import {
@@ -23,6 +22,8 @@ import {
   useRejectQuotationMutation,
 } from "@/modules/quotations/quotations.hooks";
 import type { Quotation } from "@/modules/quotations/quotations.api";
+import { resolveQuotationLifecycle } from "@/modules/quotations/quotations.utils";
+import QuotationStatusBadge from "@/components/quotations/quotation-status-badge";
 import { toast } from "sonner";
 import dayjs from "dayjs";
 
@@ -31,53 +32,9 @@ interface LeadQuotationsTabProps {
   customerName?: string;
 }
 
-function getWorkflowBadge(quotation: Quotation) {
-  const status = quotation.workflowStatus || quotation.approval?.status || quotation.status || "draft";
-
-  switch (status) {
-    case "approved":
-      return (
-        <Badge className="bg-[#dcfce7] text-[#166534] hover:bg-[#dcfce7] border-none px-2 py-0.5 rounded text-[11px] font-bold capitalize tracking-wider">
-          Approved
-        </Badge>
-      );
-    case "pending_approval":
-      return (
-        <Badge className="bg-[#fef3c7] text-[#d97706] hover:bg-[#fef3c7] border-none px-2 py-0.5 rounded text-[11px] font-bold capitalize tracking-wider">
-          Pending Approval
-        </Badge>
-      );
-    case "rejected":
-      return (
-        <Badge className="bg-[#fee2e2] text-[#dc2626] hover:bg-[#fee2e2] border-none px-2 py-0.5 rounded text-[11px] font-bold capitalize tracking-wider">
-          Rejected
-        </Badge>
-      );
-    case "sent":
-      if (quotation.sendMethod === "manual") {
-        return (
-          <Badge className="bg-[#e0e7ff] text-[#4338ca] hover:bg-[#e0e7ff] border-none px-2 py-0.5 rounded text-[11px] font-bold capitalize tracking-wider">
-            Marked Sent
-          </Badge>
-        );
-      }
-      return (
-        <Badge className="bg-[#dbeafe] text-[#2563eb] hover:bg-[#dbeafe] border-none px-2 py-0.5 rounded text-[11px] font-bold capitalize tracking-wider">
-          Sent via Email
-        </Badge>
-      );
-    case "draft":
-    case "not_submitted":
-    default:
-      return (
-        <Badge className="bg-[#f1f5f9] text-[#475569] hover:bg-[#f1f5f9] border-none px-2 py-0.5 rounded text-[11px] font-bold capitalize tracking-wider">
-          Draft
-        </Badge>
-      );
-  }
-}
-
-export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotationsTabProps) {
+export default function LeadQuotationsTab({ leadId }: LeadQuotationsTabProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { data: response, isLoading, isError } = useLeadQuotationsQuery(leadId);
   const quotations = response?.data?.quotations || [];
 
@@ -163,24 +120,16 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
     return <div className="p-6 text-center text-red-500">Failed to load quotations.</div>;
   }
 
-  const approvedCount = quotations.filter((q) => (q.workflowStatus || q.approval?.status) === "approved").length;
-  const pendingCount = quotations.filter((q) => (q.workflowStatus || q.approval?.status) === "pending_approval").length;
+  const approvedCount = quotations.filter((q) => q.workflowStatus === "approved").length;
+  const pendingCount = quotations.filter((q) => q.workflowStatus === "pending_approval").length;
   const latestQuote = quotations[0];
 
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* Quotations Summary Box */}
       <div className="bg-[#f4f8fb] rounded-xl p-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6">
           <h3 className="text-base font-bold text-gray-900">Quotations Summary</h3>
-          <CreateQuotationDialog
-            leadData={{ id: leadId, name: customerName || "Lead" }}
-            trigger={
-              <Button className="bg-[#1D51A4] hover:bg-[#174287] text-white h-8 px-3 text-xs rounded font-medium flex items-center gap-1.5">
-                <Plus className="w-3.5 h-3.5" /> Create Quotation
-              </Button>
-            }
-          />
         </div>
         <div className="flex flex-col md:flex-row justify-between gap-6 pr-12">
           <div>
@@ -207,10 +156,10 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
       {/* Quotations List Table */}
       <div>
         <h3 className="text-base font-bold text-gray-900 mb-4 px-1">Quotations List</h3>
-        <div className="bg-white">
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
-              <thead className="bg-[#f8fafc] text-gray-600 text-xs font-bold border-b border-t border-gray-100 uppercase">
+              <thead className="bg-[#f8fafc] text-gray-600 text-xs font-bold border-b border-gray-100 uppercase">
                 <tr>
                   <th className="px-6 py-4 whitespace-nowrap">QUOTE #</th>
                   <th className="px-6 py-4 whitespace-nowrap">VERSION</th>
@@ -224,9 +173,9 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
               <tbody className="divide-y divide-gray-100">
                 {quotations.length > 0 ? (
                   quotations.map((q) => {
-                    const effectiveStatus = q.workflowStatus || q.approval?.status || q.status;
-                    const isPending = effectiveStatus === "pending_approval";
-                    const canSubmit = effectiveStatus === "draft" || effectiveStatus === "not_submitted" || effectiveStatus === "rejected";
+                    const lifecycle = resolveQuotationLifecycle(q);
+                    const isPending = lifecycle.isPendingApproval;
+                    const canSubmit = lifecycle.isDraft || lifecycle.isAdminRejected;
                     const price = q.finalPrice || q.basePrice || 0;
 
                     return (
@@ -234,7 +183,8 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
                         <td className="px-6 py-4 text-gray-900 font-medium">
                           <Link
                             to={`/leads/quotation-details/${q._id}`}
-                            className="text-blue-600 hover:underline"
+                            state={{ from: location.pathname + location.search }}
+                            className="text-blue-600 hover:underline font-medium"
                           >
                             {q.quoteNumber}
                           </Link>
@@ -243,7 +193,11 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
                         <td className="px-6 py-4 text-gray-900 capitalize">{q.buildingType || "—"}</td>
                         <td className="px-6 py-4 text-gray-900 font-bold">{formatCurrency(price)}</td>
                         <td className="px-6 py-4">
-                          {getWorkflowBadge(q)}
+                          <QuotationStatusBadge
+                            workflowStatus={q.workflowStatus}
+                            sendMethod={q.sendMethod}
+                            showSendMethod
+                          />
                         </td>
                         <td className="px-6 py-4 text-gray-500">
                           {dayjs(q.createdAt).format("MMM DD, YYYY")}
@@ -254,10 +208,10 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-7 px-2.5 text-xs border-amber-200 text-amber-700 hover:bg-amber-50 rounded"
+                                className="h-7 px-2.5 text-xs border-blue-200 text-[#1D51A4] hover:bg-blue-50 rounded font-medium"
                                 onClick={() => setSubmitDialogQuote(q)}
                               >
-                                Submit
+                                Send for Approval
                               </Button>
                             )}
                             {isPending && (
@@ -279,25 +233,48 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
                                 </Button>
                               </>
                             )}
-                            {(() => {
-                              const isAlreadySent = (q.workflowStatus || q.status) === "sent" || Boolean(q.sentAt);
-                              const isAppr = (q.workflowStatus || q.approval?.status) === "approved";
-                              const canSend = isAppr || isAlreadySent;
-                              return canSend ? (
-                                <Button
-                                  size="sm"
-                                  className="bg-[#1D51A4] hover:bg-[#174287] text-white h-7 px-2.5 text-xs font-medium rounded flex items-center gap-1"
-                                  onClick={() => setSendDialogQuote(q)}
-                                >
-                                  <Send className="w-3 h-3" /> {isAlreadySent ? "Resend" : "Send"}
-                                </Button>
-                              ) : null;
-                            })()}
+                            {lifecycle.isApproved && (
+                              <Button
+                                size="sm"
+                                className="bg-[#1D51A4] hover:bg-[#174287] text-white h-7 px-2.5 text-xs font-medium rounded flex items-center gap-1"
+                                onClick={() => setSendDialogQuote(q)}
+                              >
+                                <Send className="w-3 h-3" /> Send to customer
+                              </Button>
+                            )}
+                            {lifecycle.isSent && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 px-2.5 text-xs border-gray-200 text-gray-700 hover:bg-gray-50 rounded flex items-center gap-1"
+                                onClick={() => setSendDialogQuote(q)}
+                              >
+                                <Send className="w-3 h-3" /> Resend
+                              </Button>
+                            )}
+                            {lifecycle.isAccepted && (
+                              <Button
+                                size="sm"
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white h-7 px-2.5 text-xs font-medium rounded"
+                                onClick={() => {
+                                  navigate(
+                                    `/invoice?type=quotation${leadId ? `&leadId=${leadId}` : ""}`,
+                                    { state: { from: location.pathname + location.search } },
+                                  );
+                                }}
+                              >
+                                Next steps
+                              </Button>
+                            )}
                             <button
                               type="button"
-                              onClick={() => setViewDialogQuote(q)}
-                              className="text-gray-500 hover:text-[#1D51A4] inline-block p-1 cursor-pointer"
-                              title="View Quotation Details"
+                              onClick={() =>
+                                navigate(`/leads/quotation-details/${q._id}`, {
+                                  state: { from: location.pathname + location.search },
+                                })
+                              }
+                              className="text-gray-500 hover:text-[#1D51A4] inline-block p-1 cursor-pointer transition-colors"
+                              title="View Quotation"
                             >
                               <Eye className="w-4 h-4" />
                             </button>
@@ -323,7 +300,7 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
       <Dialog open={!!submitDialogQuote} onOpenChange={(o) => !o && setSubmitDialogQuote(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-base font-semibold">Submit Quotation for Approval</DialogTitle>
+            <DialogTitle className="text-base font-semibold">Send Quotation for Approval</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <p className="text-sm text-gray-600">
@@ -334,7 +311,7 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
               <Input
                 value={submitNote}
                 onChange={(e) => setSubmitNote(e.target.value)}
-                placeholder="e.g. Special custom margin applied"
+                placeholder="e.g. Updated milestones 40/30 or custom margin"
                 className="h-9 text-sm"
               />
             </div>
@@ -349,7 +326,7 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
               onClick={handleSubmitForApproval}
               disabled={submitMutation.isPending}
             >
-              {submitMutation.isPending ? "Submitting..." : "Confirm Submit"}
+              {submitMutation.isPending ? "Submitting..." : "Send for Approval"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -456,7 +433,7 @@ export default function LeadQuotationsTab({ leadId, customerName }: LeadQuotatio
         quoteNumber={sendDialogQuote?.quoteNumber}
         versionNumber={sendDialogQuote?.versionNumber}
         recipientEmail={sendDialogQuote?.sentTo}
-        status={sendDialogQuote?.workflowStatus || sendDialogQuote?.status}
+        status={sendDialogQuote?.workflowStatus}
         sendMethod={sendDialogQuote?.sendMethod}
         sentAt={sendDialogQuote?.sentAt}
       />

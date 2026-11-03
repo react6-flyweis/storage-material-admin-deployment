@@ -1,21 +1,26 @@
+import type { InstallAddress } from "@/types/address.types";
+export type { InstallAddress } from "@/types/address.types";
+
 export type AdminCustomerPhone = {
-  number?: string;
-  countryCode?: string;
+  number: string;
+  countryCode: string;
 };
 
 export type AdminCustomer = {
   _id: string;
   customerId: string;
+  customerName: string;
+  email: string;
+  phone: AdminCustomerPhone;
+  totalProjects: number;
+  status: string;
   firstName?: string;
   lastName?: string;
-  email?: string;
-  phone?: AdminCustomerPhone;
   isActive?: boolean;
   source?: string;
   inquiryFor?: string;
   createdAt?: string;
   isReturning?: boolean;
-  totalProjects?: number;
   companyName?: string;
   jobTitle?: string;
   leadStatus?: string;
@@ -40,8 +45,15 @@ export type GetAdminCustomersResponse = {
 export type AdminCustomerProject = {
   _id: string;
   customerId?: string;
+  projectName?: string;
+  businessUnit?: string | null;
+  businessUnitLabel?: string;
   buildingType?: string;
   location?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  installAddress?: InstallAddress;
   source?: string;
   quoteValue?: number;
   lifecycleStatus?: string;
@@ -52,16 +64,45 @@ export type AdminCustomerProject = {
   updatedAt?: string;
 };
 
+export type CustomerProjectBudgetCustomLine = {
+  key?: string;
+  label?: string;
+  amount?: number;
+  expenseCategories?: string[];
+};
+
+export type CustomerProjectBudget = {
+  totalBudget?: number;
+  customLines?: CustomerProjectBudgetCustomLine[];
+  expectedProfit?: number;
+  materialBudget?: number;
+  logisticBudget?: number;
+  productionBudget?: number;
+  shipperBudget?: number;
+  otherCost?: number;
+  [key: string]: any;
+};
+
 // Type matching the real /api/admin/customers/{id}/projects response
 export type CustomerProject = {
   _id: string;
+  projectId?: string;
+  jobId?: string;
   projectName?: string;
+  businessUnit?: string | null;
+  businessUnitLabel?: string;
   numberOfBuildings?: number;
+  location?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  installAddress?: InstallAddress;
   lifecycleStatus?: string;
   assignedSales?: { _id: string; name: string };
   quoteValue?: number;
+  buildingType?: string;
   isTerminated?: boolean;
-  budget?: number | null;
+  budget?: CustomerProjectBudget | number | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -103,13 +144,47 @@ export type AdminCustomerInvoice = {
   __v?: number;
 };
 
+export type CustomerFinancials = {
+  totalPaid?: number;
+  pendingPayment?: number;
+  totalInvoices?: number;
+  revenueGenerated?: number;
+  totalInvoiced?: number;
+  totalQuotedValue?: number;
+  overdueAmount?: number;
+  [key: string]: any;
+};
+
+export type CustomerRevenue = {
+  totalQuotedValue?: number;
+  totalInvoiced?: number;
+  totalReceived?: number;
+  outstandingAmount?: number;
+  overdue?: number;
+  [key: string]: any;
+};
+
+export type CustomerKpis = {
+  totalPaid?: number;
+  pendingPayment?: number;
+  totalInvoices?: number;
+  revenueGenerated?: number;
+  [key: string]: any;
+};
+
 export type GetAdminCustomerDetailData = {
   customer: AdminCustomer;
-  totalPaid: number;
-  totalPending: number;
-  totalInvoices: number;
-  projects: AdminCustomerProject[];
-  invoices: AdminCustomerInvoice[];
+  financials?: CustomerFinancials;
+  customerRevenue?: CustomerRevenue;
+  kpis?: CustomerKpis;
+  totalPaid?: number;
+  pendingPayment?: number;
+  totalPending?: number;
+  totalInvoices?: number;
+  revenueGenerated?: number;
+  projects?: AdminCustomerProject[];
+  invoices?: AdminCustomerInvoice[];
+  [key: string]: any;
 };
 
 export type GetAdminCustomerDetailResponse = {
@@ -181,9 +256,14 @@ export type CreateCustomerRequest = {
   phone: string;
   buildingType: string;
   location: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  installAddress?: InstallAddress;
   projectName: string;
   countryCode: string;
   assignedSales: string;
+  businessUnit?: string | null;
 };
 
 export type CreateCustomerResponse = {
@@ -239,7 +319,12 @@ export type EditCustomerResponse = {
 export type CreateCustomerLeadRequest = {
   projectName: string;
   buildingType: string;
+  businessUnit?: string | null;
   location: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  installAddress?: InstallAddress;
   roofStyle: string;
   width: number;
   length: number;
@@ -253,7 +338,7 @@ export type CreateCustomerLeadRequest = {
 export type CreateCustomerLeadResponse = {
   success: boolean;
   message: string;
-  data: any;
+  data: unknown;
 };
 
 export type GetCustomersProjectsListResponse = {
@@ -264,6 +349,8 @@ export type GetCustomersProjectsListResponse = {
       leadId: string;
       projectName: string;
       jobId: string;
+      businessUnit?: string | null;
+      businessUnitLabel?: string;
       customerId: string;
       customerName: string;
       quoteValue: number;

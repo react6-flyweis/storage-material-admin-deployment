@@ -7,7 +7,10 @@ export interface TeamAttachment {
 
 export interface TeamMessage {
   _id: string;
-  channelType: "direct" | "group";
+  messageId?: string;
+  customerId?: string;
+  channelType: "direct" | "group" | "customer";
+  senderType?: "customer" | "admin" | "sales" | string;
   groupId?: string;
   directKey?: string;
   participants?: string[];
@@ -16,8 +19,13 @@ export interface TeamMessage {
   senderRole?: string;
   senderAvatar?: string;
   content: string;
+  mirroredFrom?: string;
+  leadId?: string;
+  channel?: string;
   attachments?: TeamAttachment[];
   readBy?: string[];
+  isReadByCustomer?: boolean;
+  isReadByStaff?: boolean;
   createdAt: string;
   updatedAt?: string;
   isOptimistic?: boolean;
@@ -41,12 +49,18 @@ export interface TeamDmNotice {
   fromUserId: string;
   fromName: string;
   content: string;
+  mirroredFrom?: string;
+  leadId?: string;
+  channel?: string;
 }
 
 export interface TeamGroupNotice {
   groupId: string;
   fromName: string;
   content: string;
+  mirroredFrom?: string;
+  leadId?: string;
+  channel?: string;
 }
 
 export interface TeamMessagesReadEvent {
@@ -70,5 +84,8 @@ export interface SendTeamMessagePayload {
   channelType: "direct" | "group";
   channelId: string;
   content: string;
+  mirroredFrom?: string;
+  leadId?: string;
+  channel?: string;
   attachments?: TeamAttachment[];
 }

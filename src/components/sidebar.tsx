@@ -40,6 +40,7 @@ import taxFilingIcon from "@/assets/icons/sidebar/tax-filing.svg";
 import terminatedProjectsIcon from "@/assets/icons/sidebar/terminated-projects.svg";
 import vendorInvoicesIcon from "@/assets/icons/sidebar/vendor-invoices.svg";
 import { useChatUnreadCountQuery } from "@/modules/team-chat/team-chat.hooks";
+import { useCustomerDirectConversationsQuery } from "@/modules/customer-direct-chat/customer-direct-chat.hooks";
 import { useNotificationUnreadCountQuery } from "@/modules/notifications/notifications.hooks";
 import { useAdminsQuery } from "@/modules/admins/admins.hooks";
 import { useAuthStore } from "@/modules/auth/auth.store";
@@ -51,7 +52,7 @@ import drawingsIcon from "@/assets/icons/sidebar/drawings.svg";
 import deliveryIcon from "@/assets/icons/sidebar/delivery.svg";
 import tasksIcon from "@/assets/icons/sidebar/tasks.svg";
 import materialRequestsIcon from "@/assets/icons/sidebar/material-requests.svg";
-import constructionReportsIcon from "@/assets/icons/sidebar/construction-reports.svg";
+// import constructionReportsIcon from "@/assets/icons/sidebar/construction-reports.svg";
 
 // Finance icons
 import WipProfitsIcon from "@/assets/icons/sidebar/wip-profit.svg";
@@ -463,10 +464,15 @@ const navigationGroups: NavigationGroup[] = [
         label: "Material Request",
         icon: materialRequestsIcon,
       },
+      // {
+      //   path: "/construction/reports",
+      //   label: "Construction Reports",
+      //   icon: constructionReportsIcon,
+      // },
       {
-        path: "/construction/reports",
-        label: "Construction Reports",
-        icon: constructionReportsIcon,
+        path: "/construction/mismatch-orders",
+        label: "Mismatch Orders",
+        icon: purchaseOrdersIcon,
       },
     ],
   },
@@ -619,7 +625,13 @@ export function Sidebar({
   const navigate = useNavigate();
   const employeeCounts = useEmployeeCountsStore();
   const { data: unreadData } = useChatUnreadCountQuery();
-  const unreadCount = unreadData?.count ?? unreadData?.total ?? 0;
+  const { data: customerConversations } = useCustomerDirectConversationsQuery();
+  const teamUnreadCount = unreadData?.count ?? unreadData?.total ?? 0;
+  const customerUnreadCount = (customerConversations || []).reduce(
+    (acc, curr) => acc + (curr.unreadCount || 0),
+    0,
+  );
+  const unreadCount = teamUnreadCount + customerUnreadCount;
   const { data: notificationUnreadCount = 0 } = useNotificationUnreadCountQuery(
     {
       refetchInterval: 30000,
@@ -648,7 +660,9 @@ export function Sidebar({
           .filter((item) => !item.mainAdminOnly)
           .map((item) => ({
             ...item,
-            subItems: item.subItems?.filter((subItem) => !subItem.mainAdminOnly),
+            subItems: item.subItems?.filter(
+              (subItem) => !subItem.mainAdminOnly,
+            ),
           })),
       }));
   }, [isMainAdmin]);

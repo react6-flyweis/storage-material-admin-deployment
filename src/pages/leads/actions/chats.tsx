@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Send, Loader2 } from "lucide-react";
@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { ChatMessage } from "@/modules/leads/leads.api";
 import ChatDropOffDialog from "@/components/leads/chat-dropoff-dialog";
+import { useAppBack } from "@/modules/navigation";
 
 const formatTime = (isoString: string) => {
   const d = new Date(isoString);
@@ -19,8 +20,8 @@ const formatTime = (isoString: string) => {
 };
 
 export default function LeadChats() {
-  const navigate = useNavigate();
   const { leadId } = useParams();
+  const { goBack } = useAppBack(leadId ? `/leads/${leadId}` : "/leads");
 
   // Fetch lead details for header info
   const { data: leadResponse } = useQuery({
@@ -134,7 +135,7 @@ export default function LeadChats() {
         <div className="flex items-center gap-4">
           <Button 
             className="bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={() => navigate(`/leads/${leadId}`)}
+            onClick={() => goBack()}
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back

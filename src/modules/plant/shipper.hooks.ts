@@ -11,12 +11,13 @@ import {
   requestResubmitShipperRequestProvider,
   compareShipperRequestProvider,
   type PollCompareJobsStatusRequest,
+  type GetProjectShipperRequestsParams,
 } from "./shipper.api";
 
 export function useShipperStatsQuery() {
   return useQuery({
     queryKey: ["plant", "shipper", "stats"],
-    queryFn: () => getShipperStatsProvider(),
+    queryFn: getShipperStatsProvider,
     staleTime: 60 * 1000,
   });
 }
@@ -40,26 +41,57 @@ export function useProjectShipperStatsQuery(leadId: string, options?: { enabled?
 
 export function useProjectShipperRequestsQuery(
   leadId: string,
-  pageOrOptions?: number | { skip?: boolean; enabled?: boolean },
-  limit = 20,
+  pageOrParamsOrOptions?: number | GetProjectShipperRequestsParams | { skip?: boolean; enabled?: boolean },
+  limit: number | { enabled?: boolean; skip?: boolean } = 20,
   search?: string,
+  statusOrOptions?: string | { enabled?: boolean; skip?: boolean },
+  comparisonStatusOrOptions?: string | { enabled?: boolean; skip?: boolean },
   options?: { enabled?: boolean; skip?: boolean }
 ) {
-  let page = 1;
-  let queryOptions = options;
+  let params: GetProjectShipperRequestsParams = { page: 1, limit: 20 };
+  let queryOptions: { enabled?: boolean; skip?: boolean } | undefined = options;
 
-  if (typeof pageOrOptions === "object" && pageOrOptions !== null) {
-    queryOptions = pageOrOptions;
-  } else if (typeof pageOrOptions === "number") {
-    page = pageOrOptions;
+  if (typeof pageOrParamsOrOptions === "object" && pageOrParamsOrOptions !== null) {
+    if ("skip" in pageOrParamsOrOptions || "enabled" in pageOrParamsOrOptions) {
+      queryOptions = pageOrParamsOrOptions as { skip?: boolean; enabled?: boolean };
+    } else {
+      params = { ...(pageOrParamsOrOptions as GetProjectShipperRequestsParams) };
+      if (typeof limit === "object" && limit !== null) {
+        queryOptions = limit as { enabled?: boolean; skip?: boolean };
+      }
+    }
+  } else if (typeof pageOrParamsOrOptions === "number") {
+    params.page = pageOrParamsOrOptions;
+    params.limit = typeof limit === "number" ? limit : 20;
+    params.search = search;
+    if (typeof statusOrOptions === "string") {
+      params.status = statusOrOptions;
+      if (typeof comparisonStatusOrOptions === "string") {
+        params.comparisonStatus = comparisonStatusOrOptions;
+      } else if (typeof comparisonStatusOrOptions === "object" && comparisonStatusOrOptions !== null) {
+        queryOptions = comparisonStatusOrOptions;
+      }
+    } else if (typeof statusOrOptions === "object" && statusOrOptions !== null) {
+      queryOptions = statusOrOptions;
+    }
   }
 
   const isEnabled = Boolean(leadId) && !queryOptions?.skip && (queryOptions?.enabled ?? true);
 
   return useQuery({
-    queryKey: ["plant", "shipper", "project-requests", leadId, page, limit, search],
+    queryKey: [
+      "plant",
+      "shipper",
+      "project-requests",
+      leadId,
+      params.page,
+      params.limit,
+      params.search,
+      params.status,
+      params.comparisonStatus,
+    ],
     queryFn: async () => {
-      const res = await getProjectShipperRequestsProvider(leadId, page, limit, search);
+      const res = await getProjectShipperRequestsProvider(leadId, params);
       return {
         ...res,
         ...res.data,

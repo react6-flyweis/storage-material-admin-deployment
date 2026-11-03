@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { ArrowLeft, Search, Send, Truck } from "lucide-react";
 import Button from "@/plant/components/common_component/Button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import { usePlantVendorsQuery } from "@/modules/plant/vendor.hooks";
 
 const GenerateShipperOrder: React.FC = () => {
   const navigate = useNavigate();
+  const { goBack } = useAppBack();
   const { id, projectId: paramProjectId } = useParams<{ id?: string; projectId?: string }>();
   const projectId = paramProjectId || id || "";
 
@@ -80,7 +82,7 @@ const GenerateShipperOrder: React.FC = () => {
           <Button
             variant="blueFilled"
             size="sm"
-            onClick={() => navigate(-1)}
+            onClick={() => goBack()}
             className="flex items-center gap-2 shrink-0"
           >
             <ArrowLeft size={18} strokeWidth={2.5} /> Back
@@ -155,7 +157,7 @@ const GenerateShipperOrder: React.FC = () => {
           <Button
             variant="blueFilled"
             size="sm"
-            onClick={() => navigate(-1)}
+            onClick={() => goBack()}
             className="flex items-center gap-2 shrink-0"
           >
             <ArrowLeft size={18} strokeWidth={2.5} /> Back
@@ -285,9 +287,9 @@ const GenerateShipperOrder: React.FC = () => {
           setIsSuccessModalOpen(false);
           const customerId = (leadObj?.customerId as Record<string, unknown>)?._id || (leadObj?.customerId as string) || id || "";
           if (customerId) {
-            navigate(`/customers/${customerId}/project-shipper-files/${projectId}`);
+            navigate(`/customers/${customerId}/project-shipper-files/${projectId}`, { replace: true });
           } else {
-            navigate(-1);
+            goBack();
           }
         }}
         title="Order Sent Successfully"

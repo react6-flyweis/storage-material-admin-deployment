@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import BackArrow from "../assets/backarrowicon.svg";
 import PlusIcon from "../assets/plusicon.svg";
 import UploadImg from "../assets/uploadimg.png";
@@ -18,7 +19,7 @@ interface Material {
 }
 
 export default function MaterialsViewPage() {
-  const navigate = useNavigate();
+  const { goBack } = useAppBack("/construction/materials");
   const [openRequestModel, setRequestModel] = useState(false);
   const [openPhotoModel, setPhotoModel] = useState(false);
   const initialPhotos = [UploadImg, UploadImg, UploadImg, UploadImg, UploadImg];
@@ -54,7 +55,7 @@ export default function MaterialsViewPage() {
       <div>
         <div className="flex md:flex-row flex-col md:items-center justify-start mb-8 gap-5">
           <button
-            onClick={() => navigate("/materials")}
+            onClick={() => goBack()}
             className="
                     flex items-center gap-2
                     bg-[#3F63E1] text-white

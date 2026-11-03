@@ -91,19 +91,32 @@ export default function StageWisePaymentProgress({
   let displayStages = DEFAULT_STAGES;
 
   if (data && data.length > 0) {
-    const totalCount = data.reduce((sum, item) => sum + item.count, 0);
+    const totalCount = data.reduce(
+      (sum, item) => sum + (item.clientCount ?? item.count ?? 0),
+      0
+    );
 
     displayStages = data.map((item) => {
-      const config = STAGE_CONFIG[item._id.toLowerCase()] || {
-        title: item._id.charAt(0).toUpperCase() + item._id.slice(1),
-        color: "#8b5cf6",
-      };
-      const completed = totalCount > 0 ? Math.round((item.count / totalCount) * 100) : 0;
+      const stageKey = (item.key || item._id || "").toLowerCase();
+      const config =
+        STAGE_CONFIG[stageKey] ||
+        STAGE_CONFIG[item._id?.toLowerCase()] || {
+          title: item._id || (stageKey ? stageKey.charAt(0).toUpperCase() + stageKey.slice(1) : "Stage"),
+          color: "#8b5cf6",
+        };
+
+      const count = item.clientCount ?? item.count ?? 0;
+      const completed =
+        item.progressPct !== undefined
+          ? Math.round(item.progressPct)
+          : totalCount > 0
+          ? Math.round((count / totalCount) * 100)
+          : 0;
 
       return {
-        title: config.title,
+        title: item._id || config.title,
         completed,
-        clients: item.count,
+        clients: count,
         amount: item.amount,
         color: config.color,
       };

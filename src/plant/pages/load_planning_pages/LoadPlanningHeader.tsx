@@ -162,13 +162,15 @@ const LoadPlanningHeader: React.FC<LoadPlanningHeaderProps> = ({
 
       {/* Header Info & Actions */}
       <div className="flex flex-wrap items-center justify-between mb-8 gap-4 px-2">
-        <div className="flex gap-4">
-          <button
+        <div className="flex items-center gap-4">
+          <Button
+            variant="primary"
+            size="sm"
             onClick={handleBack}
-            className="text-black transition-colors cursor-pointer"
+            className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
           >
-            <ArrowLeft size={22} />
-          </button>
+            <ArrowLeft size={18} strokeWidth={2.5} /> Back
+          </Button>
           <TitleSubtitle
             title={title}
             subtitle={description}

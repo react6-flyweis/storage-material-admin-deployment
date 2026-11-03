@@ -488,26 +488,43 @@ export async function getProfitLossProvider(params?: GetProfitLossParams) {
 }
 
 export type ProjectProfitLossItem = {
-  projectId: string;
-  leadId: string;
-  projectName: string;
-  revenue: number;
-  totalExpenses: number;
-  netProfit: number;
-  netProfitMargin: number;
-  status: string;
+  projectId?: string;
+  leadId?: string;
+  quotationId?: string;
+  projectName?: string;
+  jobId?: string;
+  category?: string;
+  salesUSD?: number;
+  cogsUSD?: number;
+  grossProfitUSD?: number;
+  grossMarginPct?: number;
+  markupPercent?: number;
+  labourInstallCost?: number;
+  revenue?: number;
+  totalExpenses?: number;
+  netProfit?: number;
+  netProfitMargin?: number;
+  status?: string;
 };
 
 export type GetProjectProfitLossParams = {
   page?: number;
   limit?: number;
+  search?: string;
+  startDate?: string;
+  endDate?: string;
+  projectId?: string;
+  businessUnit?: string;
 };
 
 export type GetProjectProfitLossResponse = {
   success: boolean;
   message: string;
   data: {
+    dataSource?: string;
+    audience?: string;
     projects: ProjectProfitLossItem[];
+    rows?: ProjectProfitLossItem[];
     total: number;
     page: number;
     limit: number;
@@ -520,6 +537,11 @@ export async function getProjectProfitLossProvider(
   const queryParams = new URLSearchParams();
   if (params?.page) queryParams.append("page", params.page.toString());
   if (params?.limit) queryParams.append("limit", params.limit.toString());
+  if (params?.search) queryParams.append("search", params.search);
+  if (params?.startDate) queryParams.append("startDate", params.startDate);
+  if (params?.endDate) queryParams.append("endDate", params.endDate);
+  if (params?.projectId) queryParams.append("projectId", params.projectId);
+  if (params?.businessUnit) queryParams.append("businessUnit", params.businessUnit);
 
   const queryString = queryParams.toString();
   const url = `/api/admin/financials/profit-loss/projects${queryString ? `?${queryString}` : ""}`;
@@ -533,7 +555,7 @@ export type FreightCostItem = {
   freightId?: string;
   id?: string;
   projectName?: string;
-  project?: string;
+  project?: { projectName?: string; jobId?: string; leadId?: string };
   carrierName?: string;
   carrier?: string;
   deliveryId?: string;
@@ -634,21 +656,51 @@ export type ProjectMarginItem = {
   category: string;
 };
 
+export type MarginKpiMetric = {
+  value: number;
+  changePct?: number;
+};
+
 export type MarginAnalysisData = {
+  dataSource?: string;
+  audience?: string;
   grossMarginPct: number;
   operatingMarginPct: number;
   netProfitMarginPct: number;
   contributionMarginPct: number;
   avgSellingPrice: number;
-  marginTrend: MarginTrendItem[];
-  projectMargins: ProjectMarginItem[];
-  plSummary: ProjectMarginItem[];
+  period?: {
+    startDate: string;
+    endDate: string;
+  };
+  kpis?: {
+    grossMarginPct?: MarginKpiMetric;
+    operatingMarginPct?: MarginKpiMetric;
+    netProfitMarginPct?: MarginKpiMetric;
+    contributionMarginPct?: MarginKpiMetric;
+    avgSellingPrice?: MarginKpiMetric;
+  };
+  totals?: {
+    revenue?: number;
+    cogs?: number;
+    grossProfit?: number;
+    operatingProfit?: number;
+    netProfit?: number;
+    quotationCount?: number;
+  };
+  marginTrend?: MarginTrendItem[];
+  projectMargins?: ProjectMarginItem[];
+  plSummary?: ProjectMarginItem[];
 };
 
 export type GetMarginAnalysisParams = {
   projectId?: string;
+  leadId?: string;
+  businessUnit?: string;
+  company?: string;
   startDate?: string;
   endDate?: string;
+  period?: "monthly" | "quarterly" | "yearly";
 };
 
 export type GetMarginAnalysisResponse = {
@@ -660,8 +712,12 @@ export type GetMarginAnalysisResponse = {
 export async function getMarginAnalysisProvider(params?: GetMarginAnalysisParams) {
   const queryParams = new URLSearchParams();
   if (params?.projectId) queryParams.append("projectId", params.projectId);
+  if (params?.leadId) queryParams.append("leadId", params.leadId);
+  if (params?.businessUnit) queryParams.append("businessUnit", params.businessUnit);
+  if (params?.company) queryParams.append("company", params.company);
   if (params?.startDate) queryParams.append("startDate", params.startDate);
   if (params?.endDate) queryParams.append("endDate", params.endDate);
+  if (params?.period) queryParams.append("period", params.period);
 
   const queryString = queryParams.toString();
   const url = `/api/admin/financials/margin-analysis${queryString ? `?${queryString}` : ""}`;
@@ -674,17 +730,31 @@ export type MarginTrendPeriod = "month" | "quarter" | "year";
 
 export type GetMarginTrendParams = {
   period?: MarginTrendPeriod;
+  projectId?: string;
+  leadId?: string;
+  businessUnit?: string;
+  company?: string;
+  startDate?: string;
+  endDate?: string;
 };
 
 export type MarginTrendApiItem = {
   period: string;
+  label?: string;
   revenue: number;
-  expense: number;
+  expense?: number;
+  cogs?: number;
+  grossProfit?: number;
   grossMarginPct: number;
+  operatingMarginPct?: number;
+  netProfitMarginPct?: number;
+  contributionMarginPct?: number;
 };
 
 export type MarginTrendData = {
   period: MarginTrendPeriod;
+  dataSource?: string;
+  audience?: string;
   trend: MarginTrendApiItem[];
 };
 
@@ -697,6 +767,12 @@ export type GetMarginTrendResponse = {
 export async function getMarginTrendProvider(params?: GetMarginTrendParams) {
   const queryParams = new URLSearchParams();
   if (params?.period) queryParams.append("period", params.period);
+  if (params?.projectId) queryParams.append("projectId", params.projectId);
+  if (params?.leadId) queryParams.append("leadId", params.leadId);
+  if (params?.businessUnit) queryParams.append("businessUnit", params.businessUnit);
+  if (params?.company) queryParams.append("company", params.company);
+  if (params?.startDate) queryParams.append("startDate", params.startDate);
+  if (params?.endDate) queryParams.append("endDate", params.endDate);
 
   const queryString = queryParams.toString();
   const url = `/api/admin/financials/margin-analysis/trend${queryString ? `?${queryString}` : ""}`;
@@ -707,23 +783,41 @@ export async function getMarginTrendProvider(params?: GetMarginTrendParams) {
 
 export type MarginByProjectApiItem = {
   leadId: string;
+  quotationId?: string;
   projectName: string;
-  jobId: string;
+  jobId?: string;
+  category?: string;
   revenue: number;
+  cogs?: number;
   expenses: number;
+  labourInstallCost?: number;
   grossProfit: number;
   grossMarginPct: number;
+  markupPercent?: number;
+  marginFromQuotation?: number;
+  operatingMarginPct?: number;
+  netProfitMarginPct?: number;
+  contributionMarginPct?: number;
+  salesUSD?: number;
+  grossProfitUSD?: number;
 };
 
 export type GetMarginByProjectParams = {
   limit?: number;
   projectId?: string;
+  leadId?: string;
+  businessUnit?: string;
+  company?: string;
+  startDate?: string;
+  endDate?: string;
 };
 
 export type GetMarginByProjectResponse = {
   success: boolean;
   message: string;
   data: {
+    dataSource?: string;
+    audience?: string;
     projects: MarginByProjectApiItem[];
   };
 };
@@ -732,6 +826,11 @@ export async function getMarginByProjectProvider(params?: GetMarginByProjectPara
   const queryParams = new URLSearchParams();
   if (params?.limit) queryParams.append("limit", params.limit.toString());
   if (params?.projectId) queryParams.append("projectId", params.projectId);
+  if (params?.leadId) queryParams.append("leadId", params.leadId);
+  if (params?.businessUnit) queryParams.append("businessUnit", params.businessUnit);
+  if (params?.company) queryParams.append("company", params.company);
+  if (params?.startDate) queryParams.append("startDate", params.startDate);
+  if (params?.endDate) queryParams.append("endDate", params.endDate);
 
   const queryString = queryParams.toString();
   const url = `/api/admin/financials/margin-analysis/by-project${queryString ? `?${queryString}` : ""}`;

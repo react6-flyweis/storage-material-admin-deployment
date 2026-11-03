@@ -1,5 +1,6 @@
 import {
   Building2,
+  Briefcase,
   MapPin,
   Calendar,
   CircleDollarSign,
@@ -19,7 +20,12 @@ import {
   ArrowLeft,
   Trash2,
   Flag,
+  Archive,
+  RotateCcw,
 } from "lucide-react";
+import ArchiveLeadDialog from "@/components/leads/archive-lead-dialog";
+import RestoreLeadDialog from "@/components/leads/restore-lead-dialog";
+import { formatInstallAddress } from "@/lib/address";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -39,7 +45,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import AssignSalesDialog from "@/components/leads/assign-sales-dialog";
 import DeleteLeadDialog from "@/components/leads/delete-lead-dialog";
 import QuoteSummaryDialog from "@/components/leads/quote-summary-dialog";
@@ -53,13 +60,14 @@ import {
   updateLeadLifecycleProvider,
   addLeadNoteProvider,
 } from "@/modules/leads/leads.api";
+import { formatBusinessUnit } from "@/modules/leads/business-unit";
 import { formatPhone } from "@/lib/utils";
 import { useState } from "react";
 // import { useLeadQuotationsQuery } from "@/modules/quotations/quotations.hooks";
 // import LeadRfqTab from "./lead-rfq-tab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import LeadFollowUpsTab from "./lead-follow-ups-tab";
-// import LeadQuotationsTab from "./lead-quotations-tab";
+import LeadQuotationsTab from "./lead-quotations-tab";
 import AddFollowUpDialog from "@/components/follow-up/add-follow-up-dialog";
 import AddMeetingDialog from "@/components/meetings/add-meeting-dialog";
 import LeadPaymentsTab from "./lead-payments-tab";
@@ -67,7 +75,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 const LEAD_DETAILS_TABS = [
   { value: "basic_info", label: "Basic info" },
-  // { value: "quotations", label: "Quotations" },
+  { value: "quotations", label: "Quotations" },
   { value: "open_chat", label: "Open Chat" },
   { value: "lifecycle", label: "Lifecycle" },
   { value: "documents", label: "Documents" },
@@ -77,6 +85,8 @@ const LEAD_DETAILS_TABS = [
 
 export default function LeadDetails() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { goBack } = useAppBack("/leads");
   const { leadId } = useParams();
   const queryClient = useQueryClient();
   const [isStatusOpen, setIsStatusOpen] = useState(false);
@@ -151,7 +161,7 @@ export default function LeadDetails() {
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center gap-3">
-        <Button className="" onClick={() => navigate("/leads")}>
+        <Button className="" onClick={() => goBack("/leads")}>
           <ArrowLeft className="h-5 w-5" />
           Back
         </Button>
@@ -177,7 +187,11 @@ export default function LeadDetails() {
             RFQ
           </Button> */}
                 <Button
-                  onClick={() => navigate(`/leads/${leadId}/edit`)}
+                  onClick={() =>
+                    navigate(`/leads/${leadId}/edit`, {
+                      state: { from: location.pathname + location.search },
+                    })
+                  }
                   className="bg-[#3b82f6] hover:bg-blue-600 text-white h-7 px-3 text-xs rounded font-medium ml-2"
                 >
                   Edit Lead
@@ -200,6 +214,24 @@ export default function LeadDetails() {
                   }
                 />
 
+                {!lead?.isArchived && (
+                  <ArchiveLeadDialog
+                    leadId={leadId}
+                    leadName={lead?.projectName || customer?.firstName}
+                    jobId={lead?.jobId}
+                    trigger={
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="bg-white hover:bg-amber-50 hover:text-amber-700 border-gray-200 text-gray-600 h-9 px-4 text-sm font-normal rounded-md"
+                      >
+                        <Archive className="w-4 h-4 mr-1.5 text-amber-600" />
+                        <span>Archive Lead</span>
+                      </Button>
+                    }
+                  />
+                )}
+
                 {leadId && (
                   <DeleteLeadDialog
                     leadId={leadId}
@@ -208,7 +240,7 @@ export default function LeadDetails() {
                         ? `${customer.firstName} ${customer.lastName || ""}`.trim()
                         : lead?.projectName
                     }
-                    onSuccess={() => navigate("/leads")}
+                    onSuccess={() => navigate("/leads", { replace: true })}
                     trigger={
                       <Button
                         variant="outline"
@@ -228,6 +260,60 @@ export default function LeadDetails() {
           </div>
         </CardHeader>
         <CardContent>
+          {lead?.isArchived && (
+            <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-amber-200/80 bg-amber-50/60 px-4 py-3.5 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-700">
+                  <Archive className="h-4.5 w-4.5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-900">
+                      This lead is archived
+                    </span>
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                      Archived
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-slate-600">
+                    {lead.archiveReason ? (
+                      <span>
+                        <strong className="font-medium text-slate-700">Reason:</strong>{" "}
+                        {lead.archiveReason}
+                      </span>
+                    ) : (
+                      "No archive reason specified."
+                    )}
+                    {lead.archivedAt && (
+                      <span className="ml-2 text-slate-400">
+                        • Archived on{" "}
+                        {new Date(lead.archivedAt).toLocaleDateString("en-US", {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <RestoreLeadDialog
+                leadId={leadId}
+                leadName={lead.projectName || customer?.firstName}
+                trigger={
+                  <Button
+                    size="sm"
+                    className="bg-[#1D51A4] hover:bg-[#1D51A4]/90 text-white rounded-[6px] shrink-0 cursor-pointer"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                    Restore Lead
+                  </Button>
+                }
+              />
+            </div>
+          )}
+
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
@@ -265,6 +351,12 @@ export default function LeadDetails() {
                           <div className="w-1.5 h-1.5 rounded-full bg-[#16a34a]"></div>
                           {currentStepId.replace(/_/g, " ")}
                         </Badge>
+                        <Badge
+                          variant="outline"
+                          className="text-xs font-normal border-slate-200 text-slate-700 bg-slate-50"
+                        >
+                          {formatBusinessUnit(lead?.businessUnit, lead?.businessUnitLabel)}
+                        </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">
                         {lead?.jobId || leadId}
@@ -273,7 +365,7 @@ export default function LeadDetails() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pb-6 border-b border-gray-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-6 pb-6 border-b border-gray-100">
                   <div className="flex items-start gap-3">
                     <Building2 className="w-5 h-5 text-gray-400 mt-0.5" />
                     <div>
@@ -282,6 +374,17 @@ export default function LeadDetails() {
                       </p>
                       <p className="text-sm text-gray-500 mt-1">
                         {lead?.buildingType || "Workshop"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Briefcase className="w-5 h-5 text-gray-400 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        Business Unit
+                      </p>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {formatBusinessUnit(lead?.businessUnit, lead?.businessUnitLabel)}
                       </p>
                     </div>
                   </div>
@@ -316,7 +419,7 @@ export default function LeadDetails() {
                         Location
                       </p>
                       <p className="text-sm text-gray-500 mt-1">
-                        {lead?.location || "N/A"}
+                        {formatInstallAddress(lead?.installAddress, lead?.location || "N/A")}
                       </p>
                     </div>
                   </div>
@@ -714,7 +817,7 @@ export default function LeadDetails() {
               {/* Grid for Bottom Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Project Status */}
-                <div className="bg-white rounded-xl border shadow-sm p-6 flex flex-col items-center">
+                <div className="bg-white rounded-xl border shadow-sm p-6 flex flex-col items-center min-w-0">
                   <h3 className="text-lg font-bold text-[#0f172a] self-start mb-6">
                     Project Status
                   </h3>
@@ -753,13 +856,13 @@ export default function LeadDetails() {
                   <div className="w-full space-y-4">
                     <div>
                       <p className="text-xs text-gray-500">Current step</p>
-                      <p className="text-sm font-medium text-blue-600 mt-1 capitalize">
+                      <p className="text-sm font-medium text-blue-600 mt-1 capitalize truncate">
                         {currentStepId.replace(/_/g, " ")}
                       </p>
                     </div>
                     <div className="flex gap-3">
-                      <Calendar className="w-4 h-4 text-gray-400 mt-0.5" />
-                      <div>
+                      <Calendar className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
+                      <div className="min-w-0">
                         <p className="text-sm font-medium text-gray-900">
                           Started on
                         </p>
@@ -780,7 +883,7 @@ export default function LeadDetails() {
                 </div>
 
                 {/* Recent Activity */}
-                <div className="bg-white rounded-xl border shadow-sm p-6">
+                <div className="bg-white rounded-xl border shadow-sm p-6 min-w-0">
                   <h3 className="text-lg font-bold text-[#0f172a] mb-6">
                     Recent Activity
                   </h3>
@@ -789,13 +892,13 @@ export default function LeadDetails() {
                       leadData.auditLog
                         .slice(0, 5)
                         .map((log: any, i: number) => (
-                          <div key={log._id || i} className="relative pl-6">
+                          <div key={log._id || i} className="relative pl-6 min-w-0">
                             <div className="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-white border-4 border-purple-500"></div>
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-sm font-medium text-gray-900 break-words [overflow-wrap:anywhere]">
                               Action: {log.action}
                             </p>
                             <div className="flex items-center gap-2 mt-1.5">
-                              <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                              <Calendar className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                               <span className="text-xs text-gray-500">
                                 {new Date(log.createdAt).toLocaleDateString()}
                               </span>
@@ -811,25 +914,28 @@ export default function LeadDetails() {
                 </div>
 
                 {/* Notes History */}
-                <div className="bg-white rounded-xl border shadow-sm p-6 flex flex-col h-full max-h-[400px]">
+                <div className="bg-white rounded-xl border shadow-sm p-6 flex flex-col h-full max-h-[400px] min-w-0">
                   <h3 className="text-lg font-bold text-[#0f172a] mb-6 border-b pb-4 shrink-0">
                     Notes History
                   </h3>
-                  <div className="space-y-4 text-sm text-gray-500 overflow-y-auto flex-1 pr-2">
+                  <div className="space-y-4 text-sm text-gray-500 overflow-y-auto overflow-x-hidden flex-1 pr-2">
                     {leadData?.leadNotes && leadData.leadNotes.length > 0 ? (
                       leadData.leadNotes.map((noteItem: any) => (
                         <div
                           key={noteItem._id}
-                          className="bg-gray-50 p-4 rounded-lg border border-gray-100 relative"
+                          className="bg-gray-50 p-4 rounded-lg border border-gray-100 relative min-w-0 overflow-hidden"
                         >
-                          <p className="text-gray-800 whitespace-pre-wrap mb-2">
+                          <p className="text-gray-800 whitespace-pre-wrap break-words [overflow-wrap:anywhere] mb-2">
                             {noteItem.note}
                           </p>
-                          <div className="flex justify-between items-center text-xs text-gray-400 mt-2 pt-2 border-t border-gray-100">
-                            <span className="font-medium text-gray-500">
+                          <div className="flex justify-between items-center text-xs text-gray-400 mt-2 pt-2 border-t border-gray-100 gap-2">
+                            <span
+                              className="font-medium text-gray-500 truncate"
+                              title={noteItem.addedBy?.name || "System"}
+                            >
                               {noteItem.addedBy?.name || "System"}
                             </span>
-                            <span>
+                            <span className="shrink-0">
                               {new Date(noteItem.addedAt).toLocaleString()}
                             </span>
                           </div>
@@ -931,12 +1037,12 @@ export default function LeadDetails() {
               />
             </TabsContent>
 
-            {/* <TabsContent value="quotations" className="mt-6">
+            <TabsContent value="quotations" className="mt-6">
               <LeadQuotationsTab
                 leadId={leadId!}
                 customerName={customer?.firstName}
               />
-            </TabsContent> */}
+            </TabsContent>
 
             <TabsContent value="lifecycle" className="mt-6">
               <LeadLifecycleTab

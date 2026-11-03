@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { useGetLeadTimelineQuery } from "@/modules/leads/leads.hooks";
 import { type TimelineActivity } from "@/modules/leads/leads.api";
 import {
@@ -16,8 +17,8 @@ import { ArrowLeft, RefreshCw, UserCheck, CheckCircle2, UserPlus, ClipboardList,
 
 
 export default function SingleLeadTimeline() {
-  const navigate = useNavigate();
   const { leadId } = useParams();
+  const { goBack } = useAppBack(leadId ? `/leads/${leadId}` : "/leads");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
@@ -100,7 +101,7 @@ export default function SingleLeadTimeline() {
     <div className="w-full">
       {/* Header */}
       <div className="bg-[#4ECDC4] text-white px-6 py-3 flex items-center gap-3">
-        <Button onClick={() => navigate('/leads')}>
+        <Button onClick={() => goBack()}>
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back
         </Button>

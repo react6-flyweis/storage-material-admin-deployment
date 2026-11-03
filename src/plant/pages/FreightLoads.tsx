@@ -11,19 +11,30 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  Download,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   useFreightStatsQuery,
   useFreightFiltersQuery,
   useFreightLoadsQuery,
+  useExportFreightLoadsMutation,
 } from "@/modules/plant/freight.hooks";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  formatStatusLabel,
+  getStatusBadgeStyle,
+} from "./deliveryStatusConstants";
+import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -81,7 +92,11 @@ export default function FreightLoads() {
   const loads = loadsResponse?.data?.requests || [];
   const total = loadsResponse?.data?.total || 0;
 
-  const statusesList = filtersResponse?.data?.statuses || [];
+  const bidStatusesList =
+    filtersResponse?.data?.bidStatuses && filtersResponse.data.bidStatuses.length > 0
+      ? filtersResponse.data.bidStatuses
+      : filtersResponse?.data?.statuses || [];
+  const deliveryStatusesList = filtersResponse?.data?.deliveryStatuses || [];
   const projectsList = filtersResponse?.data?.projects || [];
   const customersList = filtersResponse?.data?.customers || [];
   const carriersList = filtersResponse?.data?.carriers || [];
@@ -105,10 +120,42 @@ export default function FreightLoads() {
     carrierId !== "all" ||
     fromDate !== "" ||
     toDate !== "" ||
-    search !== "";
+    search !== "" ||
+    searchInput !== "";
+
+  const exportMutation = useExportFreightLoadsMutation();
+
+  const handleExport = async () => {
+    try {
+      toast.info("Generating Freight Loads export...");
+      const exportParams: Record<string, string> = {};
+      if (search.trim()) exportParams.search = search.trim();
+      if (status && status !== "all") exportParams.status = status;
+      if (projectId && projectId !== "all") exportParams.projectId = projectId;
+      if (customerId && customerId !== "all") exportParams.customerId = customerId;
+      if (carrierId && carrierId !== "all") exportParams.carrierId = carrierId;
+      if (fromDate.trim()) exportParams.fromDate = fromDate.trim();
+      if (toDate.trim()) exportParams.toDate = toDate.trim();
+
+      const blob = await exportMutation.mutateAsync(exportParams);
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `freight-loads-export-${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      toast.success("Freight loads exported successfully!");
+    } catch (err: any) {
+      console.error("Failed to export freight loads:", err);
+      toast.error(err?.response?.data?.message || "Failed to export freight loads");
+    }
+  };
 
   const getStatusBadge = (statusStr: string) => {
-    switch (statusStr?.toLowerCase()) {
+    const s = (statusStr || "").toLowerCase();
+    switch (s) {
       case "awarded":
       case "selected":
         return (
@@ -153,18 +200,31 @@ export default function FreightLoads() {
             Requested
           </span>
         );
+      case "bidding_sent":
+      case "carrier_selected":
+      case "scheduled":
+      case "confirmed":
+      case "material_prepared":
+      case "loaded":
+      case "picked_up":
       case "in_transit":
-        return (
-          <span className="px-3 py-1 bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-full border border-indigo-200">
-            In Transit
-          </span>
-        );
+      case "staged":
+      case "dispatched_to_site":
       case "delivered":
+      case "partial_received":
+      case "received":
+      case "delayed":
+      case "cancelled":
+      case "rescheduled": {
+        const style = getStatusBadgeStyle(s);
         return (
-          <span className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-200">
-            Delivered
+          <span
+            className={`px-3 py-1 text-xs font-semibold rounded-full border ${style.bg} ${style.text} ${style.border}`}
+          >
+            {formatStatusLabel(statusStr)}
           </span>
         );
+      }
       default:
         return (
           <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-semibold rounded-full uppercase">
@@ -183,6 +243,21 @@ export default function FreightLoads() {
           <p className="text-gray-500 mt-1">
             Track and manage freight loads and logistics status
           </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            className="bg-white gap-2 font-semibold text-slate-700 border-gray-200 hover:bg-gray-50 rounded-lg shadow-sm"
+            onClick={handleExport}
+            disabled={exportMutation.isPending}
+          >
+            {exportMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+            ) : (
+              <Download className="w-4 h-4 text-slate-500" />
+            )}
+            {exportMutation.isPending ? "Exporting..." : "Export"}
+          </Button>
         </div>
       </div>
 
@@ -245,7 +320,7 @@ export default function FreightLoads() {
             {isStatsLoading ? (
               <Skeleton className="h-9 w-20" />
             ) : (
-              <h2 className="text-3xl font-bold text-slate-900">
+              <h2 className="text-xl font-bold text-slate-900">
                 {stats ? `$${stats.totalSpent.toLocaleString()}` : "$0"}
               </h2>
             )}
@@ -289,18 +364,32 @@ export default function FreightLoads() {
       </div>
 
       {/* Main Content Area */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-[14px] shadow-sm border border-gray-200 overflow-hidden flex flex-col font-inter">
         {/* Toolbar */}
-        <div className="p-6 border-b border-gray-100 flex flex-col space-y-4">
+        <div className="p-6 border-b border-gray-200 flex flex-col space-y-4">
           <div className="flex flex-col sm:flex-row justify-between gap-4">
             <div className="relative w-full max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
               <Input
-                placeholder="Search requests, locations, equipment, POC..."
-                className="pl-9 bg-[#F8FAFC] border-none h-11 w-full text-sm"
+                placeholder="Search by client / project"
+                className="pl-9 pr-9 bg-[#F8FAFC] border-none h-11 w-full text-sm"
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
               />
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput("");
+                    setSearch("");
+                    setPage(1);
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+                  aria-label="Clear search"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
               {hasActiveFilters && (
@@ -341,15 +430,37 @@ export default function FreightLoads() {
                   <SelectTrigger className="bg-white border-gray-200">
                     <SelectValue placeholder="All Statuses" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-72">
                     <SelectItem value="all">All Statuses</SelectItem>
-                    {statusesList.map((st) => (
-                      <SelectItem key={st} value={st}>
-                        {st
-                          .replace(/_/g, " ")
-                          .replace(/\b\w/g, (c) => c.toUpperCase())}
-                      </SelectItem>
-                    ))}
+                    {bidStatusesList.length > 0 && (
+                      <SelectGroup>
+                        <SelectLabel className="text-xs font-semibold text-gray-400 px-2 py-1">
+                          Bid Statuses
+                        </SelectLabel>
+                        {bidStatusesList.map((st) => (
+                          <SelectItem key={`bid_${st}`} value={st}>
+                            {st
+                              .replace(/_/g, " ")
+                              .replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )}
+                    {deliveryStatusesList.length > 0 && (
+                      <>
+                        {bidStatusesList.length > 0 && <SelectSeparator />}
+                        <SelectGroup>
+                          <SelectLabel className="text-xs font-semibold text-gray-400 px-2 py-1">
+                            Delivery Statuses
+                          </SelectLabel>
+                          {deliveryStatusesList.map((st) => (
+                            <SelectItem key={`delivery_${st}`} value={st}>
+                              {formatStatusLabel(st)}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -470,48 +581,64 @@ export default function FreightLoads() {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-white text-gray-500 text-xs font-semibold uppercase tracking-wider border-b border-gray-100">
-              <tr>
-                <th className="px-6 py-4">REQUEST ID</th>
-                <th className="px-6 py-4">PROJECT</th>
-                <th className="px-6 py-4">DESCRIPTION</th>
-                <th className="px-6 py-4">ROUTE</th>
-                <th className="px-6 py-4">DATES</th>
-                <th className="px-6 py-4">AWARDED BID</th>
-                <th className="px-6 py-4">STATUS</th>
-                <th className="px-6 py-4">ACTIONS</th>
+        <div className="overflow-x-auto flex-1">
+          <table className="w-full text-left border-collapse border border-gray-200 text-nowrap font-inter text-sm">
+            <thead className="bg-[linear-gradient(90deg,_#DBEAFE_0%,_#F3E8FF_100%)]">
+              <tr className="border-b border-gray-200">
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  REQUEST ID
+                </th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  PROJECT
+                </th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  DESCRIPTION
+                </th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap text-center">
+                  ROUTE
+                </th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  DATES
+                </th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap">
+                  AWARDED BID
+                </th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap text-center">
+                  STATUS
+                </th>
+                <th className="px-4 py-3.5 border border-gray-200 text-[#212B36] font-semibold text-sm tracking-tight whitespace-nowrap text-center">
+                  ACTIONS
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-gray-200 bg-white">
               {isLoadsLoading ? (
                 // Table Skeletons
                 Array.from({ length: 5 }).map((_, idx) => (
                   <tr key={idx}>
-                    <td className="px-6 py-6">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-24" />
                     </td>
-                    <td className="px-6 py-6">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-32" />
                     </td>
-                    <td className="px-6 py-6">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-40" />
                     </td>
-                    <td className="px-6 py-6">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-10 w-24" />
                     </td>
-                    <td className="px-6 py-6">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-10 w-24" />
                     </td>
-                    <td className="px-6 py-6">
+                    <td className="px-4 py-3 border border-gray-200">
                       <Skeleton className="h-6 w-16" />
                     </td>
-                    <td className="px-6 py-6">
-                      <Skeleton className="h-6 w-20" />
+                    <td className="px-4 py-3 border border-gray-200 text-center">
+                      <Skeleton className="h-6 w-20 mx-auto" />
                     </td>
-                    <td className="px-6 py-6">
-                      <Skeleton className="h-8 w-20" />
+                    <td className="px-4 py-3 border border-gray-200 text-center">
+                      <Skeleton className="h-8 w-20 mx-auto" />
                     </td>
                   </tr>
                 ))
@@ -519,53 +646,65 @@ export default function FreightLoads() {
                 <tr>
                   <td
                     colSpan={8}
-                    className="px-6 py-12 text-center text-gray-500 font-medium"
+                    className="px-6 py-12 text-center text-gray-500 font-medium border border-gray-200"
                   >
                     No freight loads found matching filters.
                   </td>
                 </tr>
               ) : (
                 loads.map((load) => (
-                  <tr key={load._id} className="hover:bg-gray-50/50">
-                    <td className="px-6 py-6 align-top">
+                  <tr
+                    key={load._id}
+                    className="hover:bg-gray-50/60 transition-colors group cursor-pointer"
+                    onClick={() =>
+                      navigate(
+                        `/plant/freight-loads/details/${load._id || load.requestId}`,
+                      )
+                    }
+                  >
+                    <td className="px-4 py-3 border border-gray-200 align-top">
                       <p className="font-bold text-slate-900 text-sm mb-1">
                         {load.deliveryNumber || "N/A"}
                       </p>
                       <p className="text-xs text-gray-400">
-                        Requested:
-                        <br />
+                        Requested:{" "}
                         {load.createdAt
                           ? new Date(load.createdAt).toLocaleDateString()
                           : "N/A"}
                       </p>
                     </td>
-                    <td className="px-6 py-6 align-top text-slate-900 font-medium">
-                      <div className="max-w-[120px] leading-tight">
+                    <td className="px-4 py-3 border border-gray-200 align-top text-slate-900 font-medium">
+                      <div className="max-w-[160px] leading-tight">
                         {load.project?.projectName || "N/A"}
                         {load.project?.jobId && (
                           <span className="block text-xs text-gray-400 font-normal mt-0.5">
                             {load.project.jobId}
                           </span>
                         )}
+                        {load.customer?.name && (
+                          <span className="block text-xs text-gray-500 font-normal mt-0.5" title={load.customer.name}>
+                            {load.customer.name}
+                          </span>
+                        )}
                       </div>
                     </td>
-                    <td className="px-6 py-6 align-top text-gray-500">
+                    <td className="px-4 py-3 border border-gray-200 align-top text-gray-500">
                       <div
-                        className="max-w-[150px] line-clamp-2"
+                        className="max-w-[200px] line-clamp-2"
                         title={load.description}
                       >
                         {load.description || "No description"}
                       </div>
                     </td>
-                    <td className="px-6 py-6 align-top">
-                      <div className="flex flex-col text-xs text-gray-500 space-y-1 max-w-[120px]">
+                    <td className="px-4 py-3 border border-gray-200 align-top text-center">
+                      <div className="flex flex-col text-xs text-gray-500 space-y-1 max-w-[150px] mx-auto">
                         <span
                           className="truncate font-medium text-slate-700"
                           title={load.pickupLocation}
                         >
                           {load.pickupLocation || "N/A"}
                         </span>
-                        <span className="text-gray-300">↓</span>
+                        <span className="text-gray-400">↓</span>
                         <span
                           className="truncate font-medium text-slate-700"
                           title={load.deliveryLocation}
@@ -574,20 +713,18 @@ export default function FreightLoads() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-6 align-top">
-                      <div className="flex flex-col text-xs text-gray-500 space-y-1 max-w-[120px]">
+                    <td className="px-4 py-3 border border-gray-200 align-top">
+                      <div className="flex flex-col text-xs text-gray-500 space-y-1 max-w-[130px]">
                         <span>
-                          Pickup:
-                          <br />
+                          Pickup:{" "}
                           <span className="font-medium text-slate-700">
                             {load.pickupDate
                               ? new Date(load.pickupDate).toLocaleDateString()
                               : "N/A"}
                           </span>
                         </span>
-                        <span className="mt-1">
-                          Delivery:
-                          <br />
+                        <span className="mt-0.5">
+                          Delivery:{" "}
                           <span className="font-medium text-slate-700">
                             {load.deliveryDate
                               ? new Date(load.deliveryDate).toLocaleDateString()
@@ -596,26 +733,29 @@ export default function FreightLoads() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-6 py-6 align-top font-semibold text-slate-900">
+                    <td className="px-4 py-3 border border-gray-200 align-top font-semibold text-slate-900">
                       {load.awardedBidAmount !== undefined &&
                       load.awardedBidAmount !== null
                         ? `$${load.awardedBidAmount.toLocaleString()}`
                         : "-"}
                     </td>
-                    <td className="px-6 py-6 align-top">
+                    <td className="px-4 py-3 border border-gray-200 align-top text-center">
                       {getStatusBadge(load.status)}
                     </td>
-                    <td className="px-6 py-6 align-top">
+                    <td
+                      className="px-4 py-3 border border-gray-200 align-top text-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Button
                         variant="outline"
-                        className="bg-white border-gray-200 text-gray-700 h-9 px-4 rounded-md font-medium text-xs shadow-sm hover:bg-gray-50"
+                        className="bg-white border-gray-200 text-gray-700 h-8 px-3 rounded-md font-medium text-xs shadow-sm hover:bg-gray-50"
                         onClick={() =>
                           navigate(
                             `/plant/freight-loads/details/${load._id || load.requestId}`,
                           )
                         }
                       >
-                        <Eye className="w-4 h-4 mr-2" />
+                        <Eye className="w-3.5 h-3.5 mr-1.5" />
                         View
                       </Button>
                     </td>
@@ -628,7 +768,7 @@ export default function FreightLoads() {
 
         {/* Pagination */}
         {!isLoadsLoading && total > 0 && (
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-white">
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-white">
             <div className="flex flex-1 items-center justify-between">
               <div>
                 <p className="text-sm text-gray-700">

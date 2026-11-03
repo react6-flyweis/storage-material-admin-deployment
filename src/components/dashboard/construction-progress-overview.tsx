@@ -2,7 +2,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "../ui/button";
 import { Link } from "react-router";
 
-interface Project {
+import EmptyState from "@/components/ui/empty-state";
+import { HardHat } from "lucide-react";
+
+export interface Project {
   id: string;
   name: string;
   projectId: string;
@@ -12,42 +15,11 @@ interface Project {
 }
 
 export default function ConstructionProgressOverview({
-  period,
+  projects = [],
 }: {
   period?: "Today" | "Week" | "Month";
+  projects?: Project[];
 }) {
-  const baseProjects: Project[] = [
-    {
-      id: "1",
-      name: "Downtown Office Complex",
-      projectId: "PRJ-001",
-      manager: "John Smith",
-      progress: 65,
-      status: "On Track",
-    },
-    {
-      id: "2",
-      name: "Residential Tower A",
-      projectId: "PRJ-002",
-      manager: "Sarah Wilson",
-      progress: 35,
-      status: "Delayed",
-    },
-    {
-      id: "3",
-      name: "Shopping Mall Renovation",
-      projectId: "PRJ-003",
-      manager: "David Lee",
-      progress: 0,
-      status: "Starting",
-    },
-  ];
-
-  const scale = period === "Today" ? 0.05 : period === "Week" ? 0.5 : 1;
-  const projects = baseProjects.map((p) => ({
-    ...p,
-    progress: Math.max(0, Math.round(p.progress * scale)),
-  }));
 
   //   const getStatusVariant = (status: string) => {
   //     switch (status) {
@@ -88,37 +60,45 @@ export default function ConstructionProgressOverview({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        {projects.map((project) => (
-          <div key={project.id} className="bg-gray-50 rounded-lg p-3">
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <h3 className=" font-semibold text-gray-900">{project.name}</h3>
-                <p className="text-sm text-gray-500">
-                  {project.projectId} • {project.manager}
-                </p>
+      <CardContent className="space-y-4 pt-6">
+        {projects.length === 0 ? (
+          <EmptyState
+            title="No construction projects"
+            description="No active construction progress records available."
+            icon={HardHat}
+          />
+        ) : (
+          projects.map((project) => (
+            <div key={project.id} className="bg-gray-50 rounded-lg p-3">
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <h3 className=" font-semibold text-gray-900">{project.name}</h3>
+                  <p className="text-sm text-gray-500">
+                    {project.projectId} • {project.manager}
+                  </p>
+                </div>
+                <span
+                  className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
+                    project.status
+                  )}`}
+                >
+                  {project.status}
+                </span>
               </div>
-              <span
-                className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
-                  project.status
-                )}`}
-              >
-                {project.status}
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-blue-600 h-full rounded-full transition-all duration-300"
-                  style={{ width: `${project.progress}%` }}
-                />
+              <div className="flex items-center gap-3">
+                <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="bg-blue-600 h-full rounded-full transition-all duration-300"
+                    style={{ width: `${project.progress}%` }}
+                  />
+                </div>
+                <span className="text-sm font-semibold text-gray-700 min-w-12 text-right">
+                  {project.progress}%
+                </span>
               </div>
-              <span className="text-sm font-semibold text-gray-700 min-w-[3rem] text-right">
-                {project.progress}%
-              </span>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </CardContent>
     </Card>
   );

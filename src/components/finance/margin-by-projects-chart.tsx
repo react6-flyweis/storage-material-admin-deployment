@@ -15,6 +15,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   useMarginByProjectQuery,
   useBudgetVsActualProjectsQuery,
@@ -24,16 +25,20 @@ import type { MarginByProjectApiItem } from "@/modules/financials/financials.api
 interface MarginByProjectsChartProps {
   limit?: number;
   projectId?: string;
+  startDate?: string;
+  endDate?: string;
+  businessUnit?: string;
+  company?: string;
   onProjectChange?: (projectId: string) => void;
-  grossMarginPct?: number;
-  operatingMarginPct?: number;
-  netProfitMarginPct?: number;
-  contributionMarginPct?: number;
 }
 
 export default function MarginByProjectsChart({
-  limit = 5,
+  limit = 10,
   projectId: externalProjectId,
+  startDate,
+  endDate,
+  businessUnit,
+  company,
   onProjectChange,
 }: MarginByProjectsChartProps) {
   const [internalProjectId, setInternalProjectId] = useState<string>("all-projects");
@@ -46,6 +51,10 @@ export default function MarginByProjectsChart({
   const { data, isLoading } = useMarginByProjectQuery({
     limit,
     projectId: selectedProjectId !== "all-projects" ? selectedProjectId : undefined,
+    startDate,
+    endDate,
+    businessUnit,
+    company,
   });
 
   const handleProjectChange = (value: string) => {
@@ -59,10 +68,10 @@ export default function MarginByProjectsChart({
 
   const chartData = projectList.map((item) => ({
     name: item.projectName || item.jobId || "Project",
-    revenue: item.revenue ?? 0,
-    expenses: item.expenses ?? 0,
-    grossProfit: item.grossProfit ?? 0,
-    grossMarginPct: item.grossMarginPct ?? 0,
+    revenue: item.revenue ?? item.salesUSD ?? 0,
+    expenses: item.expenses ?? item.cogs ?? 0,
+    grossProfit: item.grossProfit ?? item.grossProfitUSD ?? 0,
+    grossMarginPct: item.grossMarginPct ?? item.marginFromQuotation ?? 0,
   }));
 
   return (
@@ -106,8 +115,37 @@ export default function MarginByProjectsChart({
 
       <div className="h-80">
         {isLoading ? (
-          <div className="flex h-full items-center justify-center text-sm text-slate-500">
-            Loading project margin data...
+          <div className="flex h-full flex-col justify-between py-2">
+            <div className="relative flex flex-1 items-end justify-between gap-6 px-4 pb-6 pt-4">
+              <div className="absolute inset-x-0 top-1/4 border-b border-dashed border-slate-100" />
+              <div className="absolute inset-x-0 top-2/4 border-b border-dashed border-slate-100" />
+              <div className="absolute inset-x-0 top-3/4 border-b border-dashed border-slate-100" />
+
+              {[75, 45, 90, 60, 80].map((h, i) => (
+                <div
+                  key={i}
+                  className="z-10 flex flex-1 items-end justify-center gap-1.5 h-full"
+                >
+                  <Skeleton
+                    className="w-1/3 max-w-6 rounded-t-sm bg-blue-200"
+                    style={{ height: `${h}%` }}
+                  />
+                  <Skeleton
+                    className="w-1/3 max-w-6 rounded-t-sm bg-amber-200"
+                    style={{ height: `${Math.max(25, h - 25)}%` }}
+                  />
+                  <Skeleton
+                    className="w-1/3 max-w-6 rounded-t-sm bg-emerald-200"
+                    style={{ height: `${Math.max(15, h - 45)}%` }}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between px-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-3 w-16" />
+              ))}
+            </div>
           </div>
         ) : chartData.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm text-slate-400">

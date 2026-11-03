@@ -1,9 +1,10 @@
 
-import { Link, useParams } from "react-router";
+import { useParams } from "react-router";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { usePackingListPlanQuery, usePackingListDetailsQuery } from "@/modules/plant/packing-list.hooks";
+import { useAppBack } from "@/modules/navigation";
 
 const formatDecimal = (val: number | undefined | null) => {
   return (val ?? 0).toLocaleString(undefined, {
@@ -14,6 +15,7 @@ const formatDecimal = (val: number | undefined | null) => {
 
 export default function PackingListDetails() {
   const { projectId, packingId } = useParams();
+  const { goBack } = useAppBack(projectId ? `/plant/packing-list/${projectId}` : "/plant/packing-list");
 
   // Load general plan and project info
   const { data: planData, isLoading: isPlanLoading } = usePackingListPlanQuery(projectId || "");
@@ -51,13 +53,14 @@ export default function PackingListDetails() {
     return (
       <div className="flex-1 space-y-6 p-6 bg-[#fafafa] min-h-screen font-sans">
         <div className="flex items-center gap-4 mb-2">
-          <Link
-            to={`/plant/packing-list/${projectId || "PRJ-001"}`}
-            className="inline-flex items-center text-lg font-bold text-gray-900 hover:underline"
+          <Button
+            variant="default"
+            size="sm"
+            onClick={() => goBack()}
+            className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
           >
-            <ArrowLeft className="w-5 h-5 mr-2" />
-            Packing List
-          </Link>
+            <ArrowLeft size={18} strokeWidth={2.5} /> Back
+          </Button>
         </div>
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center text-red-500 font-medium">
           Failed to load packing list details. Please try again.
@@ -69,13 +72,14 @@ export default function PackingListDetails() {
   return (
     <div className="flex-1 space-y-6 p-6 bg-[#fafafa] min-h-screen font-sans">
       <div className="flex items-center gap-4 mb-2">
-        <Link
-          to={`/plant/packing-list/${projectId || "PRJ-001"}`}
-          className="inline-flex items-center text-lg font-bold text-gray-900 hover:underline"
+        <Button
+          variant="default"
+          size="sm"
+          onClick={() => goBack()}
+          className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
         >
-          <ArrowLeft className="w-5 h-5 mr-2" />
-          Packing List
-        </Link>
+          <ArrowLeft size={18} strokeWidth={2.5} /> Back
+        </Button>
       </div>
       <p className="text-sm text-gray-500 max-w-xl mb-6">
         Generate and manage packing lists for truckloads and bundles.

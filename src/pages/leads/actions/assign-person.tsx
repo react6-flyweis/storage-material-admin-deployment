@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate, useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 export default function AssignPerson() {
   const navigate = useNavigate();
   const { leadId } = useParams();
+  const { goBack } = useAppBack(leadId ? `/leads/${leadId}` : "/leads");
 
   return (
     <div className="flex-1 bg-[#f8fafc] min-h-screen p-6">
@@ -71,13 +73,13 @@ export default function AssignPerson() {
           <Button 
             variant="outline" 
             className="w-32 bg-gray-100 border-gray-200 text-gray-700 hover:bg-gray-200"
-            onClick={() => navigate(`/leads/${leadId}`)}
+            onClick={() => goBack()}
           >
             Cancel
           </Button>
           <Button 
             className="w-32 bg-[#2563eb] hover:bg-[#1d4ed8] text-white"
-            onClick={() => navigate(`/leads/${leadId}`)}
+            onClick={() => navigate(leadId ? `/leads/${leadId}` : "/leads", { replace: true })}
           >
             Assign Project
           </Button>

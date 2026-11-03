@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import {
   ArrowLeft,
   ArrowUpDown,
@@ -12,11 +13,14 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import StatCard from "@/components/ui/stat-card";
 import ProfileCard from "@/components/profile-card";
 import Pagination from "@/components/Pagination";
+import BusinessUnitSelector from "@/components/leads/business-unit-selector";
+import { formatBusinessUnit } from "@/modules/leads/business-unit";
 import { useCustomerDetailQuery, useCustomerProjectsQuery } from "@/modules/customers/customers.hooks";
 import type { CustomerProject } from "@/modules/customers/customers.types";
 
@@ -27,6 +31,8 @@ type ProjectStatus = "Work in Progress" | "Active" | "Completed" | "Canceled";
 type ProjectRow = {
   id: string;
   name: string;
+  businessUnit?: string | null;
+  businessUnitLabel?: string;
   building: string;
   startDate: string;
   stage: string;
@@ -91,6 +97,8 @@ function mapApiProject(project: CustomerProject): ProjectRow {
   return {
     id: project._id,
     name: cleanProjectName(project.projectName),
+    businessUnit: project.businessUnit,
+    businessUnitLabel: formatBusinessUnit(project.businessUnit, project.businessUnitLabel),
     building: project.numberOfBuildings != null
       ? String(project.numberOfBuildings)
       : "-",
@@ -148,6 +156,9 @@ function TableSkeleton() {
             <div className="h-4 w-32 rounded bg-gray-200" />
           </td>
           <td className="px-4 py-4">
+            <div className="h-5 w-20 rounded-md bg-gray-200" />
+          </td>
+          <td className="px-4 py-4">
             <div className="h-4 w-20 rounded bg-gray-200" />
           </td>
           <td className="px-4 py-4">
@@ -172,9 +183,12 @@ function TableSkeleton() {
 
 export default function AllProjectsPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { goBack } = useAppBack("/customers");
   const params = useParams();
   const id = params.id ?? "unknown";
   const [searchTerm, setSearchTerm] = useState("");
+  const [businessUnitFilter, setBusinessUnitFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -188,7 +202,12 @@ export default function AllProjectsPage() {
     data: projectsResponse,
     isLoading: isProjectsLoading,
     isError: isProjectsError,
-  } = useCustomerProjectsQuery(id);
+  } = useCustomerProjectsQuery(
+    id,
+    currentPage,
+    rowsPerPage,
+    businessUnitFilter === "all" ? undefined : businessUnitFilter,
+  );
 
   const isLoading = isCustomerLoading || isProjectsLoading;
 
@@ -296,7 +315,7 @@ export default function AllProjectsPage() {
         <div className="flex items-center gap-3">
           <Button
             variant="default"
-            onClick={() => navigate('/customers')}
+            onClick={() => goBack("/customers")}
             className="px-4"
           >
             <ArrowLeft className="h-4 w-4 mr-1" />
@@ -351,6 +370,19 @@ export default function AllProjectsPage() {
             className="h-7 rounded-[4px] border-[#DDE5F3] bg-white pl-8 text-[12px] shadow-none placeholder:text-slate-400"
           />
         </div>
+        <BusinessUnitSelector
+          value={businessUnitFilter}
+          onChange={(val) => {
+            setBusinessUnitFilter(val);
+            setCurrentPage(1);
+          }}
+          includeAll
+          allLabel="All Business Units"
+          includeNone
+          noneLabel="Not set"
+          placeholder="Business Unit"
+          triggerClassName="h-7 w-44 text-[12px] bg-white border-[#DDE5F3]"
+        />
         <Button
           type="button"
           variant="outline"
@@ -375,6 +407,9 @@ export default function AllProjectsPage() {
                   </th>
                   <th className="px-4 py-3 font-medium text-slate-500">
                     Project Name
+                  </th>
+                  <th className="px-4 py-3 font-medium text-slate-500">
+                    Business Unit
                   </th>
                   <th className="px-4 py-3 font-medium text-slate-500">
                     Budget
@@ -403,7 +438,7 @@ export default function AllProjectsPage() {
                 <tbody>
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={9}
                       className="px-4 py-10 text-center text-sm text-slate-500"
                     >
                       No projects found for this customer.
@@ -428,6 +463,15 @@ export default function AllProjectsPage() {
                       {/* Project Name */}
                       <td className="px-4 py-4 text-slate-700">
                         {project.name}
+                      </td>
+                      {/* Business Unit */}
+                      <td className="px-4 py-4">
+                        <Badge
+                          variant="outline"
+                          className="font-normal text-xs bg-slate-50 border-slate-200 text-slate-700"
+                        >
+                          {formatBusinessUnit(project.businessUnit, project.businessUnitLabel)}
+                        </Badge>
                       </td>
                       {/* Budget */}
                       <td className="px-4 py-4 text-slate-700">
@@ -460,6 +504,7 @@ export default function AllProjectsPage() {
                           onClick={() =>
                             navigate(
                               `/customers/${id}/project-details/${project.id}`,
+                              { state: { from: location.pathname + location.search } },
                             )
                           }
                           className="h-6 w-6 rounded-full p-0 text-[#3B82F6] hover:bg-blue-50 hover:text-blue-700"

@@ -10,6 +10,7 @@ import {
 import { InvoiceStatCards } from "./components/invoice-stat-cards";
 import { VendorInvoiceFilters } from "./components/vendor-invoice-filters";
 import { VendorInvoiceTable } from "./components/vendor-invoice-table";
+import { ManualPayableUploadDialog } from "./components/manual-payable-upload-dialog";
 
 function formatDateISO(date?: Date) {
   if (!date) return undefined;
@@ -19,8 +20,10 @@ function formatDateISO(date?: Date) {
 export default function InvoicesManagementPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [payableStatusFilter, setPayableStatusFilter] = useState("All");
   const [projectFilter, setProjectFilter] = useState("All");
   const [dateRange, setDateRange] = useState<RDateRange | undefined>(undefined);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -30,6 +33,8 @@ export default function InvoicesManagementPage() {
   const queryParams = useMemo(() => {
     return {
       status: statusFilter !== "All" ? statusFilter : undefined,
+      payableStatus:
+        payableStatusFilter !== "All" ? payableStatusFilter : undefined,
       projectId: projectFilter !== "All" ? projectFilter : undefined,
       startDate: formatDateISO(dateRange?.from),
       endDate: formatDateISO(dateRange?.to),
@@ -37,9 +42,18 @@ export default function InvoicesManagementPage() {
       page: currentPage,
       limit: rowsPerPage,
     };
-  }, [statusFilter, projectFilter, dateRange, searchQuery, currentPage, rowsPerPage]);
+  }, [
+    statusFilter,
+    payableStatusFilter,
+    projectFilter,
+    dateRange,
+    searchQuery,
+    currentPage,
+    rowsPerPage,
+  ]);
 
-  const { data: apiResponse, isLoading, refetch } = useGetVendorInvoicesQuery(queryParams);
+  const { data: apiResponse, isLoading, refetch } =
+    useGetVendorInvoicesQuery(queryParams);
   const exportMutation = useExportVendorInvoicesMutation();
 
   const invoices = apiResponse?.data?.invoices ?? [];
@@ -50,6 +64,8 @@ export default function InvoicesManagementPage() {
   const handleExport = async () => {
     const exportParams = {
       status: statusFilter !== "All" ? statusFilter : "All",
+      payableStatus:
+        payableStatusFilter !== "All" ? payableStatusFilter : undefined,
       projectId: projectFilter !== "All" ? projectFilter : undefined,
       startDate: formatDateISO(dateRange?.from),
       endDate: formatDateISO(dateRange?.to),
@@ -60,13 +76,6 @@ export default function InvoicesManagementPage() {
     a.href = url;
     a.download = `vendor-invoices-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
-  };
-
-  const handleUpload = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".csv,.xlsx,.xls";
-    input.click();
   };
 
   return (
@@ -99,7 +108,7 @@ export default function InvoicesManagementPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-gray-900">Vendor Invoices</h2>
           <Button
-            onClick={handleUpload}
+            onClick={() => setIsUploadDialogOpen(true)}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
           >
             <Upload className="w-4 h-4" />
@@ -113,6 +122,8 @@ export default function InvoicesManagementPage() {
           setDateRange={setDateRange}
           statusFilter={statusFilter}
           setStatusFilter={setStatusFilter}
+          payableStatusFilter={payableStatusFilter}
+          setPayableStatusFilter={setPayableStatusFilter}
           projectFilter={projectFilter}
           setProjectFilter={setProjectFilter}
         />
@@ -132,8 +143,14 @@ export default function InvoicesManagementPage() {
           onRefetch={refetch}
         />
       </div>
+
+      {/* Manual Payable Upload Dialog */}
+      <ManualPayableUploadDialog
+        open={isUploadDialogOpen}
+        onOpenChange={setIsUploadDialogOpen}
+        type="vendor"
+        onSuccess={() => refetch()}
+      />
     </div>
   );
 }
-
-

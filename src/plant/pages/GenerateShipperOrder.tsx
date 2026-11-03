@@ -1,13 +1,14 @@
 import React, { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Send, Search, Truck, X, Star, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import AddNewShipperDialog from "@/plant/components/AddNewShipperDialog";
 
 export default function GenerateShipperOrder() {
-  const navigate = useNavigate();
   const { id } = useParams();
+  const { goBack } = useAppBack(id ? `/plant/uploaded-bom-files/${id}` : "/plant/uploaded-bom-files");
   const [isAddShipperOpen, setIsAddShipperOpen] = useState(false);
 
   const [shippers, setShippers] = useState([
@@ -28,10 +29,12 @@ export default function GenerateShipperOrder() {
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">
           <Button 
-            className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white rounded-lg h-10 px-4 font-medium shadow-sm gap-2"
-            onClick={() => navigate('/plant')}
+            variant="default"
+            size="sm"
+            className="flex items-center gap-2 shrink-0 bg-[#1E51A4] hover:bg-[#154085] text-white"
+            onClick={() => goBack()}
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft size={18} strokeWidth={2.5} />
             Back
           </Button>
           <h1 className="text-[28px] font-bold text-slate-900 tracking-tight">Generate Shipper Order</h1>

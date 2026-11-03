@@ -16,8 +16,8 @@ export type CarrierInvoiceFiltersProps = {
   setDateRange: (range: RDateRange | undefined) => void;
   statusFilter: string;
   setStatusFilter: (status: string) => void;
-  // carrierFilter: string;
-  // setCarrierFilter: (carrier: string) => void;
+  payableStatusFilter?: string;
+  setPayableStatusFilter?: (status: string) => void;
   projectFilter: string;
   setProjectFilter: (project: string) => void;
 };
@@ -27,8 +27,8 @@ export function CarrierInvoiceFilters({
   setDateRange,
   statusFilter,
   setStatusFilter,
-  // carrierFilter,
-  // setCarrierFilter,
+  payableStatusFilter = "All",
+  setPayableStatusFilter,
   projectFilter,
   setProjectFilter,
 }: CarrierInvoiceFiltersProps) {
@@ -61,10 +61,37 @@ export function CarrierInvoiceFilters({
           <DateRangePicker value={dateRange} onChange={setDateRange} />
         </div>
 
-        {/* Status Filter */}
+        {/* Payable Status Filter (New AP workflow) */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Status
+            Payable Status
+          </label>
+          <Select
+            value={payableStatusFilter}
+            onValueChange={(val) => setPayableStatusFilter?.(val)}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="All Payable Statuses" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="All">All Payable Statuses</SelectItem>
+              <SelectItem value="pending_admin_approval">
+                Pending Admin Approval
+              </SelectItem>
+              <SelectItem value="approved_for_payment">
+                Approved for Payment
+              </SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="unpaid">Unpaid</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Legacy Status Filter */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Invoice Status
           </label>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full">
@@ -80,25 +107,6 @@ export function CarrierInvoiceFilters({
             </SelectContent>
           </Select>
         </div>
-
-        {/* Carrier Filter */}
-        {/* <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Carrier
-          </label>
-          <Select value={carrierFilter} onValueChange={setCarrierFilter}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select carrier" />
-            </SelectTrigger>
-            <SelectContent>
-              {carriers.map((carrier) => (
-                <SelectItem key={carrier} value={carrier}>
-                  {carrier}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div> */}
 
         {/* Project Filter */}
         <div>
@@ -123,4 +131,3 @@ export function CarrierInvoiceFilters({
     </Card>
   );
 }
-

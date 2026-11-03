@@ -60,7 +60,8 @@ function formatDate(dateStr?: string | null) {
 
 function getEntityName(item: PaymentStatusItem) {
   if (typeof item.customerId === "object" && item.customerId) {
-    const name = `${item.customerId.firstName || ""} ${item.customerId.lastName || ""}`.trim();
+    const name =
+      `${item.customerId.firstName || ""} ${item.customerId.lastName || ""}`.trim();
     if (name) return name;
   }
   if (typeof item.leadId === "object" && item.leadId?.projectName) {
@@ -117,7 +118,10 @@ export default function PaymentStatusDashboardPage() {
       const url = window.URL.createObjectURL(new Blob([blob]));
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `payment-status-${new Date().toISOString().split("T")[0]}.csv`);
+      link.setAttribute(
+        "download",
+        `payment-status-${new Date().toISOString().split("T")[0]}.csv`,
+      );
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -149,26 +153,26 @@ export default function PaymentStatusDashboardPage() {
         iconBgColor: "bg-emerald-100",
         icon: <CheckCircle2 className="h-5 w-5 text-emerald-500" />,
       },
-      {
-        title: "Vendor Payments",
-        amount: formatCurrency(stats?.vendorPayments ?? 0),
-        subtitle: `${stats?.vendorCount ?? 0} vendors`,
-        borderClass: "border-blue-500",
-        accentClass: "text-slate-500",
-        iconBgColor: "bg-blue-100",
-        icon: <Building2 className="h-5 w-5 text-blue-500" />,
-      },
-      {
-        title: "Carrier Payments",
-        amount: formatCurrency(stats?.carrierPayments ?? 0),
-        subtitle: `${stats?.carrierCount ?? 0} carriers`,
-        borderClass: "border-orange-500",
-        accentClass: "text-slate-500",
-        iconBgColor: "bg-orange-100",
-        icon: <Truck className="h-5 w-5 text-orange-500" />,
-      },
+      // {
+      //   title: "Vendor Payments",
+      //   amount: formatCurrency(stats?.vendorPayments ?? 0),
+      //   subtitle: `${stats?.vendorCount ?? 0} vendors`,
+      //   borderClass: "border-blue-500",
+      //   accentClass: "text-slate-500",
+      //   iconBgColor: "bg-blue-100",
+      //   icon: <Building2 className="h-5 w-5 text-blue-500" />,
+      // },
+      // {
+      //   title: "Carrier Payments",
+      //   amount: formatCurrency(stats?.carrierPayments ?? 0),
+      //   subtitle: `${stats?.carrierCount ?? 0} carriers`,
+      //   borderClass: "border-orange-500",
+      //   accentClass: "text-slate-500",
+      //   iconBgColor: "bg-orange-100",
+      //   icon: <Truck className="h-5 w-5 text-orange-500" />,
+      // },
     ],
-    [stats]
+    [stats],
   );
 
   const overdueList = data?.overduePayments || [];
@@ -203,7 +207,7 @@ export default function PaymentStatusDashboardPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {summaryCards.map((card) => (
             <article
               key={card.title}
@@ -223,7 +227,7 @@ export default function PaymentStatusDashboardPage() {
                   className={cn(
                     "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg",
                     card.accentClass,
-                    card.iconBgColor
+                    card.iconBgColor,
                   )}
                 >
                   {card.icon}
@@ -243,7 +247,9 @@ export default function PaymentStatusDashboardPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {overdueList.length === 0 ? (
-                <p className="text-sm text-slate-500 py-2">No overdue payments</p>
+                <p className="text-sm text-slate-500 py-2">
+                  No overdue payments
+                </p>
               ) : (
                 overdueList.map((item) => (
                   <article
@@ -263,7 +269,9 @@ export default function PaymentStatusDashboardPage() {
                     </div>
 
                     <div className="mt-2 flex items-center justify-between">
-                      <p className="text-sm text-slate-500">{item.invoiceNumber || item.poNumber || item._id}</p>
+                      <p className="text-sm text-slate-500">
+                        {item.invoiceNumber || item.poNumber || item._id}
+                      </p>
                       <p className="text-xs font-medium text-red-600">
                         Due: {formatDate(item.dueDate)}
                       </p>
@@ -283,7 +291,9 @@ export default function PaymentStatusDashboardPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {dueSoonList.length === 0 ? (
-                <p className="text-sm text-slate-500 py-2">No payments due soon</p>
+                <p className="text-sm text-slate-500 py-2">
+                  No payments due soon
+                </p>
               ) : (
                 dueSoonList.map((item) => (
                   <article
@@ -303,7 +313,9 @@ export default function PaymentStatusDashboardPage() {
                     </div>
 
                     <div className="mt-2 flex items-center justify-between">
-                      <p className="text-sm text-slate-500">{item.invoiceNumber || item.poNumber || item._id}</p>
+                      <p className="text-sm text-slate-500">
+                        {item.invoiceNumber || item.poNumber || item._id}
+                      </p>
                       <p className="text-xs font-medium text-amber-600">
                         Due: {formatDate(item.dueDate)}
                       </p>
@@ -343,7 +355,9 @@ export default function PaymentStatusDashboardPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="All">All Methods</SelectItem>
-                      <SelectItem value="Bank Transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="Bank Transfer">
+                        Bank Transfer
+                      </SelectItem>
                       <SelectItem value="ACH">ACH</SelectItem>
                       <SelectItem value="Check">Check</SelectItem>
                       <SelectItem value="Card">Card</SelectItem>
@@ -435,7 +449,10 @@ export default function PaymentStatusDashboardPage() {
                       </TableRow>
                     ) : paymentHistoryList.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="h-32 text-center text-slate-500">
+                        <TableCell
+                          colSpan={8}
+                          className="h-32 text-center text-slate-500"
+                        >
                           No payment records found.
                         </TableCell>
                       </TableRow>
@@ -489,7 +506,9 @@ export default function PaymentStatusDashboardPage() {
                             </TableCell>
                             <TableCell className="px-6 py-4">
                               {row.paymentMethod
-                                ? row.paymentMethod.replace("_", " ").toUpperCase()
+                                ? row.paymentMethod
+                                    .replace("_", " ")
+                                    .toUpperCase()
                                 : "-"}
                             </TableCell>
                           </TableRow>

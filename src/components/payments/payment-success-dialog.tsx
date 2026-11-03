@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog";
@@ -9,31 +10,66 @@ import {
   Check,
   CircleDollarSign,
   Landmark,
+  Loader2,
   ShieldCheck,
   TimerReset,
 } from "lucide-react";
+import { downloadTaxFilingReceiptPdfProvider } from "@/modules/payments/payments.api";
 
 type PaymentSuccessDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  taxId?: string;
   amountPaid?: string;
   filingPeriod?: string;
   paymentMethod?: string;
   confirmationNumber?: string;
   receiptEmail?: string;
+  status?: string;
+  estimatedSettlement?: string;
   onDownload?: () => void;
 };
 
 export default function PaymentSuccessDialog({
   open,
   onOpenChange,
-  amountPaid = "$14,550.00",
-  filingPeriod = "May 1 - May 31, 2025",
-  paymentMethod = "ACH ending in 4851",
-  confirmationNumber = "Tx-2025-0619-8421",
-  receiptEmail = "accounts@acmeindustries.com",
+  taxId,
+  amountPaid = "$0.00",
+  filingPeriod = "-",
+  paymentMethod = "Electronic Payment",
+  confirmationNumber = "-",
+  receiptEmail = "-",
+  status = "Completed",
+  estimatedSettlement = "1-3 business days",
   onDownload,
 }: PaymentSuccessDialogProps) {
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    if (onDownload) {
+      onDownload();
+      return;
+    }
+    if (!taxId) return;
+
+    try {
+      setIsDownloading(true);
+      const blob = await downloadTaxFilingReceiptPdfProvider(taxId);
+      const url = window.URL.createObjectURL(new Blob([blob], { type: "application/pdf" }));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `receipt-${confirmationNumber || taxId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      // Fallback
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl gap-0 overflow-hidden border-0 bg-white p-0 shadow-none max-h-[92vh] overflow-y-auto">
@@ -42,18 +78,18 @@ export default function PaymentSuccessDialog({
             <Check className="size-11" strokeWidth={3} />
           </div>
 
-          <h2 className="max-w-2xl text-2xl font-semibold tracking-tight text-slate-950 ">
-            Payment Submitted Successfully !
+          <h2 className="max-w-2xl text-2xl font-semibold tracking-tight text-slate-950">
+            Tax Filing & Remittance Approved!
           </h2>
-          <p className="mt-2 font-semibold text-slate-500">
-            your payment is being processed.
+          <p className="mt-2 font-medium text-slate-500">
+            Your return and tax remittance have been submitted to Avalara for automated processing.
           </p>
 
           <div className="mt-5 w-full rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-[0_1px_0_rgba(15,23,42,0.02)] sm:p-8">
             <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
               <div className="flex items-center gap-4">
                 <CircleDollarSign className="size-6 shrink-0 text-slate-700" />
-                <p className="">Amount Paid</p>
+                <p className="">Amount Remitted</p>
               </div>
               <div className="text-left text-xl font-semibold text-emerald-700 sm:text-right">
                 {amountPaid}
@@ -69,7 +105,7 @@ export default function PaymentSuccessDialog({
 
               <div className="flex items-center gap-4">
                 <Landmark className="size-6 shrink-0 text-slate-700" />
-                <p className="">Payment Method</p>
+                <p className="">Remittance Method</p>
               </div>
               <div className="text-base text-slate-900 sm:text-right">
                 {paymentMethod}
@@ -90,8 +126,8 @@ export default function PaymentSuccessDialog({
                 <p className="">Status</p>
               </div>
               <div className="sm:text-right">
-                <Badge className="rounded-md bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700 hover:bg-emerald-100">
-                  Processing
+                <Badge className="rounded-md bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700 hover:bg-emerald-100 capitalize">
+                  {status}
                 </Badge>
               </div>
 
@@ -100,7 +136,7 @@ export default function PaymentSuccessDialog({
                 <p className="">Estimated Settlement</p>
               </div>
               <div className="text-base text-slate-900 sm:text-right">
-                1-3 business days
+                {estimatedSettlement}
               </div>
             </div>
           </div>
@@ -120,10 +156,19 @@ export default function PaymentSuccessDialog({
             </div>
           </div>
 
-          <div className="mt-6 flex flex-col gap-4">
-            <Button type="button" onClick={onDownload} size="lg">
-              <ArrowDownToLine className="mr-3 h-5 w-5" />
-              Download Receipt
+          <div className="mt-6 flex flex-col gap-4 w-full sm:w-auto">
+            <Button
+              type="button"
+              onClick={handleDownload}
+              size="lg"
+              disabled={isDownloading}
+            >
+              {isDownloading ? (
+                <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+              ) : (
+                <ArrowDownToLine className="mr-3 h-5 w-5" />
+              )}
+              {isDownloading ? "Downloading Receipt..." : "Download Receipt"}
             </Button>
 
             <DialogClose asChild>

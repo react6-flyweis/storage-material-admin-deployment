@@ -14,6 +14,7 @@ type StatCardProps = {
   valueClassName?: string;
   iconWrapperClassName?: string;
   navigateTo?: string;
+  onClick?: () => void;
 };
 
 export default function StatCard({
@@ -27,9 +28,10 @@ export default function StatCard({
   valueClassName,
   iconWrapperClassName,
   navigateTo,
+  onClick,
 }: StatCardProps) {
   const navigation = useNavigate();
-  const isClickable = Boolean(navigateTo) && !loading;
+  const isClickable = (Boolean(navigateTo) || Boolean(onClick)) && !loading;
 
   return (
     <Card
@@ -39,7 +41,14 @@ export default function StatCard({
         className,
         color,
       )}
-      onClick={() => isClickable && navigation(navigateTo as string)}
+      onClick={() => {
+        if (!isClickable) return;
+        if (onClick) {
+          onClick();
+        } else if (navigateTo) {
+          navigation(navigateTo);
+        }
+      }}
     >
       {loading ? (
         <div className="flex items-center justify-between animate-pulse">

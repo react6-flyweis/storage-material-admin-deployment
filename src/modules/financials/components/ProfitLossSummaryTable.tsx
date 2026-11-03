@@ -5,18 +5,22 @@ interface ProfitLossSummaryTableProps {
   currencyLabel?: string;
 }
 
-const formatCurrency = (val?: number) => {
+const formatCurrency = (val?: number | string | null) => {
   if (val === undefined || val === null) return "$0.00";
+  const num = typeof val === "number" ? val : Number(val);
+  if (isNaN(num)) return "$0.00";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 2,
-  }).format(val);
+  }).format(num);
 };
 
-const formatPct = (pct?: number) => {
+const formatPct = (pct?: number | string | null) => {
   if (pct === undefined || pct === null) return "0.00%";
-  return `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
+  const num = typeof pct === "number" ? pct : Number(pct);
+  if (isNaN(num)) return "0.00%";
+  return `${num >= 0 ? "+" : ""}${num.toFixed(2)}%`;
 };
 
 export default function ProfitLossSummaryTable({
@@ -106,10 +110,10 @@ export default function ProfitLossSummaryTable({
                         item.bold ? "font-semibold text-slate-900" : "text-slate-600"
                       }`}
                     >
-                      {formatCurrency(item.variance.amount)}
+                      {formatCurrency(item.variance?.amount)}
                     </td>
                     <td className="px-4 py-2 text-sm font-semibold text-emerald-500">
-                      {formatPct(item.variance.pct)}
+                      {formatPct(item.variance?.pct)}
                     </td>
                   </tr>
                 ))}
@@ -162,10 +166,10 @@ export default function ProfitLossSummaryTable({
                         item.bold ? "font-semibold text-slate-900" : "text-slate-600"
                       }`}
                     >
-                      {formatCurrency(item.variance.amount)}
+                      {formatCurrency(item.variance?.amount)}
                     </td>
                     <td className="px-4 py-2 text-sm font-semibold text-rose-500">
-                      {formatPct(item.variance.pct)}
+                      {formatPct(item.variance?.pct)}
                     </td>
                   </tr>
                 ))}
@@ -194,10 +198,10 @@ export default function ProfitLossSummaryTable({
                     {formatCurrency(item.lastPeriod)}
                   </td>
                   <td className="px-4 py-2 text-sm font-semibold text-slate-900">
-                    {formatCurrency(item.variance.amount)}
+                    {formatCurrency(item.variance?.amount)}
                   </td>
                   <td className="px-4 py-2 text-sm font-semibold text-emerald-500">
-                    {formatPct(item.variance.pct)}
+                    {formatPct(item.variance?.pct)}
                   </td>
                 </tr>
               );

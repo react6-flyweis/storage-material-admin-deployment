@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 // import { Badge } from "@/components/ui/badge";
 import StatCard from "@/components/ui/stat-card";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import {
   Select,
   SelectContent,
@@ -62,6 +62,7 @@ export default function ContractsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const navigate = useNavigate();
+  const location = useLocation();
 
   const filteredContracts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -198,7 +199,9 @@ export default function ContractsPage() {
                         size="sm"
                         className="text-blue-600 hover:text-blue-800"
                         onClick={() =>
-                          navigate(`/customers/contracts/${contract.id}`)
+                          navigate(`/customers/contracts/${contract.id}`, {
+                            state: { from: location.pathname + location.search },
+                          })
                         }
                       >
                         <Eye className="h-4 w-4" />

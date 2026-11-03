@@ -23,10 +23,13 @@ import ConversationHistoryDialog from "./conversation-history-dialog";
 import AssignPlantPersonDialog from "@/components/customers/assign-plant-person-dialog";
 import { apiClient } from "@/modules/auth/auth.api";
 import { getApiErrorMessage } from "@/lib/api-error";
+import { formatBusinessUnit } from "@/modules/leads/business-unit";
+import { formatInstallAddress } from "@/lib/address";
 import { Link, useNavigate } from "react-router";
 
 type Lead = {
   id: string;
+  _id?: string;
   backendId?: string;
   name: string;
   workshop?: string;
@@ -48,6 +51,9 @@ type LeadDetailResponse = {
   data: {
     lead: {
       _id: string;
+      projectName?: string;
+      businessUnit?: string | null;
+      businessUnitLabel?: string;
       customerId?: {
         customerId?: string;
         firstName?: string;
@@ -215,17 +221,6 @@ const getLifecycleUi = (lifecycleStatus?: string) => {
       };
   }
 };
-
-const lifecycleSteps = [
-  "initial_contact",
-  "requirements_gathered",
-  "proposal_sent",
-  "quotation_sent",
-  "negotiation",
-  "closed_won",
-  "payment_done",
-  "delivered",
-];
 
 function LeadDetailDialogSkeleton() {
   return (
@@ -583,6 +578,12 @@ export default function LeadDetailDialog({
               <DialogTitle className="text-2xl">
                 Leads Details - {customer?.firstName ?? lead.name}
               </DialogTitle>
+              <Badge
+                variant="outline"
+                className="text-xs font-normal border-slate-200 text-slate-700 bg-slate-50"
+              >
+                {formatBusinessUnit(leadDetail?.businessUnit, leadDetail?.businessUnitLabel)}
+              </Badge>
               {/* badge or edit lead button */}
               {escalationReason ? (
                 <div className="bg-red-100 px-2 py-1 rounded  text-xs">
@@ -634,6 +635,17 @@ export default function LeadDetailDialog({
                   }}
                 >
                   See Quotation
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={topActionButtonClass}
+                  onClick={() => {
+                    handleDialogOpenChange(false);
+                    navigate(`/plant/projects/${effectiveLeadId}`);
+                  }}
+                >
+                  View Project
                 </Button>
                 {/* assign a person */}
                 <Button
@@ -714,9 +726,10 @@ export default function LeadDetailDialog({
                     <div>
                       <div className="text-xs text-gray-500">Location</div>
                       <div className="text-sm text-gray-900">
-                        {leadDetail?.location ??
-                          lead.category ??
-                          "Not available"}
+                        {formatInstallAddress(
+                          leadDetail?.installAddress,
+                          leadDetail?.location ?? lead.category
+                        )}
                       </div>
                     </div>
                     <div>
@@ -732,10 +745,34 @@ export default function LeadDetailDialog({
                 </div>
 
                 <div>
-                  <h3 className="text-sm font-medium text-gray-900">
-                    Project Details
-                  </h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-gray-900">
+                      Project Details
+                    </h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        handleDialogOpenChange(false);
+                        navigate(`/plant/projects/${effectiveLeadId}`);
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 h-7 px-2 font-medium"
+                    >
+                      View Project Details →
+                    </Button>
+                  </div>
                   <div className="mt-3 text-sm text-gray-700 space-y-3">
+                    <div>
+                      <div className="text-xs text-gray-500">Business Unit</div>
+                      <div className="mt-1">
+                        <Badge
+                          variant="outline"
+                          className="text-xs font-normal border-slate-200 text-slate-700 bg-slate-50"
+                        >
+                          {formatBusinessUnit(leadDetail?.businessUnit, leadDetail?.businessUnitLabel)}
+                        </Badge>
+                      </div>
+                    </div>
                     <div>
                       <div className="text-xs text-gray-500">Building Type</div>
                       <div className="text-sm text-gray-900">

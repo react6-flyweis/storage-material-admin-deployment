@@ -20,8 +20,9 @@ import {
 import { Controller, useForm } from "react-hook-form";
 import { Field, FieldLabel, FieldError } from "@/components/ui/field";
 import { useCreateBasicCustomerMutation } from "@/modules/customers/customers.hooks";
+import { getApiErrorMessage } from "@/lib/api-error";
 
-type Customer = {
+export type BasicCustomer = {
   id: string;
   customerName: string;
   phone?: string;
@@ -35,7 +36,7 @@ export default function AddBasicCustomerDialog({
   open: controlledOpen,
   onOpenChange: controlledOnOpenChange,
 }: {
-  onAdd?: (c: Customer) => void;
+  onAdd?: (c: BasicCustomer) => void;
   trigger?: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -44,7 +45,7 @@ export default function AddBasicCustomerDialog({
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : internalOpen;
   const setOpen = isControlled ? controlledOnOpenChange! : setInternalOpen;
-  
+
   const [showSuccess, setShowSuccess] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
@@ -67,23 +68,32 @@ export default function AddBasicCustomerDialog({
     },
     resolver: async (values) => {
       const errors: any = {};
-      
+
       if (!values.firstName?.trim()) {
-        errors.firstName = { type: "required", message: "Customer name is required" };
+        errors.firstName = {
+          type: "required",
+          message: "Customer name is required",
+        };
       }
-      
+
       if (!values.email?.trim()) {
         errors.email = { type: "required", message: "Email is required" };
       } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
-        errors.email = { type: "pattern", message: "Please enter a valid email" };
+        errors.email = {
+          type: "pattern",
+          message: "Please enter a valid email",
+        };
       }
-      
+
       if (!values.phone?.trim()) {
-        errors.phone = { type: "required", message: "Phone number is required" };
+        errors.phone = {
+          type: "required",
+          message: "Phone number is required",
+        };
       } else if (!/^\d{10}$/.test(values.phone.replace(/\D/g, ""))) {
         errors.phone = { type: "pattern", message: "Phone must be 10 digits" };
       }
-      
+
       return {
         values: Object.keys(errors).length === 0 ? values : {},
         errors,
@@ -102,7 +112,7 @@ export default function AddBasicCustomerDialog({
 
     createCustomerMutation.mutate(apiData, {
       onSuccess: (response) => {
-        const newCustomer: Customer = {
+        const newCustomer: BasicCustomer = {
           id: response.data.customer._id,
           customerName: response.data.customer.firstName || "Unnamed",
           createdAt: new Date(),
@@ -117,9 +127,12 @@ export default function AddBasicCustomerDialog({
         form.reset();
         setShowSuccess(true);
       },
-      onError: (error: any) => {
-        console.error("Failed to create customer:", error);
-        setErrorMessage(error?.response?.data?.message || "Failed to create customer");
+      onError: (error) => {
+        const errorMessage = getApiErrorMessage(
+          error,
+          "Failed to create customer",
+        );
+        setErrorMessage(errorMessage);
       },
     });
   }
@@ -140,13 +153,15 @@ export default function AddBasicCustomerDialog({
               {errorMessage}
             </div>
           )}
-          
+
           <Controller
             control={form.control}
             name="firstName"
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="firstName">Customer Name <span className="text-red-500">*</span></FieldLabel>
+                <FieldLabel htmlFor="firstName">
+                  Customer Name <span className="text-red-500">*</span>
+                </FieldLabel>
                 <Input
                   {...field}
                   id="firstName"
@@ -165,7 +180,9 @@ export default function AddBasicCustomerDialog({
             name="email"
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="email">Email <span className="text-red-500">*</span></FieldLabel>
+                <FieldLabel htmlFor="email">
+                  Email <span className="text-red-500">*</span>
+                </FieldLabel>
                 <Input
                   {...field}
                   id="email"
@@ -186,7 +203,9 @@ export default function AddBasicCustomerDialog({
               name="countryCode"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="countryCode">Country Code <span className="text-red-500">*</span></FieldLabel>
+                  <FieldLabel htmlFor="countryCode">
+                    Country Code <span className="text-red-500">*</span>
+                  </FieldLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger
                       id="countryCode"
@@ -214,7 +233,9 @@ export default function AddBasicCustomerDialog({
               name="phone"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="phone">Phone Number <span className="text-red-500">*</span></FieldLabel>
+                  <FieldLabel htmlFor="phone">
+                    Phone Number <span className="text-red-500">*</span>
+                  </FieldLabel>
                   <Input
                     {...field}
                     id="phone"
@@ -243,7 +264,9 @@ export default function AddBasicCustomerDialog({
                 Cancel
               </Button>
               <Button type="submit" disabled={createCustomerMutation.isPending}>
-                {createCustomerMutation.isPending ? "Adding..." : "Add Customer"}
+                {createCustomerMutation.isPending
+                  ? "Adding..."
+                  : "Add Customer"}
               </Button>
             </div>
           </DialogFooter>

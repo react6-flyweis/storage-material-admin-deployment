@@ -142,12 +142,18 @@ function SummaryCard({
   );
 }
 
-export default function DashboardSummaryCards() {
-  const quoteQuery = useShipperQuotationSummaryQuery();
-  const packingQuery = usePackingListSummaryQuery();
-  const qrQuery = useQrLabelsSummaryQuery();
-  const shippersQuery = useShippersSummaryQuery();
-  const deliveriesQuery = useDeliveriesSummaryQuery();
+import type { DashboardFilterParams } from "@/modules/plant/dashboard.api";
+
+interface DashboardSummaryCardsProps {
+  filters?: DashboardFilterParams;
+}
+
+export default function DashboardSummaryCards({ filters }: DashboardSummaryCardsProps = {}) {
+  const quoteQuery = useShipperQuotationSummaryQuery(filters);
+  const packingQuery = usePackingListSummaryQuery(filters);
+  const qrQuery = useQrLabelsSummaryQuery(filters);
+  const shippersQuery = useShippersSummaryQuery(filters);
+  const deliveriesQuery = useDeliveriesSummaryQuery(filters);
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">

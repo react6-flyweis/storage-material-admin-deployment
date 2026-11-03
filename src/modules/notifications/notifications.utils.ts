@@ -35,7 +35,7 @@ export function getNotificationRoute(
     case "freight_load":
       return refId ? `/plant/freight-loads/details/${refId}` : "/plant/freight-loads";
     case "chat":
-      return "/communication";
+      return refId ? `/communication?customerId=${refId}` : "/communication";
     case "followup":
       return "/leads/follow-up";
     case "system":

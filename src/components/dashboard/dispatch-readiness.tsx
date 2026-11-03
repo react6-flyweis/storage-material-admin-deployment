@@ -2,11 +2,13 @@ import { cn } from "@/lib/utils";
 import {
   CircleDollarSignIcon,
   HandbagIcon,
+  TrendingDown,
   TrendingUp,
   Wallet,
   Wallet2,
   type LucideIcon,
 } from "lucide-react";
+import type { DispatchReadiness as DispatchReadinessData } from "@/modules/dashboard/dashboard.types";
 
 interface DispatchCard {
   title: string;
@@ -21,9 +23,10 @@ function DispatchReadinessCard({
   value,
   trend,
   color,
-  icon,
+  icon: Icon,
 }: DispatchCard) {
-  const Icon = icon; // Assign the icon component to a variable for rendering
+  const isPositive = trend >= 0;
+
   return (
     <div className="relative overflow-hidden border border-gray-200 rounded-lg p-5 bg-white hover:shadow-md transition-shadow">
       {/* Boomerang corner accent uses the same color as the icon chip */}
@@ -49,42 +52,55 @@ function DispatchReadinessCard({
         </div>
       </div>
 
-      <div className="flex items-center gap-1 text-teal-600 text-sm">
-        <TrendingUp className="w-4 h-4" />
-        <span className="font-semibold">{trend.toFixed(2)}%</span>
-        <span className="text-gray-600">from last month</span>
+      <div
+        className={cn(
+          "flex items-center gap-1 text-sm font-semibold",
+          isPositive ? "text-teal-600" : "text-rose-600",
+        )}
+      >
+        {isPositive ? (
+          <TrendingUp className="w-4 h-4" />
+        ) : (
+          <TrendingDown className="w-4 h-4" />
+        )}
+        <span>{Math.abs(trend).toFixed(1)}%</span>
+        <span className="font-normal text-gray-600">from last month</span>
       </div>
     </div>
   );
 }
 
-export default function DispatchReadiness() {
+export default function DispatchReadiness({
+  data,
+}: {
+  data?: DispatchReadinessData;
+}) {
   const dispatchCards: DispatchCard[] = [
     {
       title: "Loads Ready for Pickup",
-      value: 3,
-      trend: 5.62,
+      value: data?.loadsReadyForPickup ?? 0,
+      trend: data?.loadsReadyForPickupChangePct ?? 0,
       color: "bg-blue-500",
       icon: CircleDollarSignIcon,
     },
     {
       title: "Pending Material",
-      value: 39,
-      trend: 11.4,
+      value: data?.pendingMaterial ?? 0,
+      trend: data?.pendingMaterialChangePct ?? 0,
       color: "bg-green-500",
       icon: HandbagIcon,
     },
     {
       title: "Pickups Today",
-      value: 45,
-      trend: 8.12,
+      value: data?.pickupsToday ?? 0,
+      trend: data?.pickupsTodayChangePct ?? 0,
       color: "bg-yellow-500",
       icon: Wallet,
     },
     {
       title: "Missed Pickups",
-      value: 3,
-      trend: 7.45,
+      value: data?.missedPickups ?? 0,
+      trend: data?.missedPickupsChangePct ?? 0,
       color: "bg-red-500",
       icon: Wallet2,
     },

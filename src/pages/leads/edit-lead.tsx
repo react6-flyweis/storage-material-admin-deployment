@@ -1,8 +1,12 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Minus, Plus, Loader2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
+import { useAppBack } from "@/modules/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getLeadDetailProvider, updateLeadProvider } from "@/modules/leads/leads.api";
+import BusinessUnitSelector from "@/components/leads/business-unit-selector";
+import InstallAddressFields from "@/components/common/install-address-fields";
+import { buildLocationString, parseLocationFallback } from "@/lib/address";
 import SuccessDialog from "@/components/success-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 
 type LeadFormData = {
   firstName: string;
@@ -38,6 +41,13 @@ type LeadFormData = {
   windows: number;
   insulation: number;
   projectName: string;
+  businessUnit: string;
+  addressLine1: string;
+  addressLine2: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
   location: string;
 };
 
@@ -63,6 +73,13 @@ const getInitialFormData = (): LeadFormData => ({
   windows: 0,
   insulation: 0,
   projectName: "",
+  businessUnit: "",
+  addressLine1: "",
+  addressLine2: "",
+  city: "",
+  state: "",
+  postalCode: "",
+  country: "US",
   location: "",
 });
 
@@ -114,6 +131,7 @@ function CounterInput({ id, label, value, onChange }: CounterInputProps) {
 
 export default function EditLeadPage() {
   const navigate = useNavigate();
+  const { goBack } = useAppBack("/leads");
   const { leadId } = useParams();
   const [showSuccess, setShowSuccess] = useState(false);
   const [formData, setFormData] = useState<LeadFormData>(getInitialFormData());
@@ -187,6 +205,13 @@ export default function EditLeadPage() {
         windows: Number(lead?.numWindows) || 0,
         insulation: Number(lead?.numInsulation) || 0,
         projectName: lead?.projectName || "",
+        businessUnit: lead?.businessUnit || "",
+        addressLine1: lead?.installAddress?.line1 || (lead?.location ? parseLocationFallback(lead.location).line1 : ""),
+        addressLine2: lead?.installAddress?.line2 || (lead?.location ? parseLocationFallback(lead.location).line2 : ""),
+        city: lead?.installAddress?.city || lead?.city || (lead?.location ? parseLocationFallback(lead.location).city : ""),
+        state: lead?.installAddress?.state || lead?.state || (lead?.location ? parseLocationFallback(lead.location).state : ""),
+        postalCode: lead?.installAddress?.postalCode || lead?.pincode || (lead?.location ? parseLocationFallback(lead.location).postalCode : ""),
+        country: lead?.installAddress?.country || "US",
         location: lead?.location || "",
       });
     }
@@ -198,12 +223,20 @@ export default function EditLeadPage() {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       queryClient.invalidateQueries({ queryKey: ["lead", "detail", leadId] });
       setShowSuccess(true);
-      setTimeout(() => navigate('/leads'), 1500);
+      setTimeout(() => navigate('/leads', { replace: true }), 1500);
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const compiledLocation = buildLocationString({
+      line1: formData.addressLine1,
+      line2: formData.addressLine2,
+      city: formData.city,
+      state: formData.state,
+      postalCode: formData.postalCode,
+    });
+
     updateMutation.mutate({
       customerFirstName: formData.firstName,
       customerLastName: formData.lastName,
@@ -225,7 +258,21 @@ export default function EditLeadPage() {
       windows: Number(formData.windows) || 0,
       insulation: Number(formData.insulation) || 0,
       projectName: formData.projectName,
-      location: formData.location,
+      businessUnit: formData.businessUnit ? formData.businessUnit.trim().toLowerCase() : null,
+      location: compiledLocation,
+      city: formData.city.trim(),
+      state: formData.state.trim(),
+      pincode: formData.postalCode.trim(),
+      installAddress: {
+        companyName: formData.companyName || "",
+        line1: formData.addressLine1.trim(),
+        line2: formData.addressLine2?.trim() || "",
+        city: formData.city.trim(),
+        state: formData.state.trim(),
+        postalCode: formData.postalCode.trim(),
+        country: formData.country?.trim() || "US",
+        lines: [],
+      },
     });
   };
 
@@ -243,7 +290,7 @@ export default function EditLeadPage() {
         <Button
           type="button"
           className="h-8 bg-blue-600 px-4 text-xs font-medium hover:bg-blue-700"
-          onClick={() => navigate("/leads")}
+          onClick={() => goBack("/leads")}
         >
           <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
           Back
@@ -373,17 +420,45 @@ export default function EditLeadPage() {
                   className="h-10"
                 />
               </div>
+              <div className="md:col-span-2">
+                <InstallAddressFields
+                  idPrefix="edit-lead"
+                  values={{
+                    line1: formData.addressLine1,
+                    line2: formData.addressLine2,
+                    city: formData.city,
+                    state: formData.state,
+                    postalCode: formData.postalCode,
+                    country: formData.country || "US",
+                  }}
+                  onChange={(field, val) => {
+                    const fieldMap: Record<string, keyof LeadFormData> = {
+                      line1: "addressLine1",
+                      line2: "addressLine2",
+                      city: "city",
+                      state: "state",
+                      postalCode: "postalCode",
+                      country: "country",
+                    };
+                    const formKey = fieldMap[field];
+                    if (formKey) {
+                      setFormData((p) => ({ ...p, [formKey]: val }));
+                    }
+                  }}
+                />
+              </div>
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="location" className="text-xs text-slate-600">
-                  Location (City, State)
+                <Label htmlFor="businessUnit" className="text-xs text-slate-600">
+                  Business Unit
                 </Label>
-                <Input
-                  id="location"
-                  name="location"
-                  value={formData.location}
-                  onChange={handleInputChange}
-                  placeholder="Enter Location"
-                  className="h-10"
+                <BusinessUnitSelector
+                  id="businessUnit"
+                  value={formData.businessUnit}
+                  onChange={(value) => handleSelectChange("businessUnit", value)}
+                  includeClear
+                  clearLabel="Not set"
+                  placeholder="Not set"
+                  triggerClassName="h-10 w-full bg-white"
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
@@ -516,7 +591,7 @@ export default function EditLeadPage() {
               type="button"
               variant="outline"
               className="h-10 min-w-24"
-              onClick={() => navigate("/leads")}
+              onClick={() => goBack("/leads")}
             >
               Cancel
             </Button>
