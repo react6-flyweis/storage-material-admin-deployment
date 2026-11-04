@@ -243,6 +243,14 @@ export default function BudgetPlanning() {
   };
 
   const handleAmountChange = (index: number, value: string) => {
+    if (value === "") {
+      setCards((prev) => {
+        const next = [...prev];
+        next[index] = { ...next[index], amount: "" as unknown as number };
+        return next;
+      });
+      return;
+    }
     const numValue = parseFloat(value.replace(/[^0-9.-]+/g, "")) || 0;
     setCards((prev) => {
       const next = [...prev];
@@ -681,7 +689,13 @@ export default function BudgetPlanning() {
                     <div className="flex gap-4">
                       <Input
                         type="number"
-                        value={card.amount}
+                        placeholder="0"
+                        value={card.amount === 0 ? "" : card.amount}
+                        onFocus={(e) => {
+                          if (e.target.value === "0" || card.amount === 0) {
+                            handleAmountChange(index, "");
+                          }
+                        }}
                         onChange={(e) =>
                           handleAmountChange(index, e.target.value)
                         }
@@ -795,7 +809,15 @@ export default function BudgetPlanning() {
                 <Input
                   type="number"
                   placeholder="0"
-                  value={customLineForm.amount}
+                  value={customLineForm.amount === "0" ? "" : customLineForm.amount}
+                  onFocus={(e) => {
+                    if (e.target.value === "0" || customLineForm.amount === "0") {
+                      setCustomLineForm((prev) => ({
+                        ...prev,
+                        amount: "",
+                      }));
+                    }
+                  }}
                   onChange={(e) =>
                     setCustomLineForm((prev) => ({
                       ...prev,
