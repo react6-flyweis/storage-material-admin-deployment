@@ -62,9 +62,9 @@ export default function InvoicePreview() {
               <br />
               United States
               <br />
-              travis@storagematerials.com
+              info@steelbuildingdepot.com
               <br />
-              www.storagematerials.com
+              www.steelbuildingdepot.com
             </div>
           </div>
 
