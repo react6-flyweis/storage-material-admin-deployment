@@ -3,11 +3,9 @@ import {
   Card,
   CardHeader,
   CardTitle,
-  CardAction,
   CardContent,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import type { FinancialOverviewProfitabilityBreakdown } from "@/modules/financials/financials.api";
 
 type ProfitabilityChartProps = {
@@ -60,12 +58,6 @@ export function ProfitabilityChart({ data, isLoading = false }: ProfitabilityCha
     <Card className="rounded">
       <CardHeader className="border-b px-4 items-center">
         <CardTitle className="text-sm">Profitability (Net Profit)</CardTitle>
-        <CardAction>
-          <Button variant="outline" size="sm">
-            <CalendarIcon className="size-3" />
-            This Month
-          </Button>
-        </CardAction>
       </CardHeader>
       <CardContent>
         {isLoading ? (
