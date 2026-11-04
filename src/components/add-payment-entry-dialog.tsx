@@ -41,6 +41,8 @@ type AddPaymentEntryDialogProps = {
   open: boolean;
   onClose: () => void;
   onSuccess?: () => void;
+  initialLeadId?: string;
+  title?: string;
 };
 
 const paymentTypes = ["deposit", "progress", "final"];
@@ -49,6 +51,8 @@ export default function AddPaymentEntryDialog({
   open,
   onClose,
   onSuccess,
+  initialLeadId,
+  title,
 }: AddPaymentEntryDialogProps) {
   const [rootError, setRootError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -66,7 +70,7 @@ export default function AddPaymentEntryDialog({
   } = useForm<PaymentEntryFormData>({
     resolver: zodResolver(paymentEntrySchema),
     defaultValues: {
-      leadId: "",
+      leadId: initialLeadId || "",
       payerName: "",
       paymentType: "",
       amount: "",
@@ -80,11 +84,23 @@ export default function AddPaymentEntryDialog({
   const selectedPaymentType = watch("paymentType");
 
   useEffect(() => {
-    if (!open) {
-      reset();
+    if (open) {
+      if (initialLeadId) {
+        setValue("leadId", initialLeadId, { shouldValidate: true });
+      }
+    } else {
+      reset({
+        leadId: "",
+        payerName: "",
+        paymentType: "",
+        amount: "",
+        paymentDate: "",
+        transactionId: "",
+        remarks: "",
+      });
       setRootError(null);
     }
-  }, [open, reset]);
+  }, [open, initialLeadId, reset, setValue]);
 
   const onSubmit = async (data: PaymentEntryFormData) => {
     setRootError(null);
@@ -130,7 +146,7 @@ export default function AddPaymentEntryDialog({
         <DialogContent className="sm:max-w-xl p-0 gap-0">
           <DialogHeader className="border-b p-4">
             <DialogTitle className="text-2xl font-bold text-slate-900">
-              Add payment entry
+              {title || "Add payment entry"}
             </DialogTitle>
           </DialogHeader>
 

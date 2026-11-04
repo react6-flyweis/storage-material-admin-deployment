@@ -83,8 +83,10 @@ export function AddExpenseDialog({
     apiCategories.length > 0
       ? apiCategories.map((c) => c.name)
       : filtersRes?.data?.categories || [
-          "Vendor/Freight",
-          "Manual (Operations)",
+          "Material",
+          "Logistics",
+          "Manpower",
+          "Subcontractor",
           "Miscellaneous",
           "Salaries",
           "Marketing",
@@ -115,7 +117,7 @@ export function AddExpenseDialog({
   } = useForm<AddExpenseFormValues>({
     resolver: zodResolver(addExpenseSchema),
     defaultValues: {
-      category: "Vendor/Freight",
+      category: "Material",
       subcategory: "Steel Delivery",
       paymentMethod: "bank_transfer",
       amount: 10000,
@@ -262,7 +264,10 @@ export function AddExpenseDialog({
             </div>
 
             <div className="space-y-2">
-              <Label>Project (Optional)</Label>
+              <div className="flex items-center justify-between">
+                <Label>Project</Label>
+                <span className="text-[11px] text-muted-foreground">Required for Budget vs Actual</span>
+              </div>
               <Controller
                 control={control}
                 name="leadId"

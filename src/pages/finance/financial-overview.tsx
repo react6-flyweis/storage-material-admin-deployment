@@ -1,16 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import TitleSubtitle from "@/components/TitleSubtitle";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import ProjectSelector from "@/modules/construction/components/common/ProjectSelector";
 import DateRangeFilter from "@/components/ui/date-range-filter";
 import { Download, Loader2 } from "lucide-react";
 import { RevenueTrendChart } from "@/components/finance/revenue-trend-chart";
@@ -55,8 +49,18 @@ export default function FinancialOverviewPage() {
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   // Fetch project list from budget vs actual projects endpoint
-  const { data: projectsRes, isLoading: isProjectsLoading } = useBudgetVsActualProjectsQuery();
-  const projects = projectsRes?.data?.projects || [];
+  const { data: projectsRes } = useBudgetVsActualProjectsQuery();
+  const rawProjects = projectsRes?.data?.projects || [];
+
+  const projectOptions = useMemo(() => {
+    if (!rawProjects.length) return undefined;
+    return rawProjects.map((p) => {
+      const value = p._id;
+      const baseName = p.projectName || p.jobId || p._id;
+      const label = p.jobId && p.projectName ? `${p.projectName} (${p.jobId})` : baseName;
+      return { value, label };
+    });
+  }, [rawProjects]);
 
   const startDateStr = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
   const endDateStr = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
@@ -183,20 +187,16 @@ export default function FinancialOverviewPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={project} onValueChange={setProject} disabled={isProjectsLoading}>
-          <SelectTrigger className="w-[200px] bg-white">
-            <SelectValue placeholder="Select Project" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Projects</SelectItem>
-            {projects.map((p) => (
-              <SelectItem key={p._id} value={p._id}>
-                {p.projectName || p.jobId || p._id}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
+        <div className="w-[220px]">
+          <ProjectSelector
+            value={project}
+            onValueChange={setProject}
+            placeholder="All Projects"
+            includeAllOption
+            options={projectOptions}
+            width="220px"
+          />
+        </div>
 
         <DateRangeFilter
           value={dateRange}
