@@ -11,11 +11,9 @@ import {
   Card,
   CardHeader,
   CardTitle,
-  CardAction,
   CardContent,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { CalendarIcon, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import type { FinancialOverviewRevenueTrendItem } from "@/modules/financials/financials.api";
 
 const MONTH_NAMES = [
@@ -48,12 +46,6 @@ export function RevenueTrendChart({ data = [], isLoading = false }: RevenueTrend
     <Card className="rounded">
       <CardHeader className="border-b px-4 flex items-center">
         <CardTitle className="text-sm">Revenue Trend</CardTitle>
-        <CardAction>
-          <Button variant="outline" size="sm">
-            <CalendarIcon className="size-3" />
-            Monthly
-          </Button>
-        </CardAction>
       </CardHeader>
       <CardContent>
         {isLoading ? (
