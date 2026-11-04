@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Database, Download, Eye, Loader2, PencilLine, Plus } from "lucide-react";
+import { Database, Download, Loader2, PencilLine, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -97,6 +97,7 @@ export default function WipProfitsPage() {
     "Data exported successfully",
   );
   const [paymentEntryDialogOpen, setPaymentEntryDialogOpen] = useState(false);
+  const [editingLeadId, setEditingLeadId] = useState<string | undefined>(undefined);
 
   const { data, isLoading, isError, refetch } = useWipProfitsQuery(
     clientId ? { clientId } : undefined
@@ -181,7 +182,10 @@ export default function WipProfitsPage() {
 
             <Button
               className="h-10 rounded-lg bg-[#2f6ee4] px-4 text-sm font-medium text-white shadow-sm hover:bg-[#285fd0]"
-              onClick={() => setPaymentEntryDialogOpen(true)}
+              onClick={() => {
+                setEditingLeadId(undefined);
+                setPaymentEntryDialogOpen(true);
+              }}
             >
               <Plus className="mr-2 h-4 w-4" />
               New Entry
@@ -357,11 +361,15 @@ export default function WipProfitsPage() {
 
                           <td className="px-4 py-5 align-top">
                             <div className="flex items-center gap-3 text-slate-500">
-                              <button type="button" aria-label="View order details">
-                                <Eye className="h-4 w-4 text-[#3845d7]" />
-                              </button>
-                              <button type="button" aria-label="Edit order details">
-                                <PencilLine className="h-4 w-4 text-[#48b05f]" />
+                              <button
+                                type="button"
+                                aria-label="Edit order details"
+                                onClick={() => {
+                                  setEditingLeadId(item.leadId?._id);
+                                  setPaymentEntryDialogOpen(true);
+                                }}
+                              >
+                                <PencilLine className="h-4 w-4 text-[#48b05f] hover:text-[#3da053] transition-colors" />
                               </button>
                             </div>
                           </td>
@@ -384,10 +392,18 @@ export default function WipProfitsPage() {
 
       <AddPaymentEntryDialog
         open={paymentEntryDialogOpen}
-        onClose={() => setPaymentEntryDialogOpen(false)}
+        initialLeadId={editingLeadId}
+        title={editingLeadId ? "Edit Payment Entry" : "Add payment entry"}
+        onClose={() => {
+          setPaymentEntryDialogOpen(false);
+          setEditingLeadId(undefined);
+        }}
         onSuccess={() => {
           setPaymentEntryDialogOpen(false);
-          setSuccessDialogTitle("Entry Added Successfully");
+          setEditingLeadId(undefined);
+          setSuccessDialogTitle(
+            editingLeadId ? "Entry Updated Successfully" : "Entry Added Successfully"
+          );
           setSuccessDialogOpen(true);
           refetch();
         }}
