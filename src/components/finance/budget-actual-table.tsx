@@ -106,15 +106,28 @@ export function BudgetActualTable({ costHeads = [], summary }: BudgetActualTable
                 </TableCell>
               </TableRow>
             ) : (
-              costHeads.map((item) => {
+              costHeads.map((item, idx) => {
                 const tone = item.status?.toLowerCase().includes("over") ? "over" : "under";
+                const rowKey = item.key || `${item.head}-${idx}`;
                 return (
                   <TableRow
-                    key={item.head}
+                    key={rowKey}
                     className="border-slate-200 hover:bg-transparent"
                   >
                     <TableCell className="px-4 py-4 text-[12px] font-medium text-slate-700">
-                      {item.head}
+                      <div className="flex items-center gap-2">
+                        <span>{item.head}</span>
+                        {item.isCustom && (
+                          <span className="inline-flex items-center rounded bg-blue-50 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 border border-blue-200">
+                            Custom
+                          </span>
+                        )}
+                      </div>
+                      {item.expenseCategories && item.expenseCategories.length > 0 && (
+                        <p className="mt-0.5 text-[11px] text-slate-400">
+                          Maps: {item.expenseCategories.join(", ")}
+                        </p>
+                      )}
                     </TableCell>
                     <TableCell className="px-4 py-4 text-[12px] text-slate-500">
                       {formatCurrency(item.budget)}

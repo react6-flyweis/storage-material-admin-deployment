@@ -1015,8 +1015,8 @@ export default function InvoiceForm({
                       .join(", ")}
                   </div>
                   <div>{billingAddress.country || "United States"}</div>
-                  <div>travis@storagematerials.com</div>
-                  <div>www.storagematerials.com</div>
+                  <div>info@steelbuildingdepot.com</div>
+                  <div>www.steelbuildingdepot.com</div>
                 </div>
 
                 <EditAddressDialog

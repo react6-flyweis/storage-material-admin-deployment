@@ -425,9 +425,9 @@ export default function StateWiseTax() {
 
       {/* Filters and Sync */}
       <Card className="p-4 flex flex-col md:flex-row md:items-end justify-between gap-4 border-none shadow-sm">
-        <div className="flex flex-wrap gap-4">
-          <div className="space-y-1.5 w-60">
-            <label className="text-sm font-medium text-gray-700">Project</label>
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="space-y-1.5 w-full sm:w-64">
+            <label className="block text-sm font-medium text-gray-700">Project</label>
             <Select
               value={selectedProjectId}
               onValueChange={(val) => {
@@ -455,8 +455,8 @@ export default function StateWiseTax() {
             </Select>
           </div>
 
-          <div className="space-y-1.5 w-70">
-            <label className="text-sm font-medium text-gray-700">
+          <div className="space-y-1.5 w-full sm:w-64">
+            <label className="block text-sm font-medium text-gray-700">
               Date Range
             </label>
             <DateRangeFilter
@@ -465,11 +465,12 @@ export default function StateWiseTax() {
                 setDateRange(range);
                 setPage(1);
               }}
+              className="w-full bg-white"
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4 shrink-0">
           <div className="text-sm text-gray-500 flex items-center gap-2">
             Last Synced:{" "}
             {data?.data?.meta?.lastSyncedAt

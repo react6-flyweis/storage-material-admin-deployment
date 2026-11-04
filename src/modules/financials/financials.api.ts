@@ -862,10 +862,13 @@ export async function getBudgetVsActualProjectsProvider() {
   return response.data;
 }
 
+import type { CustomBudgetLine } from "../leads/leads.api";
+
 export type BudgetVsActualProjectDetailInfo = {
   _id: string;
   projectCode?: string;
   projectName?: string;
+  clientName?: string;
   location?: string;
   projectManager?: string;
 };
@@ -873,6 +876,8 @@ export type BudgetVsActualProjectDetailInfo = {
 export type BudgetVsActualSummary = {
   totalBudget: number;
   totalActual: number;
+  totalActualExpenses?: number;
+  totalInvoiced?: number;
   totalVariance: number;
   budgetUsedPct: number;
   status: string;
@@ -880,17 +885,22 @@ export type BudgetVsActualSummary = {
 
 export type BudgetVsActualCostHeadItem = {
   head: string;
+  key?: string;
+  isCustom?: boolean;
   budget: number;
   actual: number;
   variance: number;
   variancePct: number;
   status: string;
+  expenseCategories?: string[];
 };
 
 export type BudgetVsActualProjectDetailData = {
   project?: BudgetVsActualProjectDetailInfo;
   budgetSummary?: BudgetVsActualSummary;
   costHeads?: BudgetVsActualCostHeadItem[];
+  customBudgetLines?: CustomBudgetLine[];
+  note?: string;
 };
 
 export type GetBudgetVsActualProjectDetailResponse = {

@@ -1,22 +1,36 @@
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import { format, isValid } from "date-fns";
 import {
   Sheet,
   SheetContent,
   SheetClose,
 } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { X, Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { X, Loader2, AlertCircle, Paperclip, Upload } from "lucide-react";
 import { toast } from "sonner";
 import SuccessDialog from "@/components/success-dialog";
+import { uploadFileToS3 } from "@/lib/upload";
 import {
   usePaymentApprovalDetailQuery,
   useAddPaymentApprovalRemarkMutation,
+  useAddPaymentApprovalAttachmentMutation,
   useReviewPaymentApprovalMutation,
 } from "@/modules/payments/payments.hooks";
-import type { PaymentApprovalDetailData } from "@/modules/payments/payments.api";
+import {
+  PAYMENT_APPROVALS_BASE,
+  type PaymentApprovalDetailData,
+} from "@/modules/payments/payments.api";
 
 interface PaymentApprovalDetailProps {
   isOpen: boolean;
@@ -32,6 +46,7 @@ interface PaymentApprovalDetailProps {
     dueDate: string;
     amount: string;
     status: string;
+    canReview?: boolean;
   };
 }
 
@@ -59,20 +74,34 @@ const statusColors: Record<string, string> = {
   Disputed: "bg-orange-500",
 };
 
-const formatCategoryName = (cat: string) => {
+const formatCategoryName = (cat: unknown) => {
   if (!cat) return "";
-  return cat
+  if (typeof cat === "object") {
+    return (cat as any)?.label || (cat as any)?.name || (cat as any)?.code || "";
+  }
+  const str = String(cat);
+  return str
     .split("_")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
 };
 
-const formatStatusName = (st: string) => {
+const cleanStatusLabel = (st: string) => {
+  return String(st || "").replace(/\s+Approval$/i, "").trim();
+};
+
+const formatStatusName = (st: unknown) => {
   if (!st) return "";
-  return st
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+  if (typeof st === "object") {
+    return (st as any)?.label || (st as any)?.name || (st as any)?.code || "";
+  }
+  const str = String(st);
+  return cleanStatusLabel(
+    str
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ")
+  );
 };
 
 const formatDateTime = (dateStr?: string | null) => {
@@ -111,6 +140,96 @@ const renderTextContent = (val: unknown): string => {
   return String(val);
 };
 
+function PaymentApprovalDetailSkeleton({
+  showActions = true,
+}: {
+  showActions?: boolean;
+}) {
+  return (
+    <div className="space-y-6 animate-pulse">
+      {/* Details Grid Skeleton */}
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <p className="text-sm text-slate-400 mb-1">Payee/Vendor</p>
+            <Skeleton className="h-5 w-3/4 rounded" />
+          </div>
+          <div>
+            <p className="text-sm text-slate-400 mb-1">Category</p>
+            <Skeleton className="h-6 w-24 rounded-md" />
+          </div>
+          <div>
+            <p className="text-sm text-slate-400 mb-1">Requested by</p>
+            <Skeleton className="h-5 w-2/3 rounded" />
+          </div>
+          <div>
+            <p className="text-sm text-slate-400 mb-1">Requested Date</p>
+            <Skeleton className="h-5 w-4/5 rounded" />
+          </div>
+          <div>
+            <p className="text-sm text-slate-400 mb-1">Reference/Invoice</p>
+            <Skeleton className="h-5 w-1/2 rounded" />
+          </div>
+          <div>
+            <p className="text-sm text-slate-400 mb-1">Due Date</p>
+            <Skeleton className="h-5 w-3/4 rounded" />
+          </div>
+          <div className="col-span-2">
+            <p className="text-sm text-slate-400 mb-1">Amount</p>
+            <Skeleton className="h-8 w-36 rounded" />
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs Skeleton */}
+      <div className="w-full">
+        <div className="grid w-full grid-cols-4 border-y border-slate-200 py-3">
+          <Skeleton className="h-4 w-14 mx-auto rounded" />
+          <Skeleton className="h-4 w-16 mx-auto rounded" />
+          <Skeleton className="h-4 w-24 mx-auto rounded" />
+          <Skeleton className="h-4 w-14 mx-auto rounded" />
+        </div>
+
+        {/* Tab Content Placeholder */}
+        <div className="mt-6 space-y-6">
+          <Skeleton className="h-5 w-40 rounded" />
+
+          {/* Timeline comment skeleton items */}
+          <div className="space-y-6">
+            {[1, 2].map((i) => (
+              <div key={i} className="flex gap-4">
+                <Skeleton className="w-10 h-10 rounded-full shrink-0" />
+                <div className="flex-1 pt-1 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Skeleton className="h-4 w-28 rounded" />
+                    <Skeleton className="h-4 w-12 rounded" />
+                  </div>
+                  <Skeleton className="h-3 w-32 rounded" />
+                  <Skeleton className="h-14 w-full rounded-md" />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Add remark skeleton */}
+          <div className="mt-8 space-y-3">
+            <Skeleton className="h-20 w-full rounded-md" />
+            <Skeleton className="h-10 w-full rounded-md" />
+          </div>
+        </div>
+      </div>
+
+      {/* Action Buttons Skeleton (only shown if reviewable) */}
+      {showActions && (
+        <div className="flex gap-3 pt-6 border-t border-slate-200">
+          <Skeleton className="flex-1 h-11 rounded-md" />
+          <Skeleton className="flex-1 h-11 rounded-md" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PaymentApprovalDetail({
   isOpen,
   onOpenChange,
@@ -118,6 +237,11 @@ export default function PaymentApprovalDetail({
   paymentData,
 }: PaymentApprovalDetailProps) {
   const [newRemark, setNewRemark] = useState("");
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [activeReviewAction, setActiveReviewAction] = useState<
+    "approved" | "rejected" | "under_review" | "disputed" | null
+  >(null);
+  const [reviewNotes, setReviewNotes] = useState("");
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [successDialogTitle, setSuccessDialogTitle] = useState("");
   const [successDialogDescription, setSuccessDialogDescription] = useState("");
@@ -125,18 +249,23 @@ export default function PaymentApprovalDetail({
   const {
     data: detailRes,
     isLoading: isDetailLoading,
+    isError,
+    refetch,
   } = usePaymentApprovalDetailQuery(approvalId, isOpen && Boolean(approvalId));
 
   const addRemarkMutation = useAddPaymentApprovalRemarkMutation();
+  const addAttachmentMutation = useAddPaymentApprovalAttachmentMutation();
   const reviewMutation = useReviewPaymentApprovalMutation();
 
   const detail: PaymentApprovalDetailData | undefined = detailRes?.data;
+  const isFreshDataLoaded = Boolean(!isDetailLoading && detail);
 
   // Header and fields
   const displayPaymentId = detail?.paymentId || paymentData?.paymentId || "N/A";
   const rawStatus = detail?.status || paymentData?.status || "Pending";
-  const displayStatus =
-    detail?.statusLabel || formatStatusName(paymentData?.status || rawStatus);
+  const displayStatus = cleanStatusLabel(
+    detail?.statusLabel || formatStatusName(paymentData?.status || rawStatus)
+  );
   const statusBadgeColor =
     statusColors[rawStatus.toLowerCase()] ||
     statusColors[displayStatus] ||
@@ -179,7 +308,16 @@ export default function PaymentApprovalDetail({
       ? formatCurrency(detail.header.amount)
       : paymentData?.amount || "$0.00";
 
-  const canReview = detail?.canReview ?? true;
+  const isStatusNonReviewable =
+    rawStatus.toLowerCase() === "approved" ||
+    rawStatus.toLowerCase() === "rejected" ||
+    rawStatus.toLowerCase() === "disputed";
+
+  const canReview = isStatusNonReviewable
+    ? false
+    : detail?.canReview !== undefined
+      ? Boolean(detail.canReview)
+      : Boolean(paymentData?.canReview);
 
   // Tabs Data
   const remarks = detail?.reviews?.remarks || [];
@@ -191,7 +329,10 @@ export default function PaymentApprovalDetail({
     Boolean(
       detail?.details?.additionalNotes ||
         detail?.details?.invoiceDetails ||
-        detail?.details?.project
+        detail?.details?.project ||
+        detail?.details?.linkedTransaction ||
+        (detail?.details?.costBreakdown &&
+          Object.keys(detail.details.costBreakdown).length > 0)
     );
 
   const handleAddRemark = async () => {
@@ -219,39 +360,31 @@ export default function PaymentApprovalDetail({
     }
   };
 
-  const handleReviewAction = async (action: "approved" | "rejected") => {
-    if (!approvalId) {
-      toast.error("Approval ID is missing.");
-      return;
-    }
+  const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !approvalId) return;
 
     try {
-      await reviewMutation.mutateAsync({
+      setIsUploadingFile(true);
+      const fileUrl = await uploadFileToS3(file, "payment-approvals");
+      await addAttachmentMutation.mutateAsync({
         approvalId,
-        payload: { action },
+        payload: {
+          name: file.name,
+          url: fileUrl,
+          fileSize: file.size,
+        },
       });
-      setSuccessDialogTitle(
-        action === "approved"
-          ? "Payment Request Approved"
-          : "Payment Request Rejected"
-      );
-      setSuccessDialogDescription(
-        `Payment request ${displayPaymentId} has been ${
-          action === "approved" ? "approved" : "rejected"
-        } successfully.`
-      );
-      setSuccessDialogOpen(true);
+      toast.success("Attachment uploaded successfully.");
     } catch (err: unknown) {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data
-          ?.message || `Failed to ${action} payment request.`;
+          ?.message || (err as Error)?.message || "Failed to upload attachment.";
       toast.error(msg);
+    } finally {
+      setIsUploadingFile(false);
+      e.target.value = "";
     }
-  };
-
-  const handleSuccessClose = () => {
-    setSuccessDialogOpen(false);
-    onOpenChange(false);
   };
 
   const handleDownloadAttachment = (index: number, url?: string) => {
@@ -259,10 +392,69 @@ export default function PaymentApprovalDetail({
       window.open(url, "_blank");
     } else if (approvalId) {
       window.open(
-        `/api/account/financial/payment-approvals/${approvalId}/attachments/${index}/download`,
+        `${PAYMENT_APPROVALS_BASE}/${approvalId}/attachments/${index}/download`,
         "_blank"
       );
     }
+  };
+
+  const openReviewDialog = (
+    action: "approved" | "rejected" | "under_review" | "disputed"
+  ) => {
+    setActiveReviewAction(action);
+    setReviewNotes("");
+  };
+
+  const handleConfirmReview = async () => {
+    if (!approvalId || !activeReviewAction) {
+      toast.error("Approval ID is missing.");
+      return;
+    }
+
+    const action = activeReviewAction;
+    try {
+      await reviewMutation.mutateAsync({
+        approvalId,
+        payload: {
+          action,
+          reviewNotes: reviewNotes.trim() || undefined,
+        },
+      });
+
+      const actionTextMap: Record<string, string> = {
+        approved: "approved",
+        rejected: "rejected",
+        under_review: "marked as under review",
+        disputed: "disputed",
+      };
+
+      setSuccessDialogTitle(
+        action === "approved"
+          ? "Payment Request Approved"
+          : action === "rejected"
+          ? "Payment Request Rejected"
+          : action === "under_review"
+          ? "Request Under Review"
+          : "Payment Request Disputed"
+      );
+      setSuccessDialogDescription(
+        `Payment request ${displayPaymentId} has been ${
+          actionTextMap[action] || action
+        } successfully.`
+      );
+      setActiveReviewAction(null);
+      setSuccessDialogOpen(true);
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || `Failed to process ${action} for payment request.`;
+      toast.error(msg);
+    }
+  };
+
+  const handleSuccessClose = () => {
+    setSuccessDialogOpen(false);
+    onOpenChange(false);
   };
 
   if (!isOpen && !paymentData && !approvalId) return null;
@@ -273,16 +465,23 @@ export default function PaymentApprovalDetail({
         <SheetContent className="w-full sm:max-w-2xl overflow-y-auto p-0">
           {/* Header */}
           <div className="sticky top-0 bg-white border-b border-slate-200 p-6 flex items-center justify-between z-10">
-            <div className="flex items-center gap-3">
-              <h2 className="text-lg font-semibold text-slate-900">
-                {displayPaymentId}
-              </h2>
-              <Badge
-                className={`${statusBadgeColor} hover:${statusBadgeColor} text-white rounded px-3 py-0.5 h-auto text-sm font-normal`}
-              >
-                {displayStatus}
-              </Badge>
-            </div>
+            {!isFreshDataLoaded && !paymentData ? (
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-6 w-20 rounded" />
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-semibold text-slate-900">
+                  {displayPaymentId}
+                </h2>
+                <Badge
+                  className={`${statusBadgeColor} hover:${statusBadgeColor} text-white rounded px-3 py-0.5 h-auto text-sm font-normal`}
+                >
+                  {displayStatus}
+                </Badge>
+              </div>
+            )}
             <SheetClose asChild>
               <button className="text-slate-400 hover:text-slate-600">
                 <X className="h-5 w-5" />
@@ -292,11 +491,23 @@ export default function PaymentApprovalDetail({
 
           {/* Content */}
           <div className="p-6 space-y-6">
-            {isDetailLoading && !paymentData ? (
-              <div className="py-20 flex flex-col items-center justify-center text-slate-400">
-                <Loader2 className="w-8 h-8 animate-spin mb-2" />
-                <p className="text-sm">Loading approval details...</p>
-              </div>
+            {!isFreshDataLoaded ? (
+              isError ? (
+                <div className="py-16 flex flex-col items-center justify-center text-center">
+                  <AlertCircle className="w-8 h-8 text-rose-500 mb-2" />
+                  <p className="text-sm font-medium text-slate-800">
+                    Failed to load approval details
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1 mb-4">
+                    An error occurred while fetching fresh data from the server.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => refetch()}>
+                    Retry
+                  </Button>
+                </div>
+              ) : (
+                <PaymentApprovalDetailSkeleton showActions={canReview} />
+              )
             ) : (
               <>
                 {/* Details Section */}
@@ -363,12 +574,40 @@ export default function PaymentApprovalDetail({
                             <p className="text-slate-900">
                               {typeof detail.details.project === "object"
                                 ? `${detail.details.project.projectName || ""}${
-                                    detail.details.project.jobId ? ` (${detail.details.project.jobId})` : ""
+                                    detail.details.project.jobId
+                                      ? ` (${detail.details.project.jobId})`
+                                      : ""
                                   }`
                                 : String(detail.details.project)}
                             </p>
                           </div>
                         )}
+                        {detail?.details?.linkedTransaction && (
+                          <div>
+                            <p className="text-slate-600 mb-1 font-medium">Linked Transaction</p>
+                            <p className="text-slate-900 whitespace-pre-line">
+                              {renderTextContent(detail.details.linkedTransaction)}
+                            </p>
+                          </div>
+                        )}
+                        {detail?.details?.costBreakdown &&
+                          Object.keys(detail.details.costBreakdown).length > 0 && (
+                            <div>
+                              <p className="text-slate-600 mb-1 font-medium">Cost Breakdown</p>
+                              <div className="bg-slate-50 p-3 rounded-md border border-slate-100 space-y-1.5">
+                                {Object.entries(detail.details.costBreakdown).map(([k, v]) => (
+                                  <div key={k} className="flex justify-between text-xs">
+                                    <span className="text-slate-600 capitalize">
+                                      {k.replace(/_/g, " ")}:
+                                    </span>
+                                    <span className="font-medium text-slate-900">
+                                      {typeof v === "number" ? formatCurrency(v) : String(v)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         {detail?.details?.invoiceDetails && (
                           <div>
                             <p className="text-slate-600 mb-1 font-medium">Invoice Details</p>
@@ -479,35 +718,80 @@ export default function PaymentApprovalDetail({
                   </TabsContent>
 
                   {/* Attachments Tab */}
-                  <TabsContent value="attachments" className="mt-6 space-y-3">
-                    {attachments.length === 0 ? (
-                      <p className="text-slate-600">No attachments</p>
-                    ) : (
-                      attachments.map((att, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-200"
-                        >
-                          <div>
-                            <p className="text-sm font-medium text-slate-900">
-                              {att.name || `Attachment #${idx + 1}`}
-                            </p>
-                            {att.fileSize && (
-                              <p className="text-xs text-slate-500">
-                                {formatFileSize(att.fileSize)}
-                              </p>
-                            )}
-                          </div>
+                  <TabsContent value="attachments" className="mt-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-bold text-slate-900 text-sm">
+                        Supporting Documents
+                      </h3>
+                      <div>
+                        <input
+                          type="file"
+                          id="attachment-upload-input"
+                          className="hidden"
+                          onChange={handleFileUpload}
+                          disabled={isUploadingFile || addAttachmentMutation.isPending}
+                        />
+                        <label htmlFor="attachment-upload-input">
                           <Button
-                            variant="outline"
+                            type="button"
                             size="sm"
-                            className="border-slate-300 text-blue-600 hover:bg-blue-50"
-                            onClick={() => handleDownloadAttachment(idx, att.url)}
+                            variant="outline"
+                            className="cursor-pointer border-slate-200 text-slate-700 hover:bg-slate-50"
+                            asChild
+                            disabled={isUploadingFile || addAttachmentMutation.isPending}
                           >
-                            Download
+                            <span>
+                              {isUploadingFile || addAttachmentMutation.isPending ? (
+                                <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                              ) : (
+                                <Upload className="w-3.5 h-3.5 mr-1.5" />
+                              )}
+                              Upload File
+                            </span>
                           </Button>
-                        </div>
-                      ))
+                        </label>
+                      </div>
+                    </div>
+
+                    {attachments.length === 0 ? (
+                      <div className="text-center py-8 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                        <Paperclip className="w-6 h-6 text-slate-400 mx-auto mb-2" />
+                        <p className="text-slate-600 text-sm">No attachments uploaded yet</p>
+                        <p className="text-slate-400 text-xs mt-1">
+                          Upload invoices or receipts to support this request
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {attachments.map((att, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between p-3 bg-slate-50 rounded-md border border-slate-200"
+                          >
+                            <div className="flex items-center gap-2.5 overflow-hidden">
+                              <Paperclip className="w-4 h-4 text-slate-400 shrink-0" />
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium text-slate-900 truncate">
+                                  {att.name || `Attachment #${idx + 1}`}
+                                </p>
+                                {att.fileSize ? (
+                                  <p className="text-xs text-slate-500">
+                                    {formatFileSize(att.fileSize)}
+                                  </p>
+                                ) : null}
+                              </div>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="border-slate-300 text-blue-600 hover:bg-blue-50 shrink-0 ml-3"
+                              onClick={() => handleDownloadAttachment(idx, att.url)}
+                            >
+                              Download
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </TabsContent>
 
@@ -542,30 +826,42 @@ export default function PaymentApprovalDetail({
                   </TabsContent>
                 </Tabs>
 
-                {/* Action Buttons */}
+                {/* Review Action Buttons */}
                 {canReview && (
-                  <div className="flex gap-3 pt-6 border-t border-slate-200">
-                    <Button
-                      variant="outline"
-                      className="flex-1 h-11 border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 font-medium"
-                      onClick={() => handleReviewAction("rejected")}
-                      disabled={reviewMutation.isPending}
-                    >
-                      {reviewMutation.isPending ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : null}
-                      Reject
-                    </Button>
-                    <Button
-                      className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white font-medium"
-                      onClick={() => handleReviewAction("approved")}
-                      disabled={reviewMutation.isPending}
-                    >
-                      {reviewMutation.isPending ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : null}
-                      Approve
-                    </Button>
+                  <div className="pt-6 border-t border-slate-200 space-y-2">
+                    <div className="flex flex-wrap gap-2.5">
+                      <Button
+                        variant="outline"
+                        className="flex-1 h-10 border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 font-medium text-sm"
+                        onClick={() => openReviewDialog("rejected")}
+                        disabled={reviewMutation.isPending}
+                      >
+                        Reject
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="h-10 border-slate-300 text-slate-700 hover:bg-slate-100 font-medium text-sm"
+                        onClick={() => openReviewDialog("under_review")}
+                        disabled={reviewMutation.isPending}
+                      >
+                        Under Review
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="h-10 border-amber-300 text-amber-700 hover:bg-amber-50 font-medium text-sm"
+                        onClick={() => openReviewDialog("disputed")}
+                        disabled={reviewMutation.isPending}
+                      >
+                        Dispute
+                      </Button>
+                      <Button
+                        className="flex-1 h-10 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm"
+                        onClick={() => openReviewDialog("approved")}
+                        disabled={reviewMutation.isPending}
+                      >
+                        Approve
+                      </Button>
+                    </div>
                   </div>
                 )}
               </>
@@ -573,6 +869,70 @@ export default function PaymentApprovalDetail({
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Review Confirmation Dialog */}
+      <Dialog
+        open={Boolean(activeReviewAction)}
+        onOpenChange={(open) => !open && setActiveReviewAction(null)}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="capitalize">
+              {activeReviewAction === "approved"
+                ? "Approve Payment Request"
+                : activeReviewAction === "rejected"
+                ? "Reject Payment Request"
+                : activeReviewAction === "under_review"
+                ? "Mark Request Under Review"
+                : "Dispute Payment Request"}
+            </DialogTitle>
+            <DialogDescription>
+              {activeReviewAction === "approved"
+                ? `Confirm approval for payment request ${displayPaymentId} (${displayAmount}).`
+                : `Provide any review notes or reason for this action on ${displayPaymentId}.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 my-2">
+            <label className="text-xs font-medium text-slate-700">
+              Review Notes (optional)
+            </label>
+            <textarea
+              value={reviewNotes}
+              onChange={(e) => setReviewNotes(e.target.value)}
+              placeholder="Enter review notes, verification comments, or reason..."
+              className="w-full p-2.5 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              rows={3}
+            />
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setActiveReviewAction(null)}
+              disabled={reviewMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              className={
+                activeReviewAction === "rejected"
+                  ? "bg-red-600 hover:bg-red-700 text-white"
+                  : activeReviewAction === "approved"
+                  ? "bg-blue-600 hover:bg-blue-700 text-white"
+                  : "bg-slate-800 hover:bg-slate-900 text-white"
+              }
+              onClick={handleConfirmReview}
+              disabled={reviewMutation.isPending}
+            >
+              {reviewMutation.isPending && (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              )}
+              Confirm {activeReviewAction === "approved" ? "Approval" : activeReviewAction === "rejected" ? "Rejection" : "Action"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Success Dialog */}
       <SuccessDialog
