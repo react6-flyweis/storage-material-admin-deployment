@@ -59,7 +59,7 @@ export function IncomeVsExpenseChart({ data = [], isLoading = false }: IncomeVsE
       <CardContent>
         <div className="mb-3 flex items-center gap-3 text-xs text-slate-500">
           <span className="inline-flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-full bg-[#ede9fe]" /> Income
+            <span className="h-2.5 w-2.5 rounded-full bg-[#22c55e]" /> Income
           </span>
           <span className="inline-flex items-center gap-1">
             <span className="h-2.5 w-2.5 rounded-full bg-[#6d28d9]" /> Expense
@@ -82,15 +82,17 @@ export function IncomeVsExpenseChart({ data = [], isLoading = false }: IncomeVsE
                 />
                 <Bar
                   dataKey="income"
-                  fill="#ede9fe"
+                  fill="#22c55e"
                   radius={[6, 6, 0, 0]}
                   maxBarSize={18}
+                  minPointSize={4}
                 />
                 <Bar
                   dataKey="expense"
                   fill="#6d28d9"
                   radius={[6, 6, 0, 0]}
                   maxBarSize={18}
+                  minPointSize={4}
                 />
               </BarChart>
             </ResponsiveContainer>
