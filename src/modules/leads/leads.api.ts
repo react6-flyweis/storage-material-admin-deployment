@@ -839,7 +839,7 @@ export async function createLeadProvider(payload: CreateLeadPayload) {
 }
 
 export async function updateLeadBudgetProvider(leadId: string, payload: LeadBudgetPayload) {
-  const response = await apiClient.post<GetLeadBudgetResponse>(`/api/admin/leads/${leadId}/budget`, payload);
+  const response = await apiClient.put<GetLeadBudgetResponse>(`/api/admin/leads/${leadId}/budget`, payload);
   return response.data;
 }
 

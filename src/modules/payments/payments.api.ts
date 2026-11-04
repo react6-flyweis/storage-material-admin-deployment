@@ -20,9 +20,15 @@ export type PaymentApprovalFilterPayeeType = {
   label: string;
 };
 
+export type PaymentApprovalFilterCategory = {
+  code: string;
+  label: string;
+};
+
 export type PaymentApprovalsFiltersData = {
-  categories?: string[];
-  statuses?: string[];
+  categories?: (PaymentApprovalFilterCategory | string)[];
+  categoryEnum?: string[];
+  statuses?: (PaymentApprovalFilterCategory | string)[];
   workflowStages?: string[];
   requestedBy?: PaymentApprovalRequestedByUser[];
   projects?: PaymentApprovalFilterProject[];
@@ -49,13 +55,18 @@ export type PaymentApprovalItem = {
   payee?: string;
   companyName?: string;
   payeeType?: string;
+  invoiceType?: string;
+  invoiceTypeCode?: string;
   category?: string;
+  categoryLabel?: string;
   amount: number;
   requestedBy?: PaymentApprovalRequestedByUser | string;
   department?: string;
   notes?: string;
   status: string;
   statusLabel?: string;
+  workflowStage?: string;
+  canReview?: boolean;
   reviewedBy?: string | null;
   reviewedAt?: string | null;
   reviewNotes?: string;
@@ -199,46 +210,42 @@ export type AddPaymentApprovalAttachmentPayload = {
   fileSize?: number;
 };
 
-const ACCOUNT_PAYMENT_APPROVALS_BASE = "/api/account/financial/payment-approvals";
-const ADMIN_EXTRA_PAYMENT_APPROVALS_BASE = "/api/admin/financial-extra/payment-approvals";
-const LEGACY_ADMIN_PAYMENT_APPROVALS_BASE = "/api/admin/financials/payment-approvals";
+export type CreatePaymentApprovalPayload = {
+  payee: string;
+  category: string;
+  amount: number;
+  payeeType?: string;
+  leadId?: string;
+  notes?: string;
+};
 
-async function requestWithPaymentApprovalsFallback<T>(
-  buildUrl: (base: string) => string,
+export type CreatePaymentApprovalResponse = {
+  success: boolean;
+  message?: string;
+  data?: unknown;
+};
+
+export const PAYMENT_APPROVALS_BASE = "/api/account/financial/payment-approvals";
+
+async function requestPaymentApprovals<T>(
+  path: string,
   options?: { method?: "get" | "post" | "put"; data?: unknown; responseType?: "blob" | "json" }
 ): Promise<T> {
-  const bases = [
-    ACCOUNT_PAYMENT_APPROVALS_BASE,
-    ADMIN_EXTRA_PAYMENT_APPROVALS_BASE,
-    LEGACY_ADMIN_PAYMENT_APPROVALS_BASE,
-  ];
-
-  let lastError: unknown;
-  for (const base of bases) {
-    try {
-      const url = buildUrl(base);
-      if (options?.method === "post") {
-        const res = await apiClient.post<T>(url, options.data);
-        return res.data;
-      }
-      if (options?.method === "put") {
-        const res = await apiClient.put<T>(url, options.data);
-        return res.data;
-      }
-      const res = await apiClient.get<T>(url, { responseType: options?.responseType });
-      return res.data;
-    } catch (err: unknown) {
-      lastError = err;
-      continue;
-    }
+  const url = `${PAYMENT_APPROVALS_BASE}${path}`;
+  if (options?.method === "post") {
+    const res = await apiClient.post<T>(url, options.data);
+    return res.data;
   }
-  throw lastError;
+  if (options?.method === "put") {
+    const res = await apiClient.put<T>(url, options.data);
+    return res.data;
+  }
+  const res = await apiClient.get<T>(url, { responseType: options?.responseType });
+  return res.data;
 }
 
 export async function getPaymentApprovalsFiltersProvider() {
-  return requestWithPaymentApprovalsFallback<GetPaymentApprovalsFiltersResponse>(
-    (base) => `${base}/filters`
-  );
+  return requestPaymentApprovals<GetPaymentApprovalsFiltersResponse>("/filters");
 }
 
 export async function getPaymentApprovalsStatsProvider(params?: GetPaymentApprovalsParams) {
@@ -258,6 +265,9 @@ export async function getPaymentApprovalsStatsProvider(params?: GetPaymentApprov
   if (params?.payeeType && params.payeeType !== "all") {
     queryParams.append("payeeType", params.payeeType);
   }
+  if (params?.search) {
+    queryParams.append("search", params.search);
+  }
   if (params?.startDate) {
     queryParams.append("startDate", params.startDate);
   }
@@ -266,8 +276,8 @@ export async function getPaymentApprovalsStatsProvider(params?: GetPaymentApprov
   }
 
   const queryString = queryParams.toString();
-  return requestWithPaymentApprovalsFallback<GetPaymentApprovalsStatsResponse>(
-    (base) => `${base}/stats${queryString ? `?${queryString}` : ""}`
+  return requestPaymentApprovals<GetPaymentApprovalsStatsResponse>(
+    `/stats${queryString ? `?${queryString}` : ""}`
   );
 }
 
@@ -305,8 +315,8 @@ export async function getPaymentApprovalsProvider(params?: GetPaymentApprovalsPa
   }
 
   const queryString = queryParams.toString();
-  return requestWithPaymentApprovalsFallback<GetPaymentApprovalsResponse>(
-    (base) => `${base}${queryString ? `?${queryString}` : ""}`
+  return requestPaymentApprovals<GetPaymentApprovalsResponse>(
+    queryString ? `?${queryString}` : ""
   );
 }
 
@@ -338,15 +348,15 @@ export async function exportPaymentApprovalsProvider(params?: GetPaymentApproval
   }
 
   const queryString = queryParams.toString();
-  return requestWithPaymentApprovalsFallback<Blob>(
-    (base) => `${base}/export${queryString ? `?${queryString}` : ""}`,
+  return requestPaymentApprovals<Blob>(
+    `/export${queryString ? `?${queryString}` : ""}`,
     { responseType: "blob" }
   );
 }
 
 export async function getPaymentApprovalDetailProvider(approvalId: string) {
-  return requestWithPaymentApprovalsFallback<GetPaymentApprovalDetailResponse>(
-    (base) => `${base}/${approvalId}`
+  return requestPaymentApprovals<GetPaymentApprovalDetailResponse>(
+    `/${approvalId}`
   );
 }
 
@@ -354,8 +364,8 @@ export async function addPaymentApprovalRemarkProvider(
   approvalId: string,
   payload: AddPaymentApprovalRemarkPayload
 ) {
-  return requestWithPaymentApprovalsFallback<GetPaymentApprovalDetailResponse>(
-    (base) => `${base}/${approvalId}/remarks`,
+  return requestPaymentApprovals<GetPaymentApprovalDetailResponse>(
+    `/${approvalId}/remarks`,
     { method: "post", data: payload }
   );
 }
@@ -364,8 +374,8 @@ export async function addPaymentApprovalAttachmentProvider(
   approvalId: string,
   payload: AddPaymentApprovalAttachmentPayload
 ) {
-  return requestWithPaymentApprovalsFallback<unknown>(
-    (base) => `${base}/${approvalId}/attachments`,
+  return requestPaymentApprovals<unknown>(
+    `/${approvalId}/attachments`,
     { method: "post", data: payload }
   );
 }
@@ -374,10 +384,19 @@ export async function reviewPaymentApprovalProvider(
   approvalId: string,
   payload: ReviewPaymentApprovalPayload
 ) {
-  return requestWithPaymentApprovalsFallback<ReviewPaymentApprovalResponse>(
-    (base) => `${base}/${approvalId}/review`,
+  return requestPaymentApprovals<ReviewPaymentApprovalResponse>(
+    `/${approvalId}/review`,
     { method: "put", data: payload }
   );
+}
+
+export async function createPaymentApprovalProvider(
+  payload: CreatePaymentApprovalPayload
+) {
+  return requestPaymentApprovals<CreatePaymentApprovalResponse>("", {
+    method: "post",
+    data: payload,
+  });
 }
 
 // ---------------- Payment Status Types & API ----------------
@@ -614,15 +633,9 @@ export async function getProjectWiseTaxProvider(params?: GetProjectWiseTaxParams
   if (params?.endDate) queryParams.append("endDate", params.endDate);
 
   const queryString = queryParams.toString();
-  try {
-    const url = `/api/admin/financial-extra/project-wise-tax${queryString ? `?${queryString}` : ""}`;
-    const response = await apiClient.get<GetProjectWiseTaxResponse>(url);
-    return response.data;
-  } catch {
-    const fallbackUrl = `/api/admin/financials/project-wise-tax${queryString ? `?${queryString}` : ""}`;
-    const response = await apiClient.get<GetProjectWiseTaxResponse>(fallbackUrl);
-    return response.data;
-  }
+  const url = `/api/admin/financial-extra/project-wise-tax${queryString ? `?${queryString}` : ""}`;
+  const response = await apiClient.get<GetProjectWiseTaxResponse>(url);
+  return response.data;
 }
 
 export async function exportProjectWiseTaxProvider(params?: GetProjectWiseTaxParams) {
@@ -632,15 +645,9 @@ export async function exportProjectWiseTaxProvider(params?: GetProjectWiseTaxPar
   if (params?.endDate) queryParams.append("endDate", params.endDate);
 
   const queryString = queryParams.toString();
-  try {
-    const url = `/api/admin/financial-extra/project-wise-tax/export${queryString ? `?${queryString}` : ""}`;
-    const response = await apiClient.get(url, { responseType: "blob" });
-    return response.data;
-  } catch {
-    const fallbackUrl = `/api/admin/financials/project-wise-tax/export${queryString ? `?${queryString}` : ""}`;
-    const response = await apiClient.get(fallbackUrl, { responseType: "blob" });
-    return response.data;
-  }
+  const url = `/api/admin/financial-extra/project-wise-tax/export${queryString ? `?${queryString}` : ""}`;
+  const response = await apiClient.get(url, { responseType: "blob" });
+  return response.data;
 }
 
 export type ProjectWiseTaxMetricWithPct = {
@@ -689,15 +696,9 @@ export async function getProjectWiseTaxStatsProvider(
   if (params?.endDate) queryParams.append("endDate", params.endDate);
 
   const queryString = queryParams.toString();
-  try {
-    const url = `/api/admin/financial-extra/project-wise-tax/stats${queryString ? `?${queryString}` : ""}`;
-    const response = await apiClient.get<GetProjectWiseTaxStatsResponse>(url);
-    return response.data;
-  } catch {
-    const fallbackUrl = `/api/admin/financials/project-wise-tax/stats${queryString ? `?${queryString}` : ""}`;
-    const response = await apiClient.get<GetProjectWiseTaxStatsResponse>(fallbackUrl);
-    return response.data;
-  }
+  const url = `/api/admin/financial-extra/project-wise-tax/stats${queryString ? `?${queryString}` : ""}`;
+  const response = await apiClient.get<GetProjectWiseTaxStatsResponse>(url);
+  return response.data;
 }
 
 // ---------------- Tax Filing Types & API ----------------
@@ -1189,15 +1190,9 @@ export async function getStateWiseTaxProvider(params?: GetStateWiseTaxParams) {
   }
 
   const queryString = queryParams.toString();
-  try {
-    const url = `/api/admin/financial-extra/state-wise-tax${queryString ? `?${queryString}` : ""}`;
-    const response = await apiClient.get<GetStateWiseTaxResponse>(url);
-    return response.data;
-  } catch {
-    const fallbackUrl = `/api/admin/financials/state-wise-tax${queryString ? `?${queryString}` : ""}`;
-    const response = await apiClient.get<GetStateWiseTaxResponse>(fallbackUrl);
-    return response.data;
-  }
+  const url = `/api/admin/financial-extra/state-wise-tax${queryString ? `?${queryString}` : ""}`;
+  const response = await apiClient.get<GetStateWiseTaxResponse>(url);
+  return response.data;
 }
 
 export type StateWiseTaxStatsMetric = {
@@ -1248,15 +1243,9 @@ export async function getStateWiseTaxStatsProvider(params?: GetStateWiseTaxStats
   }
 
   const queryString = queryParams.toString();
-  try {
-    const url = `/api/admin/financial-extra/state-wise-tax/stats${queryString ? `?${queryString}` : ""}`;
-    const response = await apiClient.get<GetStateWiseTaxStatsResponse>(url);
-    return response.data;
-  } catch {
-    const fallbackUrl = `/api/admin/financials/state-wise-tax/stats${queryString ? `?${queryString}` : ""}`;
-    const response = await apiClient.get<GetStateWiseTaxStatsResponse>(fallbackUrl);
-    return response.data;
-  }
+  const url = `/api/admin/financial-extra/state-wise-tax/stats${queryString ? `?${queryString}` : ""}`;
+  const response = await apiClient.get<GetStateWiseTaxStatsResponse>(url);
+  return response.data;
 }
 
 export async function exportStateWiseTaxProvider(params?: GetStateWiseTaxParams) {
@@ -1272,15 +1261,9 @@ export async function exportStateWiseTaxProvider(params?: GetStateWiseTaxParams)
   }
 
   const queryString = queryParams.toString();
-  try {
-    const url = `/api/admin/financial-extra/state-wise-tax/export${queryString ? `?${queryString}` : ""}`;
-    const response = await apiClient.get(url, { responseType: "blob" });
-    return response.data;
-  } catch {
-    const fallbackUrl = `/api/admin/financials/state-wise-tax/export${queryString ? `?${queryString}` : ""}`;
-    const response = await apiClient.get(fallbackUrl, { responseType: "blob" });
-    return response.data;
-  }
+  const url = `/api/admin/financial-extra/state-wise-tax/export${queryString ? `?${queryString}` : ""}`;
+  const response = await apiClient.get(url, { responseType: "blob" });
+  return response.data;
 }
 
 export type StateWiseTaxDeadlineItem = {
@@ -1332,19 +1315,11 @@ export async function getStateWiseTaxUpcomingDeadlinesProvider(
   }
 
   const queryString = queryParams.toString();
-  try {
-    const url = `/api/admin/financial-extra/state-wise-tax/upcoming-deadlines${
-      queryString ? `?${queryString}` : ""
-    }`;
-    const response = await apiClient.get<GetStateWiseTaxUpcomingDeadlinesResponse>(url);
-    return response.data;
-  } catch {
-    const fallbackUrl = `/api/admin/financials/state-wise-tax/upcoming-deadlines${
-      queryString ? `?${queryString}` : ""
-    }`;
-    const response = await apiClient.get<GetStateWiseTaxUpcomingDeadlinesResponse>(fallbackUrl);
-    return response.data;
-  }
+  const url = `/api/admin/financial-extra/state-wise-tax/upcoming-deadlines${
+    queryString ? `?${queryString}` : ""
+  }`;
+  const response = await apiClient.get<GetStateWiseTaxUpcomingDeadlinesResponse>(url);
+  return response.data;
 }
 
 // ---------------- Payments Dashboard Types & API ----------------

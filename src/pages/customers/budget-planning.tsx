@@ -52,7 +52,7 @@ const DEFAULT_PRESET_CARDS: PlanningCard[] = [
     amount: 0,
     isPreset: true,
     canDelete: false,
-    expenseCategories: [],
+    expenseCategories: ["Material"],
   },
   {
     key: "logistic",
@@ -61,7 +61,7 @@ const DEFAULT_PRESET_CARDS: PlanningCard[] = [
     amount: 0,
     isPreset: true,
     canDelete: false,
-    expenseCategories: [],
+    expenseCategories: ["Logistics"],
   },
   {
     key: "production",
@@ -70,7 +70,7 @@ const DEFAULT_PRESET_CARDS: PlanningCard[] = [
     amount: 0,
     isPreset: true,
     canDelete: false,
-    expenseCategories: [],
+    expenseCategories: ["Manpower"],
   },
   {
     key: "shipper",
@@ -79,7 +79,7 @@ const DEFAULT_PRESET_CARDS: PlanningCard[] = [
     amount: 0,
     isPreset: true,
     canDelete: false,
-    expenseCategories: [],
+    expenseCategories: ["Subcontractor"],
   },
   {
     key: "other",
@@ -88,7 +88,7 @@ const DEFAULT_PRESET_CARDS: PlanningCard[] = [
     amount: 0,
     isPreset: true,
     canDelete: false,
-    expenseCategories: [],
+    expenseCategories: ["Miscellaneous"],
   },
 ];
 
@@ -152,7 +152,7 @@ export default function BudgetPlanning() {
             amount: b.materialBudget || 0,
             isPreset: true,
             canDelete: false,
-            expenseCategories: [],
+            expenseCategories: ["Material"],
           },
           {
             key: "logistic",
@@ -161,7 +161,7 @@ export default function BudgetPlanning() {
             amount: b.logisticBudget || 0,
             isPreset: true,
             canDelete: false,
-            expenseCategories: [],
+            expenseCategories: ["Logistics"],
           },
           {
             key: "production",
@@ -170,7 +170,7 @@ export default function BudgetPlanning() {
             amount: b.productionBudget || 0,
             isPreset: true,
             canDelete: false,
-            expenseCategories: [],
+            expenseCategories: ["Manpower"],
           },
           {
             key: "shipper",
@@ -179,7 +179,7 @@ export default function BudgetPlanning() {
             amount: b.shipperBudget || 0,
             isPreset: true,
             canDelete: false,
-            expenseCategories: [],
+            expenseCategories: ["Subcontractor"],
           },
           {
             key: "other",
@@ -188,7 +188,7 @@ export default function BudgetPlanning() {
             amount: b.otherCost || 0,
             isPreset: true,
             canDelete: false,
-            expenseCategories: [],
+            expenseCategories: ["Miscellaneous"],
           },
         ];
 
