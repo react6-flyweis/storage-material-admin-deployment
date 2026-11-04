@@ -8,6 +8,7 @@ import {
   addPaymentApprovalRemarkProvider,
   addPaymentApprovalAttachmentProvider,
   reviewPaymentApprovalProvider,
+  createPaymentApprovalProvider,
   getPaymentStatusProvider,
   exportPaymentStatusProvider,
   getProjectWiseTaxProvider,
@@ -31,6 +32,7 @@ import {
   type AddPaymentApprovalRemarkPayload,
   type AddPaymentApprovalAttachmentPayload,
   type ReviewPaymentApprovalPayload,
+  type CreatePaymentApprovalPayload,
   type GetPaymentStatusParams,
   type GetProjectWiseTaxParams,
   type GetProjectWiseTaxStatsParams,
@@ -168,6 +170,22 @@ export function useReviewPaymentApprovalMutation() {
       queryClient.invalidateQueries({
         queryKey: ["financials", "payment-approval-detail", variables.approvalId],
       });
+      queryClient.invalidateQueries({
+        queryKey: ["financials", "payment-approvals"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["financials", "payment-approvals-stats"],
+      });
+    },
+  });
+}
+
+export function useCreatePaymentApprovalMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreatePaymentApprovalPayload) =>
+      createPaymentApprovalProvider(payload),
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["financials", "payment-approvals"],
       });
