@@ -243,15 +243,17 @@ export default function ExpensesManagementPage() {
       </div>
 
       {/* Expense Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
-        {dynamicCards.map((card) => (
-          <ExpenseCard
-            key={card.title}
-            title={card.title}
-            value={card.value}
-            growth={card.growth}
-          />
-        ))}
+      <div className="max-h-72 overflow-y-auto pr-1">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+          {dynamicCards.map((card) => (
+            <ExpenseCard
+              key={card.title}
+              title={card.title}
+              value={card.value}
+              growth={card.growth}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Filters */}
@@ -343,16 +345,18 @@ export default function ExpensesManagementPage() {
           }}
           className="w-full flex flex-col"
         >
-          <TabsList variant="line">
-            <TabsTrigger value="all" className="px-4 py-2">
-              All
-            </TabsTrigger>
-            {categories.map((cat) => (
-              <TabsTrigger key={cat} value={cat} className="px-4 py-2">
-                {cat}
+          <div className="w-full overflow-x-auto overflow-y-auto max-h-48 border-b border-slate-200">
+            <TabsList variant="line" className="w-max min-w-full justify-start px-2">
+              <TabsTrigger value="all" className="px-4 py-2 shrink-0">
+                All
               </TabsTrigger>
-            ))}
-          </TabsList>
+              {categories.map((cat) => (
+                <TabsTrigger key={cat} value={cat} className="px-4 py-2 shrink-0">
+                  {cat}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </div>
 
           <TabsContent value={selectedCategory} className="flex flex-col gap-4">
             {/* Expenses Table */}
