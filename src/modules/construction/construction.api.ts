@@ -488,6 +488,7 @@ export async function createWorkLog(payload: CreateWorkLogPayload) {
 export interface MaterialRequestedItem {
   _id?: string;
   name: string;
+  materialType?: string;
   quantity: number;
   unit?: string;
   notes?: string;
@@ -500,9 +501,25 @@ export interface MaterialRequestedItem {
 }
 
 export interface MaterialRequestRequestedBy {
-  _id: string;
+  userId?: string;
+  _id?: string;
   name: string;
+  email?: string;
   role?: string;
+}
+
+export interface MaterialRequestRequestedByCustomer {
+  customerId?: string;
+  _id?: string;
+  name: string;
+  email?: string;
+}
+
+export interface MaterialRequestProject {
+  leadId?: string;
+  projectName?: string;
+  jobId?: string;
+  location?: string;
 }
 
 export interface MaterialRequestAttachment {
@@ -517,7 +534,7 @@ export interface MaterialRequestAttachment {
 }
 
 export interface MaterialRequestLead {
-  _id: string;
+  _id?: string;
   location?: string;
   projectName?: string;
   jobId?: string;
@@ -526,25 +543,32 @@ export interface MaterialRequestLead {
 export interface MaterialRequestItem {
   _id: string;
   requestId: string;
-  leadId?: MaterialRequestLead | null;
+  source?: "construction" | "customer" | string;
+  projectName?: string;
+  jobId?: string;
+  site?: string;
+  projectSite?: string;
+  project?: MaterialRequestProject | null;
+  leadId?: MaterialRequestLead | string | null;
   siteLocation?: string;
   buildingLabel?: string;
   department?: string;
-  source?: string;
   requestedBy?: MaterialRequestRequestedBy | string | null;
-  requestedByCustomer?: string | null;
+  requestedByCustomer?: MaterialRequestRequestedByCustomer | string | null;
+  requestedByLabel?: string;
   requestedItems: MaterialRequestedItem[];
+  itemCount?: number;
+  requestDate?: string;
   requiredBy?: string | null;
   preferredDeliveryDate?: string | null;
-  specialInstructions?: string;
-  priority?: string;
-  status: string;
+  priority?: "low" | "medium" | "high" | string;
+  status: "pending" | "approved" | "rejected" | "fulfilled" | "cancelled" | string;
   totalAmount?: number;
+  specialInstructions?: string;
+  attachments?: MaterialRequestAttachment[];
+  reviewNotes?: string;
   reviewedBy?: string | null;
   reviewedAt?: string | null;
-  reviewNotes?: string;
-  attachments?: MaterialRequestAttachment[];
-  requestDate?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -555,10 +579,13 @@ export interface MaterialRequestsStatGroup {
 }
 
 export interface MaterialRequestsStats {
-  total: number;
-  pending: MaterialRequestsStatGroup;
-  approved: MaterialRequestsStatGroup;
-  rejected: MaterialRequestsStatGroup;
+  total?: number;
+  totalRequests?: number;
+  pending?: MaterialRequestsStatGroup;
+  approved?: MaterialRequestsStatGroup;
+  rejected?: MaterialRequestsStatGroup;
+  fulfilled?: MaterialRequestsStatGroup;
+  urgent?: number;
 }
 
 export interface MaterialRequestsResponse {
@@ -566,7 +593,8 @@ export interface MaterialRequestsResponse {
   message: string;
   data: {
     stats: MaterialRequestsStats;
-    requests: MaterialRequestItem[];
+    materialRequests: MaterialRequestItem[];
+    requests?: MaterialRequestItem[];
     total: number;
     page: number;
     limit: number;
@@ -651,7 +679,8 @@ export interface SingleMaterialRequestResponse {
   success: boolean;
   message: string;
   data: {
-    request: MaterialRequestItem;
+    request?: MaterialRequestItem;
+    materialRequest?: MaterialRequestItem;
   };
 }
 
@@ -1110,6 +1139,8 @@ export { getProjectsApi } from "@/api/projects.api";
 // --- Project Mismatch Orders API ---
 export interface MismatchOrderItemDetail {
   itemId: string;
+  partCode?: string;
+  description?: string;
   expectedQty: number;
   receivedQty: number;
   status: string;
@@ -1136,10 +1167,16 @@ export interface ApiMismatchOrder {
   actionNotes?: string;
   bundleId?: string;
   bundleNo?: string;
+  leadId?: string;
+  projectName?: string;
+  jobId?: string;
   items: MismatchOrderItemDetail[];
   photos?: MismatchOrderPhoto[];
   reportedBy?: MismatchOrderReportedBy;
+  reviewedBy?: unknown;
+  resolvedAt?: string | null;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface MismatchOrdersData {

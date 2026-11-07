@@ -3,6 +3,7 @@ import { Camera, ChevronLeft, ChevronRight } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import CustomSelect from "./common/CustomSelect";
 import type { MaterialRequestItem } from "../construction.api";
+import { getLeadProjectName } from "@/lib/utils";
 
 const statusBadgeStyle: Record<string, string> = {
   Pending: "bg-[#FEF9C3] text-[#CA8A04]",
@@ -28,28 +29,69 @@ const priorityBadgeStyle: Record<string, string> = {
   low: "bg-[#EFF6FF] text-[#3B82F6]",
 };
 
+export function formatProjectName(req?: MaterialRequestItem | null): string {
+  if (!req) return "-";
+  if (req.projectName && req.projectName.trim()) {
+    return req.projectName;
+  }
+  if (req.project?.projectName && req.project.projectName.trim()) {
+    return req.project.projectName;
+  }
+  const leadObj =
+    typeof req.leadId === "object" && req.leadId !== null
+      ? req.leadId
+      : req.project
+      ? req.project
+      : null;
+  const clientObj =
+    typeof req.requestedByCustomer === "object" && req.requestedByCustomer !== null
+      ? req.requestedByCustomer
+      : null;
+
+  const fallback = getLeadProjectName(leadObj, clientObj);
+  if (fallback && fallback !== "N/A") {
+    return fallback;
+  }
+  if (req.jobId || req.project?.jobId) {
+    return `Project #${req.jobId || req.project?.jobId}`;
+  }
+  return "-";
+}
+
 export function getRequestedByName(req: MaterialRequestItem): string {
+  if (req.requestedByLabel) {
+    return req.requestedByLabel;
+  }
   if (req.requestedBy && typeof req.requestedBy === "object" && req.requestedBy.name) {
     return req.requestedBy.name;
   }
   if (typeof req.requestedBy === "string" && req.requestedBy) {
     return req.requestedBy;
   }
-  if (req.requestedByCustomer) {
-    return "Customer";
+  if (req.requestedByCustomer && typeof req.requestedByCustomer === "object" && req.requestedByCustomer.name) {
+    return req.requestedByCustomer.name;
   }
-  return "John Smith";
+  if (typeof req.requestedByCustomer === "string" && req.requestedByCustomer) {
+    return req.requestedByCustomer;
+  }
+  return "-";
 }
 
 function getRequestedByRole(req: MaterialRequestItem): string {
   if (req.requestedBy && typeof req.requestedBy === "object" && req.requestedBy.role) {
-    return req.requestedBy.role;
+    return capitalize(req.requestedBy.role);
   }
-  return "Site Engineer";
+  if (req.source === "customer" || req.requestedByCustomer) {
+    return "Customer";
+  }
+  if (req.department) {
+    return req.department;
+  }
+  return "-";
 }
 
 function formatDate(dateStr?: string | null): string {
-  if (!dateStr) return "May 23,2025";
+  if (!dateStr) return "-";
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
@@ -64,17 +106,17 @@ function formatDate(dateStr?: string | null): string {
 }
 
 function formatTime(dateStr?: string | null): string {
-  if (!dateStr) return "03.40 PM";
+  if (!dateStr) return "-";
   try {
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return "03.40 PM";
+    if (isNaN(d.getTime())) return "-";
     return d.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
     });
   } catch {
-    return "03.40 PM";
+    return "-";
   }
 }
 
@@ -85,12 +127,13 @@ function capitalize(str?: string): string {
 
 function formatItemsSummary(req: MaterialRequestItem): { countText: string; itemsListText: string } {
   const items = req.requestedItems || [];
-  if (items.length === 0) {
+  const count = req.itemCount ?? items.length;
+  if (count === 0) {
     return { countText: "0 Items", itemsListText: "No items listed" };
   }
-  const countText = `${items.length} ${items.length === 1 ? "Item" : "Items"}`;
+  const countText = `${count} ${count === 1 ? "Item" : "Items"}`;
   const names = items.map((i) => i.name).filter(Boolean);
-  const itemsListText = names.length > 0 ? names.join(",") : "Steel,Cements,Rocks..";
+  const itemsListText = names.length > 0 ? names.join(", ") : "-";
   return { countText, itemsListText };
 }
 
@@ -118,7 +161,7 @@ export default function MaterialsList({
       {/* Table Header Label */}
       <div className="px-5 py-4 border-b border-[#E5E7EB]">
         <h2 className="text-[15px] font-bold text-[#111827]">
-          Material Request ({requests.length || 54})
+          Material Request ({requests.length})
         </h2>
       </div>
 
@@ -157,16 +200,20 @@ export default function MaterialsList({
                   <tr key={r._id} className="hover:bg-gray-50/50 transition-colors">
                     {/* Request ID */}
                     <td className="px-5 py-4 font-bold text-[#111827] whitespace-nowrap">
-                      {r.requestId || "MR-2025-0031"}
+                      {r.requestId || "-"}
                     </td>
 
                     {/* Project / Site */}
                     <td className="px-5 py-4 whitespace-nowrap">
                       <p className="font-medium text-[#111827]">
-                        {r.leadId?.projectName || "Downtown Office Complex"}
+                        {formatProjectName(r)}
                       </p>
                       <p className="text-[12px] text-[#9CA3AF] mt-0.5">
-                        {r.buildingLabel || r.siteLocation || "Construction Site A"}
+                        {r.projectSite ||
+                          r.site ||
+                          r.siteLocation ||
+                          r.buildingLabel ||
+                          "-"}
                       </p>
                     </td>
 
@@ -199,7 +246,7 @@ export default function MaterialsList({
 
                     {/* Required By */}
                     <td className="px-5 py-4 font-medium text-[#111827] whitespace-nowrap">
-                      {formatDate(r.requiredBy)}
+                      {r.requiredBy ? formatDate(r.requiredBy) : "-"}
                     </td>
 
                     {/* Status */}
@@ -276,7 +323,8 @@ export default function MaterialsList({
         )}
       </div>
 
-      {/* Table Pagination Footer */}
+      {/* Table Pagination Footer - Hidden until backend pagination is wired */}
+      {/*
       <div className="flex flex-col sm:flex-row items-center justify-between px-5 py-3 border-t border-[#E5E7EB] text-[13px] text-[#6B7280] gap-3">
         <div className="flex items-center gap-2">
           <span>Showing</span>
@@ -320,6 +368,7 @@ export default function MaterialsList({
           </button>
         </div>
       </div>
+      */}
     </div>
   );
 }
