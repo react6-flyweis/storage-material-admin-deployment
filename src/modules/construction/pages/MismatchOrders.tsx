@@ -1,18 +1,11 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router";
-import {
-  ArrowLeft,
-  Search,
-  ChevronDown,
-  Eye,
-  X,
-  Check,
-} from "lucide-react";
+import { ArrowLeft, Search, ChevronDown, Eye, X, Check } from "lucide-react";
 import { useAppBack } from "@/modules/navigation";
 import Pagination from "@/components/Pagination";
 import ProjectSelector from "../components/common/ProjectSelector";
 import {
-  useProjectMismatchOrdersQuery,
+  // useProjectMismatchOrdersQuery,
   useConstructionMismatchOrdersQuery,
 } from "../construction.hooks";
 import {
@@ -55,52 +48,21 @@ export default function MismatchOrders() {
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
   const dateDropdownRef = useRef<HTMLDivElement>(null);
 
-  // 1. Determine query modes
-  // If no project is selected or "all" is selected, use GET /api/admin/construction/mismatch-orders
-  // If a specific leadId is selected, use GET /api/admin/plant/projects/{leadId}/mismatch-orders
-  const isAllProjects = !selectedLeadId || selectedLeadId === "all";
-  const activeLeadId = isAllProjects ? "" : selectedLeadId;
-
-  // When user is searching client-side, fetch with higher limit so search operates across records.
-  // Otherwise, use server pagination with page=currentPage and limit=rowsPerPage.
-  const isClientSearching = Boolean(searchQuery.trim());
-  const queryLimit = isClientSearching ? 200 : rowsPerPage;
-  const queryPage = isClientSearching ? 1 : currentPage;
+  // 1. Fetch mismatch orders
+  // GET /api/admin/construction/mismatch-orders?page=1&limit=10&status=open&leadId=&search=&startDate=&endDate=
   const statusParam = statusFilter === "all" ? undefined : statusFilter;
+  const leadIdParam =
+    selectedLeadId && selectedLeadId !== "all" ? selectedLeadId : undefined;
+  const trimmedSearch = searchQuery.trim() || undefined;
 
-  // All Projects mismatch orders query: GET /api/admin/construction/mismatch-orders
-  const {
-    data: allMismatchResponse,
-    isLoading: isAllOrdersLoading,
-  } = useConstructionMismatchOrdersQuery(
-    {
-      page: queryPage,
-      limit: queryLimit,
+  const { data: mismatchResponse, isLoading: isOrdersLoading } =
+    useConstructionMismatchOrdersQuery({
+      page: currentPage,
+      limit: rowsPerPage,
       status: statusParam,
-    },
-    { enabled: isAllProjects },
-  );
-
-  // Single Project mismatch orders query: GET /api/admin/plant/projects/{leadId}/mismatch-orders
-  const {
-    data: projectMismatchResponse,
-    isLoading: isProjectOrdersLoading,
-  } = useProjectMismatchOrdersQuery(
-    activeLeadId,
-    {
-      page: queryPage,
-      limit: queryLimit,
-      status: statusParam,
-    },
-    { enabled: !isAllProjects && Boolean(activeLeadId) },
-  );
-
-  const mismatchResponse = isAllProjects
-    ? allMismatchResponse
-    : projectMismatchResponse;
-  const isOrdersLoading = isAllProjects
-    ? isAllOrdersLoading
-    : isProjectOrdersLoading;
+      leadId: leadIdParam,
+      search: trimmedSearch,
+    });
 
   // Click outside listener for dropdowns
   useEffect(() => {
@@ -230,80 +192,16 @@ export default function MismatchOrders() {
     return [];
   }, [mismatchResponse]);
 
-  // Filter and search logic (client-side search & date filter)
-  const filteredOrders = useMemo(() => {
-    return (mappedApiOrders || [])
-      .filter((order) => {
-        // Date filter
-        if (selectedDate && selectedDate !== "All Dates") {
-          const matchesDate =
-            order.orderDate === selectedDate ||
-            (order.createdAt &&
-              new Date(order.createdAt).toLocaleDateString("en-GB") ===
-                selectedDate);
-          if (!matchesDate) return false;
-        }
+  // Sort orders for display
+  const displayOrders = useMemo(() => {
+    return [...mappedApiOrders].sort((a, b) => {
+      return sortAsc
+        ? a.orderId.localeCompare(b.orderId)
+        : b.orderId.localeCompare(a.orderId);
+    });
+  }, [mappedApiOrders, sortAsc]);
 
-        // Search query (client-side)
-        if (searchQuery.trim()) {
-          const q = searchQuery.toLowerCase().trim();
-          const matchId = order.orderId?.toLowerCase().includes(q);
-          const matchProject = order.project?.toLowerCase().includes(q);
-          const matchMaterial = order.materialName?.toLowerCase().includes(q);
-          const matchPartCode = order.partCode?.toLowerCase().includes(q);
-          const matchDesc = order.description?.toLowerCase().includes(q);
-          const matchReason = order.reason?.toLowerCase().includes(q);
-          const matchNotes = order.notes?.toLowerCase().includes(q);
-          const matchBundle = order.bundleNo?.toLowerCase().includes(q);
-          if (
-            !matchId &&
-            !matchProject &&
-            !matchMaterial &&
-            !matchPartCode &&
-            !matchDesc &&
-            !matchReason &&
-            !matchNotes &&
-            !matchBundle
-          ) {
-            return false;
-          }
-        }
-
-        return true;
-      })
-      .sort((a, b) => {
-        return sortAsc
-          ? a.orderId.localeCompare(b.orderId)
-          : b.orderId.localeCompare(a.orderId);
-      });
-  }, [mappedApiOrders, selectedDate, searchQuery, sortAsc]);
-
-  // Paginated items
-  const paginatedOrders = useMemo(() => {
-    if (isClientSearching || (selectedDate && selectedDate !== "All Dates")) {
-      const startIndex = (currentPage - 1) * rowsPerPage;
-      return (filteredOrders || []).slice(startIndex, startIndex + rowsPerPage);
-    }
-    return filteredOrders || [];
-  }, [
-    filteredOrders,
-    isClientSearching,
-    selectedDate,
-    currentPage,
-    rowsPerPage,
-  ]);
-
-  const totalCount = useMemo(() => {
-    if (isClientSearching || (selectedDate && selectedDate !== "All Dates")) {
-      return filteredOrders.length;
-    }
-    return mismatchResponse?.data?.total ?? filteredOrders.length;
-  }, [
-    isClientSearching,
-    selectedDate,
-    filteredOrders.length,
-    mismatchResponse,
-  ]);
+  const totalCount = mismatchResponse?.data?.total ?? mappedApiOrders.length;
 
   const statusOptions = [
     { label: "All Statuses", value: "all" },
@@ -589,8 +487,8 @@ export default function MismatchOrders() {
                     </td>
                   </tr>
                 ))
-              ) : paginatedOrders.length > 0 ? (
-                paginatedOrders.map((order) => {
+              ) : displayOrders.length > 0 ? (
+                displayOrders.map((order) => {
                   const s = order.status.toLowerCase();
                   const isRedMismatch = s === "open" || s === "mismatch";
                   const isGreen = s === "resolved";
@@ -689,26 +587,6 @@ export default function MismatchOrders() {
                     </tr>
                   );
                 })
-              ) : !activeLeadId ? (
-                <tr>
-                  <td
-                    colSpan={8}
-                    className="py-14 text-center text-sm text-gray-500"
-                  >
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="w-11 h-11 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-                        <Building2 className="w-5 h-5" />
-                      </div>
-                      <p className="font-semibold text-gray-800 text-[15px]">
-                        Please Select a Project
-                      </p>
-                      <p className="text-xs text-gray-500 max-w-sm">
-                        Pick a project from the filter dropdown above to view
-                        its mismatch orders and discrepancy records.
-                      </p>
-                    </div>
-                  </td>
-                </tr>
               ) : (
                 <tr>
                   <td
@@ -719,7 +597,7 @@ export default function MismatchOrders() {
                       No mismatch orders found
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      No mismatch tickets reported for this project.
+                      No mismatch tickets match your current filters.
                     </p>
                   </td>
                 </tr>

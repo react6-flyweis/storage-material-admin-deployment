@@ -1200,14 +1200,17 @@ export interface GetMismatchOrdersParams {
   limit?: number;
   status?: "open" | "in_review" | "resolved" | "closed" | "cancelled" | string;
   leadId?: string;
+  projectId?: string;
   search?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export type GetProjectMismatchOrdersParams = GetMismatchOrdersParams;
 
 /**
- * Fetch all mismatch orders across construction
- * GET /api/admin/construction/mismatch-orders
+ * Fetch all mismatch orders across construction (cross-project inbox)
+ * GET /api/admin/construction/mismatch-orders?page=1&limit=10&status=open&leadId=&search=&startDate=&endDate=
  */
 export async function getConstructionMismatchOrders(
   params?: GetMismatchOrdersParams
