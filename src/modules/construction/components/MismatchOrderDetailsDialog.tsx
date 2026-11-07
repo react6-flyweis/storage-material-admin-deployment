@@ -1,12 +1,10 @@
 import React from "react";
-import {
-  X,
-  Calendar,
-  ExternalLink,
-} from "lucide-react";
+import { X, Calendar, ExternalLink } from "lucide-react";
 
 export interface MismatchOrderItemDetail {
   itemId: string;
+  partCode?: string;
+  description?: string;
   expectedQty: number;
   receivedQty: number;
   status: string;
@@ -31,13 +29,24 @@ export interface MismatchOrderItem {
   jobId?: string;
   siteLocation?: string;
   materialName: string;
+  partCode?: string;
+  description?: string;
   specification?: string;
   quantity: number;
   receivedQuantity: number;
   unit?: string;
   orderDate: string;
   deliveryDate?: string;
-  status: "open" | "in_review" | "resolved" | "closed" | "cancelled" | "Mismatch" | "Pending" | string;
+  status:
+    | "open"
+    | "in_review"
+    | "resolved"
+    | "closed"
+    | "cancelled"
+    | "Mismatch"
+    | "Pending"
+    | string;
+  itemStatus?: string;
   transporter?: string;
   driverName?: string;
   driverPhone?: string;
@@ -55,6 +64,8 @@ export interface MismatchOrderItem {
   photos?: MismatchOrderPhoto[];
   reportedBy?: MismatchOrderReportedBy;
   createdAt?: string;
+  updatedAt?: string;
+  resolvedAt?: string | null;
 }
 
 interface MismatchOrderDetailsDialogProps {
@@ -85,17 +96,15 @@ function formatStatus(status?: string) {
   return status.charAt(0).toUpperCase() + status.slice(1);
 }
 
-export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProps> = ({
-  isOpen,
-  onClose,
-  order,
-  onStatusChange,
-}) => {
+export const MismatchOrderDetailsDialog: React.FC<
+  MismatchOrderDetailsDialogProps
+> = ({ isOpen, onClose, order, onStatusChange }) => {
   if (!isOpen || !order) return null;
 
   const difference = order.receivedQuantity - order.quantity;
   const isMismatch =
-    order.status.toLowerCase() === "open" || order.status.toLowerCase() === "mismatch";
+    order.status.toLowerCase() === "open" ||
+    order.status.toLowerCase() === "mismatch";
   const formattedStatus = formatStatus(order.status);
   const badgeClass =
     statusBadgeStyle[order.status.toLowerCase()] ||
@@ -113,7 +122,9 @@ export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProp
       >
         {/* Modal Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-xl font-bold text-gray-900">Mismatch Order Details</h2>
+          <h2 className="text-xl font-bold text-gray-900">
+            Mismatch Order Details
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -140,12 +151,14 @@ export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProp
               </div>
               <p className="text-xs text-gray-500 mt-1.5 font-medium">
                 {order.bundleNo ? `Bundle: ${order.bundleNo}` : ""}
-                {order.bundleNo && (order.jobId || order.mismatchId) ? " • " : ""}
+                {order.bundleNo && (order.jobId || order.mismatchId)
+                  ? " • "
+                  : ""}
                 {order.jobId
                   ? `Job ID: ${order.jobId}`
                   : order.mismatchId
-                  ? `ID: ${order.mismatchId}`
-                  : ""}
+                    ? `ID: ${order.mismatchId}`
+                    : ""}
               </p>
             </div>
           </div>
@@ -153,8 +166,12 @@ export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProp
           {/* Grid 1: Project / Site & Material */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
-              <p className="text-xs font-normal text-gray-500 mb-1">Project / Site</p>
-              <p className="font-bold text-gray-900 text-base">{order.project}</p>
+              <p className="text-xs font-normal text-gray-500 mb-1">
+                Project / Site
+              </p>
+              <p className="font-bold text-gray-900 text-base">
+                {order.project}
+              </p>
               <p className="text-xs text-gray-500 mt-0.5">
                 {order.siteLocation || order.jobId || "Construction Site"}
               </p>
@@ -162,9 +179,12 @@ export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProp
 
             <div>
               <p className="text-xs font-normal text-gray-500 mb-1">Material</p>
-              <p className="font-bold text-gray-900 text-base">{order.materialName}</p>
+              <p className="font-bold text-gray-900 text-base">
+                {order.materialName}
+              </p>
               <p className="text-xs text-gray-500 mt-0.5">
-                {order.specification || `${order.quantity} ${order.unit || "Units"}`}
+                {order.specification ||
+                  `${order.quantity} ${order.unit || "Units"}`}
               </p>
             </div>
           </div>
@@ -172,7 +192,9 @@ export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProp
           {/* Quantity & Discrepancy Breakdown */}
           <div className="grid grid-cols-3 gap-6 pt-1">
             <div>
-              <p className="text-xs font-normal text-gray-500 mb-1">Ordered Qty</p>
+              <p className="text-xs font-normal text-gray-500 mb-1">
+                Ordered Qty
+              </p>
               <p className="font-bold text-gray-900 text-base">
                 {order.quantity}{" "}
                 <span className="text-xs font-normal text-gray-500">
@@ -182,7 +204,9 @@ export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProp
             </div>
 
             <div>
-              <p className="text-xs font-normal text-gray-500 mb-1">Received Qty</p>
+              <p className="text-xs font-normal text-gray-500 mb-1">
+                Received Qty
+              </p>
               <p className="font-bold text-gray-900 text-base">
                 {order.receivedQuantity}{" "}
                 <span className="text-xs font-normal text-gray-500">
@@ -192,14 +216,16 @@ export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProp
             </div>
 
             <div>
-              <p className="text-xs font-normal text-gray-500 mb-1">Difference</p>
+              <p className="text-xs font-normal text-gray-500 mb-1">
+                Difference
+              </p>
               <p
                 className={`font-bold text-base ${
                   difference < 0
                     ? "text-[#EF4444]"
                     : difference > 0
-                    ? "text-emerald-600"
-                    : "text-gray-900"
+                      ? "text-emerald-600"
+                      : "text-gray-900"
                 }`}
               >
                 {difference > 0 ? `+${difference}` : difference}{" "}
@@ -231,7 +257,9 @@ export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProp
 
             {order.deliveryDate && (
               <div>
-                <p className="text-xs font-normal text-gray-500 mb-1.5">Delivery Date</p>
+                <p className="text-xs font-normal text-gray-500 mb-1.5">
+                  Delivery Date
+                </p>
                 <div className="flex items-center gap-2 text-gray-900 font-medium">
                   <Calendar className="w-4 h-4 text-gray-700" />
                   <span>{order.deliveryDate}</span>
@@ -241,7 +269,9 @@ export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProp
 
             {order.reportedBy && (
               <div>
-                <p className="text-xs font-normal text-gray-500 mb-1">Reported By</p>
+                <p className="text-xs font-normal text-gray-500 mb-1">
+                  Reported By
+                </p>
                 <p className="font-bold text-gray-900 text-sm">
                   {order.reportedBy.name || "Site Lead"}
                 </p>
@@ -255,7 +285,9 @@ export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProp
 
             {order.transporter && (
               <div>
-                <p className="text-xs font-normal text-gray-500 mb-1">Transporter</p>
+                <p className="text-xs font-normal text-gray-500 mb-1">
+                  Transporter
+                </p>
                 <p className="font-bold text-gray-900 text-base">
                   {order.transporter}
                 </p>
@@ -310,7 +342,18 @@ export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProp
                             {index + 1}
                           </td>
                           <td className="py-2.5 px-3 font-medium text-[#111827]">
-                            {item.materialName || item.itemId}
+                            <div>
+                              <div>
+                                {item.description ||
+                                  item.materialName ||
+                                  item.itemId}
+                              </div>
+                              {item.partCode && (
+                                <span className="text-[11px] text-gray-500 font-mono">
+                                  Part: {item.partCode}
+                                </span>
+                              )}
+                            </div>
                           </td>
                           <td className="py-2.5 px-3 text-right font-medium text-gray-900">
                             {item.expectedQty}
@@ -323,8 +366,8 @@ export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProp
                               itemDiff < 0
                                 ? "text-[#EF4444]"
                                 : itemDiff > 0
-                                ? "text-emerald-600"
-                                : "text-gray-900"
+                                  ? "text-emerald-600"
+                                  : "text-gray-900"
                             }`}
                           >
                             {itemDiff > 0 ? `+${itemDiff}` : itemDiff}
@@ -452,4 +495,3 @@ export const MismatchOrderDetailsDialog: React.FC<MismatchOrderDetailsDialogProp
     </div>
   );
 };
-

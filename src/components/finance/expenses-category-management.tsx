@@ -43,13 +43,13 @@ export function ExpensesCategoryManagement() {
               <TableHead>Type</TableHead>
               <TableHead>Default</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Action</TableHead>
+              {/* <TableHead>Action</TableHead> */}
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-slate-500">
+                <TableCell colSpan={5} className="h-32 text-center text-slate-500">
                   <div className="flex items-center justify-center gap-2">
                     <Loader2 className="h-5 w-5 animate-spin text-violet-600" />
                     <span>Loading categories...</span>
@@ -58,13 +58,13 @@ export function ExpensesCategoryManagement() {
               </TableRow>
             ) : isError ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-red-500">
+                <TableCell colSpan={5} className="h-32 text-center text-red-500">
                   Failed to load expense categories.
                 </TableCell>
               </TableRow>
             ) : apiCategories.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-32 text-center text-slate-500">
+                <TableCell colSpan={5} className="h-32 text-center text-slate-500">
                   No expense categories found.
                 </TableCell>
               </TableRow>
@@ -104,11 +104,11 @@ export function ExpensesCategoryManagement() {
                         {status}
                       </span>
                     </TableCell>
-                    <TableCell>
+                    {/* <TableCell>
                       <button className="text-sm font-medium text-blue-600 hover:text-blue-700">
                         <Edit className="h-4 w-4" />
                       </button>
-                    </TableCell>
+                    </TableCell> */}
                   </TableRow>
                 );
               })
