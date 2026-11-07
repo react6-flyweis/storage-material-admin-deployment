@@ -1180,9 +1180,9 @@ export interface ApiMismatchOrder {
 }
 
 export interface MismatchOrdersData {
-  leadId: string;
-  projectName: string;
-  jobId: string;
+  leadId?: string;
+  projectName?: string;
+  jobId?: string;
   mismatchOrders: ApiMismatchOrder[];
   total: number;
   page: number;
@@ -1195,12 +1195,34 @@ export interface MismatchOrdersResponse {
   data: MismatchOrdersData;
 }
 
-export interface GetProjectMismatchOrdersParams {
+export interface GetMismatchOrdersParams {
   page?: number;
   limit?: number;
   status?: "open" | "in_review" | "resolved" | "closed" | "cancelled" | string;
+  leadId?: string;
+  search?: string;
 }
 
+export type GetProjectMismatchOrdersParams = GetMismatchOrdersParams;
+
+/**
+ * Fetch all mismatch orders across construction
+ * GET /api/admin/construction/mismatch-orders
+ */
+export async function getConstructionMismatchOrders(
+  params?: GetMismatchOrdersParams
+): Promise<MismatchOrdersResponse> {
+  const response = await apiClient.get<MismatchOrdersResponse>(
+    `/api/admin/construction/mismatch-orders`,
+    { params }
+  );
+  return response.data;
+}
+
+/**
+ * Fetch mismatch orders for a specific project
+ * GET /api/admin/plant/projects/{leadId}/mismatch-orders
+ */
 export async function getProjectMismatchOrders(
   leadId: string,
   params?: GetProjectMismatchOrdersParams
