@@ -6,6 +6,7 @@ import {
 } from "../construction.hooks";
 import type { MaterialRequestItem } from "../construction.api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatProjectName } from "./MaterialsList";
 
 // pdf icon 
 // excel icon
@@ -46,7 +47,7 @@ const priorityBadgeStyle: Record<string, string> = {
 };
 
 function formatDate(dateStr?: string | null): string {
-  if (!dateStr) return "May 19, 2025";
+  if (!dateStr) return "-";
   try {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
@@ -61,17 +62,17 @@ function formatDate(dateStr?: string | null): string {
 }
 
 function formatTime(dateStr?: string | null): string {
-  if (!dateStr) return "04:30 PM";
+  if (!dateStr) return "-";
   try {
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return "04:30 PM";
+    if (isNaN(d.getTime())) return "-";
     return d.toLocaleTimeString("en-US", {
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
     });
   } catch {
-    return "04:30 PM";
+    return "-";
   }
 }
 
@@ -81,23 +82,35 @@ function capitalize(str?: string): string {
 }
 
 function getRequestedByName(req: MaterialRequestItem): string {
+  if (req.requestedByLabel) {
+    return req.requestedByLabel;
+  }
   if (req.requestedBy && typeof req.requestedBy === "object" && req.requestedBy.name) {
     return req.requestedBy.name;
   }
   if (typeof req.requestedBy === "string" && req.requestedBy) {
     return req.requestedBy;
   }
-  if (req.requestedByCustomer) {
-    return "Customer";
+  if (req.requestedByCustomer && typeof req.requestedByCustomer === "object" && req.requestedByCustomer.name) {
+    return req.requestedByCustomer.name;
   }
-  return "John Smith";
+  if (typeof req.requestedByCustomer === "string" && req.requestedByCustomer) {
+    return req.requestedByCustomer;
+  }
+  return "-";
 }
 
 function getRequestedByRole(req: MaterialRequestItem): string {
   if (req.requestedBy && typeof req.requestedBy === "object" && req.requestedBy.role) {
-    return req.requestedBy.role;
+    return capitalize(req.requestedBy.role);
   }
-  return "Site Engineer";
+  if (req.source === "customer" || req.requestedByCustomer) {
+    return "Customer";
+  }
+  if (req.department) {
+    return req.department;
+  }
+  return "-";
 }
 
 export default function MaterialRequestDetailsDialog({
@@ -118,7 +131,10 @@ export default function MaterialRequestDetailsDialog({
 
   if (!open) return null;
 
-  const request = data?.data?.request || initialRequest;
+  const request =
+    data?.data?.materialRequest ||
+    data?.data?.request ||
+    initialRequest;
 
   const handleDownloadAttachment = async (index: number, fileName?: string) => {
     const idToUse = request?._id || request?.requestId || targetId;
@@ -293,7 +309,7 @@ export default function MaterialRequestDetailsDialog({
               <div>
                 <p className="text-[12px] text-[#9CA3AF] font-medium">Request ID</p>
                 <p className="text-[18px] font-bold text-[#111827] mt-0.5">
-                  {request.requestId || "MR-2025-0031"}
+                  {request.requestId || "-"}
                 </p>
               </div>
               <div className="text-right">
@@ -314,10 +330,14 @@ export default function MaterialRequestDetailsDialog({
               <div>
                 <p className="text-[12px] text-[#9CA3AF] font-medium">Project / Site</p>
                 <p className="text-[14px] font-bold text-[#111827] mt-0.5">
-                  {request.leadId?.projectName || "Downtown Office Complex"}
+                  {formatProjectName(request)}
                 </p>
                 <p className="text-[12px] text-[#6B7280] mt-0.5">
-                  {request.buildingLabel || request.siteLocation || "Construction Site A"}
+                  {request.projectSite ||
+                    request.site ||
+                    request.siteLocation ||
+                    request.buildingLabel ||
+                    "-"}
                 </p>
               </div>
               <div className="text-right">
@@ -358,7 +378,7 @@ export default function MaterialRequestDetailsDialog({
               <div>
                 <p className="text-[12px] text-[#9CA3AF] font-medium">Required By</p>
                 <p className="font-bold text-[#111827] mt-0.5">
-                  {formatDate(request.requiredBy)}
+                  {request.requiredBy ? formatDate(request.requiredBy) : "-"}
                 </p>
               </div>
             </div>

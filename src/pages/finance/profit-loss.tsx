@@ -49,7 +49,7 @@ const formatPercent = (val?: number | string | null) => {
 
 export default function ProfitLossPage() {
   const [project, setProject] = useState("all-projects");
-  const [period, setPeriod] = useState<ProfitLossPeriod>("monthly");
+  const [period, setPeriod] = useState<ProfitLossPeriod>("quarterly");
 
   const { data: projectsRes } = useBudgetVsActualProjectsQuery();
   const projectOptions = projectsRes?.data?.projects || [];
