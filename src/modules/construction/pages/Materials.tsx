@@ -7,7 +7,7 @@ import RequestMaterialModel from "../components/requestMaterialModel";
 import PhotoModel from "../components/photoModel";
 import SuccessModal from "../components/common/SuccessModal";
 import MaterialRequestDetailsDialog from "../components/MaterialRequestDetailsDialog";
-import MaterialsList, { getRequestedByName } from "../components/MaterialsList";
+import MaterialsList from "../components/MaterialsList";
 import {
   useMaterialRequestsQuery,
   useReviewMaterialRequestMutation,
@@ -176,33 +176,14 @@ export default function Materials() {
     }
   };
 
-  const apiRequests = data?.data?.requests || [];
+  const apiRequests = data?.data?.materialRequests ?? data?.data?.requests ?? [];
   const statsData = data?.data?.stats;
 
-  const totalRequestsCount = statsData?.total ?? apiRequests.length ?? 0;
+  const totalRequestsCount =
+    statsData?.totalRequests ?? statsData?.total ?? data?.data?.total ?? apiRequests.length;
   const pendingCount = statsData?.pending?.count ?? 0;
   const approvedCount = statsData?.approved?.count ?? 0;
   const rejectedCount = statsData?.rejected?.count ?? 0;
-
-  const filteredRequests = useMemo(() => {
-    let requests = apiRequests;
-
-    if (!search) return requests;
-    const term = search.toLowerCase();
-    return requests.filter((r) => {
-      const reqNo = r.requestId || "";
-      const reqBy = getRequestedByName(r);
-      const projName = r.leadId?.projectName || "";
-      const jobId = r.leadId?.jobId || "";
-      const building = r.buildingLabel || "";
-      const itemNames = r.requestedItems?.map((i) => i.name).join(" ") || "";
-      const statusStr = r.status || "";
-
-      return `${reqNo} ${reqBy} ${projName} ${jobId} ${building} ${itemNames} ${statusStr}`
-        .toLowerCase()
-        .includes(term);
-    });
-  }, [apiRequests, search]);
 
   return (
     <div className="space-y-6">
@@ -229,7 +210,7 @@ export default function Materials() {
       </div>
 
       {/* Filters Bar */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-end bg-white p-6 rounded-lg">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end bg-white p-6 rounded-lg">
         <div>
           <label className="block text-[12px] font-medium text-[#6B7280] mb-1">
             Projects
@@ -278,6 +259,8 @@ export default function Materials() {
           />
         </div>
 
+        {/* Date Range - Hidden until date range picker is integrated */}
+        {/*
         <div>
           <label className="block text-[12px] font-medium text-[#6B7280] mb-1">
             Date Range
@@ -287,6 +270,7 @@ export default function Materials() {
             <Calendar className="w-4 h-4 text-gray-500" />
           </div>
         </div>
+        */}
       </div>
 
       {/* Summary Cards Grid */}
@@ -342,7 +326,7 @@ export default function Materials() {
 
       {/* Main Table Card */}
       <MaterialsList
-        requests={filteredRequests}
+        requests={apiRequests}
         isLoading={isLoading}
         isReviewing={reviewMutation.isPending}
         onView={(req) => {
@@ -379,6 +363,8 @@ export default function Materials() {
         }}
       />
 
+      {/* Modals not yet triggered by action buttons */}
+      {/*
       <IssueReportingModal
         open={openReportModel}
         onClose={() => setReportModel(false)}
@@ -398,6 +384,7 @@ export default function Materials() {
           void refetch();
         }}
       />
+      */}
 
       <SuccessModal
         open={successOpen}

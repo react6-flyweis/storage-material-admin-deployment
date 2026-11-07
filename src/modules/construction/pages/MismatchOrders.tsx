@@ -62,17 +62,34 @@ export default function MismatchOrders() {
     return projectsData?.data?.data?.projects || [];
   }, [projectsData]);
 
+  // Auto-select first project if no leadId in URL
+  useEffect(() => {
+    if (!selectedLeadId && !searchParams.get("leadId") && projects.length > 0) {
+      const firstId = projects[0]._id || projects[0].leadId || "";
+      if (firstId) {
+        setSelectedLeadId(firstId);
+        setSearchParams({ leadId: firstId });
+      }
+    }
+  }, [projects, selectedLeadId, searchParams, setSearchParams]);
+
   // 2. Fetch Mismatch Orders using API
-  // GET /api/admin/plant/projects/{leadId}/mismatch-orders?page=1&limit=20&status=open
+  // GET /api/admin/plant/projects/{leadId}/mismatch-orders?page=1&limit=10&status=open
   const activeLeadId =
     selectedLeadId && selectedLeadId !== "all" ? selectedLeadId : "";
+
+  // When user is searching client-side, fetch with limit=200 so search operates across records.
+  // Otherwise, use server pagination with page=currentPage and limit=rowsPerPage.
+  const isClientSearching = Boolean(searchQuery.trim());
+  const queryLimit = isClientSearching ? 200 : rowsPerPage;
+  const queryPage = isClientSearching ? 1 : currentPage;
 
   const { data: mismatchResponse, isLoading: isOrdersLoading } =
     useProjectMismatchOrdersQuery(
       activeLeadId,
       {
-        page: currentPage,
-        limit: rowsPerPage,
+        page: queryPage,
+        limit: queryLimit,
         status: statusFilter === "all" ? undefined : statusFilter,
       },
       { enabled: Boolean(activeLeadId) },
@@ -105,7 +122,9 @@ export default function MismatchOrders() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Format API data or use fallback
+  // Format API data by expanding each mismatchOrders[] entry into items.length rows
+  // FE note: To match the flat table (one row per material line), expand each mismatchOrders[] entry
+  // into items.length rows; repeat mismatchOrderId, projectName, createdAt, and status on each line.
   const mappedApiOrders = useMemo<MismatchOrderItem[]>(() => {
     const apiData = mismatchResponse?.data;
     if (
@@ -113,19 +132,10 @@ export default function MismatchOrders() {
       Array.isArray(apiData.mismatchOrders) &&
       apiData.mismatchOrders.length > 0
     ) {
-      return apiData.mismatchOrders.map((m) => {
-        const totalExpected = (m.items || []).reduce(
-          (sum, it) => sum + (it.expectedQty || 0),
-          0,
-        );
-        const totalReceived = (m.items || []).reduce(
-          (sum, it) => sum + (it.receivedQty || 0),
-          0,
-        );
-        const materialName = m.bundleNo
-          ? `Bundle ${m.bundleNo}`
-          : m.items?.[0]?.materialName || m.reason || "Materials";
+      const fallbackProjectName = apiData.projectName || "Project Site";
+      const fallbackJobId = apiData.jobId || "PRO-023";
 
+      return apiData.mismatchOrders.flatMap((m, orderIdx) => {
         let dateStr = "—";
         if (m.createdAt) {
           try {
@@ -136,114 +146,124 @@ export default function MismatchOrders() {
           }
         }
 
-        return {
-          id: m.mismatchId || m.mismatchOrderId,
-          orderId: m.mismatchOrderId,
-          project: apiData.projectName || "Project Site",
-          jobId: apiData.jobId || "PRO-023",
-          materialName: materialName,
-          specification: m.notes || m.reason,
-          quantity: totalExpected,
-          receivedQuantity: totalReceived,
-          unit: "Units",
-          orderDate: dateStr,
-          status: m.status,
-          reason: m.reason,
-          notes: m.notes,
-          actionNotes: m.actionNotes,
-          bundleId: m.bundleId,
-          bundleNo: m.bundleNo,
-          items: m.items,
-          photos: m.photos,
-          reportedBy: m.reportedBy,
-          createdAt: m.createdAt,
-        };
+        const projectName = m.projectName || fallbackProjectName;
+        const jobId = m.jobId || fallbackJobId;
+
+        // If mismatch order has line items, expand each item into its own row
+        if (Array.isArray(m.items) && m.items.length > 0) {
+          return m.items.map((item, itemIdx) => {
+            const materialName =
+              item.description ||
+              item.partCode ||
+              item.materialName ||
+              (m.bundleNo ? `Bundle ${m.bundleNo}` : m.reason || "Materials");
+
+            const specification =
+              [item.partCode, item.description].filter(Boolean).join(" - ") ||
+              m.notes ||
+              m.reason;
+
+            return {
+              id: `${m.mismatchId || m.mismatchOrderId || orderIdx}-${item.itemId || itemIdx}`,
+              orderId: m.mismatchOrderId,
+              project: projectName,
+              jobId: jobId,
+              materialName: materialName,
+              partCode: item.partCode,
+              description: item.description,
+              specification: specification,
+              quantity: item.expectedQty ?? 0,
+              receivedQuantity: item.receivedQty ?? 0,
+              unit: "Units",
+              orderDate: dateStr,
+              status: m.status, // Repeat status on each line
+              itemStatus: item.status,
+              reason: m.reason,
+              notes: m.notes,
+              actionNotes: m.actionNotes,
+              bundleId: m.bundleId,
+              bundleNo: m.bundleNo,
+              items: m.items,
+              photos: m.photos,
+              reportedBy: m.reportedBy,
+              createdAt: m.createdAt,
+              updatedAt: m.updatedAt,
+              resolvedAt: m.resolvedAt,
+            };
+          });
+        }
+
+        // Fallback for mismatch order with 0 items
+        const materialName = m.bundleNo
+          ? `Bundle ${m.bundleNo}`
+          : m.reason || "Materials";
+
+        return [
+          {
+            id: m.mismatchId || m.mismatchOrderId || String(orderIdx),
+            orderId: m.mismatchOrderId,
+            project: projectName,
+            jobId: jobId,
+            materialName: materialName,
+            specification: m.notes || m.reason,
+            quantity: 0,
+            receivedQuantity: 0,
+            unit: "Units",
+            orderDate: dateStr,
+            status: m.status,
+            reason: m.reason,
+            notes: m.notes,
+            actionNotes: m.actionNotes,
+            bundleId: m.bundleId,
+            bundleNo: m.bundleNo,
+            items: [],
+            photos: m.photos,
+            reportedBy: m.reportedBy,
+            createdAt: m.createdAt,
+            updatedAt: m.updatedAt,
+            resolvedAt: m.resolvedAt,
+          },
+        ];
       });
     }
     return [];
   }, [mismatchResponse]);
 
-  // Filter and search logic
+  // Filter and search logic (client-side search & date filter)
   const filteredOrders = useMemo(() => {
     return (mappedApiOrders || [])
       .filter((order) => {
-        // Project filter (if specific project is selected)
-        if (selectedLeadId && selectedLeadId !== "all") {
-          const selectedProj = projects.find(
-            (p) => p._id === selectedLeadId || p.leadId === selectedLeadId,
-          );
-          if (selectedProj?.projectName) {
-            const matchesName = order.project
-              .toLowerCase()
-              .includes(selectedProj.projectName.toLowerCase());
-            if (
-              !mismatchResponse?.data?.mismatchOrders?.length &&
-              !matchesName
-            ) {
-              return false;
-            }
-          }
-        }
-
-        // Status filter
-        if (statusFilter !== "all") {
-          const s = order.status.toLowerCase();
-          const target = statusFilter.toLowerCase();
-          if (target === "open" && s !== "open" && s !== "mismatch")
-            return false;
-          if (target !== "open" && s !== target) return false;
-        }
-
         // Date filter
         if (selectedDate && selectedDate !== "All Dates") {
-          const dateMatch =
-            order.orderDate
-              ?.toLowerCase()
-              .includes(selectedDate.toLowerCase()) ||
+          const matchesDate =
+            order.orderDate === selectedDate ||
             (order.createdAt &&
               new Date(order.createdAt).toLocaleDateString("en-GB") ===
                 selectedDate);
-          if (!dateMatch) {
-            const parseDatePreset = (dStr: string) => {
-              try {
-                const parts = dStr.split(" ");
-                if (parts.length === 3) {
-                  const day = parts[0].padStart(2, "0");
-                  const months: Record<string, string> = {
-                    January: "01",
-                    February: "02",
-                    March: "03",
-                    April: "04",
-                    May: "05",
-                    June: "06",
-                    July: "07",
-                    August: "08",
-                    September: "09",
-                    October: "10",
-                    November: "11",
-                    December: "12",
-                  };
-                  const month = months[parts[1]] || "";
-                  const year = parts[2];
-                  if (month) return `${day}/${month}/${year}`;
-                }
-              } catch {}
-              return null;
-            };
-            const formattedPreset = parseDatePreset(selectedDate);
-            if (!formattedPreset || order.orderDate !== formattedPreset) {
-              return false;
-            }
-          }
+          if (!matchesDate) return false;
         }
 
-        // Search query
+        // Search query (client-side)
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase().trim();
-          const matchId = order.orderId.toLowerCase().includes(q);
-          const matchProject = order.project.toLowerCase().includes(q);
-          const matchMaterial = order.materialName.toLowerCase().includes(q);
-          if (!matchId && !matchProject && !matchMaterial) {
+          const matchId = order.orderId?.toLowerCase().includes(q);
+          const matchProject = order.project?.toLowerCase().includes(q);
+          const matchMaterial = order.materialName?.toLowerCase().includes(q);
+          const matchPartCode = order.partCode?.toLowerCase().includes(q);
+          const matchDesc = order.description?.toLowerCase().includes(q);
+          const matchReason = order.reason?.toLowerCase().includes(q);
+          const matchNotes = order.notes?.toLowerCase().includes(q);
+          const matchBundle = order.bundleNo?.toLowerCase().includes(q);
+          if (
+            !matchId &&
+            !matchProject &&
+            !matchMaterial &&
+            !matchPartCode &&
+            !matchDesc &&
+            !matchReason &&
+            !matchNotes &&
+            !matchBundle
+          ) {
             return false;
           }
         }
@@ -255,24 +275,34 @@ export default function MismatchOrders() {
           ? a.orderId.localeCompare(b.orderId)
           : b.orderId.localeCompare(a.orderId);
       });
-  }, [
-    mappedApiOrders,
-    selectedLeadId,
-    projects,
-    mismatchResponse,
-    statusFilter,
-    selectedDate,
-    searchQuery,
-    sortAsc,
-  ]);
+  }, [mappedApiOrders, selectedDate, searchQuery, sortAsc]);
 
   // Paginated items
   const paginatedOrders = useMemo(() => {
-    const startIndex = (currentPage - 1) * rowsPerPage;
-    return (filteredOrders || []).slice(startIndex, startIndex + rowsPerPage);
-  }, [filteredOrders, currentPage, rowsPerPage]);
+    if (isClientSearching || (selectedDate && selectedDate !== "All Dates")) {
+      const startIndex = (currentPage - 1) * rowsPerPage;
+      return (filteredOrders || []).slice(startIndex, startIndex + rowsPerPage);
+    }
+    return filteredOrders || [];
+  }, [
+    filteredOrders,
+    isClientSearching,
+    selectedDate,
+    currentPage,
+    rowsPerPage,
+  ]);
 
-  const totalCount = mismatchResponse?.data?.total || filteredOrders?.length || 0;
+  const totalCount = useMemo(() => {
+    if (isClientSearching || (selectedDate && selectedDate !== "All Dates")) {
+      return filteredOrders.length;
+    }
+    return mismatchResponse?.data?.total ?? filteredOrders.length;
+  }, [
+    isClientSearching,
+    selectedDate,
+    filteredOrders.length,
+    mismatchResponse,
+  ]);
 
   const currentProjectName = useMemo(() => {
     if (!selectedLeadId || selectedLeadId === "all") {
@@ -289,7 +319,7 @@ export default function MismatchOrders() {
   }, [projects, selectedLeadId, mismatchResponse]);
 
   const statusOptions = [
-    { label: "Select Order Status", value: "all" },
+    { label: "All Statuses", value: "all" },
     { label: "Open (Mismatch)", value: "open" },
     { label: "In Review", value: "in_review" },
     { label: "Resolved", value: "resolved" },
@@ -297,12 +327,16 @@ export default function MismatchOrders() {
     { label: "Cancelled", value: "cancelled" },
   ];
 
-  const datePresets = [
-    "All Dates",
-    "7 April 2026",
-    "21 January 2024",
-    "15 January 2024",
-  ];
+  // Dynamic date presets from current fetched orders
+  const datePresets = useMemo(() => {
+    const dates = new Set<string>();
+    (mappedApiOrders || []).forEach((o) => {
+      if (o.orderDate && o.orderDate !== "—") {
+        dates.add(o.orderDate);
+      }
+    });
+    return ["All Dates", ...Array.from(dates)];
+  }, [mappedApiOrders]);
 
   return (
     <div className="space-y-6 pb-10">
@@ -419,7 +453,7 @@ export default function MismatchOrders() {
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedLeadId("");
+                      setSelectedLeadId("all");
                       const newParams = new URLSearchParams(searchParams);
                       newParams.delete("leadId");
                       setSearchParams(newParams);
@@ -656,7 +690,15 @@ export default function MismatchOrders() {
 
                       {/* Material Name */}
                       <td className="py-4 px-6 text-[#111827] whitespace-nowrap">
-                        {order.materialName}
+                        <div className="font-medium text-[#111827]">
+                          {order.materialName}
+                        </div>
+                        {order.partCode &&
+                          order.partCode !== order.materialName && (
+                            <div className="text-[11px] text-gray-500 font-mono mt-0.5">
+                              Part: {order.partCode}
+                            </div>
+                          )}
                       </td>
 
                       {/* Quantity */}
@@ -690,7 +732,17 @@ export default function MismatchOrders() {
                             }
                           `}
                         >
-                          {isRedMismatch ? "Mismatch" : order.status}
+                          {isRedMismatch
+                            ? "Mismatch"
+                            : s === "in_review"
+                              ? "In Review"
+                              : s === "resolved"
+                                ? "Resolved"
+                                : s === "closed"
+                                  ? "Closed"
+                                  : s === "cancelled"
+                                    ? "Cancelled"
+                                    : order.status}
                         </span>
                       </td>
 
@@ -714,6 +766,26 @@ export default function MismatchOrders() {
                     </tr>
                   );
                 })
+              ) : !activeLeadId ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="py-14 text-center text-sm text-gray-500"
+                  >
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="w-11 h-11 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                        <Building2 className="w-5 h-5" />
+                      </div>
+                      <p className="font-semibold text-gray-800 text-[15px]">
+                        Please Select a Project
+                      </p>
+                      <p className="text-xs text-gray-500 max-w-sm">
+                        Pick a project from the filter dropdown above to view
+                        its mismatch orders and discrepancy records.
+                      </p>
+                    </div>
+                  </td>
+                </tr>
               ) : (
                 <tr>
                   <td
@@ -724,7 +796,7 @@ export default function MismatchOrders() {
                       No mismatch orders found
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
-                      No mismatch tickets reported.
+                      No mismatch tickets reported for this project.
                     </p>
                   </td>
                 </tr>

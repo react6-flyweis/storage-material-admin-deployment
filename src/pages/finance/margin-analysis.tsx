@@ -1,15 +1,9 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { format } from "date-fns";
 import TitleSubtitle from "@/components/TitleSubtitle";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import ProjectSelector from "@/modules/construction/components/common/ProjectSelector";
 import DateRangeFilter from "@/components/ui/date-range-filter";
 import MarginStatCard, {
   MarginStatCardSkeleton,
@@ -26,17 +20,27 @@ import type { DateRange } from "react-day-picker";
 export default function MarginAnalysisPage() {
   // const [company, setCompany] = useState("all-companies");
   // const [currency, setCurrency] = useState("usd");
-  const [project, setProject] = useState("all-projects");
+  const [project, setProject] = useState("all");
   const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const { data: projectsRes } = useBudgetVsActualProjectsQuery();
-  const projectOptions = projectsRes?.data?.projects || [];
+  const rawProjects = projectsRes?.data?.projects || [];
+
+  const projectOptions = useMemo(() => {
+    if (!rawProjects.length) return undefined;
+    return rawProjects.map((p) => {
+      const value = p._id;
+      const baseName = p.projectName || p.jobId || p._id;
+      const label = p.jobId && p.projectName ? `${p.jobId} - ${p.projectName}` : baseName;
+      return { value, label };
+    });
+  }, [rawProjects]);
 
   const startDateStr = dateRange?.from ? format(dateRange.from, "yyyy-MM-dd") : undefined;
   const endDateStr = dateRange?.to ? format(dateRange.to, "yyyy-MM-dd") : undefined;
 
   const queryParams = {
-    projectId: project !== "all-projects" ? project : undefined,
+    projectId: project !== "all" && project !== "all-projects" ? project : undefined,
     startDate: startDateStr,
     endDate: endDateStr,
   };
@@ -45,11 +49,11 @@ export default function MarginAnalysisPage() {
   const marginData = data?.data;
 
   const isFiltered =
-    project !== "all-projects" ||
+    (project !== "all" && project !== "all-projects") ||
     Boolean(dateRange?.from || dateRange?.to);
 
   const handleClearFilters = () => {
-    setProject("all-projects");
+    setProject("all");
     setDateRange(undefined);
   };
 
@@ -128,19 +132,16 @@ export default function MarginAnalysisPage() {
           </SelectContent>
         </Select> */}
 
-        <Select value={project} onValueChange={setProject}>
-          <SelectTrigger className="h-9 w-auto min-w-48 bg-white">
-            <SelectValue placeholder="Select Project" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all-projects">All Projects</SelectItem>
-            {projectOptions.map((proj) => (
-              <SelectItem key={proj._id} value={proj._id}>
-                {proj.jobId ? `${proj.jobId} - ${proj.projectName}` : proj.projectName}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="w-[220px]">
+          <ProjectSelector
+            value={project}
+            onValueChange={setProject}
+            placeholder="All Projects"
+            includeAllOption
+            options={projectOptions}
+            width="220px"
+          />
+        </div>
 
         {/* <Select value={currency} onValueChange={setCurrency}>
           <SelectTrigger className="h-9 w-auto min-w-44 bg-white">

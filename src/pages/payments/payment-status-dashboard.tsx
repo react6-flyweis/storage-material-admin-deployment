@@ -20,7 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import {
   AlertCircle,
-  Building2,
+  // Building2,
   CheckCircle2,
   Clock3,
   Download,
@@ -145,7 +145,7 @@ export default function PaymentStatusDashboardPage() {
         icon: <Clock3 className="h-5 w-5 text-amber-500" />,
       },
       {
-        title: "Total Paid",
+        title: "Latest Paid",
         amount: formatCurrency(stats?.totalPaid ?? 0),
         subtitle: "This period",
         borderClass: "border-emerald-500",
