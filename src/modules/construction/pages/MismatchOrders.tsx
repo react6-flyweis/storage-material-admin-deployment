@@ -1,6 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useSearchParams } from "react-router";
-import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Search,
@@ -8,25 +7,31 @@ import {
   Eye,
   X,
   Check,
-  Building2,
 } from "lucide-react";
 import { useAppBack } from "@/modules/navigation";
 import Pagination from "@/components/Pagination";
-import { getProjectsApi } from "@/api/projects.api";
-import { useProjectMismatchOrdersQuery } from "../construction.hooks";
+import ProjectSelector from "../components/common/ProjectSelector";
+import {
+  useProjectMismatchOrdersQuery,
+  useConstructionMismatchOrdersQuery,
+} from "../construction.hooks";
 import {
   MismatchOrderDetailsDialog,
   type MismatchOrderItem,
 } from "../components/MismatchOrderDetailsDialog";
-import type { Project } from "@/types/projects.types";
 
 export default function MismatchOrders() {
   const { goBack } = useAppBack("/construction");
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Selected Lead / Project ID
+  // Selected Lead / Project ID ("" or "all" means all projects)
   const leadIdFromUrl = searchParams.get("leadId") || "";
   const [selectedLeadId, setSelectedLeadId] = useState<string>(leadIdFromUrl);
+
+  // Synchronize state if URL query param changes externally
+  useEffect(() => {
+    setSelectedLeadId(searchParams.get("leadId") || "");
+  }, [searchParams]);
 
   // Filters & State
   const [searchQuery, setSearchQuery] = useState("");
@@ -45,65 +50,61 @@ export default function MismatchOrders() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   // Dropdown states
-  const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
-  const projectDropdownRef = useRef<HTMLDivElement>(null);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
   const [dateDropdownOpen, setDateDropdownOpen] = useState(false);
   const dateDropdownRef = useRef<HTMLDivElement>(null);
 
-  // 1. Fetch available projects for selector
-  const { data: projectsData } = useQuery({
-    queryKey: ["projects-selector-list"],
-    queryFn: () => getProjectsApi({ page: 1, limit: 100 }),
-  });
+  // 1. Determine query modes
+  // If no project is selected or "all" is selected, use GET /api/admin/construction/mismatch-orders
+  // If a specific leadId is selected, use GET /api/admin/plant/projects/{leadId}/mismatch-orders
+  const isAllProjects = !selectedLeadId || selectedLeadId === "all";
+  const activeLeadId = isAllProjects ? "" : selectedLeadId;
 
-  const projects: Project[] = useMemo(() => {
-    return projectsData?.data?.data?.projects || [];
-  }, [projectsData]);
-
-  // Auto-select first project if no leadId in URL
-  useEffect(() => {
-    if (!selectedLeadId && !searchParams.get("leadId") && projects.length > 0) {
-      const firstId = projects[0]._id || projects[0].leadId || "";
-      if (firstId) {
-        setSelectedLeadId(firstId);
-        setSearchParams({ leadId: firstId });
-      }
-    }
-  }, [projects, selectedLeadId, searchParams, setSearchParams]);
-
-  // 2. Fetch Mismatch Orders using API
-  // GET /api/admin/plant/projects/{leadId}/mismatch-orders?page=1&limit=10&status=open
-  const activeLeadId =
-    selectedLeadId && selectedLeadId !== "all" ? selectedLeadId : "";
-
-  // When user is searching client-side, fetch with limit=200 so search operates across records.
+  // When user is searching client-side, fetch with higher limit so search operates across records.
   // Otherwise, use server pagination with page=currentPage and limit=rowsPerPage.
   const isClientSearching = Boolean(searchQuery.trim());
   const queryLimit = isClientSearching ? 200 : rowsPerPage;
   const queryPage = isClientSearching ? 1 : currentPage;
+  const statusParam = statusFilter === "all" ? undefined : statusFilter;
 
-  const { data: mismatchResponse, isLoading: isOrdersLoading } =
-    useProjectMismatchOrdersQuery(
-      activeLeadId,
-      {
-        page: queryPage,
-        limit: queryLimit,
-        status: statusFilter === "all" ? undefined : statusFilter,
-      },
-      { enabled: Boolean(activeLeadId) },
-    );
+  // All Projects mismatch orders query: GET /api/admin/construction/mismatch-orders
+  const {
+    data: allMismatchResponse,
+    isLoading: isAllOrdersLoading,
+  } = useConstructionMismatchOrdersQuery(
+    {
+      page: queryPage,
+      limit: queryLimit,
+      status: statusParam,
+    },
+    { enabled: isAllProjects },
+  );
+
+  // Single Project mismatch orders query: GET /api/admin/plant/projects/{leadId}/mismatch-orders
+  const {
+    data: projectMismatchResponse,
+    isLoading: isProjectOrdersLoading,
+  } = useProjectMismatchOrdersQuery(
+    activeLeadId,
+    {
+      page: queryPage,
+      limit: queryLimit,
+      status: statusParam,
+    },
+    { enabled: !isAllProjects && Boolean(activeLeadId) },
+  );
+
+  const mismatchResponse = isAllProjects
+    ? allMismatchResponse
+    : projectMismatchResponse;
+  const isOrdersLoading = isAllProjects
+    ? isAllOrdersLoading
+    : isProjectOrdersLoading;
 
   // Click outside listener for dropdowns
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        projectDropdownRef.current &&
-        !projectDropdownRef.current.contains(e.target as Node)
-      ) {
-        setProjectDropdownOpen(false);
-      }
       if (
         statusDropdownRef.current &&
         !statusDropdownRef.current.contains(e.target as Node)
@@ -304,20 +305,6 @@ export default function MismatchOrders() {
     mismatchResponse,
   ]);
 
-  const currentProjectName = useMemo(() => {
-    if (!selectedLeadId || selectedLeadId === "all") {
-      return "All Projects";
-    }
-    const found = projects.find(
-      (p) => p._id === selectedLeadId || p.leadId === selectedLeadId,
-    );
-    return (
-      found?.projectName ||
-      mismatchResponse?.data?.projectName ||
-      "All Projects"
-    );
-  }, [projects, selectedLeadId, mismatchResponse]);
-
   const statusOptions = [
     { label: "All Statuses", value: "all" },
     { label: "Open (Mismatch)", value: "open" },
@@ -419,89 +406,25 @@ export default function MismatchOrders() {
               )}
             </div>
 
-            {/* Project Selector Dropdown */}
-            <div ref={projectDropdownRef} className="relative">
-              <button
-                type="button"
-                onClick={() => setProjectDropdownOpen(!projectDropdownOpen)}
-                className="
-                  h-[38px] px-3.5 max-w-[200px]
-                  flex items-center justify-between gap-2
-                  text-[13px] text-gray-700 font-normal
-                  bg-white border border-gray-200 rounded-[8px]
-                  hover:bg-gray-50/80
-                  focus:outline-none focus:ring-1 focus:ring-blue-500
-                  transition cursor-pointer truncate
-                "
-              >
-                <Building2 className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                <span className="truncate">{currentProjectName}</span>
-                <ChevronDown
-                  className={`w-3.5 h-3.5 text-gray-400 transition-transform shrink-0 ${
-                    projectDropdownOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
-
-              {projectDropdownOpen && (
-                <div className="absolute right-0 mt-1.5 w-64 bg-white border border-gray-100 rounded-[8px] shadow-lg py-1 z-30 max-h-60 overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
-                  <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wider border-b border-gray-100">
-                    Select Project
-                  </div>
-
-                  {/* All Projects Option */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedLeadId("all");
-                      const newParams = new URLSearchParams(searchParams);
-                      newParams.delete("leadId");
-                      setSearchParams(newParams);
-                      setProjectDropdownOpen(false);
-                      setCurrentPage(1);
-                    }}
-                    className={`
-                      w-full px-3.5 py-2 text-left text-xs flex items-center justify-between
-                      hover:bg-gray-50 transition-colors
-                      ${!selectedLeadId || selectedLeadId === "all" ? "text-blue-600 font-semibold bg-blue-50/50" : "text-gray-700"}
-                    `}
-                  >
-                    <span className="truncate">All Projects</span>
-                    {(!selectedLeadId || selectedLeadId === "all") && (
-                      <Check className="w-3.5 h-3.5 shrink-0" />
-                    )}
-                  </button>
-
-                  {projects.map((proj) => {
-                    const id = proj._id || proj.leadId || "";
-                    const isSelected = selectedLeadId === id;
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => {
-                          setSelectedLeadId(id);
-                          setSearchParams({ leadId: id });
-                          setProjectDropdownOpen(false);
-                          setCurrentPage(1);
-                        }}
-                        className={`
-                          w-full px-3.5 py-2 text-left text-xs flex items-center justify-between
-                          hover:bg-gray-50 transition-colors
-                          ${isSelected ? "text-blue-600 font-semibold bg-blue-50/50" : "text-gray-700"}
-                        `}
-                      >
-                        <span className="truncate">
-                          {proj.projectName || "Unnamed Project"}
-                        </span>
-                        {isSelected && (
-                          <Check className="w-3.5 h-3.5 shrink-0" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
+            {/* Project Selector */}
+            <div className="w-[180px] sm:w-[210px]">
+              <ProjectSelector
+                value={selectedLeadId || "all"}
+                onValueChange={(val) => {
+                  setSelectedLeadId(val);
+                  const newParams = new URLSearchParams(searchParams);
+                  if (!val || val === "all") {
+                    newParams.delete("leadId");
+                  } else {
+                    newParams.set("leadId", val);
+                  }
+                  setSearchParams(newParams);
+                  setCurrentPage(1);
+                }}
+                placeholder="All Projects"
+                includeAllOption
+                width="100%"
+              />
             </div>
 
             {/* Select Order Status Dropdown */}
