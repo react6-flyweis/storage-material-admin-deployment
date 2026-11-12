@@ -50,7 +50,7 @@ import { useAppBack } from "@/modules/navigation";
 import AssignSalesDialog from "@/components/leads/assign-sales-dialog";
 import DeleteLeadDialog from "@/components/leads/delete-lead-dialog";
 import QuoteSummaryDialog from "@/components/leads/quote-summary-dialog";
-import LeadChatTab from "./lead-chat-tab";
+import LeadTranscriptsCard from "@/components/leads/lead-transcripts-card";
 import LeadLifecycleTab from "./lead-lifecycle-tab";
 import LeadDocumentsTab from "./lead-documents-tab";
 import LeadCallHistoryTab from "./lead-call-history-tab";
@@ -1015,15 +1015,17 @@ export default function LeadDetails() {
             </TabsContent>
 
             <TabsContent value="open_chat" className="mt-6">
-              <LeadChatTab
+              <LeadTranscriptsCard
                 lead={{
                   id: lead?.jobId || leadId || "",
                   backendId: leadId,
                   name: customer?.firstName || "Unknown",
                   assignedToName:
-                    lead?.assignedSales?.name ||
-                    lead?.assignedSales ||
-                    "Unassigned",
+                    typeof lead?.assignedSales === "object"
+                      ? lead?.assignedSales?.name
+                      : typeof lead?.assignedSales === "string"
+                        ? lead.assignedSales
+                        : "Unassigned",
                 }}
               />
             </TabsContent>
@@ -1032,6 +1034,7 @@ export default function LeadDetails() {
               <LeadCallHistoryTab
                 lead={{
                   id: lead?.jobId || leadId || "",
+                  backendId: leadId,
                   name: customer?.firstName || lead?.name || "Unknown",
                 }}
               />

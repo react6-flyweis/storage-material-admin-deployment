@@ -497,11 +497,39 @@ export type ChatMessage = {
   isRead?: boolean;
   createdAt: string;
   updatedAt?: string;
+  origin?: "chat" | "call";
+  callSessionId?: string | null;
+};
+
+export type PublicChatHistoryData = {
+  messages?: ChatMessage[];
+  chat?: {
+    messageCount?: number;
+    messages?: ChatMessage[];
+  };
+  call?: {
+    sessionCount?: number;
+    turnCount?: number;
+    sessions?: CallSession[];
+  };
+  summary?: TranscriptSummary;
 };
 
 export type GetChatHistoryResponse = {
-  success: boolean;
-  data: ChatMessage[];
+  success?: boolean;
+  message?: string;
+  data?: PublicChatHistoryData | ChatMessage[];
+  messages?: ChatMessage[];
+  chat?: {
+    messageCount?: number;
+    messages?: ChatMessage[];
+  };
+  call?: {
+    sessionCount?: number;
+    turnCount?: number;
+    sessions?: CallSession[];
+  };
+  summary?: TranscriptSummary;
 };
 
 export async function getChatHistoryProvider(leadId: string) {
@@ -1075,6 +1103,134 @@ export type UnarchiveLeadResponse = {
 export async function unarchiveLeadProvider(leadId: string) {
   const response = await apiClient.put<UnarchiveLeadResponse>(
     `/api/admin/leads/${encodeURIComponent(leadId)}/unarchive`,
+  );
+  return response.data;
+}
+
+// -------------------------------------------------------------
+// Voice Call & Transcript Types and Providers
+// -------------------------------------------------------------
+
+export type TranscriptChannel = "all" | "chat" | "call" | "summary";
+
+export type TranscriptTabStatus = {
+  hasChat: boolean;
+  hasCall: boolean;
+  hasSummary: boolean;
+};
+
+export type TranscriptSummary = {
+  text: string;
+  updatedAt?: string;
+};
+
+export type CallTurn = {
+  turnId?: string;
+  role: "ai" | "customer";
+  transcript: string;
+  createdAt: string;
+  messageId?: string;
+};
+
+export type CallSession = {
+  callSessionId: string;
+  twilioCallSid?: string;
+  status?: string;
+  fromNumber: string;
+  toNumber?: string;
+  startedAt: string;
+  endedAt?: string | null;
+  durationSeconds: number;
+  isHandedToSales?: boolean;
+  turnCount?: number;
+  turns: CallTurn[];
+};
+
+export type LeadTranscriptsData = {
+  leadId: string;
+  customerId: string;
+  projectName: string;
+  jobId: string;
+  tabs: TranscriptTabStatus;
+  summary?: TranscriptSummary;
+  chat?: {
+    messageCount: number;
+    messages: ChatMessage[];
+  };
+  call?: {
+    sessionCount: number;
+    turnCount: number;
+    sessions: CallSession[];
+  };
+};
+
+export type LeadTranscriptsResponse = {
+  success: boolean;
+  data: LeadTranscriptsData;
+};
+
+export type LeadCallItem = {
+  callSessionId: string;
+  twilioCallSid: string;
+  status: string;
+  fromNumber: string;
+  toNumber?: string;
+  startedAt: string;
+  endedAt?: string | null;
+  durationSeconds: number;
+  isHandedToSales: boolean;
+};
+
+export type LeadCallsResponse = {
+  success: boolean;
+  data: {
+    calls: LeadCallItem[];
+    total: number;
+    page: number;
+    limit: number;
+  };
+};
+
+export type CallDetailResponse = {
+  success: boolean;
+  data: {
+    call: LeadCallItem & { leadId: string };
+    turns: CallTurn[];
+  };
+};
+
+export async function getLeadTranscriptsProvider(
+  leadId: string,
+  channel: TranscriptChannel = "all"
+): Promise<LeadTranscriptsResponse> {
+  const response = await apiClient.get<LeadTranscriptsResponse>(
+    `/api/admin/leads/${encodeURIComponent(leadId)}/transcripts`,
+    {
+      params: channel === "all" ? undefined : { channel },
+    }
+  );
+  return response.data;
+}
+
+export async function getLeadCallsProvider(
+  leadId: string,
+  page = 1,
+  limit = 20
+): Promise<LeadCallsResponse> {
+  const response = await apiClient.get<LeadCallsResponse>(
+    `/api/admin/leads/${encodeURIComponent(leadId)}/calls`,
+    {
+      params: { page, limit },
+    }
+  );
+  return response.data;
+}
+
+export async function getCallDetailProvider(
+  callSessionId: string
+): Promise<CallDetailResponse> {
+  const response = await apiClient.get<CallDetailResponse>(
+    `/api/admin/calls/${encodeURIComponent(callSessionId)}`
   );
   return response.data;
 }

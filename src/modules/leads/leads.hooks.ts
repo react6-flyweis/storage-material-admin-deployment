@@ -47,6 +47,10 @@ import {
   archiveLeadProvider,
   unarchiveLeadProvider,
   type GetArchivedLeadsParams,
+  getLeadTranscriptsProvider,
+  getLeadCallsProvider,
+  getCallDetailProvider,
+  type TranscriptChannel,
 } from "./leads.api";
 
 export type {
@@ -782,4 +786,49 @@ export function useLeadsSocketSync() {
     };
   }, [socket, queryClient]);
 }
+
+// -------------------------------------------------------------
+// Voice Call & Transcript React Query Hooks
+// -------------------------------------------------------------
+
+export const leadVoiceQueryKeys = {
+  transcripts: (leadId?: string, channel?: TranscriptChannel) =>
+    ["admin", "leads", "transcripts", leadId, channel] as const,
+  calls: (leadId?: string, page?: number, limit?: number) =>
+    ["admin", "leads", "calls", leadId, page, limit] as const,
+  callDetail: (callSessionId?: string) =>
+    ["admin", "calls", callSessionId] as const,
+};
+
+export function useLeadTranscriptsQuery(
+  leadId?: string,
+  channel: TranscriptChannel = "all"
+) {
+  return useQuery({
+    queryKey: leadVoiceQueryKeys.transcripts(leadId, channel),
+    queryFn: () => getLeadTranscriptsProvider(leadId!, channel),
+    enabled: Boolean(leadId),
+  });
+}
+
+export function useLeadCallsQuery(
+  leadId?: string,
+  page = 1,
+  limit = 20
+) {
+  return useQuery({
+    queryKey: leadVoiceQueryKeys.calls(leadId, page, limit),
+    queryFn: () => getLeadCallsProvider(leadId!, page, limit),
+    enabled: Boolean(leadId),
+  });
+}
+
+export function useCallDetailQuery(callSessionId?: string) {
+  return useQuery({
+    queryKey: leadVoiceQueryKeys.callDetail(callSessionId),
+    queryFn: () => getCallDetailProvider(callSessionId!),
+    enabled: Boolean(callSessionId),
+  });
+}
+
 
