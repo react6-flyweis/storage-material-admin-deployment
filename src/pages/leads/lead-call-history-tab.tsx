@@ -1,73 +1,72 @@
+import {
+  useLeadCallsQuery,
+  useChatHistoryQuery,
+} from "@/modules/leads/leads.hooks";
+import type {
+  PublicChatHistoryData,
+  CallSession,
+} from "@/modules/leads/leads.api";
+import CallSessionList from "@/components/leads/call-session-list";
+
 type Lead = {
   id: string;
+  _id?: string;
+  backendId?: string;
   name: string;
-};
-
-type CallHistoryItem = {
-  id: string;
-  date: string;
-  time: string;
-  callsCount: number;
 };
 
 type Props = {
   lead: Lead;
 };
 
-const mockCallHistory: CallHistoryItem[] = [
-  {
-    id: "call-1",
-    date: "May 1, 2026",
-    time: "9.00 PM",
-    callsCount: 2,
-  },
-  {
-    id: "call-2",
-    date: "May 1, 2026",
-    time: "9.00 PM",
-    callsCount: 2,
-  },
-];
-
 export default function LeadCallHistoryTab({ lead }: Props) {
-  const totalCalls = mockCallHistory.reduce(
-    (sum, item) => sum + item.callsCount,
-    0,
+  const actualLeadId = lead.backendId || lead._id || lead.id;
+  const isValidMongoId = Boolean(actualLeadId && actualLeadId.length === 24);
+
+  const { data: chatHistoryRes, isLoading: isChatLoading } = useChatHistoryQuery(
+    actualLeadId,
+    isValidMongoId
   );
+  const { data: callsRes, isLoading: isCallsLoading } =
+    useLeadCallsQuery(actualLeadId);
+
+  const rawHistory =
+    chatHistoryRes && typeof chatHistoryRes === "object"
+      ? "data" in chatHistoryRes &&
+        chatHistoryRes.data &&
+        !Array.isArray(chatHistoryRes.data)
+        ? (chatHistoryRes.data as PublicChatHistoryData)
+        : (chatHistoryRes as PublicChatHistoryData)
+      : undefined;
+
+  const historySessions: CallSession[] = rawHistory?.call?.sessions ?? [];
+  const calls =
+    historySessions.length > 0 ? historySessions : callsRes?.data?.calls ?? [];
+
+  const totalCalls =
+    rawHistory?.call?.sessionCount ?? callsRes?.data?.total ?? calls.length;
+
+  const isLoading = isChatLoading && isCallsLoading;
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="border-b border-gray-200 px-6 py-4">
-        <h3 className="text-lg font-semibold tracking-tight text-gray-900">
-          Call History
-        </h3>
-        <p className="text-xs text-gray-500 mt-1">
-          {lead.name} • {lead.id} • {totalCalls} total calls
-        </p>
-      </div>
-
-      <div className="px-6 py-6">
-        <div className="space-y-4">
-          {mockCallHistory.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-lg border border-gray-200 bg-gray-50 px-5 py-4 shadow-sm"
-            >
-              <div className="grid grid-cols-1 gap-2 text-gray-700 sm:grid-cols-[1.1fr_0.9fr_0.7fr] sm:items-center sm:gap-3">
-                <div className="text-base font-normal text-gray-700">
-                  {item.date}
-                </div>
-                <div className="text-base font-normal text-gray-700">
-                  {item.time}
-                </div>
-                <div className="text-base font-medium text-gray-600 sm:text-center bg-gray-200 py-1 px-3 rounded-full inline-flex max-w-max">
-                  {item.callsCount} Calls
-                </div>
-              </div>
-            </div>
-          ))}
+      <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold tracking-tight text-gray-900">
+            Call History
+          </h3>
+          <p className="text-xs text-gray-500 mt-1">
+            {lead.name} • {actualLeadId} • {totalCalls}{" "}
+            {totalCalls === 1 ? "total call" : "total calls"}
+          </p>
         </div>
       </div>
+
+      <CallSessionList
+        sessions={calls}
+        isLoading={isLoading}
+        className="border-0 rounded-none shadow-none"
+      />
     </div>
   );
 }

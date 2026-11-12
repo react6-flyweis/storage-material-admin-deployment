@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Paperclip, Send, Loader2 } from "lucide-react";
+import { Paperclip, Send, Loader2, Phone } from "lucide-react";
 import { useSocket } from "@/utils/socketContextProvider";
 import { useChatHistoryQuery } from "@/modules/leads/leads.hooks";
 import { toast } from "sonner";
@@ -47,11 +47,18 @@ export default function LeadChatTab({ lead }: Props) {
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (historyRes?.data) {
-      const resData = historyRes.data as any;
-      const msgs = Array.isArray(resData) 
-        ? resData 
-        : (resData.recentMessages || resData.messages || resData.data?.recentMessages || resData.data || []);
+    if (historyRes) {
+      const raw = historyRes as any;
+      const resData = raw.data ?? raw;
+      const msgs = Array.isArray(resData)
+        ? resData
+        : (Array.isArray(resData.messages) && resData.messages) ||
+          (Array.isArray(resData.chat?.messages) && resData.chat.messages) ||
+          (Array.isArray(raw.messages) && raw.messages) ||
+          (Array.isArray(raw.chat?.messages) && raw.chat.messages) ||
+          resData.recentMessages ||
+          resData.data?.recentMessages ||
+          [];
       setMessages(msgs);
     }
   }, [historyRes]);
@@ -227,12 +234,20 @@ export default function LeadChatTab({ lead }: Props) {
                       {m.content}
                     </div>
                     <div
-                      className={`text-xs text-gray-400 ${
-                        isYou ? "text-right" : "text-left"
+                      className={`flex items-center gap-1.5 text-xs text-gray-400 ${
+                        isYou ? "justify-end text-right" : "justify-start text-left"
                       }`}
                     >
-                      {isBot ? "Assistant • " : (isYou && m.senderName ? `${m.senderName} • ` : "")}
-                      {formatTime(m.createdAt)}
+                      {m.origin === "call" && (
+                        <span className="inline-flex items-center gap-1 rounded bg-amber-100/90 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
+                          <Phone className="h-2.5 w-2.5" />
+                          Voice Call
+                        </span>
+                      )}
+                      <span>
+                        {isBot ? "Assistant • " : (isYou && m.senderName ? `${m.senderName} • ` : "")}
+                        {formatTime(m.createdAt)}
+                      </span>
                     </div>
                   </div>
                 </div>
