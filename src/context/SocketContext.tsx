@@ -17,6 +17,8 @@ import type {
 import { chatQueryKeys } from "@/modules/team-chat/team-chat.hooks";
 import type { ChatGroupDetails } from "@/modules/team-chat/team-chat.api";
 import { SocketContext } from "./socketContextInstance";
+import { toast } from "sonner";
+import { formatDuration } from "@/lib/call-format";
 
 export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const queryClient = useQueryClient();
@@ -117,6 +119,98 @@ export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         new CustomEvent("socket_new_customer_message", { detail: data })
       );
     });
+
+    // 8. Voice Call Started
+    sock.on(
+      "call_started",
+      (data: {
+        callSessionId: string;
+        leadId: string;
+        customerId?: string;
+        fromNumber: string;
+      }) => {
+        console.log("[SocketContext] call_started", data);
+        toast.info(`Incoming voice call from ${data.fromNumber || "Customer"}`, {
+          description: `Call session started${
+            data.leadId ? ` (Lead: ${data.leadId})` : ""
+          }`,
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "leads", "transcripts"],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "leads", "calls"],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["chat", "history"],
+        });
+        window.dispatchEvent(
+          new CustomEvent("socket_call_started", { detail: data })
+        );
+      }
+    );
+
+    // 9. Voice Call Turn (Speech Dialogue)
+    sock.on(
+      "call_turn",
+      (data: {
+        callSessionId: string;
+        leadId: string;
+        role: "ai" | "customer";
+        transcript: string;
+        createdAt: string;
+      }) => {
+        console.log("[SocketContext] call_turn", data);
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "leads", "transcripts"],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["chat", "history"],
+        });
+        if (data?.callSessionId) {
+          queryClient.invalidateQueries({
+            queryKey: ["admin", "calls", data.callSessionId],
+          });
+        }
+        window.dispatchEvent(
+          new CustomEvent("socket_call_turn", { detail: data })
+        );
+      }
+    );
+
+    // 10. Voice Call Ended
+    sock.on(
+      "call_ended",
+      (data: {
+        callSessionId: string;
+        leadId: string;
+        durationSeconds: number;
+        status: string;
+      }) => {
+        console.log("[SocketContext] call_ended", data);
+        const dur = formatDuration(data.durationSeconds);
+        toast.success(`Voice call ended (${dur})`, {
+          description: `Status: ${data.status || "completed"}`,
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "leads", "transcripts"],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["admin", "leads", "calls"],
+        });
+        queryClient.invalidateQueries({
+          queryKey: ["chat", "history"],
+        });
+        if (data?.callSessionId) {
+          queryClient.invalidateQueries({
+            queryKey: ["admin", "calls", data.callSessionId],
+          });
+        }
+        window.dispatchEvent(
+          new CustomEvent("socket_call_ended", { detail: data })
+        );
+      }
+    );
 
     return () => {
       sock.disconnect();
