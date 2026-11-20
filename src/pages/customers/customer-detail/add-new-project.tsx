@@ -110,8 +110,8 @@ export default function AddNewProjectPage() {
     const newErrors: Record<string, string> = {};
     if (!formData.firstName.trim()) newErrors.firstName = "First Name is required";
     if (!formData.lastName.trim()) newErrors.lastName = "Last Name is required";
-    if (!formData.email.trim()) newErrors.email = "Email is required";
-    if (!formData.phone.trim()) newErrors.phone = "Phone is required";
+    if (formData.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim()))
+      newErrors.email = "Please enter a valid email";
     if (!formData.projectName.trim()) newErrors.projectName = "Project Name is required";
     if (!formData.addressLine1.trim()) newErrors.addressLine1 = "Street address is required";
     if (!formData.city.trim()) newErrors.city = "City is required";
@@ -163,6 +163,8 @@ export default function AddNewProjectPage() {
         windows: formData.windows,
         insulation: formData.insulation,
         quoteValue: formData.quoteValue,
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
       }
     }, {
       onSuccess: () => {
@@ -234,7 +236,7 @@ export default function AddNewProjectPage() {
               {errors.lastName && <p className="text-xs text-red-500">{errors.lastName}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address *</Label>
+              <Label htmlFor="email">Email Address</Label>
               <Input
                 id="email"
                 name="email"
@@ -249,7 +251,7 @@ export default function AddNewProjectPage() {
               {errors.email && <p className="text-xs text-red-500">{errors.email}</p>}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number *</Label>
+              <Label htmlFor="phone">Phone Number</Label>
               <Input
                 id="phone"
                 name="phone"
