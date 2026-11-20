@@ -105,15 +105,11 @@ export default function AddCustomerDialog({
         errors.firstName = { type: "required", message: "Customer name is required" };
       }
 
-      if (!values.email?.trim()) {
-        errors.email = { type: "required", message: "Email is required" };
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+      if (values.email?.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
         errors.email = { type: "pattern", message: "Please enter a valid email" };
       }
 
-      if (!values.phone?.trim()) {
-        errors.phone = { type: "required", message: "Phone number is required" };
-      } else if (!/^\d{10}$/.test(values.phone.replace(/\D/g, ""))) {
+      if (values.phone?.trim() && !/^\d{10}$/.test(values.phone.replace(/\D/g, ""))) {
         errors.phone = { type: "pattern", message: "Phone must be 10 digits" };
       }
 
@@ -160,8 +156,8 @@ export default function AddCustomerDialog({
     // Prepare data for API
     const apiData = {
       firstName: values.firstName,
-      email: values.email,
-      phone: values.phone,
+      email: values.email.trim(),
+      phone: values.phone.trim(),
       buildingType: values.buildingType,
       businessUnit: values.businessUnit ? values.businessUnit.trim().toLowerCase() : null,
       location: compiledLocation,
@@ -458,7 +454,7 @@ export default function AddCustomerDialog({
               name="phone"
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="phone">Phone Number <span className="text-red-500">*</span></FieldLabel>
+                  <FieldLabel htmlFor="phone">Phone Number</FieldLabel>
                   <Input
                     {...field}
                     id="phone"
@@ -478,7 +474,7 @@ export default function AddCustomerDialog({
             name="email"
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
-                <FieldLabel htmlFor="email">Email <span className="text-red-500">*</span></FieldLabel>
+                <FieldLabel htmlFor="email">Email</FieldLabel>
                 <Input
                   {...field}
                   id="email"

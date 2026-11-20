@@ -423,9 +423,9 @@ export default function LeadDetailDialog({
     | undefined = leadDetailResponse?.data.lead;
   const lifecycleUi = getLifecycleUi(leadDetail?.lifecycleStatus);
   const customer = leadDetail?.customerId;
-  const customerPhone = customer?.phone
-    ? `${customer.phone.countryCode ?? ""} ${customer.phone.number ?? ""}`.trim()
-    : "Not available";
+  const customerPhone = customer?.phone?.number
+    ? `${customer.phone.countryCode ?? ""} ${customer.phone.number}`.trim()
+    : "No phone";
   const recentMessagesCount =
     leadDetailResponse?.data.recentMessages?.length ?? 0;
   const documentsCount =
@@ -714,7 +714,7 @@ export default function LeadDetailDialog({
                     <div>
                       <div className="text-xs text-gray-500">Email</div>
                       <div className="text-sm text-gray-900">
-                        {customer?.email ?? "Not available"}
+                        {customer?.email || "No email"}
                       </div>
                     </div>
                     <div>

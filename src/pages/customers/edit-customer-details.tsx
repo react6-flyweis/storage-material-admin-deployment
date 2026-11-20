@@ -16,6 +16,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useCustomerDetailQuery, useUpdateCustomerMutation } from "@/modules/customers/customers.hooks";
 import { toast } from "sonner";
+import { getApiErrorMessage } from "@/lib/api-error";
 
 type CustomerFormData = {
   firstName: string;
@@ -75,6 +76,12 @@ export default function EditCustomerDetailsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const email = formData.email.trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast.error("Please enter a valid email");
+      return;
+    }
+
     try {
       const fullName = [formData.firstName, formData.lastName]
         .filter(Boolean)
@@ -82,8 +89,9 @@ export default function EditCustomerDetailsPage() {
 
       const updateData = {
         firstName: fullName, // Merged into a single key as requested
-        email: formData.email,
-        phone: formData.phoneNumber,
+        // Blank email/phone leave the saved values unchanged.
+        email,
+        phone: formData.phoneNumber.trim(),
         countryCode: formData.countryCode,
       };
 
@@ -95,7 +103,7 @@ export default function EditCustomerDetailsPage() {
       setShowSuccess(true);
       toast.success("Customer updated successfully!");
     } catch (error) {
-      toast.error("Failed to update customer. Please try again.");
+      toast.error(getApiErrorMessage(error, "Failed to update customer. Please try again."));
       console.error("Update customer error:", error);
     }
   };
@@ -185,19 +193,18 @@ export default function EditCustomerDetailsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address *</Label>
+              <Label htmlFor="email">Email Address</Label>
               <Input
                 id="email"
                 name="email"
                 type="email"
-                placeholder="Enter Email Address"
+                placeholder="No email"
                 value={formData.email}
                 onChange={handleInputChange}
-                required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phoneNumber">Phone Number *</Label>
+              <Label htmlFor="phoneNumber">Phone Number</Label>
               <div className="flex gap-2">
                 <Select
                   value={formData.countryCode}
@@ -217,11 +224,10 @@ export default function EditCustomerDetailsPage() {
                 <Input
                   id="phoneNumber"
                   name="phoneNumber"
-                  placeholder="Enter Phone Number"
+                  placeholder="No phone"
                   value={formData.phoneNumber}
                   onChange={handleInputChange}
                   className="flex-1"
-                  required
                 />
               </div>
             </div>

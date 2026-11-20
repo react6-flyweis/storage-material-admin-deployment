@@ -8,10 +8,14 @@ import {
   importExpensesProvider,
   getExpenseCategoriesProvider,
   createExpenseCategoryProvider,
+  updateExpenseCategoryProvider,
+  deleteExpenseCategoryProvider,
   getMonthlyExpensesSummaryProvider,
   getExpensesByCategoryProvider,
   getBudgetVsActualTrendProvider,
   createExpenseProvider,
+  updateExpenseProvider,
+  deleteExpenseProvider,
   addWipPaymentProvider,
   getProfitLossProvider,
   getProjectProfitLossProvider,
@@ -37,7 +41,9 @@ import {
   type GetFinancialOverviewParams,
   type ImportExpensesPayload,
   type CreateExpenseCategoryPayload,
+  type UpdateExpenseCategoryPayload,
   type CreateExpensePayload,
+  type UpdateExpensePayload,
   type AddWipPaymentPayload,
 } from "./financials.api";
 
@@ -116,6 +122,36 @@ export function useCreateExpenseCategoryMutation() {
   });
 }
 
+export function useUpdateExpenseCategoryMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: UpdateExpenseCategoryPayload;
+    }) => updateExpenseCategoryProvider(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["financials", "expense-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["financials", "expenses-filters"] });
+    },
+  });
+}
+
+export function useDeleteExpenseCategoryMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => deleteExpenseCategoryProvider(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["financials", "expense-categories"] });
+      queryClient.invalidateQueries({ queryKey: ["financials", "expenses-filters"] });
+    },
+  });
+}
+
 export function useMonthlyExpensesSummaryQuery() {
   return useQuery({
     queryKey: ["financials", "monthly-expenses-summary"],
@@ -145,6 +181,40 @@ export function useCreateExpenseMutation() {
 
   return useMutation({
     mutationFn: (payload: CreateExpensePayload) => createExpenseProvider(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["financials", "expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["financials", "expenses-filters"] });
+      queryClient.invalidateQueries({ queryKey: ["financials", "monthly-expenses-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["financials", "expenses-by-category"] });
+    },
+  });
+}
+
+export function useUpdateExpenseMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      expenseId,
+      payload,
+    }: {
+      expenseId: string;
+      payload: UpdateExpensePayload;
+    }) => updateExpenseProvider(expenseId, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["financials", "expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["financials", "expenses-filters"] });
+      queryClient.invalidateQueries({ queryKey: ["financials", "monthly-expenses-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["financials", "expenses-by-category"] });
+    },
+  });
+}
+
+export function useDeleteExpenseMutation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (expenseId: string) => deleteExpenseProvider(expenseId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["financials", "expenses"] });
       queryClient.invalidateQueries({ queryKey: ["financials", "expenses-filters"] });

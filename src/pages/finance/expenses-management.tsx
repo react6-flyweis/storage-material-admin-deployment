@@ -28,6 +28,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -36,6 +38,8 @@ import { MonthlySummaryCard } from "@/components/finance/monthly-summary-card";
 import { ExpensesCategoryChart } from "@/components/finance/expenses-category-chart";
 import { BudgetVsActualChart } from "@/components/finance/budget-vs-actual-chart";
 import { AddExpenseDialog } from "@/components/finance/add-expense-dialog";
+import { EditExpenseDialog } from "@/components/finance/edit-expense-dialog";
+import ConfirmationDialog from "@/components/confirmation-dialog";
 import { BudgetAlert, ImportantNote } from "@/components/finance/alerts";
 import { ExpensesCategoryManagement } from "@/components/finance/expenses-category-management";
 import { UploadFileDialog } from "@/components/upload-file-dialog";
@@ -45,7 +49,9 @@ import {
   useExpensesQuery,
   useExportExpensesMutation,
   useImportExpensesMutation,
+  useDeleteExpenseMutation,
 } from "@/modules/financials/financials.hooks";
+import type { ExpenseItem } from "@/modules/financials/financials.api";
 
 function ExpenseCard({
   title,
@@ -80,10 +86,37 @@ export default function ExpensesManagementPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [dateRange, setDateRange] = useState<RDateRange | undefined>(undefined);
   const [addExpenseDialogOpen, setAddExpenseDialogOpen] = useState(false);
+  const [selectedExpenseForEdit, setSelectedExpenseForEdit] =
+    useState<ExpenseItem | null>(null);
+  const [editExpenseDialogOpen, setEditExpenseDialogOpen] = useState(false);
+  const [selectedExpenseForDelete, setSelectedExpenseForDelete] =
+    useState<ExpenseItem | null>(null);
+  const [deleteExpenseDialogOpen, setDeleteExpenseDialogOpen] = useState(false);
+  const [deleteExpenseError, setDeleteExpenseError] = useState<string | null>(null);
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [successDialogTitle, setSuccessDialogTitle] = useState(
     "File(s) Uploaded Successfully",
   );
+
+  const deleteExpenseMutation = useDeleteExpenseMutation();
+
+  const handleDeleteExpenseConfirm = async () => {
+    if (!selectedExpenseForDelete) return;
+    setDeleteExpenseError(null);
+    try {
+      await deleteExpenseMutation.mutateAsync(selectedExpenseForDelete._id);
+      setDeleteExpenseDialogOpen(false);
+      setSelectedExpenseForDelete(null);
+      setDeleteExpenseError(null);
+      setSuccessDialogTitle("Expense deleted successfully");
+      setSuccessDialogOpen(true);
+    } catch (error) {
+      const err = error as { response?: { data?: { message?: string } } };
+      setDeleteExpenseError(
+        err?.response?.data?.message || "Failed to delete expense. Please try again."
+      );
+    }
+  };
 
   const limit = 10;
 
@@ -372,12 +405,13 @@ export default function ExpensesManagementPage() {
                     <TableHead className="w-32">Project Building</TableHead>
                     <TableHead className="w-24 text-right">Amount</TableHead>
                     <TableHead className="w-32">Payment Method</TableHead>
+                    <TableHead className="w-24 text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {isExpensesLoading ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-32 text-center text-slate-500">
+                      <TableCell colSpan={9} className="h-32 text-center text-slate-500">
                         <div className="flex items-center justify-center gap-2">
                           <Loader2 className="h-5 w-5 animate-spin text-violet-600" />
                           <span>Loading expenses...</span>
@@ -386,7 +420,7 @@ export default function ExpensesManagementPage() {
                     </TableRow>
                   ) : expensesList.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-32 text-center text-slate-500">
+                      <TableCell colSpan={9} className="h-32 text-center text-slate-500">
                         No expenses found.
                       </TableCell>
                     </TableRow>
@@ -447,6 +481,32 @@ export default function ExpensesManagementPage() {
                           </TableCell>
                           <TableCell className="text-sm text-slate-600">
                             {paymentMethodLabel}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedExpenseForEdit(expense);
+                                  setEditExpenseDialogOpen(true);
+                                }}
+                                className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors"
+                                title="Edit Expense"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedExpenseForDelete(expense);
+                                  setDeleteExpenseDialogOpen(true);
+                                }}
+                                className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-red-600 transition-colors"
+                                title="Delete Expense"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -534,6 +594,53 @@ export default function ExpensesManagementPage() {
           setSuccessDialogTitle("Expense added successfully");
           setSuccessDialogOpen(true);
         }}
+      />
+
+      <EditExpenseDialog
+        expense={selectedExpenseForEdit}
+        open={editExpenseDialogOpen}
+        onClose={() => {
+          setEditExpenseDialogOpen(false);
+          setSelectedExpenseForEdit(null);
+        }}
+        onSuccess={() => {
+          setSuccessDialogTitle("Expense updated successfully");
+          setSuccessDialogOpen(true);
+        }}
+      />
+
+      <ConfirmationDialog
+        open={deleteExpenseDialogOpen}
+        onClose={() => {
+          setDeleteExpenseDialogOpen(false);
+          setSelectedExpenseForDelete(null);
+          setDeleteExpenseError(null);
+        }}
+        onConfirm={handleDeleteExpenseConfirm}
+        title="Delete Expense"
+        description={
+          <>
+            Are you sure you want to delete expense{" "}
+            {selectedExpenseForDelete?.expenseId ? (
+              <span className="font-semibold text-gray-900">
+                "{selectedExpenseForDelete.expenseId}"
+                {selectedExpenseForDelete.amount
+                  ? ` ($${selectedExpenseForDelete.amount.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })})`
+                  : ""}
+              </span>
+            ) : (
+              "this expense"
+            )}
+            ? It will be removed from lists and budget vs actual calculations.
+          </>
+        }
+        confirmLabel="Delete"
+        isLoading={deleteExpenseMutation.isPending}
+        error={deleteExpenseError}
+        variant="destructive"
       />
 
       {/* Expenses Categories Management */}
