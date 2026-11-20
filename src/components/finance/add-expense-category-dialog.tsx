@@ -1,7 +1,7 @@
+import { useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +47,7 @@ export function AddExpenseCategoryDialog({
   onClose,
   onSuccess,
 }: AddExpenseCategoryDialogProps) {
+  const [formError, setFormError] = useState<string | null>(null);
   const createCategoryMutation = useCreateExpenseCategoryMutation();
 
   const {
@@ -67,22 +68,24 @@ export function AddExpenseCategoryDialog({
   });
 
   const handleCancel = () => {
+    setFormError(null);
     reset();
     onClose();
   };
 
   const onSubmit = async (data: AddExpenseCategoryFormValues) => {
+    setFormError(null);
     try {
       await createCategoryMutation.mutateAsync({
         name: data.name.trim(),
       });
-      toast.success("Expense category created successfully");
+      setFormError(null);
       reset();
       onSuccess?.();
       onClose();
     } catch (error) {
       const err = error as { response?: { data?: { message?: string } } };
-      toast.error(
+      setFormError(
         err?.response?.data?.message || "Failed to create expense category"
       );
     }
@@ -98,6 +101,11 @@ export function AddExpenseCategoryDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-6">
+          {formError && (
+            <div className="mb-4 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-600 border border-red-200">
+              {formError}
+            </div>
+          )}
           <div className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="name" className="font-semibold">

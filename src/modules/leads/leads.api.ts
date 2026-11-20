@@ -823,6 +823,10 @@ export type UpdateLeadPayload = {
   customerLastName?: string;
   customerEmail?: string;
   customerPhone?: string;
+  /** Customer contact. Blank ("") leaves the saved value unchanged. */
+  email?: string;
+  phone?: string;
+  countryCode?: string;
   company?: string;
   jobTitle?: string;
 };

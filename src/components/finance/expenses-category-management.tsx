@@ -8,13 +8,48 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Edit, Loader2 } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
 import { AddExpenseCategoryDialog } from "./add-expense-category-dialog";
-import { useExpenseCategoriesQuery } from "@/modules/financials/financials.hooks";
+import { EditExpenseCategoryDialog } from "./edit-expense-category-dialog";
+import ConfirmationDialog from "@/components/confirmation-dialog";
+import SuccessDialog from "@/components/success-dialog";
+import {
+  useExpenseCategoriesQuery,
+  useDeleteExpenseCategoryMutation,
+} from "@/modules/financials/financials.hooks";
 import type { ExpenseCategoryApiItem } from "@/modules/financials/financials.api";
 
 export function ExpensesCategoryManagement() {
   const [openDialog, setOpenDialog] = useState(false);
+  const [selectedCategoryForEdit, setSelectedCategoryForEdit] =
+    useState<ExpenseCategoryApiItem | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedCategoryForDelete, setSelectedCategoryForDelete] =
+    useState<ExpenseCategoryApiItem | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteCategoryError, setDeleteCategoryError] = useState<string | null>(null);
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [successDialogTitle, setSuccessDialogTitle] = useState("");
+
+  const deleteCategoryMutation = useDeleteExpenseCategoryMutation();
+
+  const handleDeleteCategoryConfirm = async () => {
+    if (!selectedCategoryForDelete) return;
+    setDeleteCategoryError(null);
+    try {
+      await deleteCategoryMutation.mutateAsync(selectedCategoryForDelete._id);
+      setDeleteDialogOpen(false);
+      setSelectedCategoryForDelete(null);
+      setDeleteCategoryError(null);
+      setSuccessDialogTitle("Expense category deleted successfully");
+      setSuccessDialogOpen(true);
+    } catch (error) {
+      const err = error as { response?: { data?: { message?: string } } };
+      setDeleteCategoryError(
+        err?.response?.data?.message || "Failed to delete expense category"
+      );
+    }
+  };
 
   const { data: categoriesRes, isLoading, isError } = useExpenseCategoriesQuery();
   const apiCategories: ExpenseCategoryApiItem[] = categoriesRes?.data?.categories || [];
@@ -43,13 +78,13 @@ export function ExpensesCategoryManagement() {
               <TableHead>Type</TableHead>
               <TableHead>Default</TableHead>
               <TableHead>Status</TableHead>
-              {/* <TableHead>Action</TableHead> */}
+              <TableHead className="w-[100px]">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-32 text-center text-slate-500">
+                <TableCell colSpan={6} className="h-32 text-center text-slate-500">
                   <div className="flex items-center justify-center gap-2">
                     <Loader2 className="h-5 w-5 animate-spin text-violet-600" />
                     <span>Loading categories...</span>
@@ -58,13 +93,13 @@ export function ExpensesCategoryManagement() {
               </TableRow>
             ) : isError ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-32 text-center text-red-500">
+                <TableCell colSpan={6} className="h-32 text-center text-red-500">
                   Failed to load expense categories.
                 </TableCell>
               </TableRow>
             ) : apiCategories.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-32 text-center text-slate-500">
+                <TableCell colSpan={6} className="h-32 text-center text-slate-500">
                   No expense categories found.
                 </TableCell>
               </TableRow>
@@ -81,16 +116,16 @@ export function ExpensesCategoryManagement() {
                       {category.name}
                     </TableCell>
                     <TableCell className="text-sm text-slate-600">
-                      -
+                      {category.description || "-"}
                     </TableCell>
                     <TableCell>
                       <span className="text-sm text-slate-600">
-                        -
+                        {category.type || "-"}
                       </span>
                     </TableCell>
                     <TableCell>
                       <span className="text-sm text-slate-600">
-                        -
+                        {category.default || "-"}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -104,11 +139,32 @@ export function ExpensesCategoryManagement() {
                         {status}
                       </span>
                     </TableCell>
-                    {/* <TableCell>
-                      <button className="text-sm font-medium text-blue-600 hover:text-blue-700">
-                        <Edit className="h-4 w-4" />
-                      </button>
-                    </TableCell> */}
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCategoryForEdit(category);
+                            setEditDialogOpen(true);
+                          }}
+                          className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-blue-600 transition-colors"
+                          title="Edit Category"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCategoryForDelete(category);
+                            setDeleteDialogOpen(true);
+                          }}
+                          className="rounded p-1 text-slate-500 hover:bg-slate-100 hover:text-red-600 transition-colors"
+                          title="Delete Category"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 );
               })
@@ -120,6 +176,57 @@ export function ExpensesCategoryManagement() {
       <AddExpenseCategoryDialog
         open={openDialog}
         onClose={() => setOpenDialog(false)}
+        onSuccess={() => {
+          setSuccessDialogTitle("Expense category created successfully");
+          setSuccessDialogOpen(true);
+        }}
+      />
+
+      <EditExpenseCategoryDialog
+        category={selectedCategoryForEdit}
+        open={editDialogOpen}
+        onClose={() => {
+          setEditDialogOpen(false);
+          setSelectedCategoryForEdit(null);
+        }}
+        onSuccess={() => {
+          setSuccessDialogTitle("Expense category updated successfully");
+          setSuccessDialogOpen(true);
+        }}
+      />
+
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setSelectedCategoryForDelete(null);
+          setDeleteCategoryError(null);
+        }}
+        onConfirm={handleDeleteCategoryConfirm}
+        title="Delete Category"
+        description={
+          <>
+            Are you sure you want to delete category{" "}
+            {selectedCategoryForDelete?.name ? (
+              <span className="font-semibold text-gray-900">
+                "{selectedCategoryForDelete.name}"
+              </span>
+            ) : (
+              "this category"
+            )}
+            ? This action cannot be undone.
+          </>
+        }
+        confirmLabel="Delete"
+        isLoading={deleteCategoryMutation.isPending}
+        error={deleteCategoryError}
+        variant="destructive"
+      />
+
+      <SuccessDialog
+        open={successDialogOpen}
+        onClose={() => setSuccessDialogOpen(false)}
+        title={successDialogTitle}
       />
     </div>
   );

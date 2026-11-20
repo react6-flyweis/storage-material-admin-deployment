@@ -244,6 +244,9 @@ export async function importExpensesProvider(payload: ImportExpensesPayload) {
 export type ExpenseCategoryApiItem = {
   _id: string;
   name: string;
+  description?: string;
+  type?: string;
+  default?: string;
   isActive: boolean;
   createdBy: string;
   createdAt: string;
@@ -268,6 +271,10 @@ export async function getExpenseCategoriesProvider() {
 
 export type CreateExpenseCategoryPayload = {
   name: string;
+  description?: string;
+  type?: string;
+  default?: string;
+  isActive?: boolean;
 };
 
 export type CreateExpenseCategoryResponse = {
@@ -282,6 +289,43 @@ export async function createExpenseCategoryProvider(
   const response = await apiClient.post<CreateExpenseCategoryResponse>(
     "/api/admin/financials/expenses/categories",
     payload
+  );
+  return response.data;
+}
+
+export type UpdateExpenseCategoryPayload = {
+  name?: string;
+  description?: string;
+  type?: string;
+  default?: string;
+  isActive?: boolean;
+};
+
+export type UpdateExpenseCategoryResponse = {
+  success: boolean;
+  message: string;
+  data: ExpenseCategoryApiItem;
+};
+
+export async function updateExpenseCategoryProvider(
+  id: string,
+  payload: UpdateExpenseCategoryPayload
+) {
+  const response = await apiClient.put<UpdateExpenseCategoryResponse>(
+    `/api/admin/financials/expenses/categories/${id}`,
+    payload
+  );
+  return response.data;
+}
+
+export type DeleteExpenseCategoryResponse = {
+  success: boolean;
+  message: string;
+};
+
+export async function deleteExpenseCategoryProvider(id: string) {
+  const response = await apiClient.delete<DeleteExpenseCategoryResponse>(
+    `/api/admin/financials/expenses/categories/${id}`
   );
   return response.data;
 }
@@ -386,6 +430,41 @@ export async function createExpenseProvider(payload: CreateExpensePayload) {
   const response = await apiClient.post<CreateExpenseResponse>(
     "/api/admin/financials/expenses",
     payload
+  );
+  return response.data;
+}
+
+export type UpdateExpensePayload = Partial<CreateExpensePayload> & {
+  department?: string;
+};
+
+export type UpdateExpenseResponse = {
+  success: boolean;
+  message: string;
+  data: {
+    expense: ExpenseItem;
+  };
+};
+
+export async function updateExpenseProvider(
+  expenseId: string,
+  payload: UpdateExpensePayload
+) {
+  const response = await apiClient.put<UpdateExpenseResponse>(
+    `/api/admin/financials/expenses/${expenseId}`,
+    payload
+  );
+  return response.data;
+}
+
+export type DeleteExpenseResponse = {
+  success: boolean;
+  message: string;
+};
+
+export async function deleteExpenseProvider(expenseId: string) {
+  const response = await apiClient.delete<DeleteExpenseResponse>(
+    `/api/admin/financials/expenses/${expenseId}`
   );
   return response.data;
 }

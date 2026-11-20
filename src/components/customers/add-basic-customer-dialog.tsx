@@ -76,21 +76,20 @@ export default function AddBasicCustomerDialog({
         };
       }
 
-      if (!values.email?.trim()) {
-        errors.email = { type: "required", message: "Email is required" };
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email)) {
+      if (
+        values.email?.trim() &&
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())
+      ) {
         errors.email = {
           type: "pattern",
           message: "Please enter a valid email",
         };
       }
 
-      if (!values.phone?.trim()) {
-        errors.phone = {
-          type: "required",
-          message: "Phone number is required",
-        };
-      } else if (!/^\d{10}$/.test(values.phone.replace(/\D/g, ""))) {
+      if (
+        values.phone?.trim() &&
+        !/^\d{10}$/.test(values.phone.replace(/\D/g, ""))
+      ) {
         errors.phone = { type: "pattern", message: "Phone must be 10 digits" };
       }
 
@@ -105,8 +104,8 @@ export default function AddBasicCustomerDialog({
     setErrorMessage(null);
     const apiData = {
       firstName: values.firstName,
-      email: values.email,
-      phone: values.phone,
+      email: values.email.trim(),
+      phone: values.phone.trim(),
       countryCode: values.countryCode,
     };
 
@@ -181,7 +180,7 @@ export default function AddBasicCustomerDialog({
             render={({ field, fieldState }) => (
               <Field data-invalid={fieldState.invalid}>
                 <FieldLabel htmlFor="email">
-                  Email <span className="text-red-500">*</span>
+                  Email
                 </FieldLabel>
                 <Input
                   {...field}
@@ -204,7 +203,7 @@ export default function AddBasicCustomerDialog({
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="countryCode">
-                    Country Code <span className="text-red-500">*</span>
+                    Country Code
                   </FieldLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <SelectTrigger
@@ -234,7 +233,7 @@ export default function AddBasicCustomerDialog({
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="phone">
-                    Phone Number <span className="text-red-500">*</span>
+                    Phone Number
                   </FieldLabel>
                   <Input
                     {...field}

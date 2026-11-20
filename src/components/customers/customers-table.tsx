@@ -174,8 +174,8 @@ export default function CustomersTable({
         !q ||
         customer.customerId.toLowerCase().includes(q) ||
         customer.customerName.toLowerCase().includes(q) ||
-        customer.phone.toLowerCase().includes(q) ||
-        customer.email.toLowerCase().includes(q);
+        (customer.phone ?? "").toLowerCase().includes(q) ||
+        (customer.email ?? "").toLowerCase().includes(q);
 
       const matchesStatus =
         statusFilter === "all" ||
@@ -450,10 +450,10 @@ export default function CustomersTable({
                         {customer.customerName}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-sm text-gray-600">
-                        {customer.email}
+                        {customer.email || "—"}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-sm text-gray-600">
-                        {formatPhone(customer.phone)}
+                        {customer.phone ? formatPhone(customer.phone) : "—"}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2.5 text-sm text-gray-600">
                         {assignedPlant}
