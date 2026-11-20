@@ -8,6 +8,7 @@ import BusinessUnitSelector from "@/components/leads/business-unit-selector";
 import InstallAddressFields from "@/components/common/install-address-fields";
 import { buildLocationString, parseLocationFallback } from "@/lib/address";
 import SuccessDialog from "@/components/success-dialog";
+import { getApiErrorMessage } from "@/lib/api-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -134,6 +135,8 @@ export default function EditLeadPage() {
   const { goBack } = useAppBack("/leads");
   const { leadId } = useParams();
   const [showSuccess, setShowSuccess] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const [formData, setFormData] = useState<LeadFormData>(getInitialFormData());
 
   const handleInputChange = (
@@ -171,23 +174,20 @@ export default function EditLeadPage() {
         firstName: customer?.firstName || "",
         lastName: customer?.lastName || "",
         email: customer?.email || "",
-        countryCode: (() => {
-          const p = typeof customer?.phone === 'object' ? customer?.phone?.number : (customer?.phone || "");
-          if (p.startsWith("+44")) return "+44";
-          if (p.startsWith("+91")) return "+91";
-          if (p.startsWith("+61")) return "+61";
-          if (p.startsWith("+86")) return "+86";
-          return "+1";
-        })(),
-        phone: (() => {
-          const p = typeof customer?.phone === 'object' ? customer?.phone?.number : (customer?.phone || "");
-          if (p.startsWith("+44")) return p.slice(3).trim();
-          if (p.startsWith("+91")) return p.slice(3).trim();
-          if (p.startsWith("+61")) return p.slice(3).trim();
-          if (p.startsWith("+86")) return p.slice(3).trim();
-          if (p.startsWith("+1")) return p.slice(2).trim();
+        ...(() => {
+          // phone is an object { number, countryCode } and is absent when the customer has none
+          if (customer?.phone && typeof customer.phone === "object") {
+            return {
+              countryCode: customer.phone.countryCode || "+1",
+              phone: customer.phone.number || "",
+            };
+          }
+          const p = typeof customer?.phone === "string" ? customer.phone : "";
+          for (const code of ["+44", "+91", "+61", "+86", "+1"]) {
+            if (p.startsWith(code)) return { countryCode: code, phone: p.slice(code.length).trim() };
+          }
           const digits = p.replace(/\D/g, "");
-          return digits.startsWith("1") ? digits.slice(1) : digits;
+          return { countryCode: "+1", phone: digits.startsWith("1") && digits.length === 11 ? digits.slice(1) : digits };
         })(),
         companyName: customer?.company || lead?.company || "",
         jobTitle: lead?.jobTitle || "",
@@ -225,10 +225,27 @@ export default function EditLeadPage() {
       setShowSuccess(true);
       setTimeout(() => navigate('/leads', { replace: true }), 1500);
     },
+    onError: (error) => {
+      const message = getApiErrorMessage(error, "Failed to update lead");
+      // Email problems (duplicate / invalid) are shown under the email field.
+      if (/email/i.test(message)) {
+        setEmailError(message);
+      } else {
+        setFormError(message);
+      }
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError(null);
+    setEmailError(null);
+    const email = formData.email.trim();
+    const phone = formData.phone.trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError("Please enter a valid email");
+      return;
+    }
     const compiledLocation = buildLocationString({
       line1: formData.addressLine1,
       line2: formData.addressLine2,
@@ -240,8 +257,10 @@ export default function EditLeadPage() {
     updateMutation.mutate({
       customerFirstName: formData.firstName,
       customerLastName: formData.lastName,
-      customerEmail: formData.email,
-      customerPhone: `${formData.countryCode} ${formData.phone}`.trim(),
+      // Blank email/phone leave the saved contact unchanged (API contract).
+      email,
+      phone,
+      countryCode: formData.countryCode,
       company: formData.companyName,
       jobTitle: formData.jobTitle,
       source: formData.leadSource,
@@ -309,6 +328,11 @@ export default function EditLeadPage() {
         onSubmit={handleSubmit}
         className="w-full rounded-lg border border-slate-200 bg-white px-5 py-6 shadow-sm sm:px-6"
       >
+        {formError ? (
+          <div className="mb-6 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {formError}
+          </div>
+        ) : null}
         <div className="space-y-7">
           <section>
             <h2 className="mb-4 text-base font-semibold text-slate-800">
@@ -347,29 +371,31 @@ export default function EditLeadPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-xs text-slate-600">
-                  Email Address <span className="text-red-500">*</span>
+                  Email Address
                 </Label>
                 <Input
                   id="email"
                   name="email"
                   type="email"
                   value={formData.email}
-                  onChange={handleInputChange}
-                  placeholder="Enter Email Address"
-                  className="h-10"
-                  required
-                  disabled
+                  onChange={(e) => {
+                    handleInputChange(e);
+                    if (emailError) setEmailError(null);
+                  }}
+                  placeholder="No email"
+                  aria-invalid={!!emailError}
+                  className={`h-10 ${emailError ? "border-red-500" : ""}`}
                 />
+                {emailError ? <p className="text-xs text-red-500">{emailError}</p> : null}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone" className="text-xs text-slate-600">
-                  Phone Number <span className="text-red-500">*</span>
+                  Phone Number
                 </Label>
                 <div className="flex gap-2">
                   <Select
                     value={formData.countryCode}
                     onValueChange={(value) => handleSelectChange("countryCode", value)}
-                    disabled
                   >
                     <SelectTrigger className="w-[110px] h-10 shrink-0">
                       <SelectValue placeholder="Code" />
@@ -388,10 +414,8 @@ export default function EditLeadPage() {
                     type="tel"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    placeholder="Enter Phone Number"
+                    placeholder="No phone"
                     className="h-10 flex-1"
-                    required
-                    disabled
                   />
                 </div>
               </div>
