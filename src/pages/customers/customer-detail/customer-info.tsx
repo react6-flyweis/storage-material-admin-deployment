@@ -291,14 +291,16 @@ export default function CustomerDetailLayout() {
   const phone =
     phoneCountryCode && phoneNumber
       ? `${phoneCountryCode} ${phoneNumber}`
-      : phoneNumber || "-";
+      : phoneNumber || "No phone";
+  // The first saved phone becomes the customer's portal password; until then they cannot log in.
+  const hasPortalLogin = Boolean(phoneNumber);
 
   const joinedDate = formatJoinedDate(customerData?.createdAt);
 
   const customer = {
     id: customerData?.customerId ?? customerData?._id ?? id,
     customerName,
-    email: customerData?.email ?? "-",
+    email: customerData?.email || "No email",
     phone,
     inquiryFor:
       customerDetailResponse?.data.projects?.[0]?.buildingType?.trim() ||
@@ -352,15 +354,26 @@ export default function CustomerDetailLayout() {
           <h1 className="text-lg ">Customer Info</h1>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-          <Button
-            asChild
-            className="w-full sm:w-auto bg-[#4285F4] hover:bg-blue-600 text-white shadow-xs"
-          >
-            <Link to={`/communication?customerId=${customerData?._id || id}`}>
+          {hasPortalLogin ? (
+            <Button
+              asChild
+              className="w-full sm:w-auto bg-[#4285F4] hover:bg-blue-600 text-white shadow-xs"
+            >
+              <Link to={`/communication?customerId=${customerData?._id || id}`}>
+                <MessageSquare className="h-4 w-4 mr-1.5" />
+                Message Customer
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              disabled
+              title="Add a phone number first — the customer has no portal login yet"
+              className="w-full sm:w-auto bg-[#4285F4] text-white shadow-xs"
+            >
               <MessageSquare className="h-4 w-4 mr-1.5" />
               Message Customer
-            </Link>
-          </Button>
+            </Button>
+          )}
           <Button asChild className="w-full sm:w-auto bg-black px-4">
             <Link to={`/customers/${id}/edit`} state={{ from: location.pathname + location.search }}>Edit</Link>
           </Button>
