@@ -381,7 +381,7 @@ export default function ProjectDetailsPage() {
                       <span className="font-medium text-slate-800">
                         {customer?.phone?.number
                           ? `${customer.phone.countryCode || ""} ${customer.phone.number}`.trim()
-                          : "N/A"}
+                          : "No phone"}
                       </span>
                     </div>
                   </div>
@@ -389,12 +389,16 @@ export default function ProjectDetailsPage() {
                     <Mail className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
                     <div className="flex text-[13px]">
                       <span className="text-slate-500 w-16">Email</span>
-                      <a
-                        href={customer?.email ? `mailto:${customer.email}` : "#"}
-                        className="font-medium text-[#1D51A4] hover:underline"
-                      >
-                        {customer?.email || "N/A"}
-                      </a>
+                      {customer?.email ? (
+                        <a
+                          href={`mailto:${customer.email}`}
+                          className="font-medium text-[#1D51A4] hover:underline"
+                        >
+                          {customer.email}
+                        </a>
+                      ) : (
+                        <span className="font-medium text-slate-400">No email</span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-start gap-2">

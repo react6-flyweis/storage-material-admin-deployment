@@ -437,24 +437,30 @@ export default function LeadDetails() {
                       <div className="flex items-center gap-3 text-sm">
                         <Phone className="w-4 h-4 text-gray-400" />
                         <span className="text-gray-600">
-                          {formatPhone(
-                            typeof customer?.phone === "string"
-                              ? customer.phone
-                              : customer?.phone?.number,
-                            typeof customer?.phone === "object"
-                              ? customer?.phone?.countryCode
-                              : null,
-                          )}
+                          {(typeof customer?.phone === "string" ? customer.phone : customer?.phone?.number)
+                            ? formatPhone(
+                                typeof customer?.phone === "string"
+                                  ? customer.phone
+                                  : customer?.phone?.number,
+                                typeof customer?.phone === "object"
+                                  ? customer?.phone?.countryCode
+                                  : null,
+                              )
+                            : "No phone"}
                         </span>
                       </div>
                       <div className="flex items-center gap-3 text-sm">
                         <Mail className="w-4 h-4 text-gray-400" />
-                        <a
-                          href={`mailto:${customer?.email}`}
-                          className="text-blue-500 hover:underline"
-                        >
-                          {customer?.email || "N/A"}
-                        </a>
+                        {customer?.email ? (
+                          <a
+                            href={`mailto:${customer.email}`}
+                            className="text-blue-500 hover:underline"
+                          >
+                            {customer.email}
+                          </a>
+                        ) : (
+                          <span className="text-gray-400">No email</span>
+                        )}
                       </div>
                       <div className="flex items-start gap-3 text-sm">
                         <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
