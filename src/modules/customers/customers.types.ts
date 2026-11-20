@@ -10,8 +10,10 @@ export type AdminCustomer = {
   _id: string;
   customerId: string;
   customerName: string;
-  email: string;
-  phone: AdminCustomerPhone;
+  /** Absent when the customer has no email. */
+  email?: string;
+  /** Absent when the customer has no phone. */
+  phone?: AdminCustomerPhone;
   totalProjects: number;
   status: string;
   firstName?: string;
@@ -333,6 +335,10 @@ export type CreateCustomerLeadRequest = {
   windows?: number;
   insulation?: number;
   quoteValue?: number;
+  /** Optional. Non-empty values are written onto the customer; blank leaves it unchanged. */
+  email?: string;
+  phone?: string;
+  countryCode?: string;
 };
 
 export type CreateCustomerLeadResponse = {
