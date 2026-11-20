@@ -234,7 +234,7 @@ export default function AddNewLead() {
       const q = customerSearch.toLowerCase();
       return (
         c.customerName.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q) ||
+        (c.email ?? "").toLowerCase().includes(q) ||
         c.customerId.toLowerCase().includes(q)
       );
     },
@@ -376,7 +376,7 @@ export default function AddNewLead() {
                             (x) => x._id === selectedCustomerId,
                           );
                           if (!c) return "Select customer";
-                          return `${c.customerName} (${c.email})`;
+                          return `${c.customerName} (${c.email || "No email"})`;
                         })()
                       : isLoadingCustomers
                         ? "Loading customers..."
@@ -438,7 +438,7 @@ export default function AddNewLead() {
                           />
                           <span>{c.customerName}</span>
                           <span className="ml-1 text-muted-foreground">
-                            ({c.email})
+                            ({c.email || "No email"})
                           </span>
                         </div>
                       ))
