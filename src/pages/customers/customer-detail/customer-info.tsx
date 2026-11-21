@@ -339,7 +339,7 @@ export default function CustomerDetailLayout() {
 
   // const photos = [photo1, photo2, photo3, photo4, photo5];
   return (
-    <div className="p-4 sm:p-6 space-y-6 min-h-screen">
+    <div data-tour="customer-detail-workspace" className="p-4 sm:p-6 space-y-6 min-h-screen">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -353,7 +353,10 @@ export default function CustomerDetailLayout() {
           </Button>
           <h1 className="text-lg ">Customer Info</h1>
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+        <div
+          className="flex flex-wrap items-center gap-2 sm:justify-end"
+          data-tour="customer-detail-actions"
+        >
           {hasPortalLogin ? (
             <Button
               asChild
@@ -400,10 +403,15 @@ export default function CustomerDetailLayout() {
       ) : null}
 
       {/* Profile Card */}
-      <ProfileCard profile={profileData} isLoading={isLoading} />
+      <div data-tour="customer-profile-card">
+        <ProfileCard profile={profileData} isLoading={isLoading} />
+      </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div
+        className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+        data-tour="customer-detail-stats"
+      >
         {isKpisLoading ? (
           <>
             <StatCardSkeleton color="bg-[#1D51A4]" />
@@ -444,9 +452,13 @@ export default function CustomerDetailLayout() {
       {/* Tabs */}
       <Tabs value={currentTab} onValueChange={handleTabChange} className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-2">
-          <TabsList className="bg-slate-100 p-1 rounded-lg inline-flex">
+          <TabsList
+            className="bg-slate-100 p-1 rounded-lg inline-flex"
+            data-tour="customer-detail-tabs"
+          >
             <TabsTrigger
               value="projects"
+              data-tour="customer-tab-trigger-projects"
               className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-[#1D51A4] data-[state=active]:shadow-xs px-4 py-2 text-sm font-medium transition-all"
             >
               <FolderKanban className="h-4 w-4" />
@@ -454,6 +466,7 @@ export default function CustomerDetailLayout() {
             </TabsTrigger>
             <TabsTrigger
               value="documents"
+              data-tour="customer-tab-trigger-documents"
               className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-[#1D51A4] data-[state=active]:shadow-xs px-4 py-2 text-sm font-medium transition-all"
             >
               <FileText className="h-4 w-4" />
@@ -471,7 +484,7 @@ export default function CustomerDetailLayout() {
         </div>
 
         <TabsContent value="projects" className="mt-0 space-y-6 focus-visible:outline-none">
-          <Card>
+          <Card data-tour="customer-projects-card">
             <CardHeader>
               <CardTitle>All Project</CardTitle>
             </CardHeader>
@@ -554,6 +567,7 @@ export default function CustomerDetailLayout() {
                               )
                             }
                             className="h-6 w-6 rounded-full p-0 text-[#3B82F6] hover:bg-blue-50 hover:text-blue-700"
+                            data-tour="customer-project-view-btn"
                             aria-label={`View ${cleanProjectName(p.projectName)}`}
                           >
                             <Eye className="h-4 w-4" />
@@ -580,7 +594,7 @@ export default function CustomerDetailLayout() {
             </CardContent>
           </Card>
 
-          <Card className="">
+          <Card className="" data-tour="customer-invoices-card">
             <CardHeader className="flex flex-row items-center justify-between gap-3">
               <CardTitle>Invoice List</CardTitle>
               <div className="flex items-center gap-2">
@@ -726,7 +740,11 @@ export default function CustomerDetailLayout() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="documents" className="mt-0 focus-visible:outline-none">
+        <TabsContent
+          value="documents"
+          className="mt-0 focus-visible:outline-none"
+          data-tour="customer-tab-content-documents"
+        >
           <CustomerDocumentsTab
             customerId={customerMongoId}
             customerName={customerName}
