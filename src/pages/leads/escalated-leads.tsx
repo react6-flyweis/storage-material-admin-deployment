@@ -206,7 +206,7 @@ export default function EscalatedLeadsPage() {
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-5">
+    <div data-tour="escalated-leads-table" className="p-4 sm:p-6 space-y-5">
       <div>
         <h1 className="text-2xl sm:text-3xl text-gray-900">
           Escalated Leads - {isLoading ? "..." : escalatedLeads.length}
@@ -398,6 +398,7 @@ export default function EscalatedLeadsPage() {
                               trigger={
                                 <button
                                   type="button"
+                                  data-tour="escalation-resolve-btn"
                                   className="text-emerald-600 hover:text-emerald-700"
                                   aria-label="Resolve escalation"
                                 >
