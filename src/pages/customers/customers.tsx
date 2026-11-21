@@ -200,7 +200,7 @@ export default function CustomersPage() {
         initialPeriod={period}
         onPeriodChange={(newPeriod) => setPeriod(newPeriod)}
       />
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6" data-tour="customers-page">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -209,7 +209,7 @@ export default function CustomersPage() {
               Easily view, manage, and track all your customers in one place.
             </p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3" data-tour="add-customer-btn">
             <AddCustomerDialog
               onAdd={() => {}}
               // onAdd={(c) => {
@@ -226,7 +226,10 @@ export default function CustomersPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+        <div
+          className="grid grid-cols-2 lg:grid-cols-6 gap-4"
+          data-tour="customers-stats-cards"
+        >
           {isStatsLoading
             ? Array.from({ length: 6 }).map((_, index) => (
                 <CustomerStatCardSkeleton key={index} />
