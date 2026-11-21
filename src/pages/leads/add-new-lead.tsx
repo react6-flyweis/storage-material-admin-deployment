@@ -325,6 +325,7 @@ export default function AddNewLead() {
       </div>
 
       <form
+        data-tour="add-lead-form"
         onSubmit={handleSubmit(onSubmit)}
         noValidate
         className="space-y-6 p-5 rounded-lg shadow bg-white"
