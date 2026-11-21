@@ -183,7 +183,7 @@ export function CarrierInvoiceTable({
 
   return (
     <>
-      <Card>
+      <Card data-tour="payables-table">
         <CardHeader>
           {/* Search */}
           <InputGroup className="max-w-2xs rounded">
@@ -342,7 +342,10 @@ export function CarrierInvoiceTable({
                               </button>
 
                               {isPendingApproval && (
-                                <div className="flex items-center gap-1.5 ml-1">
+                                <div
+                                  className="flex items-center gap-1.5 ml-1"
+                                  data-tour="payable-approval-actions"
+                                >
                                   <Button
                                     size="sm"
                                     onClick={() => handleApprove(invoice._id)}
