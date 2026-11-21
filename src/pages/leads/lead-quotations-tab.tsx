@@ -218,6 +218,7 @@ export default function LeadQuotationsTab({ leadId }: LeadQuotationsTabProps) {
                               <>
                                 <Button
                                   size="sm"
+                                  data-tour="lead-quotation-approve-btn"
                                   className="bg-[#16a34a] hover:bg-green-700 text-white h-7 px-2.5 text-xs font-medium rounded"
                                   onClick={() => setApproveDialogQuote(q)}
                                 >
