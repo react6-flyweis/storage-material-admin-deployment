@@ -81,7 +81,7 @@ export default function ContractsPage() {
   }, [searchQuery, statusFilter]);
 
   return (
-    <div className="p-6 space-y-6">
+    <div data-tour="contracts-workspace" className="p-6 space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">
