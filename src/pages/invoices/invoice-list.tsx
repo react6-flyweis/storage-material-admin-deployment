@@ -86,7 +86,7 @@ export default function InvoiceListPage() {
   const overdue = statsData?.data?.overdue || 0;
 
   return (
-    <div className="p-6 space-y-6">
+    <div data-tour="invoices-table" className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Invoice Report</h1>
