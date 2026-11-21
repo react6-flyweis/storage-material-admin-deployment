@@ -86,7 +86,7 @@ export default function PlantOverview() {
   };
 
   return (
-    <div className="flex-1 space-y-6 p-6 bg-[#eff3f8] min-h-screen">
+    <div data-tour="plant-overview" className="flex-1 space-y-6 p-6 bg-[#eff3f8] min-h-screen">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
