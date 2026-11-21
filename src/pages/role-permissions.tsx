@@ -278,7 +278,7 @@ export default function RolePermissions() {
 
 
   return (
-    <div className="p-5 space-y-5">
+    <div data-tour="role-permissions-workspace" className="p-5 space-y-5">
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>
           <h1 className="xl:text-4xl text-2xl font-bold text-slate-800">
