@@ -157,7 +157,10 @@ export default function MaterialsList({
   const [pageSize, setPageSize] = useState("10");
 
   return (
-    <div className="bg-white border border-[#E5E7EB] rounded-[10px] shadow-sm overflow-hidden">
+    <div
+      className="bg-white border border-[#E5E7EB] rounded-[10px] shadow-sm overflow-hidden"
+      data-tour="materials-table"
+    >
       {/* Table Header Label */}
       <div className="px-5 py-4 border-b border-[#E5E7EB]">
         <h2 className="text-[15px] font-bold text-[#111827]">
@@ -292,6 +295,7 @@ export default function MaterialsList({
                         {isPending && (
                           <>
                             <button
+                              data-tour="material-approve-btn"
                               onClick={() => onReview(r, "approved")}
                               disabled={isReviewing}
                               className="px-3 py-1 bg-[#F0FDF4] border border-[#DCFCE7] text-[#16A34A] rounded-md text-[12px] font-medium hover:bg-[#DCFCE7] transition-colors disabled:opacity-50"

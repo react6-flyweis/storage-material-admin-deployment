@@ -760,7 +760,10 @@ export default function PaymentApprovalsPage() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div
+        className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5"
+        data-tour="payment-approvals-stats"
+      >
         {approvalSummary.map((card) => (
           <StatCardV2
             key={card.title}
@@ -773,7 +776,7 @@ export default function PaymentApprovalsPage() {
         ))}
       </div>
 
-      <div className="bg-white">
+      <div className="bg-white" data-tour="payment-approvals-table">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
           <h2 className="text-base font-semibold text-slate-900">
             Payment Requests
@@ -929,6 +932,7 @@ export default function PaymentApprovalsPage() {
                         <Button
                           variant="outline"
                           className="h-8 rounded-md border-slate-200 bg-white text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          data-tour="payment-review-btn"
                           onClick={() => handleReview(item)}
                         >
                           Review

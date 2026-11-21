@@ -355,7 +355,7 @@ export default function LeadsPage() {
           }}
         />
       )}
-      <div className="p-4 sm:p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-6" data-tour="leads-page">
         {/* Header with Top Tab List */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -371,16 +371,21 @@ export default function LeadsPage() {
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
             {!isArchived && (
-              <DateRangeFilter
-                value={dateRange}
-                onChange={(range) => {
-                  setDateRange(range);
-                  setPage(1);
-                }}
-                className="max-w-xs bg-white"
-              />
+              <div data-tour="leads-date-range">
+                <DateRangeFilter
+                  value={dateRange}
+                  onChange={(range) => {
+                    setDateRange(range);
+                    setPage(1);
+                  }}
+                  className="max-w-xs bg-white"
+                />
+              </div>
             )}
-            <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-lg w-fit self-start sm:self-auto">
+            <div
+              className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-lg w-fit self-start sm:self-auto"
+              data-tour="leads-archive-toggle"
+            >
               <button
                 type="button"
                 onClick={() => handleTabChange("active")}
@@ -418,7 +423,10 @@ export default function LeadsPage() {
 
         {/* Stats Cards (Active only) */}
         {!isArchived && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div
+            className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+            data-tour="leads-stats-cards"
+          >
             {isLeadsStatsLoading ? (
               <>
                 {[
@@ -463,10 +471,14 @@ export default function LeadsPage() {
 
         {/* Action Buttons and Filters */}
         <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3" data-tour="leads-action-bar">
             {!isArchived && (
               <>
-                <Link to="/leads/add" className="inline-block">
+                <Link
+                  to="/leads/add"
+                  className="inline-block"
+                  data-tour="add-lead-btn"
+                >
                   <Button className="bg-blue-600 hover:bg-blue-700">
                     <UserPlus className="h-4 w-4 mr-2" />
                     Add Lead
@@ -491,7 +503,10 @@ export default function LeadsPage() {
             )}
           </div>
 
-          <div className="flex flex-wrap gap-3 w-full lg:w-auto">
+          <div
+            className="flex flex-wrap gap-3 w-full lg:w-auto"
+            data-tour="leads-filters"
+          >
             <div className="relative w-full sm:w-64">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input

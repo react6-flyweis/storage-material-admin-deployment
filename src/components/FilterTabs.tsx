@@ -35,7 +35,10 @@ export default function FilterTabs({
   );
 
   return (
-    <div className="relative flex h-10 bg-[#89D5DC] overflow-hidden">
+    <div
+      className="relative flex h-10 bg-[#89D5DC] overflow-hidden"
+      data-tour="period-filter"
+    >
       <button
         onClick={() => handleChange("Today")}
         className={`relative w-64 px-8 font-medium z-30 bg-[#89D5DC] ${

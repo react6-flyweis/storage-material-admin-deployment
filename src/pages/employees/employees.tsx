@@ -139,7 +139,7 @@ export default function EmployeesPage() {
   };
 
   return (
-    <div className="space-y-6 p-5">
+    <div data-tour="employees-workspace" className="space-y-6 p-5">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
