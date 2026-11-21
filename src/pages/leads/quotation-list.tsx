@@ -167,7 +167,7 @@ export default function QuotationListPage() {
     quotations.length > 0 && selectedIds.length === quotations.length;
 
   return (
-    <div className="p-4 sm:p-6 space-y-6">
+    <div data-tour="quotations-list-table" className="p-4 sm:p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <TitleSubtitle
@@ -177,7 +177,10 @@ export default function QuotationListPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div
+        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"
+        data-tour="quotations-stats"
+      >
         <StatCard
           title="Total"
           value={String(stats?.total ?? 0)}
@@ -313,7 +316,10 @@ export default function QuotationListPage() {
       </div>
 
       {/* Data Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div
+        className="bg-white rounded-lg shadow overflow-hidden"
+        data-tour="quotations-table"
+      >
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-gray-50 border-b border-gray-200">
@@ -494,6 +500,7 @@ export default function QuotationListPage() {
                             <Button
                               size="sm"
                               variant="outline"
+                              data-tour="quotation-submit-btn"
                               className="h-7 px-2.5 text-xs border-blue-200 text-[#1D51A4] hover:bg-blue-50 rounded font-medium"
                               onClick={() => setSubmitQuote(quotation)}
                             >
@@ -504,6 +511,7 @@ export default function QuotationListPage() {
                             <>
                               <Button
                                 size="sm"
+                                data-tour="quotation-approve-btn"
                                 className="bg-[#16a34a] hover:bg-green-700 text-white h-7 px-2.5 text-xs font-medium rounded"
                                 onClick={() => setApproveQuote(quotation)}
                               >
@@ -522,6 +530,7 @@ export default function QuotationListPage() {
                           {lifecycle.isApproved && (
                             <Button
                               size="sm"
+                              data-tour="quotation-send-btn"
                               className="bg-[#1D51A4] hover:bg-[#174287] text-white h-7 px-2.5 text-xs font-medium rounded flex items-center gap-1"
                               onClick={() => setSendQuote(quotation)}
                             >
