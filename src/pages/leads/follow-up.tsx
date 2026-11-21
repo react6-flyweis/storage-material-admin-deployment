@@ -25,7 +25,7 @@ export default function FollowUpPage() {
   const followUpStats = followUpStatsResponse?.data;
 
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5">
+    <div data-tour="followups-overview" className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
