@@ -76,7 +76,7 @@ export default function AllPurchaseOrdersPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-5 bg-[#e9eef8] min-h-[calc(100vh-80px)]">
+    <div data-tour="purchase-orders-table" className="p-4 sm:p-6 space-y-5 bg-[#e9eef8] min-h-[calc(100vh-80px)]">
       <div>
         <h1 className="text-2xl sm:text-3xl text-slate-900">
           All Purchase Orders - {purchaseOrders.length}
@@ -231,6 +231,7 @@ export default function AllPurchaseOrdersPage() {
                         <button
                           type="button"
                           aria-label={`View ${leadName}`}
+                          data-tour="po-row-view-btn"
                           onClick={(e) => {
                             e.stopPropagation();
                             navigate(`/leads/purchase-orders/${order._id}`, {
@@ -246,6 +247,7 @@ export default function AllPurchaseOrdersPage() {
                           <Button
                             type="button"
                             className="bg-green-600 hover:bg-green-700 text-white"
+                            data-tour="po-assign-plant-btn"
                             onClick={(e) => {
                               e.stopPropagation();
                               setActiveOrderId(order._id);
@@ -268,6 +270,7 @@ export default function AllPurchaseOrdersPage() {
                               handleApprovePO(order._id);
                             }}
                             title={paymentStatus.toLowerCase() !== "paid" ? "Lead must be paid to approve" : ""}
+                            data-tour="po-approve-btn"
                           >
                             {updateStatusMutation.isPending && activeOrderId === order._id ? "Approving..." : order.status === "approved" ? "Approved PO" : "Approve PO"}
                           </Button>
