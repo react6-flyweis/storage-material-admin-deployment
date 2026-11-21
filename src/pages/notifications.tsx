@@ -218,7 +218,7 @@ export default function Notifications() {
   };
 
   return (
-    <div className="xl:px-8 px-4 md:pt-6 pb-12 space-y-6">
+    <div data-tour="notifications-hub" className="xl:px-8 px-4 md:pt-6 pb-12 space-y-6">
       {/* Header Title & Actions */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
