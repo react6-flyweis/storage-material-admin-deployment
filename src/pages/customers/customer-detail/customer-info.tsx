@@ -378,7 +378,7 @@ export default function CustomerDetailLayout() {
             </Button>
           )}
           <Button asChild className="w-full sm:w-auto bg-black px-4">
-            <Link to={`/customers/${id}/edit`} state={{ from: location.pathname + location.search }}>Edit</Link>
+            <Link data-tour="customer-edit-btn" to={`/customers/${id}/edit`} state={{ from: location.pathname + location.search }}>Edit</Link>
           </Button>
           <Link to={`/customers/${id}/projects/new`}>
             <Button className="w-full sm:w-auto bg-[#1F86D5] hover:bg-[#1769A7]">
