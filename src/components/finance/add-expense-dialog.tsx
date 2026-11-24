@@ -202,7 +202,7 @@ export function AddExpenseDialog({
 
   return (
     <Dialog open={open} onOpenChange={(value) => !value && handleCancel()}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto gap-0 p-0">
+      <DialogContent data-tour="expense-add-dialog" className="sm:max-w-lg max-h-[90vh] overflow-y-auto gap-0 p-0">
         <DialogHeader className="border-b p-4">
           <DialogTitle className="text-lg">Add Expense entry</DialogTitle>
         </DialogHeader>

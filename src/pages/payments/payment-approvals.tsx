@@ -581,6 +581,7 @@ export default function PaymentApprovalsPage() {
           </Button>
           <Button
             className="bg-blue-600 hover:bg-blue-700 text-white"
+            data-tour="payment-request-add"
             onClick={() => setIsCreateOpen(true)}
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -760,7 +761,10 @@ export default function PaymentApprovalsPage() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div
+        className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5"
+        data-tour="payment-approvals-stats"
+      >
         {approvalSummary.map((card) => (
           <StatCardV2
             key={card.title}
@@ -773,7 +777,7 @@ export default function PaymentApprovalsPage() {
         ))}
       </div>
 
-      <div className="bg-white">
+      <div className="bg-white" data-tour="payment-approvals-table">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
           <h2 className="text-base font-semibold text-slate-900">
             Payment Requests
@@ -929,6 +933,7 @@ export default function PaymentApprovalsPage() {
                         <Button
                           variant="outline"
                           className="h-8 rounded-md border-slate-200 bg-white text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          data-tour="payment-review-btn"
                           onClick={() => handleReview(item)}
                         >
                           Review
@@ -994,7 +999,7 @@ export default function PaymentApprovalsPage() {
 
       {/* Create Payment Approval Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent data-tour="payment-request-dialog" className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Create Payment Request</DialogTitle>
             <DialogDescription>

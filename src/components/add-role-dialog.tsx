@@ -215,6 +215,7 @@ export function AddRoleDialog() {
     return (
       <Button
         variant="outline"
+        data-tour="role-add"
         className="border-2 border-blue-500 text-blue-500"
         onClick={() => setIsOpen(true)}
       >
@@ -227,6 +228,7 @@ export function AddRoleDialog() {
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent
+        data-tour="role-add-dialog"
         showCloseButton
         className="sm:max-w-2xl max-h-[90vh] overflow-y-auto"
       >

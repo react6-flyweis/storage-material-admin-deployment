@@ -183,7 +183,7 @@ export default function PurchaseOrderDetailsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#e9eef8] p-4 sm:p-6">
+    <div className="min-h-screen bg-[#e9eef8] p-4 sm:p-6" data-tour="po-details">
       <div className="mb-4 sm:mb-6 flex items-start justify-between gap-4">
         <div>
           <button
@@ -197,7 +197,7 @@ export default function PurchaseOrderDetailsPage() {
           <h1 className="text-2xl sm:text-3xl text-slate-900">PO Details</h1>
         </div>
 
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2" data-tour="po-details-actions">
           <Button
             variant="outline"
             className="border-blue-500 text-blue-700 hover:bg-blue-50 hover:text-blue-700"
@@ -218,6 +218,7 @@ export default function PurchaseOrderDetailsPage() {
                 className="bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={updateStatusMutation.isPending || leadDetails?.lifecycleStatus !== "payment_done"}
                 onClick={handleApprove}
+                data-tour="po-details-approve-btn"
                 title={leadDetails?.lifecycleStatus !== "payment_done" ? "Lead must be paid to approve" : ""}
               >
                 Approve PO

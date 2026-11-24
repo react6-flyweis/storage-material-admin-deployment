@@ -557,7 +557,10 @@ export default function Dashboard() {
         </div>
 
         {/* Metrics Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div
+          className="grid grid-cols-2 lg:grid-cols-4 gap-4"
+          data-tour="dashboard-kpis"
+        >
           {isLoading ? (
             <>
               {[
@@ -611,16 +614,21 @@ export default function Dashboard() {
         </div>
 
         {/* Delivery Finance Overview */}
-        <DeliveryFinanceOverview
-          finance={overview?.deliveryFinance}
-          loadOptimization={overview?.loadOptimization}
-          operations={overview?.deliveryOperations}
-          communication={overview?.communicationStatus}
-          freight={overview?.freightActivity}
-        />
+        <div data-tour="dashboard-delivery-finance">
+          <DeliveryFinanceOverview
+            finance={overview?.deliveryFinance}
+            loadOptimization={overview?.loadOptimization}
+            operations={overview?.deliveryOperations}
+            communication={overview?.communicationStatus}
+            freight={overview?.freightActivity}
+          />
+        </div>
 
         {/* Chart Row 1: Funnel & Deal Size */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        <div
+          className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch"
+          data-tour="dashboard-sales-funnel"
+        >
           <div className="lg:col-span-2 flex flex-col">
             <SalesFunnel items={funnelItems} />
           </div>
@@ -635,7 +643,10 @@ export default function Dashboard() {
         </div>
 
         {/* Chart Row 2: Reports & Lead Sources */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-stretch">
+        <div
+          className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-stretch"
+          data-tour="dashboard-reports"
+        >
           <div className="lg:col-span-3 flex flex-col">
             <ReportsOverview
               data={reportsData}
@@ -648,10 +659,15 @@ export default function Dashboard() {
         </div>
 
         {/* Dispatch readiness */}
-        <DispatchReadiness data={overview?.dispatchReadiness} />
+        <div data-tour="dashboard-dispatch">
+          <DispatchReadiness data={overview?.dispatchReadiness} />
+        </div>
 
         {/* Chart Row 3: Lead Conversion & Tonnage Sold */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-stretch">
+        <div
+          className="grid grid-cols-1 lg:grid-cols-5 gap-6 items-stretch"
+          data-tour="dashboard-conversion"
+        >
           <div className="lg:col-span-3 flex flex-col">
             <LeadConversion items={leadConvItems} />
           </div>
@@ -699,7 +715,10 @@ export default function Dashboard() {
         </div>
 
         {/* Active Pipeline Stages (Kanban) and Recent Closed Deals */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        <div
+          className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch"
+          data-tour="dashboard-pipeline"
+        >
           <div className="lg:col-span-2 flex flex-col">
             <ActivePipelineStages stages={kanbanStages} />
           </div>
@@ -709,7 +728,10 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Sales Activity and Top Sales Performers */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+        <div
+          className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch"
+          data-tour="dashboard-team"
+        >
           <div className="flex flex-col">
             <RecentSalesActivity items={salesActivities} />
           </div>
@@ -719,7 +741,10 @@ export default function Dashboard() {
         </div>
 
         {/* Tax Cards Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        <div
+          className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch"
+          data-tour="dashboard-tax"
+        >
           <div className="flex flex-col">
             <TaxSummaryCard data={overview?.taxSummary} />
           </div>
@@ -742,10 +767,12 @@ export default function Dashboard() {
         </div>
 
         {/* Construction Progress Overview */}
-        <ConstructionProgressOverview projects={constructionProjects} />
+        <div data-tour="dashboard-construction">
+          <ConstructionProgressOverview projects={constructionProjects} />
+        </div>
 
         {/* Plant Production Status Section */}
-        <div className="space-y-4">
+        <div className="space-y-4" data-tour="dashboard-plant">
           <h2 className="text-xl font-semibold text-gray-900">
             Plant production status
           </h2>

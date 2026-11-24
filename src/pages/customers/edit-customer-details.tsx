@@ -163,6 +163,7 @@ export default function EditCustomerDetailsPage() {
       </div>
 
       <form
+        data-tour="customer-edit-form"
         onSubmit={handleSubmit}
         className="rounded-lg border border-slate-200 bg-white p-5 sm:p-6 space-y-7"
       >

@@ -223,7 +223,10 @@ export default function CustomersTable({
   const endRow = Math.min(currentPage * rowsPerPage, totalItems);
 
   return (
-    <Card className="rounded-lg border border-gray-200 bg-white p-0">
+    <Card
+      className="rounded-lg border border-gray-200 bg-white p-0"
+      data-tour="customers-table"
+    >
       <CardContent className="p-0">
         <div className="border-b border-gray-200 px-4 py-2.5">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -231,7 +234,10 @@ export default function CustomersTable({
               Customer List
             </h2>
 
-            <div className="flex flex-wrap items-center gap-2">
+            <div
+              className="flex flex-wrap items-center gap-2"
+              data-tour="customers-filters"
+            >
               <DateRangeFilter className="" />
 
               <Select value={statusFilter} onValueChange={onStatusFilterChange}>
@@ -291,7 +297,10 @@ export default function CustomersTable({
             <span>Entries</span>
           </div>
 
-          <div className="relative w-full sm:w-63.75">
+          <div
+            className="relative w-full sm:w-63.75"
+            data-tour="customers-search"
+          >
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <Input
               value={searchQuery}
@@ -479,6 +488,7 @@ export default function CustomersTable({
                             <Button
                               variant="ghost"
                               size="sm"
+                              data-tour="customer-row-actions"
                               className="h-7 w-7 rounded-full border border-gray-300 p-0 text-gray-600 hover:bg-gray-100"
                             >
                               <Ellipsis className="h-4 w-4" />
