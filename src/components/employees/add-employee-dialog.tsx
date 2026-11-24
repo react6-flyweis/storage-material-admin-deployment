@@ -178,14 +178,14 @@ export function AddEmployeeDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       {!hideTrigger && (
         <DialogTrigger asChild>
-          <Button className="bg-[#3b82f6] hover:bg-[#2563eb]">
+          <Button data-tour="employee-add" className="bg-[#3b82f6] hover:bg-[#2563eb]">
             <Plus className="h-4 w-4 mr-2" />
             Add Employee
           </Button>
         </DialogTrigger>
       )}
 
-      <DialogContent className="w-full sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent data-tour="employee-add-dialog" className="w-full sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {initialValues && Object.keys(initialValues).length > 0
