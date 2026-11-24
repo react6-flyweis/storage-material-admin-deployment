@@ -10,6 +10,7 @@ import { useSocket } from "@/utils/socketContextProvider";
 import { useChatHistoryQuery } from "@/modules/leads/leads.hooks";
 import {
   getLeadChatStatusProvider,
+  getLeadTranscriptsProvider,
   type ChatMessage,
   type ChatStatusData,
 } from "@/modules/leads/leads.api";
@@ -89,24 +90,30 @@ function getInitials(value?: string | null, fallback = "UN") {
   return initials || fallback;
 }
 
-/** The public history endpoint has returned several shapes over time — accept all of them. */
+/**
+ * History endpoints have returned several shapes over time — accept all of them.
+ * Returns the first non-empty message list (an empty `messages: []` must not hide `chat.messages`).
+ */
 function extractHistoryMessages(historyRes: unknown): ChatMessage[] {
   if (!historyRes || typeof historyRes !== "object") return [];
   const raw = historyRes as Record<string, any>;
   const data = raw.data ?? raw;
   const candidates = [
     data,
-    data?.messages,
     data?.chat?.messages,
+    data?.messages,
+    data?.messenger?.messages,
     data?.recentMessages,
     data?.data?.recentMessages,
     data?.data?.messages,
     data?.data,
-    raw.messages,
     raw.chat?.messages,
+    raw.messages,
   ];
   for (const candidate of candidates) {
-    if (Array.isArray(candidate)) return candidate as ChatMessage[];
+    if (Array.isArray(candidate) && candidate.length > 0) {
+      return candidate as ChatMessage[];
+    }
   }
   return [];
 }
@@ -115,6 +122,19 @@ function sortByCreatedAt(list: ChatMessage[]) {
   return [...list].sort(
     (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
   );
+}
+
+function messageKey(m: ChatMessage) {
+  return m._id || `${m.createdAt}|${m.senderType}|${m.content}`;
+}
+
+/** Merge lists, de-duplicating by id (later lists win), oldest first. */
+function mergeMessages(...lists: ChatMessage[][]) {
+  const byKey = new Map<string, ChatMessage>();
+  for (const list of lists) {
+    for (const m of list) byKey.set(messageKey(m), m);
+  }
+  return sortByCreatedAt(Array.from(byKey.values()));
 }
 
 export default function LeadChatPanel({
@@ -131,7 +151,21 @@ export default function LeadChatPanel({
   const isValidMongoId = Boolean(leadId && leadId.length === 24);
   const isActive = enabled && isValidMongoId;
 
-  const { data: historyRes, isLoading } = useChatHistoryQuery(leadId, isActive);
+  // Staff transcript endpoint: full website + Facebook Messenger thread.
+  // The public history endpoint is the website widget's and may not include Messenger
+  // messages, so it is only merged in as a fallback.
+  const { data: transcriptsRes, isLoading: isTranscriptsLoading } = useQuery({
+    queryKey: ["admin", "leads", "chat-transcript", leadId],
+    queryFn: () => getLeadTranscriptsProvider(leadId, "chat"),
+    enabled: isActive,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  });
+  const { data: historyRes, isLoading: isHistoryLoading } = useChatHistoryQuery(
+    leadId,
+    isActive,
+  );
+  const isLoading = isTranscriptsLoading && isHistoryLoading;
   const { data: chatStatusRes } = useQuery({
     queryKey: ["admin", "leads", "chat-status", leadId],
     queryFn: () => getLeadChatStatusProvider(leadId),
@@ -173,10 +207,11 @@ export default function LeadChatPanel({
   }, [chatStatusRes, applyStatus]);
 
   useEffect(() => {
-    if (historyRes) {
-      setMessages(sortByCreatedAt(extractHistoryMessages(historyRes)));
-    }
-  }, [historyRes]);
+    if (!historyRes && !transcriptsRes) return;
+    const fromHistory = extractHistoryMessages(historyRes);
+    const fromTranscript = extractHistoryMessages(transcriptsRes);
+    setMessages((prev) => mergeMessages(prev, fromHistory, fromTranscript));
+  }, [historyRes, transcriptsRes]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -204,7 +239,7 @@ export default function LeadChatPanel({
               m.senderType === msg.senderType
             ),
         );
-        return sortByCreatedAt([...withoutTemp, msg]);
+        return mergeMessages(withoutTemp, [msg]);
       });
       socket.emit("mark_messages_read", { leadId });
     };
