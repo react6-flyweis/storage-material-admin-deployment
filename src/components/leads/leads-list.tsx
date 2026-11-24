@@ -15,8 +15,6 @@ import DeleteLeadDialog from "@/components/leads/delete-lead-dialog";
 import ArchiveLeadDialog from "@/components/leads/archive-lead-dialog";
 import RestoreLeadDialog from "@/components/leads/restore-lead-dialog";
 import ChatDialog from "@/components/leads/chat-dialog";
-import ChannelBadge from "@/components/leads/channel-badge";
-import { isMessengerLead } from "@/lib/chat-source";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -278,7 +276,6 @@ export default function LeadsList({
                     {lead.quoteValue}
                   </TableCell>
                   <TableCell className="px-4 py-3">
-                    <div className="flex items-center gap-1.5">
                     <ChatDialog
                       lead={lead}
                       trigger={
@@ -302,10 +299,6 @@ export default function LeadsList({
                         </div>
                       }
                     />
-                    {isMessengerLead(lead) ? (
-                      <ChannelBadge source="facebook" label="Messenger" />
-                    ) : null}
-                    </div>
                   </TableCell>
                   <TableCell className="px-4 py-3 text-center">
                     <div

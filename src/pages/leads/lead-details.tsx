@@ -63,7 +63,6 @@ import {
 import { formatBusinessUnit } from "@/modules/leads/business-unit";
 import { formatPhone } from "@/lib/utils";
 import { getCleanEmail, getCleanPhone, isMessengerLead } from "@/lib/chat-source";
-import ChannelBadge from "@/components/leads/channel-badge";
 import { useState } from "react";
 // import { useLeadQuotationsQuery } from "@/modules/quotations/quotations.hooks";
 // import LeadRfqTab from "./lead-rfq-tab";
@@ -462,11 +461,8 @@ export default function LeadDetails() {
                       Contact Information
                     </h3>
                     <div className="bg-gray-50/50 rounded-lg p-4 space-y-3">
-                      <div className="flex flex-wrap items-center gap-2 font-semibold text-gray-900 mb-1">
+                      <div className="font-semibold text-gray-900 mb-1">
                         {customer?.firstName || "Unknown"}
-                        {isMessenger ? (
-                          <ChannelBadge source="facebook" label="Facebook Messenger" size="sm" />
-                        ) : null}
                       </div>
                       <div className="flex items-center gap-3 text-sm">
                         <Phone className="w-4 h-4 text-gray-400" />
