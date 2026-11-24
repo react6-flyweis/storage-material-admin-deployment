@@ -49,6 +49,8 @@ export type LeadTableRow = {
   status: string;
   quoteValue: string;
   chatCount: number;
+  /** lead.source, e.g. "messenger" for Facebook leads. */
+  source?: string;
   createdAt: Date;
   isArchived?: boolean;
   archiveReason?: string | null;

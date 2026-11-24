@@ -62,6 +62,7 @@ import {
 } from "@/modules/leads/leads.api";
 import { formatBusinessUnit } from "@/modules/leads/business-unit";
 import { formatPhone } from "@/lib/utils";
+import { getCleanEmail, getCleanPhone, isMessengerLead } from "@/lib/chat-source";
 import { useState } from "react";
 // import { useLeadQuotationsQuery } from "@/modules/quotations/quotations.hooks";
 // import LeadRfqTab from "./lead-rfq-tab";
@@ -142,6 +143,11 @@ export default function LeadDetails() {
   const leadData = response?.data;
   const lead = leadData?.lead;
   const customer = leadData?.customer;
+  const isMessenger = isMessengerLead(lead);
+  // Hides legacy Messenger placeholders (fb-…@pending.messenger.local, "+0 <PSID>").
+  const contactPhone = getCleanPhone(customer?.phone);
+  const contactEmail = getCleanEmail(customer?.email);
+  const missingContactLabel = isMessenger ? "Not provided" : null;
 
   const scoreBreakdown = lead?.leadScoring?.scoreBreakdown || {};
 
@@ -460,30 +466,25 @@ export default function LeadDetails() {
                       </div>
                       <div className="flex items-center gap-3 text-sm">
                         <Phone className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-600">
-                          {(typeof customer?.phone === "string" ? customer.phone : customer?.phone?.number)
-                            ? formatPhone(
-                                typeof customer?.phone === "string"
-                                  ? customer.phone
-                                  : customer?.phone?.number,
-                                typeof customer?.phone === "object"
-                                  ? customer?.phone?.countryCode
-                                  : null,
-                              )
-                            : "No phone"}
+                        <span className={contactPhone ? "text-gray-600" : "text-gray-400"}>
+                          {contactPhone
+                            ? formatPhone(contactPhone.number, contactPhone.countryCode)
+                            : (missingContactLabel ?? "No phone")}
                         </span>
                       </div>
                       <div className="flex items-center gap-3 text-sm">
                         <Mail className="w-4 h-4 text-gray-400" />
-                        {customer?.email ? (
+                        {contactEmail ? (
                           <a
-                            href={`mailto:${customer.email}`}
+                            href={`mailto:${contactEmail}`}
                             className="text-blue-500 hover:underline"
                           >
-                            {customer.email}
+                            {contactEmail}
                           </a>
                         ) : (
-                          <span className="text-gray-400">No email</span>
+                          <span className="text-gray-400">
+                            {missingContactLabel ?? "No email"}
+                          </span>
                         )}
                       </div>
                       <div className="flex items-start gap-3 text-sm">
@@ -1066,6 +1067,7 @@ export default function LeadDetails() {
                   id: lead?.jobId || leadId || "",
                   backendId: leadId,
                   name: customer?.firstName || "Unknown",
+                  source: lead?.source,
                   assignedToName:
                     typeof lead?.assignedSales === "object"
                       ? lead?.assignedSales?.name
