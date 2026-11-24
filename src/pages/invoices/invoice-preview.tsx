@@ -273,7 +273,7 @@ export default function InvoicePreview() {
 
   return (
     <>
-      <div className="md:px-5 px-2 md:pt-5 pb-10 space-y-6">
+      <div data-tour="invoice-details" className="md:px-5 px-2 md:pt-5 pb-10 space-y-6">
         {/* Top Actions */}
         <div className="flex justify-between items-center mb-3 mt-1  gap-4">
           <div className="flex gap-2">
