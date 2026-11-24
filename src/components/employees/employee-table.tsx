@@ -346,6 +346,7 @@ export function EmployeeTable({
                             to={`/employees/${employee.id}`}
                             state={{ from: location.pathname + location.search }}
                             onClick={(e) => e.stopPropagation()}
+                            data-tour="employee-row-view"
                             className="inline-flex h-8 w-8 items-center justify-center text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md"
                           >
                             <Eye className="h-4 w-4" />

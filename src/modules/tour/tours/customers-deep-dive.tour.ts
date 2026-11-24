@@ -114,6 +114,15 @@ export const customersDeepDiveTour: TourDefinition = {
         "This is the customer workspace, everything about one customer on a single page.",
       side: "left",
       align: "start",
+      via: {
+        fromRoute: "/customers",
+        element: '[data-tour="customer-row-actions"]',
+        title: "Open a Customer",
+        description:
+          "Open a row's menu and choose <b>View Details</b>. Press Next and we'll open one for you.",
+        speechText: "View details is in this menu. Press next to open a customer.",
+        showOnly: true,
+      },
     },
     {
       id: "step-customer-detail-actions",

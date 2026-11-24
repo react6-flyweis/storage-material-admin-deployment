@@ -142,7 +142,7 @@ export function AddProductDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto p-0 gap-0">
+      <DialogContent data-tour="product-add-dialog" className="sm:max-w-4xl max-h-[90vh] overflow-y-auto p-0 gap-0">
         <DialogHeader className="p-6 pb-4 border-b border-gray-100 bg-white sticky top-0 z-10">
           <DialogTitle className="text-xl font-semibold text-gray-900">
             Add New Product

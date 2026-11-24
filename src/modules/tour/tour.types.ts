@@ -25,21 +25,39 @@ export interface TourStepBranchConfig {
   tourId: TourId;
   label: string;
   description?: string;
-  /** Step of the current tour to resume at afterwards. Defaults to the next step. */
-  resumeStepIndex?: number;
+  /** Id of the current tour's step to resume at afterwards. Defaults to the next step. */
+  resumeStepId?: string;
+}
+
+/** A control the tour highlights, then waits for the user (or Next) to click. */
+export interface TourClickConfig {
+  element: string;
+  title: string;
+  description: string;
+  speechText?: string;
 }
 
 /**
  * The in-page control a user clicks to reach this step's page (a row's View
  * button, a quick-action button...). The tour highlights it before moving on.
  */
-export interface TourStepViaConfig {
+export interface TourStepViaConfig extends TourClickConfig {
   /** Page the control lives on. May contain route params like `:leadId`. */
   fromRoute: string;
+  /**
+   * The control can't be clicked to open the page directly (e.g. it opens a
+   * menu). Only point at it; Next opens the page.
+   */
+  showOnly?: boolean;
+}
+
+/** A dialog that has to be opened before a step can be shown. Never submitted. */
+export interface TourPanelConfig {
+  /** Present in the DOM only while the panel is open. */
   element: string;
-  title: string;
-  description: string;
-  speechText?: string;
+  open: TourClickConfig;
+  /** Control that closes it. Defaults to the shared Dialog's close button. */
+  close?: string;
 }
 
 export interface TourStepConfig {
@@ -57,9 +75,23 @@ export interface TourStepConfig {
   align?: "start" | "center" | "end";
   branch?: TourStepBranchConfig;
   via?: TourStepViaConfig;
+  /** The page only opens through its `via` control, not from its URL alone. */
+  needsClick?: boolean;
+  /** Dialog this step lives in. Opened for the step, closed after it. */
+  panel?: TourPanelConfig;
+  /** Blocks clicks on the highlighted element. Defaults to true inside a panel. */
+  locked?: boolean;
   /** Target may legitimately be absent (depends on data); skip quickly if so. */
   optional?: boolean;
   fallback?: TourStepFallbackConfig;
+}
+
+/** Introduces a whole page before the tour goes through its sections. */
+export interface TourPageIntro {
+  title: string;
+  description: string;
+  /** A step on this element already shows the whole page, so it needs no intro. */
+  coveredBy?: string;
 }
 
 export interface TourDefinition {

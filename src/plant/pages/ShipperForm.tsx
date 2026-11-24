@@ -139,7 +139,7 @@ const ShipperForm: React.FC<ShipperFormProps> = ({
         </Button>
       </div>
 
-      <form id="shipper-form" onSubmit={handleFormSubmit}>
+      <form id="shipper-form" data-tour="shipper-form" onSubmit={handleFormSubmit}>
         {isSubmitted && (errors.root?.message || validationMessages.length > 0) && (
           <div className="mb-6 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700">
             <div className="font-semibold">Please fix the following validation errors:</div>

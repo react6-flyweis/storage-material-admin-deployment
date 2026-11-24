@@ -13,7 +13,9 @@ import {
 import { tourSpeech, type SpeechState } from "./tour-speech.service";
 import { useTourStore } from "./tour.store";
 import type {
+  TourClickConfig,
   TourDefinition,
+  TourPanelConfig,
   TourStepBranchConfig,
   TourStepConfig,
   TourId,
@@ -29,6 +31,7 @@ import {
   plantDeepDiveTour,
 } from "./tours/section-deep-dives.tour";
 import { approvalsDeepDiveTour } from "./tours/approvals-deep-dive.tour";
+import { PAGE_INTROS } from "./tours/page-intros";
 
 export const TOURS_REGISTRY: Record<TourId, TourDefinition> = {
   "admin-platform": adminPlatformTour,
@@ -43,10 +46,20 @@ export const TOURS_REGISTRY: Record<TourId, TourDefinition> = {
 };
 
 const DESKTOP_TOUR_WIDTH = 1024;
+/** The layout's content area: everything but the sidebar and header. */
+const PAGE_CONTENT = '[data-tour="page-content"]';
+/** How long a page's first section may take before the page is introduced anyway. */
+const PAGE_INTRO_WAIT_MS = 2500;
 const OPTIONAL_STEP_TIMEOUT_MS = 1500;
 const STEP_TIMEOUT_MS = 4000;
-/** Data-backed pages (lead/customer workspaces) can take longer to load. */
-const DATA_STEP_TIMEOUT_MS = 8000;
+/** Pages that were just opened, and the menu they bring along, can take longer. */
+const PAGE_LOAD_TIMEOUT_MS = 8000;
+/** How long a click may take to change the URL. */
+const NAVIGATION_TIMEOUT_MS = 1500;
+/** Time a dialog needs to finish animating into place. */
+const PANEL_SETTLE_MS = 350;
+/** Narrower than this, the sidebar's menu is collapsed. */
+const MIN_OPEN_MENU_WIDTH = 100;
 /** The fallback container is normally already on screen; don't wait long. */
 const FALLBACK_TIMEOUT_MS = 2000;
 
@@ -65,6 +78,8 @@ const RESERVED_SEGMENTS = new Set([
   "meetings",
   "contracts",
   "terminated-projects",
+  "performance",
+  "audit-log",
 ]);
 
 function isTourTargetVisible(element: Element): boolean {
@@ -84,6 +99,18 @@ function stripPath(path: string): string {
 function splitRoute(route: string): { path: string; query: string } {
   const [path, query = ""] = route.split("?");
   return { path: stripPath(path), query };
+}
+
+/** The route of a page, whichever of its tabs or views is open. */
+function pageRoute(route: string): string {
+  return stripPath(route.split("?")[0]);
+}
+
+/** Scrolls a page, and whatever it scrolls in, back to the top. */
+function scrollPageToTop(page: Element) {
+  for (let node: Element | null = page; node; node = node.parentElement) {
+    node.scrollTop = 0;
+  }
 }
 
 function currentLocation(): string {
@@ -182,13 +209,11 @@ interface NavTarget {
   sub?: NavSubItem;
 }
 
-interface NavHint {
-  element: string;
-  title: string;
-  description: string;
-  speechText: string;
+interface ClickHint extends TourClickConfig {
   /** Skip this hint when this selector is already visible (e.g. section already expanded). */
   skipIfVisible?: string;
+  /** Point at the control without clicking it; Next just moves on. */
+  showOnly?: boolean;
 }
 
 /** Finds which sidebar group (and item / sub-item, if any) a route lives under. */
@@ -223,21 +248,28 @@ function findNavTarget(route: string): NavTarget | null {
   return null;
 }
 
+/** The icon rail stays, but the menu beside it can be collapsed by the user. */
+function isSidebarMenuCollapsed(): boolean {
+  const menu = document.querySelector("[data-tour-nav-group-link]")?.closest("aside");
+  return !!menu && menu.getBoundingClientRect().width < MIN_OPEN_MENU_WIDTH;
+}
+
 const CLICK_OR_NEXT = "Click it yourself, or press Next and we'll do it for you.";
 
 /**
  * Builds the "click here" steps a user would take in the sidebar to get from
  * the current page to `targetRoute`. Empty when the route isn't in the sidebar.
  */
-function buildNavHints(currentPath: string, targetRoute: string): NavHint[] {
+function buildNavHints(currentPath: string, targetRoute: string): ClickHint[] {
   const target = findNavTarget(targetRoute);
   if (!target) return [];
   const current = findNavTarget(currentPath);
   const { group } = target;
-  const hints: NavHint[] = [];
+  const hints: ClickHint[] = [];
   const sameGroup = current?.group.id === group.id;
 
-  if (!sameGroup) {
+  // Clicking a section's icon also opens the menu again if it is collapsed.
+  if (!sameGroup || isSidebarMenuCollapsed()) {
     hints.push({
       element: `[data-group-id="${group.id}"]`,
       title: `Go to ${group.label}`,
@@ -295,6 +327,12 @@ interface PopoverConfig {
   index: number;
   nextBtnText: string;
   branch?: TourStepBranchConfig;
+  /** Blocks clicks on the highlighted element. */
+  locked?: boolean;
+  /** Highlights a whole page rather than one part of it. */
+  isPage?: boolean;
+  /** Back works even on the first step, where it returns to the page intro. */
+  canGoBack?: boolean;
   onNext: () => void;
   onPrev: () => void;
 }
@@ -318,12 +356,20 @@ export class TourCoordinator {
   private currentSpeechText = "";
   /** Set while a branched tour runs; where to return when it ends. */
   private resumeContext: ResumeTourContext | null = null;
+  /** Pages this run has already introduced as a whole. */
+  private introducedPages = new Set<string>();
+  /** Steps of the current tour that a page intro was shown before. */
+  private pageIntroSteps = new Set<number>();
   /** Lead / customer the tour is showing, so every step stays on the same one. */
   private tourLeadId: string | null = null;
   private tourCustomerId: string | null = null;
   private tourProjectId: string | null = null;
   /** Params we already failed to resolve (no data yet); don't refetch or re-toast. */
   private unresolvedParams = new Set<string>();
+  /** Real paths of visited detail pages by route pattern, so Back can return to them. */
+  private visitedPaths = new Map<string, string>();
+  /** Dialog the tour has opened. */
+  private openPanel: TourPanelConfig | null = null;
 
   private cleanupSpeechSubscription() {
     if (this.currentSpeechUnsub) {
@@ -374,7 +420,13 @@ export class TourCoordinator {
         }
       });
 
-      observer.observe(document.body, { childList: true, subtree: true });
+      // Attributes too: the sidebar's menu expands without adding any nodes.
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["class", "style"],
+      });
 
       timeoutId = window.setTimeout(() => {
         observer.disconnect();
@@ -392,7 +444,10 @@ export class TourCoordinator {
     this.stopTour(false);
     if (resumeContext !== undefined) {
       this.resumeContext = resumeContext;
+    } else {
+      this.introducedPages.clear();
     }
+    this.pageIntroSteps.clear();
     tourSpeech.prime();
     this.currentTour = tour;
     useTourStore.getState().setActiveTour(tour.id);
@@ -484,11 +539,63 @@ export class TourCoordinator {
     for (const [, param] of pattern.matchAll(/:(\w+)/g)) {
       if (!route.includes(`:${param}`)) continue;
       const value = readParamFromLocation(param, pattern);
-      if (!value) return null;
+      if (!value) return this.visitedPaths.get(pattern) ?? null;
       route = route.replace(`:${param}`, value);
     }
 
     return route;
+  }
+
+  private rememberRoute(pattern: string) {
+    if (!pattern.includes(":") || !routeMatches(currentLocation(), pattern)) return;
+    this.visitedPaths.set(pattern, window.location.pathname);
+  }
+
+  private async waitForRoute(pattern: string): Promise<void> {
+    const deadline = Date.now() + NAVIGATION_TIMEOUT_MS;
+    while (!routeMatches(currentLocation(), pattern) && Date.now() < deadline) {
+      await delay(50);
+    }
+  }
+
+  private closeOpenPanel() {
+    const panel = this.openPanel;
+    this.openPanel = null;
+    if (!panel || !document.querySelector(panel.element)) return;
+    const closer = panel.close ?? `${panel.element} [data-slot="dialog-close"]`;
+    document.querySelector<HTMLElement>(closer)?.click();
+  }
+
+  /** Opens the dialog a step lives in, showing the click when `showClicks`. */
+  private async openStepPanel(
+    panel: TourPanelConfig,
+    index: number,
+    token: number,
+    showClicks: boolean,
+  ): Promise<HintResult> {
+    const existing = document.querySelector(panel.element);
+    if (existing && isTourTargetVisible(existing)) {
+      this.openPanel = panel;
+      return "clicked";
+    }
+
+    if (showClicks) {
+      const result = await this.showClickHint(panel.open, index, token, PAGE_LOAD_TIMEOUT_MS);
+      if (result !== "clicked") return result;
+    } else {
+      const trigger = await this.waitForElement(panel.open.element, PAGE_LOAD_TIMEOUT_MS);
+      if (token !== this.stepToken) return "cancelled";
+      if (!(trigger instanceof HTMLElement)) return "missing";
+      trigger.click();
+    }
+
+    // Owned from here on, so leaving early still closes it.
+    this.openPanel = panel;
+    const opened = await this.waitForElement(panel.element);
+    if (token !== this.stepToken) return "cancelled";
+    if (!opened) return "missing";
+    await delay(PANEL_SETTLE_MS);
+    return token === this.stepToken ? "clicked" : "cancelled";
   }
 
   private skipStep(index: number, direction: "forward" | "backward") {
@@ -511,15 +618,64 @@ export class TourCoordinator {
         await delay(350);
         if (token !== this.stepToken) return false;
       }
-      const result = await this.showClickHint(hints[i], index, token);
+      const result = await this.showClickHint(hints[i], index, token, PAGE_LOAD_TIMEOUT_MS);
       if (result === "cancelled") return false;
     }
+    return true;
+  }
+
+  /**
+   * Highlights the whole page before the tour goes through its sections, once
+   * per page. False when there is nothing to introduce.
+   */
+  private async showPageIntro(
+    step: TourStepConfig,
+    index: number,
+    token: number,
+    replay: boolean,
+  ): Promise<boolean> {
+    const route = pageRoute(step.route);
+    const intro = step.route ? PAGE_INTROS[route] : undefined;
+    if (!intro) return false;
+    if (!replay) {
+      if (this.introducedPages.has(route)) return false;
+      if (step.element === intro.coveredBy) {
+        this.introducedPages.add(route);
+        return false;
+      }
+    }
+
+    // Let the page load, so the highlight fits it.
+    await this.waitForElement(step.panel?.open.element ?? step.element, PAGE_INTRO_WAIT_MS);
+    if (token !== this.stepToken || !this.currentTour || !this.driverObj) return true;
+    const page = document.querySelector(PAGE_CONTENT);
+    if (!page || !isTourTargetVisible(page)) return false;
+    this.introducedPages.add(route);
+    this.pageIntroSteps.add(index);
+    scrollPageToTop(page);
+    this.showPopover({
+      element: PAGE_CONTENT,
+      isPage: true,
+      title: intro.title,
+      description: intro.description,
+      speechText: intro.description,
+      index,
+      nextBtnText: "Next →",
+      locked: true,
+      onNext: () => void this.goToStep(index, "forward"),
+      onPrev: () => {
+        // Coming forward again introduces the page again.
+        this.introducedPages.delete(route);
+        void this.goToStep(Math.max(0, index - 1), "backward");
+      },
+    });
     return true;
   }
 
   public async goToStep(
     index: number,
     direction: "forward" | "backward" = "forward",
+    replayIntro = false,
   ) {
     if (!this.currentTour || !this.driverObj) return;
     const token = ++this.stepToken;
@@ -535,7 +691,19 @@ export class TourCoordinator {
     const isActive = () => token === this.stepToken && !!this.currentTour && !!this.driverObj;
     const showClicks = direction === "forward" && window.innerWidth >= DESKTOP_TOUR_WIDTH;
 
-    if (step.route && !routeMatches(currentLocation(), step.route)) {
+    if (this.openPanel && (replayIntro || this.openPanel !== step.panel)) {
+      this.closeOpenPanel();
+      await delay(50);
+      if (!isActive()) return;
+    }
+
+    const needsNavigation = !!step.route && !routeMatches(currentLocation(), step.route);
+    if (needsNavigation && step.needsClick && !showClicks) {
+      this.skipStep(index, direction);
+      return;
+    }
+
+    if (needsNavigation) {
       // Going forward on desktop, walk the user through the clicks instead of
       // jumping to the page, so they learn where it lives.
       if (showClicks && step.via) {
@@ -550,14 +718,10 @@ export class TourCoordinator {
         }
 
         const result = await this.showClickHint(
-          {
-            element: via.element,
-            title: via.title,
-            description: via.description,
-            speechText: via.speechText || via.title,
-          },
+          via,
           index,
           token,
+          PAGE_LOAD_TIMEOUT_MS,
         );
         if (result === "cancelled") return;
         // The control isn't there (e.g. no leads yet), so this page has
@@ -567,6 +731,10 @@ export class TourCoordinator {
           if (!isActive()) return;
           this.skipStep(index, direction);
           return;
+        }
+        if (!via.showOnly) {
+          await this.waitForRoute(step.route);
+          if (!isActive()) return;
         }
       } else if (showClicks) {
         if (!(await this.walkSidebarTo(step.route, index, token))) return;
@@ -583,14 +751,30 @@ export class TourCoordinator {
 
       if (this.navigate && !routeMatches(currentLocation(), step.route)) {
         this.navigate(targetRoute);
+        await this.waitForRoute(step.route);
+        if (!isActive()) return;
+      }
+    }
+    this.rememberRoute(step.route);
+
+    if (direction === "forward" || replayIntro) {
+      if (await this.showPageIntro(step, index, token, replayIntro)) return;
+      if (!isActive()) return;
+    }
+
+    if (step.panel) {
+      const result = await this.openStepPanel(step.panel, index, token, showClicks);
+      if (result === "cancelled" || !isActive()) return;
+      if (result === "missing") {
+        this.skipStep(index, direction);
+        return;
       }
     }
 
-    const needsData = /:(leadId|customerId|projectId)/.test(step.route);
     const timeout = step.optional
       ? OPTIONAL_STEP_TIMEOUT_MS
-      : needsData
-        ? DATA_STEP_TIMEOUT_MS
+      : needsNavigation || step.route.includes(":")
+        ? PAGE_LOAD_TIMEOUT_MS
         : STEP_TIMEOUT_MS;
     const element = await this.waitForElement(step.element, timeout);
     if (!isActive()) return;
@@ -638,20 +822,27 @@ export class TourCoordinator {
    * Highlights a control and waits until it is clicked, either by the user or
    * by the Next button.
    */
-  private async showClickHint(hint: NavHint, index: number, token: number): Promise<HintResult> {
+  private async showClickHint(
+    hint: ClickHint,
+    index: number,
+    token: number,
+    timeoutMs = STEP_TIMEOUT_MS,
+  ): Promise<HintResult> {
+    const element = await this.waitForElement(hint.element, timeoutMs);
+    if (token !== this.stepToken || !this.currentTour || !this.driverObj) return "cancelled";
+    if (!element || !(element instanceof HTMLElement)) return "missing";
+    // Checked once the control is there: clicking it again would undo it.
     if (hint.skipIfVisible) {
       const already = document.querySelector(hint.skipIfVisible);
       if (already && isTourTargetVisible(already)) return "skipped";
     }
 
-    const element = await this.waitForElement(hint.element, STEP_TIMEOUT_MS);
-    if (token !== this.stepToken || !this.currentTour || !this.driverObj) return "cancelled";
-    if (!element || !(element instanceof HTMLElement)) return "missing";
-
     const isSidebar = Boolean(element.closest('[data-tour="sidebar-nav"]'));
 
     return new Promise<HintResult>((resolve) => {
+      let isClicked = false;
       const onClick = () => {
+        isClicked = true;
         element.removeEventListener("click", onClick);
         this.cancelPendingHint = null;
         // Let the app's own click handler run (and navigate) before moving on.
@@ -670,15 +861,30 @@ export class TourCoordinator {
         element: hint.element,
         title: hint.title,
         description: hint.description,
-        speechText: hint.speechText,
+        speechText: hint.speechText || hint.title,
         side: isSidebar ? "right" : "bottom",
         align: "start",
         index,
         nextBtnText: "Next →",
-        onNext: () => element.click(),
+        locked: hint.showOnly,
+        // A second Next while the page changes must not click it again.
+        onNext: () => {
+          if (isClicked) return;
+          if (hint.showOnly) onClick();
+          else element.click();
+        },
         onPrev: () => void this.goToStep(Math.max(0, index - 1), "backward"),
       });
     });
+  }
+
+  /** Back from a page's first section leads to the page's intro. */
+  private goBackFrom(index: number) {
+    if (this.pageIntroSteps.has(index)) {
+      void this.goToStep(index, "backward", true);
+      return;
+    }
+    void this.goToStep(Math.max(0, index - 1), "backward");
   }
 
   private presentStep(
@@ -711,8 +917,10 @@ export class TourCoordinator {
           ? "Finish Tour ✓"
           : "Next →",
       branch: step.branch,
+      locked: step.locked ?? !!step.panel,
       onNext: () => void this.goToStep(index + 1, "forward"),
-      onPrev: () => void this.goToStep(Math.max(0, index - 1), "backward"),
+      canGoBack: this.pageIntroSteps.has(index),
+      onPrev: () => this.goBackFrom(index),
     });
   }
 
@@ -720,9 +928,12 @@ export class TourCoordinator {
     if (!this.currentTour) return;
     const targetTour = TOURS_REGISTRY[branch.tourId];
     if (!targetTour) return;
+    const resumeIndex = this.currentTour.steps.findIndex(
+      (step) => step.id === branch.resumeStepId,
+    );
     const resume: ResumeTourContext = {
       tourId: this.currentTour.id,
-      stepIndex: branch.resumeStepIndex ?? index + 1,
+      stepIndex: resumeIndex === -1 ? index + 1 : resumeIndex,
     };
     this.cleanupSpeechSubscription();
     tourSpeech.stop();
@@ -766,7 +977,7 @@ export class TourCoordinator {
 
     if (element) {
       const domEl = document.querySelector(element);
-      if (domEl) {
+      if (domEl && !config.isPage) {
         domEl.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
@@ -778,13 +989,14 @@ export class TourCoordinator {
 
     this.driverObj.highlight({
       ...(element ? { element } : {}),
+      disableActiveInteraction: config.locked ?? false,
       popover: {
         title: config.title,
         description: config.description,
         side: config.side || "bottom",
         align: config.align || "start",
         showButtons: ["next", "previous", "close"],
-        disableButtons: isFirst ? ["previous"] : [],
+        disableButtons: isFirst && !config.canGoBack ? ["previous"] : [],
         showProgress: true,
         progressText: `${index + 1} of ${total}`,
         nextBtnText: config.nextBtnText,
@@ -898,12 +1110,14 @@ export class TourCoordinator {
     tourSpeech.stop();
     this.stepToken += 1;
     this.clearPendingHint();
+    this.closeOpenPanel();
     if (clearResume) {
       this.resumeContext = null;
       this.tourLeadId = null;
       this.tourCustomerId = null;
       this.tourProjectId = null;
       this.unresolvedParams.clear();
+      this.visitedPaths.clear();
     }
     if (this.driverObj) {
       const activeDriver = this.driverObj;

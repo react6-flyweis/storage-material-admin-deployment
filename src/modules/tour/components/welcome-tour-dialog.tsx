@@ -88,7 +88,7 @@ export function WelcomeTourDialog() {
             onClick={handleStartTour}
             className="bg-[#1D51A4] hover:bg-[#163f82] text-white"
           >
-            Start Quick Tour (2 min)
+            Start Tour (8 min)
           </Button>
           <Button
             variant="outline"

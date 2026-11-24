@@ -581,6 +581,7 @@ export default function PaymentApprovalsPage() {
           </Button>
           <Button
             className="bg-blue-600 hover:bg-blue-700 text-white"
+            data-tour="payment-request-add"
             onClick={() => setIsCreateOpen(true)}
           >
             <Plus className="w-4 h-4 mr-2" />
@@ -998,7 +999,7 @@ export default function PaymentApprovalsPage() {
 
       {/* Create Payment Approval Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent data-tour="payment-request-dialog" className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Create Payment Request</DialogTitle>
             <DialogDescription>
