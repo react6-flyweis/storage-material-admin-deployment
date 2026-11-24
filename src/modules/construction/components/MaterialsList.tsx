@@ -278,6 +278,7 @@ export default function MaterialsList({
                     <td className="px-5 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <button
+                          data-tour="material-row-view"
                           onClick={() => onView(r)}
                           className="px-3 py-1 bg-white border border-[#E5E7EB] text-[#374151] rounded-md text-[12px] font-medium hover:bg-gray-50 transition-colors shadow-sm"
                         >
