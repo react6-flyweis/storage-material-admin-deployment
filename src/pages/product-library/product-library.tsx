@@ -173,6 +173,7 @@ export default function ProductLibrary() {
           </Button>
           <Button
             className="bg-[#2563EB] hover:bg-blue-700 text-white"
+            data-tour="product-add"
             onClick={() => setIsAddProductOpen(true)}
           >
             Add New Product
