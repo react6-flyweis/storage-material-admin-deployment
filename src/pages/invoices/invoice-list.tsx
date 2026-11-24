@@ -301,6 +301,7 @@ export default function InvoiceListPage() {
                         </TableCell>
                         <TableCell className="text-left px-6 py-4">
                           <button
+                            data-tour="invoice-row-view"
                             onClick={() => navigate(`/invoice/preview`, { 
                               state: { 
                                 from: location.pathname + location.search,
