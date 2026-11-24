@@ -267,6 +267,7 @@ export default function ExpensesManagementPage() {
 
           <Button
             className="h-9 bg-violet-600 px-4 text-white hover:bg-violet-700"
+            data-tour="expense-add"
             onClick={() => setAddExpenseDialogOpen(true)}
           >
             <Plus className="mr-2 h-4 w-4" />

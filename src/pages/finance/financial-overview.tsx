@@ -165,7 +165,7 @@ export default function FinancialOverviewPage() {
     : [];
 
   return (
-    <div className="space-y-4 p-5">
+    <div data-tour="finance-overview" className="space-y-4 p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <TitleSubtitle
           title="Financial Overview"

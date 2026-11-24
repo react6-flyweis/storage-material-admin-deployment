@@ -129,6 +129,10 @@ export type AdminLead = {
     score?: number;
   };
   createdAt: string;
+  /** e.g. "chat", "messenger", "manual" — present when the list API returns it. */
+  source?: string;
+  isOnline?: boolean;
+  lastSeenAt?: string | null;
   isArchived?: boolean;
   archiveReason?: string | null;
   archivedAt?: string | null;
@@ -497,9 +501,50 @@ export type ChatMessage = {
   isRead?: boolean;
   createdAt: string;
   updatedAt?: string;
-  origin?: "chat" | "call";
+  /** Storage enum: website widget, Facebook Messenger or phone call. */
+  origin?: "chat" | "messenger" | "call";
+  /** UI channel id. */
+  source?: "website" | "facebook" | "phone";
+  /** Human label for the bubble: "Website" | "Facebook" | "Phone". */
+  sourceLabel?: "Website" | "Facebook" | "Phone" | string;
   callSessionId?: string | null;
+  channel?: string | null;
 };
+
+export type ChatStatusData = {
+  leadId: string;
+  /** Thread channel: "website" widget or "facebook" Messenger. */
+  channel?: "website" | "facebook";
+  isChatEnded?: boolean;
+  chatEndedAt?: string | null;
+  chatEndedBy?: string | null;
+  isStaffChatActive?: boolean;
+  isHandedToSales?: boolean;
+  isAiActive?: boolean;
+  canCustomerSend?: boolean;
+  canStaffSend?: boolean;
+  isCustomerOnline: boolean;
+  leadOnlineAt?: string | null;
+  leadLastSeenAt?: string | null;
+  customerOnline?: {
+    isOnline: boolean;
+    onlineAt?: string | null;
+    lastSeenAt?: string | null;
+  } | null;
+};
+
+export type ChatStatusResponse = {
+  success: boolean;
+  message?: string;
+  data: ChatStatusData;
+};
+
+export async function getLeadChatStatusProvider(leadId: string) {
+  const response = await apiClient.get<ChatStatusResponse>(
+    `/api/admin/leads/${encodeURIComponent(leadId)}/chat-status`
+  );
+  return response.data;
+}
 
 export type PublicChatHistoryData = {
   messages?: ChatMessage[];
@@ -1115,7 +1160,7 @@ export async function unarchiveLeadProvider(leadId: string) {
 // Voice Call & Transcript Types and Providers
 // -------------------------------------------------------------
 
-export type TranscriptChannel = "all" | "chat" | "call" | "summary";
+export type TranscriptChannel = "all" | "chat" | "messenger" | "call" | "summary";
 
 export type TranscriptTabStatus = {
   hasChat: boolean;
@@ -1159,6 +1204,10 @@ export type LeadTranscriptsData = {
   summary?: TranscriptSummary;
   chat?: {
     messageCount: number;
+    messages: ChatMessage[];
+  };
+  messenger?: {
+    messageCount?: number;
     messages: ChatMessage[];
   };
   call?: {

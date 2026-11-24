@@ -19,6 +19,8 @@ type Lead = {
   _id?: string;
   backendId?: string;
   name: string;
+  /** lead.source, e.g. "messenger" for Facebook leads. */
+  source?: string | null;
   chatCount?: number;
   assignedToName?: string;
 };

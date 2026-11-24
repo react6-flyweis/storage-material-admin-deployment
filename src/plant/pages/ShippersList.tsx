@@ -166,7 +166,7 @@ export default function ShippersList() {
   const emptyState = !loading && vendors.length === 0;
 
   return (
-    <div className="flex-1 space-y-6 p-6 bg-[#f4f7fb] min-h-screen font-sans">
+    <div data-tour="shippers-page" className="flex-1 space-y-6 p-6 bg-[#f4f7fb] min-h-screen font-sans">
       <div className="flex flex-col gap-1 pt-1">
         <TitleSubtitle
           title="Logistics"
@@ -200,6 +200,7 @@ export default function ShippersList() {
           </Button>
           <Button
             className="bg-[#2563eb] hover:bg-blue-700 text-white font-medium shadow-sm"
+            data-tour="shipper-add"
             onClick={handleAddVendor}
           >
             <Plus className="w-4 h-4 mr-2" /> Add Vendor
@@ -325,6 +326,7 @@ export default function ShippersList() {
                     <td className="px-3 py-4">
                       <div className="flex items-center gap-2.5">
                         <button
+                          data-tour="shipper-row-view"
                           className="text-gray-500 hover:text-gray-900 transition-colors"
                           onClick={() => navigate(`/plant/shippers/${vendor.id}`)}
                         >

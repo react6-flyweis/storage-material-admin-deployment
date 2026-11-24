@@ -45,7 +45,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useNavigate, useParams, useLocation } from "react-router";
+import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 import { useAppBack } from "@/modules/navigation";
 import AssignSalesDialog from "@/components/leads/assign-sales-dialog";
 import DeleteLeadDialog from "@/components/leads/delete-lead-dialog";
@@ -62,6 +62,7 @@ import {
 } from "@/modules/leads/leads.api";
 import { formatBusinessUnit } from "@/modules/leads/business-unit";
 import { formatPhone } from "@/lib/utils";
+import { getCleanEmail, getCleanPhone, isMessengerLead } from "@/lib/chat-source";
 import { useState } from "react";
 // import { useLeadQuotationsQuery } from "@/modules/quotations/quotations.hooks";
 // import LeadRfqTab from "./lead-rfq-tab";
@@ -93,7 +94,21 @@ export default function LeadDetails() {
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [noteContent, setNoteContent] = useState("");
   const [isQuoteDialogOpen, setIsQuoteDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("basic_info");
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState(
+    tabParam && LEAD_DETAILS_TABS.some((tab) => tab.value === tabParam)
+      ? tabParam
+      : "basic_info",
+  );
+
+  const [prevTabParam, setPrevTabParam] = useState(tabParam);
+  if (tabParam !== prevTabParam) {
+    setPrevTabParam(tabParam);
+    if (tabParam && LEAD_DETAILS_TABS.some((tab) => tab.value === tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }
   const [isAddFollowUpOpen, setIsAddFollowUpOpen] = useState(false);
   const [isAddMeetingOpen, setIsAddMeetingOpen] = useState(false);
 
@@ -128,6 +143,11 @@ export default function LeadDetails() {
   const leadData = response?.data;
   const lead = leadData?.lead;
   const customer = leadData?.customer;
+  const isMessenger = isMessengerLead(lead);
+  // Hides legacy Messenger placeholders (fb-…@pending.messenger.local, "+0 <PSID>").
+  const contactPhone = getCleanPhone(customer?.phone);
+  const contactEmail = getCleanEmail(customer?.email);
+  const missingContactLabel = isMessenger ? "Not provided" : null;
 
   const scoreBreakdown = lead?.leadScoring?.scoreBreakdown || {};
 
@@ -159,7 +179,7 @@ export default function LeadDetails() {
   );
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 p-6" data-tour="lead-details-content">
       <div className="flex items-center gap-3">
         <Button className="" onClick={() => goBack("/leads")}>
           <ArrowLeft className="h-5 w-5" />
@@ -178,7 +198,10 @@ export default function LeadDetails() {
                 Leads Details - {customer?.firstName || "Unknown"}
               </h2>
               {/* Action Buttons Row */}
-              <div className="flex flex-wrap items-center gap-3">
+              <div
+                className="flex flex-wrap items-center gap-3"
+                data-tour="lead-detail-actions"
+              >
                 {/* <Button
             variant="outline"
             className="bg-white hover:bg-gray-50 border-gray-200 text-gray-600 h-9 px-4 text-sm font-normal rounded-md"
@@ -319,11 +342,15 @@ export default function LeadDetails() {
             onValueChange={setActiveTab}
             className="w-full"
           >
-            <TabsList className="w-full flex flex-wrap justify-between bg-transparent gap-3 mb-5">
+            <TabsList
+              className="w-full flex flex-wrap justify-between bg-transparent gap-3 mb-5"
+              data-tour="lead-details-tabs-nav"
+            >
               {LEAD_DETAILS_TABS.map((tab) => (
                 <TabsTrigger
                   key={tab.value}
                   value={tab.value}
+                  data-tour={`lead-tab-trigger-${tab.value}`}
                   className="flex-1 py-3 text-sm border-gray-400 bg-gray-100 text-gray-500  data-[state=active]:border-black "
                 >
                   {tab.label}
@@ -333,7 +360,10 @@ export default function LeadDetails() {
 
             <TabsContent value="basic_info" className="space-y-6">
               {/* Project Overview Card */}
-              <div className="bg-white rounded-xl border border-gray-800 p-6">
+              <div
+                className="bg-white rounded-xl border border-gray-800 p-6"
+                data-tour="lead-basic-info-card"
+              >
                 <div className="flex items-start justify-between mb-8">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 bg-blue-50 rounded-xl flex items-center justify-center border border-blue-100">
@@ -436,30 +466,25 @@ export default function LeadDetails() {
                       </div>
                       <div className="flex items-center gap-3 text-sm">
                         <Phone className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-600">
-                          {(typeof customer?.phone === "string" ? customer.phone : customer?.phone?.number)
-                            ? formatPhone(
-                                typeof customer?.phone === "string"
-                                  ? customer.phone
-                                  : customer?.phone?.number,
-                                typeof customer?.phone === "object"
-                                  ? customer?.phone?.countryCode
-                                  : null,
-                              )
-                            : "No phone"}
+                        <span className={contactPhone ? "text-gray-600" : "text-gray-400"}>
+                          {contactPhone
+                            ? formatPhone(contactPhone.number, contactPhone.countryCode)
+                            : (missingContactLabel ?? "No phone")}
                         </span>
                       </div>
                       <div className="flex items-center gap-3 text-sm">
                         <Mail className="w-4 h-4 text-gray-400" />
-                        {customer?.email ? (
+                        {contactEmail ? (
                           <a
-                            href={`mailto:${customer.email}`}
+                            href={`mailto:${contactEmail}`}
                             className="text-blue-500 hover:underline"
                           >
-                            {customer.email}
+                            {contactEmail}
                           </a>
                         ) : (
-                          <span className="text-gray-400">No email</span>
+                          <span className="text-gray-400">
+                            {missingContactLabel ?? "No email"}
+                          </span>
                         )}
                       </div>
                       <div className="flex items-start gap-3 text-sm">
@@ -517,7 +542,10 @@ export default function LeadDetails() {
               </div>
 
               {/* Project Specifications Card */}
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+              <div
+                className="bg-white rounded-xl border border-gray-100 shadow-sm p-6"
+                data-tour="lead-project-specs"
+              >
                 <div className="flex items-center gap-2.5 mb-6">
                   <div className="w-7 h-7 rounded-md bg-[#e8f5e9] flex items-center justify-center text-[#2e7d32]">
                     <Flag className="w-4 h-4" />
@@ -593,7 +621,10 @@ export default function LeadDetails() {
               </div>
 
               {/* Progress Step Section */}
-              <div className="bg-white rounded-xl border shadow-sm p-6">
+              <div
+                className="bg-white rounded-xl border shadow-sm p-6"
+                data-tour="lead-progress"
+              >
                 <h3 className="text-lg font-bold text-[#0f172a] mb-8">
                   Progress Step
                 </h3>
@@ -727,7 +758,7 @@ export default function LeadDetails() {
           </div> */}
                 </div>
 
-                <div className="flex gap-3">
+                <div className="flex gap-3" data-tour="lead-status-actions">
                   <Dialog open={isStatusOpen} onOpenChange={setIsStatusOpen}>
                     <DialogTrigger asChild>
                       <Button className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white">
@@ -821,7 +852,10 @@ export default function LeadDetails() {
               </div>
 
               {/* Grid for Bottom Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div
+                className="grid grid-cols-1 md:grid-cols-3 gap-6"
+                data-tour="lead-activity-notes"
+              >
                 {/* Project Status */}
                 <div className="bg-white rounded-xl border shadow-sm p-6 flex flex-col items-center min-w-0">
                   <h3 className="text-lg font-bold text-[#0f172a] self-start mb-6">
@@ -957,7 +991,10 @@ export default function LeadDetails() {
               </div>
 
               {/* Lead Scoring Section */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div
+                className="grid grid-cols-1 md:grid-cols-4 gap-6"
+                data-tour="lead-scoring"
+              >
                 <div className="bg-white rounded-xl border shadow-sm p-6 flex flex-col justify-center">
                   <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">
                     LEAD SCORING
@@ -1020,12 +1057,17 @@ export default function LeadDetails() {
               </div>
             </TabsContent>
 
-            <TabsContent value="open_chat" className="mt-6">
+            <TabsContent
+              value="open_chat"
+              className="mt-6"
+              data-tour="lead-tab-content-open_chat"
+            >
               <LeadTranscriptsCard
                 lead={{
                   id: lead?.jobId || leadId || "",
                   backendId: leadId,
                   name: customer?.firstName || "Unknown",
+                  source: lead?.source,
                   assignedToName:
                     typeof lead?.assignedSales === "object"
                       ? lead?.assignedSales?.name
@@ -1046,14 +1088,22 @@ export default function LeadDetails() {
               />
             </TabsContent>
 
-            <TabsContent value="quotations" className="mt-6">
+            <TabsContent
+              value="quotations"
+              className="mt-6"
+              data-tour="lead-tab-content-quotations"
+            >
               <LeadQuotationsTab
                 leadId={leadId!}
                 customerName={customer?.firstName}
               />
             </TabsContent>
 
-            <TabsContent value="lifecycle" className="mt-6">
+            <TabsContent
+              value="lifecycle"
+              className="mt-6"
+              data-tour="lead-tab-content-lifecycle"
+            >
               <LeadLifecycleTab
                 lead={{
                   id: lead?.jobId || leadId || "",
@@ -1063,15 +1113,27 @@ export default function LeadDetails() {
               />
             </TabsContent>
 
-            <TabsContent value="documents" className="mt-6">
+            <TabsContent
+              value="documents"
+              className="mt-6"
+              data-tour="lead-tab-content-documents"
+            >
               <LeadDocumentsTab leadId={leadId!} />
             </TabsContent>
 
-            <TabsContent value="follow_ups" className="mt-6">
+            <TabsContent
+              value="follow_ups"
+              className="mt-6"
+              data-tour="lead-tab-content-follow_ups"
+            >
               <LeadFollowUpsTab leadId={leadId!} />
             </TabsContent>
 
-            <TabsContent value="payments" className="mt-6">
+            <TabsContent
+              value="payments"
+              className="mt-6"
+              data-tour="lead-tab-content-payments"
+            >
               <LeadPaymentsTab
                 leadId={leadId!}
                 invoices={leadData?.payments?.invoices || []}

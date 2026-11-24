@@ -266,7 +266,7 @@ export default function EmployeeProfilePage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+    <div data-tour="employee-profile" className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <Button size="sm" onClick={() => goBack()}>
           <span className="inline-flex items-center gap-2">

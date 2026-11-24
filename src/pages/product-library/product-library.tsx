@@ -148,7 +148,7 @@ export default function ProductLibrary() {
   };
 
   return (
-    <div className="space-y-6 p-6">
+    <div data-tour="product-library-workspace" className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Product Library</h1>
@@ -173,6 +173,7 @@ export default function ProductLibrary() {
           </Button>
           <Button
             className="bg-[#2563EB] hover:bg-blue-700 text-white"
+            data-tour="product-add"
             onClick={() => setIsAddProductOpen(true)}
           >
             Add New Product

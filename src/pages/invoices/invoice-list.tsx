@@ -86,7 +86,7 @@ export default function InvoiceListPage() {
   const overdue = statsData?.data?.overdue || 0;
 
   return (
-    <div className="p-6 space-y-6">
+    <div data-tour="invoices-table" className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Invoice Report</h1>
@@ -301,6 +301,7 @@ export default function InvoiceListPage() {
                         </TableCell>
                         <TableCell className="text-left px-6 py-4">
                           <button
+                            data-tour="invoice-row-view"
                             onClick={() => navigate(`/invoice/preview`, { 
                               state: { 
                                 from: location.pathname + location.search,

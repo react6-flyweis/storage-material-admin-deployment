@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { getCleanEmail, getCleanPhone } from "@/lib/chat-source";
 import { ArrowLeft, Minus, Plus, Loader2 } from "lucide-react";
 import { useNavigate, useParams } from "react-router";
 import { useAppBack } from "@/modules/navigation";
@@ -173,8 +174,12 @@ export default function EditLeadPage() {
       setFormData({
         firstName: customer?.firstName || "",
         lastName: customer?.lastName || "",
-        email: customer?.email || "",
+        // Never prefill legacy Messenger placeholder contact values.
+        email: getCleanEmail(customer?.email),
         ...(() => {
+          if (!getCleanPhone(customer?.phone)) {
+            return { countryCode: "+1", phone: "" };
+          }
           // phone is an object { number, countryCode } and is absent when the customer has none
           if (customer?.phone && typeof customer.phone === "object") {
             return {

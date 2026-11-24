@@ -49,6 +49,8 @@ export type LeadTableRow = {
   status: string;
   quoteValue: string;
   chatCount: number;
+  /** lead.source, e.g. "messenger" for Facebook leads. */
+  source?: string;
   createdAt: Date;
   isArchived?: boolean;
   archiveReason?: string | null;
@@ -99,13 +101,16 @@ export default function LeadsList({
   const isAllSelected = leads.length > 0 && selectedLeads.length === leads.length;
 
   return (
-    <Card className="p-0">
+    <Card className="p-0" data-tour="leads-table">
       <CardContent className="p-0">
         <div className="overflow-y-auto">
           <Table>
             <TableHeader className="bg-gray-50 border-b">
               <TableRow className="hover:bg-transparent border-b">
-                <TableHead className="px-4 py-3 w-12 text-center">
+                <TableHead
+                  className="px-4 py-3 w-12 text-center"
+                  data-tour="leads-select-all"
+                >
                   <input
                     type="checkbox"
                     checked={isAllSelected}
@@ -189,7 +194,10 @@ export default function LeadsList({
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3">
-                    <div className="flex items-center gap-2">
+                    <div
+                      className="flex items-center gap-2"
+                      data-tour="lead-row-assignee"
+                    >
                       {lead.assignedTo ? (
                         <>
                           <Avatar className="h-7 w-7 bg-green-50 border border-green-100">
@@ -229,7 +237,10 @@ export default function LeadsList({
                     </div>
                   </TableCell>
                   <TableCell className="px-4 py-3">
-                    <div className="flex items-center gap-3">
+                    <div
+                      className="flex items-center gap-3"
+                      data-tour="lead-row-score"
+                    >
                       <div className="relative h-4 w-32 rounded-full bg-gray-200 overflow-hidden flex items-center">
                         <div
                           className={cn(
@@ -268,7 +279,10 @@ export default function LeadsList({
                     <ChatDialog
                       lead={lead}
                       trigger={
-                        <div className="relative inline-flex items-center">
+                        <div
+                          className="relative inline-flex items-center"
+                          data-tour="lead-row-chat"
+                        >
                           <Button
                             variant="secondary"
                             size="sm"
@@ -287,8 +301,15 @@ export default function LeadsList({
                     />
                   </TableCell>
                   <TableCell className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-3 text-indigo-700">
-                      <Link to={`/leads/${lead.backendId}`} title="View Lead Details">
+                    <div
+                      className="flex items-center justify-center gap-3 text-indigo-700"
+                      data-tour="lead-row-actions"
+                    >
+                      <Link
+                        to={`/leads/${lead.backendId}`}
+                        title="View Lead Details"
+                        data-tour="lead-row-view-btn"
+                      >
                         <Eye className="w-4 h-4 cursor-pointer hover:text-indigo-900 transition-colors" />
                       </Link>
                       {!isArchived && (

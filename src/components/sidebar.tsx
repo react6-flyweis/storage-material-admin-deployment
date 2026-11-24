@@ -122,7 +122,7 @@ interface NavigationItem {
   subItems?: NavigationSubItem[];
 }
 
-interface NavigationGroup {
+export interface NavigationGroup {
   id: NavGroup;
   icon: string;
   label: string;
@@ -154,7 +154,9 @@ function SidebarItemIcon({
   );
 }
 
-const navigationGroups: NavigationGroup[] = [
+// Also read by the product tour to walk users through sidebar clicks.
+// eslint-disable-next-line react-refresh/only-export-components
+export const navigationGroups: NavigationGroup[] = [
   {
     id: "dashboard" as NavGroup,
     icon: dashboardIcon,
@@ -916,6 +918,7 @@ export function Sidebar({
       )}
 
       <div
+        data-tour="sidebar-nav"
         className={`flex fixed inset-y-0 left-0 lg:left-0 lg:top-0 z-50 transition-transform duration-300 lg:translate-x-0 h-screen ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
@@ -1065,6 +1068,7 @@ export function Sidebar({
             <div className="space-y-2">
               <NavLink
                 to={activeGroup.link}
+                data-tour-nav-group-link
                 onClick={handleNavClick}
                 style={{
                   backgroundColor: activeGroup.color,
@@ -1092,6 +1096,7 @@ export function Sidebar({
                   return (
                     <div key={item.path}>
                       <button
+                        data-tour-nav-section={item.path}
                         onClick={() => toggleSection(item.path)}
                         className={cn(
                           "w-full flex items-center justify-between text-sm px-4 py-2 rounded transition-colors bg-white",
@@ -1122,6 +1127,7 @@ export function Sidebar({
                               <NavLink
                                 key={subItem.path}
                                 to={subItem.path}
+                                data-tour-nav-sub={subItem.path}
                                 onClick={handleNavClick}
                                 style={
                                   isActiveExact
@@ -1186,6 +1192,7 @@ export function Sidebar({
                   <NavLink
                     key={item.path}
                     to={item.path}
+                    data-tour-nav-item={item.path}
                     onClick={handleNavClick}
                     className="block"
                   >

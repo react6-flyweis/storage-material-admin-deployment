@@ -73,7 +73,7 @@ export default function PaymentsPage() {
   };
 
   return (
-    <div className="lg:pr-5 lg:pt-5 p-5 lg:p-0 space-y-5">
+    <div data-tour="payments-overview" className="lg:pr-5 lg:pt-5 p-5 lg:p-0 space-y-5">
       {/* Header */}
 
       <div className="flex justify-between">
