@@ -199,6 +199,7 @@ export default function MaterialRequestDetailsDialog({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
       <div
+        data-tour="material-details-dialog"
         className="bg-white rounded-xl shadow-xl w-full max-w-[620px] max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
@@ -208,6 +209,7 @@ export default function MaterialRequestDetailsDialog({
             Material Request Details
           </h2>
           <button
+            data-tour="material-details-close"
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors p-1 rounded-md"
           >
