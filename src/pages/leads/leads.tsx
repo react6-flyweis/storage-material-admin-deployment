@@ -320,6 +320,7 @@ export default function LeadsPage() {
         status: getLeadLifecycleStatusLabel(lead.lifecycleStatus),
         quoteValue: formatCurrency(lead.quoteValue ?? 0),
         chatCount: 0,
+        source: lead.source,
         createdAt: new Date(lead.createdAt),
         isArchived: lead.isArchived,
         archiveReason: lead.archiveReason,

@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, FileText, MessageSquareIcon, User } from "lucide-react";
 import ChatDialog from "./chat-dialog";
+import ChannelBadge from "./channel-badge";
+import { getCleanEmail, getCleanPhone, isMessengerLead } from "@/lib/chat-source";
 import QuoteSummaryDialog from "./quote-summary-dialog";
 import TrackOrderLifecycleDialog from "./track-order-lifecycle-dialog";
 import QuotationDialog from "./quotation-dialog";
@@ -423,9 +425,16 @@ export default function LeadDetailDialog({
     | undefined = leadDetailResponse?.data.lead;
   const lifecycleUi = getLifecycleUi(leadDetail?.lifecycleStatus);
   const customer = leadDetail?.customerId;
-  const customerPhone = customer?.phone?.number
-    ? `${customer.phone.countryCode ?? ""} ${customer.phone.number}`.trim()
-    : "No phone";
+  const isMessenger = isMessengerLead(leadDetail);
+  // Hides legacy Messenger placeholders (fb-…@pending.messenger.local, "+0 <PSID>").
+  const cleanPhone = getCleanPhone(customer?.phone);
+  const customerPhone = cleanPhone
+    ? `${cleanPhone.countryCode ?? ""} ${cleanPhone.number}`.trim()
+    : isMessenger
+      ? "Not provided"
+      : "No phone";
+  const customerEmail =
+    getCleanEmail(customer?.email) || (isMessenger ? "Not provided" : "No email");
   const recentMessagesCount =
     leadDetailResponse?.data.recentMessages?.length ?? 0;
   const documentsCount =
@@ -707,14 +716,17 @@ export default function LeadDetailDialog({
                   <div className="mt-3 text-sm text-gray-700 space-y-3">
                     <div>
                       <div className="text-xs text-gray-500">Full Name</div>
-                      <div className="text-sm text-gray-900">
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-gray-900">
                         {customer?.firstName ?? lead.name}
+                        {isMessenger ? (
+                          <ChannelBadge source="facebook" label="Facebook Messenger" size="sm" />
+                        ) : null}
                       </div>
                     </div>
                     <div>
                       <div className="text-xs text-gray-500">Email</div>
                       <div className="text-sm text-gray-900">
-                        {customer?.email || "No email"}
+                        {customerEmail}
                       </div>
                     </div>
                     <div>
@@ -1045,7 +1057,15 @@ export default function LeadDetailDialog({
       <ChatDialog
         open={isChatOpen}
         onOpenChange={setIsChatOpen}
-        lead={{ id: lead.id, backendId: lead.backendId, _id: lead._id, name: lead.name, chatCount: lead.chatCount }}
+        lead={{
+          id: lead.id,
+          backendId: lead.backendId,
+          _id: lead._id,
+          name: lead.name,
+          customerName: customer?.firstName,
+          source: leadDetail?.source,
+          chatCount: lead.chatCount,
+        }}
       />
 
       <ConversationHistoryDialog
