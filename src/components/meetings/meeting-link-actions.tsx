@@ -10,6 +10,8 @@ type Props = {
   className?: string;
   /** Show the join URL as text above the buttons. */
   showLink?: boolean;
+  /** Center the link and buttons (e.g. inside a centered dialog). */
+  centered?: boolean;
 };
 
 async function copyToClipboard(value: string) {
@@ -30,11 +32,13 @@ export default function MeetingLinkActions({
   zoomStartUrl,
   className,
   showLink = false,
+  centered = false,
 }: Props) {
   if (!meetingLink && !zoomStartUrl) return null;
 
   return (
-    <div className={cn("space-y-2", className)}>
+    // min-w-0: lets the link truncate instead of stretching a grid/flex parent.
+    <div className={cn("min-w-0 space-y-2", className)}>
       {showLink && meetingLink ? (
         <a
           href={meetingLink}
@@ -46,7 +50,7 @@ export default function MeetingLinkActions({
           {meetingLink}
         </a>
       ) : null}
-      <div className="flex flex-wrap gap-2">
+      <div className={cn("flex flex-wrap gap-2", centered && "justify-center")}>
         {zoomStartUrl ? (
           <Button
             type="button"

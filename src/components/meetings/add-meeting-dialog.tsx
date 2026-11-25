@@ -387,7 +387,8 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
             meetingLink={savedMeeting.meetingLink}
             zoomStartUrl={savedMeeting.zoomStartUrl}
             showLink
-            className="mb-4 text-left"
+            centered
+            className="text-center"
           />
         ) : null}
       </SuccessDialog>
