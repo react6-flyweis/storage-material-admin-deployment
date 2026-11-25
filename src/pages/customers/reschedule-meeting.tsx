@@ -124,7 +124,7 @@ export default function RescheduleMeeting() {
     if (meeting.meetingTime) {
       const dt = new Date(meeting.meetingTime);
       if (!Number.isNaN(dt.getTime())) {
-        loadedDate = dt.toISOString().slice(0, 10); // YYYY-MM-DD
+        loadedDate = dt.toLocaleDateString("en-CA"); // local YYYY-MM-DD
         loadedTime = dt.toLocaleTimeString("en-GB", {
           hour: "2-digit",
           minute: "2-digit",
