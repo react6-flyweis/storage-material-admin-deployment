@@ -20,6 +20,18 @@ import LeadSelector from "@/components/leads/lead-selector";
 import { getApiErrorMessage } from "@/lib/api-error";
 import { useCreateMeetingMutation } from "@/modules/meetings/meetings.hooks";
 import SuccessDialog from "@/components/success-dialog";
+import MeetingLinkSection from "@/components/meetings/meeting-link-section";
+import MeetingLinkActions from "@/components/meetings/meeting-link-actions";
+import type { AdminMeeting } from "@/modules/meetings/meetings.api";
+import {
+  getMeetingLinkError,
+  getMeetingMinimums,
+  getPastMeetingError,
+  getZoomDurationError,
+  isOnlineMeeting,
+  resolveMeetingLink,
+  toMeetingTimeIso,
+} from "@/modules/meetings/meetings.utils";
 
 const meetingSchema = z.object({
   lead: z.string().min(1, "Please select a project"),
@@ -31,15 +43,30 @@ const meetingSchema = z.object({
     .min(1, "Duration is required")
     .regex(/^[0-9]+$/, "Duration must be a number of minutes"),
   mode: z.enum(["online", "in-person"]),
+  /** Online only: skip Zoom auto-create and use a pasted link. */
+  useOwnLink: z.boolean(),
   link: z.string().optional(),
   notes: z.string().optional(),
   reminderMinutes: z.string(),
 }).superRefine((data, ctx) => {
-  if (data.mode === "online" && (!data.link || data.link.trim() === "")) {
+  const linkError = getMeetingLinkError(data.mode, data.useOwnLink, data.link ?? "");
+  if (linkError) {
+    ctx.addIssue({ code: "custom", message: linkError, path: ["link"] });
+  }
+  const durationError = getZoomDurationError(
+    data.mode,
+    data.useOwnLink,
+    Number(data.duration),
+  );
+  if (durationError) {
+    ctx.addIssue({ code: "custom", message: durationError, path: ["duration"] });
+  }
+  const pastError = getPastMeetingError(data.date, data.time);
+  if (pastError) {
     ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: "Meeting link is required for online meetings",
-      path: ["link"],
+      code: "custom",
+      message: pastError.message,
+      path: [pastError.field],
     });
   }
 });
@@ -60,6 +87,7 @@ export default function ScheduleMeeting() {
   const [selectedLead, setSelectedLead] = useState("");
   const [successOpen, setSuccessOpen] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [savedMeeting, setSavedMeeting] = useState<AdminMeeting | null>(null);
   const createMeetingMutation = useCreateMeetingMutation();
   const routeState = (location.state ?? {}) as MeetingRouteState;
 
@@ -73,10 +101,11 @@ export default function ScheduleMeeting() {
     resolver: zodResolver(meetingSchema),
     defaultValues: {
       mode: "online",
+      useOwnLink: false,
       title: "",
       date: "",
       time: "",
-      duration: "",
+      duration: "30",
       link: "",
       notes: "",
       lead: "",
@@ -85,7 +114,10 @@ export default function ScheduleMeeting() {
   });
 
   const currentMode = watch("mode");
+  const useOwnLink = watch("useOwnLink");
+  const currentLink = watch("link") ?? "";
   const currentReminderMinutes = watch("reminderMinutes");
+  const { minDate, minTime } = getMeetingMinimums(watch("date"));
 
   const onSubmit = async (data: MeetingFormData) => {
     setErrorMessage(null);
@@ -107,9 +139,13 @@ export default function ScheduleMeeting() {
       return;
     }
 
-    const meetingTime = new Date(
-      `${data.date}T${data.time}:00.000Z`,
-    ).toISOString();
+    const meetingTime = toMeetingTimeIso(data.date, data.time);
+    // Omitted for online + Zoom so the backend creates the Zoom meeting.
+    const meetingLink = resolveMeetingLink(
+      data.mode,
+      data.useOwnLink,
+      data.link ?? "",
+    );
 
     try {
       const response = await createMeetingMutation.mutateAsync({
@@ -119,7 +155,7 @@ export default function ScheduleMeeting() {
         meetingTime,
         duration: Number.parseInt(data.duration, 10),
         mode: data.mode,
-        meetingLink: data.link?.trim() ?? "",
+        ...(meetingLink ? { meetingLink } : {}),
         notes: data.notes?.trim() || undefined,
         reminderMinutes: Number.parseInt(data.reminderMinutes, 10) || 30,
       });
@@ -129,8 +165,8 @@ export default function ScheduleMeeting() {
         return;
       }
 
+      setSavedMeeting(response.data?.meeting ?? null);
       setSuccessOpen(true);
-      setTimeout(() => navigate("/customers/meetings", { replace: true }), 500);
     } catch (error) {
       setErrorMessage(getApiErrorMessage(error, "Unable to schedule meeting."));
     }
@@ -210,6 +246,7 @@ export default function ScheduleMeeting() {
               <Input
                 id="date"
                 type="date"
+                min={minDate}
                 placeholder="dd-mm-yyyy"
                 aria-invalid={!!errors.date}
                 {...register("date")}
@@ -225,6 +262,7 @@ export default function ScheduleMeeting() {
               <Input
                 id="time"
                 type="time"
+                min={minTime}
                 placeholder="dd-mm-yyyy"
                 aria-invalid={!!errors.time}
                 {...register("time")}
@@ -304,15 +342,17 @@ export default function ScheduleMeeting() {
 
           {/* Meeting Link */}
           {currentMode === "online" && (
-            <div className="space-y-2">
-              <Label htmlFor="link">
-                Meeting Link <span className="text-red-500">*</span>
-              </Label>
-              <Input id="link" placeholder="Zoom Meeting" aria-invalid={!!errors.link} {...register("link")} />
-              {errors.link && (
-                <p className="text-sm text-red-500">{errors.link.message}</p>
-              )}
-            </div>
+            <MeetingLinkSection
+              useOwnLink={useOwnLink}
+              onUseOwnLinkChange={(value) =>
+                setValue("useOwnLink", value, { shouldValidate: true })
+              }
+              link={currentLink}
+              onLinkChange={(value) =>
+                setValue("link", value, { shouldValidate: true })
+              }
+              error={errors.link?.message}
+            />
           )}
 
           {/* Add Notes */}
@@ -360,8 +400,23 @@ export default function ScheduleMeeting() {
           navigate("/customers/meetings", { replace: true });
         }}
         title="Meeting scheduled"
+        description={
+          savedMeeting && isOnlineMeeting(savedMeeting.mode) && savedMeeting.meetingLink
+            ? "The customer can join with this link."
+            : undefined
+        }
         okLabel="Go to meetings"
-      />
+      >
+        {savedMeeting && isOnlineMeeting(savedMeeting.mode) ? (
+          <MeetingLinkActions
+            meetingLink={savedMeeting.meetingLink}
+            zoomStartUrl={savedMeeting.zoomStartUrl}
+            showLink
+            centered
+            className="text-center"
+          />
+        ) : null}
+      </SuccessDialog>
     </div>
   );
 }

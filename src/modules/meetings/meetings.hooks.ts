@@ -5,6 +5,7 @@ import {
   completeMeetingProvider,
   getMeetingByIdProvider,
   updateMeetingProvider,
+  cancelMeetingProvider,
   type CreateMeetingPayload,
   type UpdateMeetingPayload,
 } from "./meetings.api";
@@ -53,6 +54,17 @@ export function useUpdateMeetingMutation() {
     mutationFn: ({ meetingId, payload }: { meetingId: string; payload: UpdateMeetingPayload }) =>
       updateMeetingProvider(meetingId, payload),
     onSuccess: (_, { meetingId }) => {
+      queryClient.invalidateQueries({ queryKey: ["meetings"] });
+      queryClient.invalidateQueries({ queryKey: ["meetings", "detail", meetingId] });
+    },
+  });
+}
+
+export function useCancelMeetingMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (meetingId: string) => cancelMeetingProvider(meetingId),
+    onSuccess: (_, meetingId) => {
       queryClient.invalidateQueries({ queryKey: ["meetings"] });
       queryClient.invalidateQueries({ queryKey: ["meetings", "detail", meetingId] });
     },

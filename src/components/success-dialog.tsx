@@ -19,6 +19,8 @@ type SuccessDialogProps = {
   actionLabel?: string;
   onAction?: () => void;
   icon?: ReactNode;
+  /** Extra content rendered above the footer buttons. */
+  children?: ReactNode;
 };
 
 export default function SuccessDialog({
@@ -30,6 +32,7 @@ export default function SuccessDialog({
   actionLabel,
   onAction,
   icon,
+  children,
 }: SuccessDialogProps) {
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onClose()}>
@@ -54,6 +57,8 @@ export default function SuccessDialog({
             />
           </div>
         )}
+
+        {children}
 
         <DialogFooter className="flex sm:justify-center gap-3 items-center">
           {actionLabel && onAction ? (

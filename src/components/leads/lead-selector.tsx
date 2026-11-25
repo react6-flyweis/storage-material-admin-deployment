@@ -80,16 +80,11 @@ export default function LeadSelector({
   const leads = useMemo(() => {
     if (!leadsData?.data?.leads) return [];
     return leadsData.data.leads.map((lead) => {
-      let name = "";
-      if (lead.projectId && lead.projectName) {
-        name = `${lead.projectId} - ${lead.projectName}`;
-      } else if (lead.projectName) {
-        name = lead.projectName;
-      } else if (lead.projectId) {
-        name = lead.projectId;
-      } else {
-        name = lead.buildingType || `Lead ${lead._id.substring(0, 6)}`;
-      }
+      // Same name in the dropdown and the selected label, including the fallback.
+      const pName = lead.projectName || lead.buildingType || "";
+      let name =
+        [lead.projectId, pName].filter(Boolean).join(" - ") ||
+        `Lead ${lead._id.substring(0, 6)}`;
         name = name
           .replace(/\s\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z/g, "")
           .trim();
@@ -101,7 +96,6 @@ export default function LeadSelector({
            cName = `${first} ${last}`.trim() || lead.customerId.customerId || "Unknown Customer";
         }
         const pId = lead.projectId || `Lead ${lead._id.substring(0, 6)}`;
-        const pName = lead.projectName || lead.buildingType || "";
         return { id: lead._id, name, customerId: custId, projectId: pId, projectName: pName, customerName: cName };
       });
     }, [leadsData]);

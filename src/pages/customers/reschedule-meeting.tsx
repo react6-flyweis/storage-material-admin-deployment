@@ -20,7 +20,29 @@ import {
   useUpdateMeetingMutation,
 } from "@/modules/meetings/meetings.hooks";
 import SuccessDialog from "@/components/success-dialog";
-import { toast } from "sonner";
+import MeetingLinkSection from "@/components/meetings/meeting-link-section";
+import type { UpdateMeetingPayload } from "@/modules/meetings/meetings.api";
+import {
+  getMeetingLinkError,
+  getMeetingMinimums,
+  getPastMeetingError,
+  getZoomDurationError,
+  hasZoomLink,
+  isOnlineMeeting,
+  resolveMeetingLink,
+  toMeetingTimeIso,
+} from "@/modules/meetings/meetings.utils";
+
+type FormSnapshot = {
+  leadId: string;
+  title: string;
+  date: string;
+  time: string;
+  duration: string;
+  mode: "online" | "in-person";
+  notes: string;
+  reminderMinutes: string;
+};
 
 export default function RescheduleMeeting() {
   const navigate = useNavigate();
@@ -47,8 +69,16 @@ export default function RescheduleMeeting() {
   const [duration, setDuration] = useState("");
   const [mode, setMode] = useState<"online" | "in-person">("online");
   const [link, setLink] = useState("");
+  const [useOwnLink, setUseOwnLink] = useState(false);
+  const [linkError, setLinkError] = useState<string | undefined>();
   const [notes, setNotes] = useState("");
   const [reminderMinutes, setReminderMinutes] = useState("30");
+  /** Values as loaded, so the PUT only carries changed fields. */
+  const [original, setOriginal] = useState<FormSnapshot | null>(null);
+
+  const loadedMeeting = meetingResponse?.data?.meeting;
+  const existingLink = loadedMeeting?.meetingLink?.trim() ?? "";
+  const existingIsZoom = loadedMeeting ? hasZoomLink(loadedMeeting) : false;
 
   // Pre-fill form once meeting data loads
   useEffect(() => {
@@ -76,27 +106,50 @@ export default function RescheduleMeeting() {
     }
 
     // Other fields
-    if (meeting.title) setTitle(meeting.title);
-    if (meeting.duration) setDuration(String(meeting.duration));
-    if (meeting.mode) setMode(meeting.mode);
-    if (meeting.meetingLink) setLink(meeting.meetingLink);
-    if (meeting.notes) setNotes(meeting.notes);
-    if (meeting.reminderMinutes !== undefined) setReminderMinutes(String(meeting.reminderMinutes));
+    const loadedMode = isOnlineMeeting(meeting.mode) ? "online" : "in-person";
+    const isManualLink = Boolean(meeting.meetingLink?.trim()) && !hasZoomLink(meeting);
+    setTitle(meeting.title ?? "");
+    setDuration(meeting.duration ? String(meeting.duration) : "");
+    setMode(loadedMode);
+    // Zoom links are shown read-only; only a manual link is editable.
+    setUseOwnLink(isManualLink);
+    setLink(isManualLink ? meeting.meetingLink ?? "" : "");
+    setNotes(meeting.notes ?? "");
+    const loadedReminder =
+      meeting.reminderMinutes !== undefined ? String(meeting.reminderMinutes) : "30";
+    setReminderMinutes(loadedReminder);
 
     // Parse meetingTime → date and time
+    let loadedDate = "";
+    let loadedTime = "";
     if (meeting.meetingTime) {
       const dt = new Date(meeting.meetingTime);
       if (!Number.isNaN(dt.getTime())) {
-        setDate(dt.toISOString().slice(0, 10)); // YYYY-MM-DD
-        setTime(
-          dt.toLocaleTimeString("en-GB", {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: false,
-          })
-        ); // HH:mm
+        loadedDate = dt.toLocaleDateString("en-CA"); // local YYYY-MM-DD
+        loadedTime = dt.toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }); // HH:mm
       }
     }
+    setDate(loadedDate);
+    setTime(loadedTime);
+
+    const loadedLeadId =
+      typeof meeting.leadId === "string"
+        ? meeting.leadId
+        : ((meeting.leadId as { _id?: string } | undefined)?._id ?? "");
+    setOriginal({
+      leadId: loadedLeadId,
+      title: meeting.title ?? "",
+      date: loadedDate,
+      time: loadedTime,
+      duration: meeting.duration ? String(meeting.duration) : "",
+      mode: loadedMode,
+      notes: meeting.notes ?? "",
+      reminderMinutes: loadedReminder,
+    });
   }, [meetingResponse]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -111,36 +164,71 @@ export default function RescheduleMeeting() {
       setErrorMessage("Please set a meeting date and time.");
       return;
     }
-    if (mode === "online" && !link.trim()) {
-      setErrorMessage("Meeting link is required for online meetings.");
+    // A meeting that has already passed can still have its other fields edited.
+    const timeChanged =
+      !original || date !== original.date || time !== original.time;
+    const pastError = timeChanged ? getPastMeetingError(date, time) : undefined;
+    if (pastError) {
+      setErrorMessage(pastError.message);
       return;
     }
+    const durationNumber = duration ? Number.parseInt(duration, 10) : NaN;
+    if (durationNumber < 1) {
+      setErrorMessage("Duration must be at least 1 minute.");
+      return;
+    }
+    const durationError = getZoomDurationError(mode, useOwnLink, durationNumber);
+    if (durationError) {
+      setErrorMessage(durationError);
+      return;
+    }
+    const nextLinkError = getMeetingLinkError(mode, useOwnLink, link);
+    setLinkError(nextLinkError);
+    if (nextLinkError) return;
 
-    const meetingTime = new Date(`${date}T${time}:00.000Z`).toISOString();
+    // Send only changed fields: rescheduling an online Zoom meeting updates
+    // the same Zoom meeting and keeps the customer's join link.
+    const payload: UpdateMeetingPayload = {};
+    const o = original;
+    if (!o || selectedLead !== o.leadId) {
+      payload.leadId = selectedLead;
+      if (implicitCustomerId) payload.customerId = implicitCustomerId;
+    }
+    if (!o || title !== o.title) payload.title = title;
+    if (timeChanged) {
+      payload.meetingTime = toMeetingTimeIso(date, time);
+    }
+    if ((!o || duration !== o.duration) && Number.isFinite(durationNumber)) {
+      payload.duration = durationNumber;
+    }
+    if (!o || mode !== o.mode) payload.mode = mode;
+    if (!o || notes !== o.notes) payload.notes = notes.trim();
+    if (!o || reminderMinutes !== o.reminderMinutes) {
+      payload.reminderMinutes = Number.parseInt(reminderMinutes, 10) || 30;
+    }
+    const meetingLink = resolveMeetingLink(mode, useOwnLink, link);
+    if (meetingLink && meetingLink !== existingLink) {
+      payload.meetingLink = meetingLink;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      navigate("/customers/meetings", { replace: true });
+      return;
+    }
 
     try {
       await updateMeetingMutation.mutateAsync({
         meetingId: meetingId!,
-        payload: {
-          title: title || undefined,
-          meetingTime,
-          duration: duration ? Number.parseInt(duration, 10) : undefined,
-          mode,
-          meetingLink: link.trim() || undefined,
-          notes: notes.trim() || undefined,
-          customerId: implicitCustomerId,
-          leadId: selectedLead,
-          reminderMinutes: Number.parseInt(reminderMinutes, 10) || 30,
-        },
+        payload,
       });
 
-      toast.success("Meeting updated successfully!");
       setSuccessOpen(true);
-      setTimeout(() => navigate("/customers/meetings", { replace: true }), 500);
     } catch (error) {
       setErrorMessage(getApiErrorMessage(error, "Unable to update meeting."));
     }
   };
+
+  const { minDate, minTime } = getMeetingMinimums(date);
 
   if (isLoadingMeeting) {
     return (
@@ -168,7 +256,7 @@ export default function RescheduleMeeting() {
         </h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6 w-full">
+      <form onSubmit={handleSubmit} noValidate className="space-y-6 w-full">
         {errorMessage && (
           <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">
             {errorMessage}
@@ -213,6 +301,7 @@ export default function RescheduleMeeting() {
               <Input
                 id="date"
                 type="date"
+                min={minDate}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
@@ -224,6 +313,7 @@ export default function RescheduleMeeting() {
               <Input
                 id="time"
                 type="time"
+                min={minTime}
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
               />
@@ -293,17 +383,22 @@ export default function RescheduleMeeting() {
 
           {/* Meeting Link */}
           {mode === "online" && (
-            <div className="space-y-2">
-              <Label htmlFor="link">
-                Meeting Link <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="link"
-                placeholder="Zoom Meeting link"
-                value={link}
-                onChange={(e) => setLink(e.target.value)}
-              />
-            </div>
+            <MeetingLinkSection
+              useOwnLink={useOwnLink}
+              onUseOwnLinkChange={(value) => {
+                setUseOwnLink(value);
+                setLinkError(undefined);
+              }}
+              link={link}
+              onLinkChange={(value) => {
+                setLink(value);
+                setLinkError(undefined);
+              }}
+              error={linkError}
+              existingLink={existingLink}
+              existingStartUrl={loadedMeeting?.zoomStartUrl}
+              existingIsZoom={existingIsZoom}
+            />
           )}
 
           {/* Notes */}
