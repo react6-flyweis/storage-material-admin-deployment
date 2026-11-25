@@ -199,7 +199,7 @@ export default function LeadFollowUpsTab({ leadId }: { leadId: string }) {
                         {dayjs(meeting.meetingTime).format("MMM DD, YYYY h:mm A")}
                       </p>
                       <span className="text-gray-300">•</span>
-                      <p className="text-xs text-gray-500 capitalize">{meeting.mode || "Online"}</p>
+                      <p className="text-xs text-gray-500">{!meeting.mode || meeting.mode === "online" ? "Online" : "In person"}</p>
                       <span className="text-gray-300">•</span>
                       <p className="text-xs text-gray-500 capitalize">{meeting.status || "Scheduled"}</p>
                     </div>

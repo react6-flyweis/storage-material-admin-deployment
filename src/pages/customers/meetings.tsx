@@ -6,9 +6,19 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { getApiErrorMessage } from "@/lib/api-error";
-import { useMeetingsQuery, useCompleteMeetingMutation } from "@/modules/meetings/meetings.hooks";
+import {
+  useMeetingsQuery,
+  useCompleteMeetingMutation,
+  useCancelMeetingMutation,
+} from "@/modules/meetings/meetings.hooks";
 import { toast } from "sonner";
 import type { AdminMeeting } from "@/modules/meetings/meetings.api";
+import {
+  isMeetingJoinable,
+  isOnlineMeeting,
+} from "@/modules/meetings/meetings.utils";
+import MeetingLinkActions from "@/components/meetings/meeting-link-actions";
+import CancelMeetingDialog from "@/components/meetings/cancel-meeting-dialog";
 import {
   Select,
   SelectContent,
@@ -24,7 +34,11 @@ interface Meeting {
   date: string;
   time: string;
   type: "Online" | "In-person";
-  status: "Scheduled" | "Cancelled" | "Completed";
+  status: "Scheduled" | "Cancelled" | "Completed" | "Rescheduled";
+  joinable: boolean;
+  meetingLink?: string;
+  /** Host start URL — staff only. */
+  zoomStartUrl?: string;
 }
 
 function getMeetingUserDisplayName(
@@ -51,6 +65,8 @@ function mapApiMeetingToUI(apiMeeting: AdminMeeting): Meeting {
     formattedStatus = "Completed";
   } else if (status === "cancelled") {
     formattedStatus = "Cancelled";
+  } else if (status === "rescheduled") {
+    formattedStatus = "Rescheduled";
   }
 
   return {
@@ -70,8 +86,11 @@ function mapApiMeetingToUI(apiMeeting: AdminMeeting): Meeting {
           hour12: true,
         })
       : "",
-    type: apiMeeting.mode === "online" ? "Online" : "In-person",
+    type: isOnlineMeeting(apiMeeting.mode) ? "Online" : "In-person",
     status: formattedStatus,
+    joinable: isMeetingJoinable(apiMeeting),
+    meetingLink: apiMeeting.meetingLink,
+    zoomStartUrl: apiMeeting.zoomStartUrl,
   };
 }
 
@@ -97,6 +116,21 @@ export default function Meetings() {
   } = useMeetingsQuery({ search: debouncedSearch, status: statusFilter });
 
   const { mutate: completeMeeting, isPending: isCompleting } = useCompleteMeetingMutation();
+  const { mutate: cancelMeeting, isPending: isCancelling } = useCancelMeetingMutation();
+  const [cancelTarget, setCancelTarget] = useState<Meeting | null>(null);
+
+  const handleCancel = () => {
+    if (!cancelTarget) return;
+    cancelMeeting(cancelTarget.id, {
+      onSuccess: () => {
+        toast.success("Meeting cancelled");
+        setCancelTarget(null);
+      },
+      onError: (err) => {
+        toast.error(getApiErrorMessage(err, "Failed to cancel meeting."));
+      },
+    });
+  };
 
   const meetings = useMemo(() => {
     const responseData = meetingsResponse?.data;
@@ -125,8 +159,10 @@ export default function Meetings() {
         return "bg-green-100 text-green-700 hover:bg-green-100";
       case "Scheduled":
         return "bg-yellow-100 text-yellow-700 hover:bg-yellow-100";
-      // case "Cancelled":
-      //   return "bg-red-100 text-red-700 hover:bg-red-100";
+      case "Rescheduled":
+        return "bg-blue-100 text-blue-700 hover:bg-blue-100";
+      case "Cancelled":
+        return "bg-red-100 text-red-700 hover:bg-red-100";
       default:
         return "bg-gray-100 text-gray-700 hover:bg-gray-100";
     }
@@ -151,17 +187,19 @@ export default function Meetings() {
               className="pl-10 w-full"
             />
           </div>
-{/* 
+          {/* "All" = API default, which excludes completed and cancelled. */}
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full sm:w-48">
-              <SelectValue placeholder="All Status" />
+              <SelectValue placeholder="Upcoming" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="all">Upcoming</SelectItem>
               <SelectItem value="scheduled">Scheduled</SelectItem>
+              <SelectItem value="rescheduled">Rescheduled</SelectItem>
               <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
             </SelectContent>
-          </Select> */}
+          </Select>
         </div>
 
         <Button
@@ -233,6 +271,15 @@ export default function Meetings() {
                   </div>
                 </div>
 
+                {/* Join / host */}
+                {meeting.joinable ? (
+                  <MeetingLinkActions
+                    meetingLink={meeting.meetingLink}
+                    zoomStartUrl={meeting.zoomStartUrl}
+                    className="mt-1"
+                  />
+                ) : null}
+
                 {/* Action Buttons */}
                 {meeting.status !== "Completed" && meeting.status !== "Cancelled" && (
                   <div className="flex flex-col sm:flex-row gap-2 mt-2">
@@ -245,8 +292,8 @@ export default function Meetings() {
                           onSuccess: () => {
                             toast.success("Meeting marked as completed!");
                           },
-                          onError: () => {
-                            toast.error("Failed to complete meeting.");
+                          onError: (err) => {
+                            toast.error(getApiErrorMessage(err, "Failed to complete meeting."));
                           }
                         });
                       }}
@@ -260,16 +307,14 @@ export default function Meetings() {
                         navigate(`/customers/meetings/reschedule/${meeting.id}`)
                       }
                     >
-                      Edit
+                      Edit / Reschedule
                     </Button>
                     <Button
                       size="sm"
-                      className="w-full sm:flex-1 bg-orange-200 text-orange-600 hover:bg-orange-100 hover:text-orange-700"
-                      onClick={() =>
-                        navigate(`/customers/meetings/reschedule/${meeting.id}`)
-                      }
+                      className="w-full sm:flex-1 bg-red-100 text-red-600 hover:bg-red-50"
+                      onClick={() => setCancelTarget(meeting)}
                     >
-                      Reschedule meeting
+                      Cancel
                     </Button>
                   </div>
                 )}
@@ -283,6 +328,14 @@ export default function Meetings() {
           <p className="text-gray-500">No meetings found</p>
         </div>
       )}
+
+      <CancelMeetingDialog
+        open={Boolean(cancelTarget)}
+        title={cancelTarget?.title}
+        isPending={isCancelling}
+        onOpenChange={(open) => !open && setCancelTarget(null)}
+        onConfirm={handleCancel}
+      />
     </div>
   );
 }

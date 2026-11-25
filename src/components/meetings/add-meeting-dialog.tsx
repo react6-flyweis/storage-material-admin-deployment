@@ -20,6 +20,17 @@ import {
 } from "@/components/ui/select";
 import LeadSelector from "@/components/leads/lead-selector";
 import { useCreateMeetingMutation } from "@/modules/meetings/meetings.hooks";
+import type { AdminMeeting } from "@/modules/meetings/meetings.api";
+import {
+  getMeetingLinkError,
+  getZoomDurationError,
+  isOnlineMeeting,
+  resolveMeetingLink,
+  toMeetingTimeIso,
+} from "@/modules/meetings/meetings.utils";
+import { getApiErrorMessage } from "@/lib/api-error";
+import MeetingLinkSection from "@/components/meetings/meeting-link-section";
+import MeetingLinkActions from "@/components/meetings/meeting-link-actions";
 import { useLeadDetailQuery } from "@/modules/leads/leads.hooks";
 import { toast } from "sonner";
 import { TimePicker } from "@mui/x-date-pickers/TimePicker";
@@ -38,6 +49,8 @@ type Props = {
 export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, defaultEmployeeId, disabledLeadId }: Props) {
   const [showSuccess, setShowSuccess] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const [linkError, setLinkError] = useState<string | undefined>();
+  const [savedMeeting, setSavedMeeting] = useState<AdminMeeting | null>(null);
 
   const [formData, setFormData] = useState({
     leadId: defaultLeadId || "",
@@ -48,6 +61,7 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
     time: "",
     duration: "30",
     meetingLink: "",
+    useOwnLink: false,
     notes: "",
     reminderMinutes: "30",
   });
@@ -63,6 +77,7 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
 
   const resetForm = () => {
     setErrors({});
+    setLinkError(undefined);
     setFormData({
       leadId: defaultLeadId || "",
       title: "",
@@ -72,6 +87,7 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
       time: "",
       duration: "30",
       meetingLink: "",
+      useOwnLink: false,
       notes: "",
       reminderMinutes: "30",
     });
@@ -96,20 +112,13 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
     if (!formData.date) newErrors.date = true;
     if (!formData.time) newErrors.time = true;
 
-    if (formData.mode === "online") {
-      if (!formData.meetingLink.trim()) {
-        newErrors.meetingLink = true;
-      } else {
-        try {
-          new URL(formData.meetingLink);
-        } catch {
-          newErrors.meetingLink = true;
-          toast.error("Please enter a valid URL for the meeting link");
-          setErrors(newErrors);
-          return;
-        }
-      }
-    }
+    const nextLinkError = getMeetingLinkError(
+      formData.mode,
+      formData.useOwnLink,
+      formData.meetingLink,
+    );
+    setLinkError(nextLinkError);
+    if (nextLinkError) newErrors.meetingLink = true;
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -122,9 +131,25 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
       return;
     }
 
+    const durationError = getZoomDurationError(
+      formData.mode,
+      formData.useOwnLink,
+      Number(formData.duration),
+    );
+    if (durationError) {
+      toast.error(durationError);
+      return;
+    }
+
     setErrors({});
 
-    const meetingTime = new Date(`${formData.date}T${formData.time}:00.000Z`).toISOString();
+    const meetingTime = toMeetingTimeIso(formData.date, formData.time);
+    // Omitted for online + Zoom so the backend creates the Zoom meeting.
+    const meetingLink = resolveMeetingLink(
+      formData.mode,
+      formData.useOwnLink,
+      formData.meetingLink,
+    );
 
     createMeeting({
       leadId: formData.leadId,
@@ -134,19 +159,20 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
       meetingTime,
       duration: parseInt(formData.duration, 10),
       mode: formData.mode as "online" | "in-person",
-      meetingLink: formData.meetingLink,
+      ...(meetingLink ? { meetingLink } : {}),
       notes: formData.notes,
       reminderMinutes: Number(formData.reminderMinutes) || 30,
     }, {
-      onSuccess: () => {
+      onSuccess: (response) => {
+        setSavedMeeting(response?.data?.meeting ?? null);
         onOpenChange(false);
         resetForm();
         setShowSuccess(true);
         toast.success("Meeting scheduled successfully!");
       },
       onError: (error: unknown) => {
-        const err = error as { response?: { data?: { message?: string } } };
-        toast.error(err?.response?.data?.message || "Failed to schedule meeting");
+        // Zoom / config failures come back as 400 with Zoom's message.
+        toast.error(getApiErrorMessage(error, "Failed to schedule meeting"));
       }
     });
   };
@@ -286,20 +312,20 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
             </div>
             
             {formData.mode === "online" && (
-              <div className="space-y-1">
-                <Label>Meeting Link <span className="text-red-500">*</span></Label>
-                <Input
-                  type="url"
-                  placeholder="https://meet.google.com/..."
-                  className={errors.meetingLink ? "border-red-500 ring-1 ring-red-500 focus-visible:ring-red-500" : ""}
-                  value={formData.meetingLink}
-                  onChange={(e) => {
-                    setFormData({ ...formData, meetingLink: e.target.value });
-                    if (e.target.value) setErrors({ ...errors, meetingLink: false });
-                  }}
-                  aria-invalid={errors.meetingLink}
-                />
-              </div>
+              <MeetingLinkSection
+                compact
+                useOwnLink={formData.useOwnLink}
+                onUseOwnLinkChange={(value) => {
+                  setFormData({ ...formData, useOwnLink: value });
+                  setLinkError(undefined);
+                }}
+                link={formData.meetingLink}
+                onLinkChange={(value) => {
+                  setFormData({ ...formData, meetingLink: value });
+                  setLinkError(undefined);
+                }}
+                error={linkError}
+              />
             )}
 
             {/* Reminder settings */}
@@ -350,9 +376,21 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
       </DialogContent>
       <SuccessDialog
         open={showSuccess}
-        onClose={() => setShowSuccess(false)}
+        onClose={() => {
+          setShowSuccess(false);
+          setSavedMeeting(null);
+        }}
         title="Meeting Scheduled Successfully!"
-      />
+      >
+        {savedMeeting && isOnlineMeeting(savedMeeting.mode) ? (
+          <MeetingLinkActions
+            meetingLink={savedMeeting.meetingLink}
+            zoomStartUrl={savedMeeting.zoomStartUrl}
+            showLink
+            className="mb-4 text-left"
+          />
+        ) : null}
+      </SuccessDialog>
     </Dialog>
   );
 }

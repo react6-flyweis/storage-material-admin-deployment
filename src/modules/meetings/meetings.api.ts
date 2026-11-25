@@ -1,13 +1,31 @@
 import { apiClient } from "@/modules/auth/auth.api";
 
+/**
+ * Meeting mode as stored by the API. Requests may still send `"in-person"`;
+ * the backend normalises it to `"offline"`.
+ */
+export type MeetingMode = "online" | "offline";
+export type MeetingModeInput = MeetingMode | "in-person";
+
+export type MeetingStatus =
+  | "scheduled"
+  | "completed"
+  | "cancelled"
+  | "rescheduled";
+
+/**
+ * Create body. For the default Zoom flow on online meetings, leave
+ * `meetingLink` out — the backend creates the Zoom meeting and returns the
+ * join URL. Only send `meetingLink` when staff chose "Use my own link".
+ */
 export type CreateMeetingPayload = {
   customerId: string;
-  leadId: string;
+  leadId?: string;
   title: string;
   meetingTime: string;
-  duration: number;
-  mode: "online" | "in-person";
-  meetingLink: string;
+  duration?: number;
+  mode: MeetingModeInput;
+  meetingLink?: string;
   notes?: string;
   assignedTo?: string;
   reminderMinutes?: number;
@@ -15,15 +33,17 @@ export type CreateMeetingPayload = {
   reminderEmail?: boolean;
 };
 
+/** Edit body — send only the fields that changed. */
 export type UpdateMeetingPayload = {
   title?: string;
   meetingTime?: string;
   duration?: number;
-  mode?: "online" | "in-person";
+  mode?: MeetingModeInput;
+  /** Non-empty overrides the link; `""` does not clear a saved link. */
   meetingLink?: string;
   notes?: string;
   assignedTo?: string;
-  status?: "scheduled" | "cancelled" | "completed";
+  status?: MeetingStatus;
   customerId?: string;
   leadId?: string;
   reminderMinutes?: number;
@@ -90,10 +110,14 @@ export type AdminMeeting = {
   assignedTo: MeetingUserRef;
   meetingTime: string;
   duration: number;
-  mode: "online" | "in-person";
+  mode: MeetingModeInput;
+  /** Public join URL — safe to share with the customer. */
   meetingLink?: string;
+  /** Host start URL — staff only. */
+  zoomStartUrl?: string;
+  zoomMeetingId?: string;
   notes?: string;
-  status: "scheduled" | "cancelled" | "completed" | string;
+  status: MeetingStatus | string;
   reminderMinutes?: number;
   reminderSms?: boolean;
   reminderEmail?: boolean;
@@ -169,4 +193,9 @@ export async function updateMeetingProvider(meetingId: string, payload: UpdateMe
   );
 
   return response.data;
+}
+
+/** Cancelling also deletes the Zoom meeting server-side. */
+export async function cancelMeetingProvider(meetingId: string) {
+  return updateMeetingProvider(meetingId, { status: "cancelled" });
 }
