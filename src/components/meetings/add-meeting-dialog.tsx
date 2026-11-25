@@ -177,7 +177,6 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
         onOpenChange(false);
         resetForm();
         setShowSuccess(true);
-        toast.success("Meeting scheduled successfully!");
       },
       onError: (error: unknown) => {
         // Zoom / config failures come back as 400 with Zoom's message.

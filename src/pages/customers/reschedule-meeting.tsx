@@ -32,7 +32,6 @@ import {
   resolveMeetingLink,
   toMeetingTimeIso,
 } from "@/modules/meetings/meetings.utils";
-import { toast } from "sonner";
 
 type FormSnapshot = {
   leadId: string;
@@ -223,7 +222,6 @@ export default function RescheduleMeeting() {
         payload,
       });
 
-      toast.success("Meeting updated successfully!");
       setSuccessOpen(true);
     } catch (error) {
       setErrorMessage(getApiErrorMessage(error, "Unable to update meeting."));
