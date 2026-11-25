@@ -24,6 +24,8 @@ import MeetingLinkSection from "@/components/meetings/meeting-link-section";
 import type { UpdateMeetingPayload } from "@/modules/meetings/meetings.api";
 import {
   getMeetingLinkError,
+  getMeetingMinimums,
+  getPastMeetingError,
   getZoomDurationError,
   hasZoomLink,
   isOnlineMeeting,
@@ -163,7 +165,19 @@ export default function RescheduleMeeting() {
       setErrorMessage("Please set a meeting date and time.");
       return;
     }
+    // A meeting that has already passed can still have its other fields edited.
+    const timeChanged =
+      !original || date !== original.date || time !== original.time;
+    const pastError = timeChanged ? getPastMeetingError(date, time) : undefined;
+    if (pastError) {
+      setErrorMessage(pastError.message);
+      return;
+    }
     const durationNumber = duration ? Number.parseInt(duration, 10) : NaN;
+    if (durationNumber < 1) {
+      setErrorMessage("Duration must be at least 1 minute.");
+      return;
+    }
     const durationError = getZoomDurationError(mode, useOwnLink, durationNumber);
     if (durationError) {
       setErrorMessage(durationError);
@@ -182,7 +196,7 @@ export default function RescheduleMeeting() {
       if (implicitCustomerId) payload.customerId = implicitCustomerId;
     }
     if (!o || title !== o.title) payload.title = title;
-    if (!o || date !== o.date || time !== o.time) {
+    if (timeChanged) {
       payload.meetingTime = toMeetingTimeIso(date, time);
     }
     if ((!o || duration !== o.duration) && Number.isFinite(durationNumber)) {
@@ -216,6 +230,8 @@ export default function RescheduleMeeting() {
     }
   };
 
+  const { minDate, minTime } = getMeetingMinimums(date);
+
   if (isLoadingMeeting) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -242,7 +258,7 @@ export default function RescheduleMeeting() {
         </h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6 w-full">
+      <form onSubmit={handleSubmit} noValidate className="space-y-6 w-full">
         {errorMessage && (
           <p className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">
             {errorMessage}
@@ -287,6 +303,7 @@ export default function RescheduleMeeting() {
               <Input
                 id="date"
                 type="date"
+                min={minDate}
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
               />
@@ -298,6 +315,7 @@ export default function RescheduleMeeting() {
               <Input
                 id="time"
                 type="time"
+                min={minTime}
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
               />

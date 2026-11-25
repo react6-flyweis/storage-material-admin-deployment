@@ -23,6 +23,8 @@ import { useCreateMeetingMutation } from "@/modules/meetings/meetings.hooks";
 import type { AdminMeeting } from "@/modules/meetings/meetings.api";
 import {
   getMeetingLinkError,
+  getMeetingMinimums,
+  getPastMeetingError,
   getZoomDurationError,
   isOnlineMeeting,
   resolveMeetingLink,
@@ -126,6 +128,13 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
       return;
     }
 
+    const pastError = getPastMeetingError(formData.date, formData.time);
+    if (pastError) {
+      setErrors({ [pastError.field]: true });
+      toast.error(pastError.message);
+      return;
+    }
+
     if (!customerId) {
       toast.error("Customer ID not found for this lead");
       return;
@@ -176,6 +185,8 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
       }
     });
   };
+
+  const { minDate, minTime } = getMeetingMinimums(formData.date);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -232,6 +243,7 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
               <Label>Meeting Date <span className="text-red-500">*</span></Label>
               <Input
                 type="date"
+                min={minDate}
                 className={errors.date ? "border-red-500 ring-1 ring-red-500 focus-visible:ring-red-500" : ""}
                 value={formData.date}
                 onChange={(e) => {
@@ -248,6 +260,9 @@ export default function AddMeetingDialog({ open, onOpenChange, defaultLeadId, de
               <LocalizationProvider dateAdapter={AdapterDayjs}>
                 <TimePicker
                   value={formData.time ? dayjs(`2024-01-01T${formData.time}`) : null}
+                  minTime={minTime ? dayjs(`2024-01-01T${minTime}`) : undefined}
+                  // Open on the right AM/PM, otherwise every hour looks disabled after noon.
+                  referenceDate={minTime ? dayjs(`2024-01-01T${minTime}`) : undefined}
                   onChange={(newValue) => {
                     const timeString = newValue ? newValue.format("HH:mm") : "";
                     setFormData({ ...formData, time: timeString });

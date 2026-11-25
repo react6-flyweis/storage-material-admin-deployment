@@ -25,6 +25,8 @@ import MeetingLinkActions from "@/components/meetings/meeting-link-actions";
 import type { AdminMeeting } from "@/modules/meetings/meetings.api";
 import {
   getMeetingLinkError,
+  getMeetingMinimums,
+  getPastMeetingError,
   getZoomDurationError,
   isOnlineMeeting,
   resolveMeetingLink,
@@ -58,6 +60,14 @@ const meetingSchema = z.object({
   );
   if (durationError) {
     ctx.addIssue({ code: "custom", message: durationError, path: ["duration"] });
+  }
+  const pastError = getPastMeetingError(data.date, data.time);
+  if (pastError) {
+    ctx.addIssue({
+      code: "custom",
+      message: pastError.message,
+      path: [pastError.field],
+    });
   }
 });
 
@@ -107,6 +117,7 @@ export default function ScheduleMeeting() {
   const useOwnLink = watch("useOwnLink");
   const currentLink = watch("link") ?? "";
   const currentReminderMinutes = watch("reminderMinutes");
+  const { minDate, minTime } = getMeetingMinimums(watch("date"));
 
   const onSubmit = async (data: MeetingFormData) => {
     setErrorMessage(null);
@@ -235,6 +246,7 @@ export default function ScheduleMeeting() {
               <Input
                 id="date"
                 type="date"
+                min={minDate}
                 placeholder="dd-mm-yyyy"
                 aria-invalid={!!errors.date}
                 {...register("date")}
@@ -250,6 +262,7 @@ export default function ScheduleMeeting() {
               <Input
                 id="time"
                 type="time"
+                min={minTime}
                 placeholder="dd-mm-yyyy"
                 aria-invalid={!!errors.time}
                 {...register("time")}
