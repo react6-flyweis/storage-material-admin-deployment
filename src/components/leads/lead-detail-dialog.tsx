@@ -14,7 +14,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, FileText, MessageSquareIcon, User } from "lucide-react";
 import ChatDialog from "./chat-dialog";
-import { getCleanEmail, getCleanPhone, isMessengerLead } from "@/lib/chat-source";
+import {
+  getCleanEmail,
+  getCleanPhone,
+  getLeadSourceBadge,
+  isMetaLeadAdLead,
+  isOptionalContactLead,
+} from "@/lib/chat-source";
+import ChannelBadge from "@/components/leads/channel-badge";
+import MetaLeadFormCard from "@/components/leads/meta-lead-form-card";
+import type { MetaLeadAd } from "@/modules/leads/leads.api";
 import QuoteSummaryDialog from "./quote-summary-dialog";
 import TrackOrderLifecycleDialog from "./track-order-lifecycle-dialog";
 import QuotationDialog from "./quotation-dialog";
@@ -89,6 +98,7 @@ type LeadDetailResponse = {
     };
     recentMessages?: unknown[];
     documents?: unknown[];
+    metaLeadAd?: MetaLeadAd | null;
   };
 };
 
@@ -424,7 +434,10 @@ export default function LeadDetailDialog({
     | undefined = leadDetailResponse?.data.lead;
   const lifecycleUi = getLifecycleUi(leadDetail?.lifecycleStatus);
   const customer = leadDetail?.customerId;
-  const isMessenger = isMessengerLead(leadDetail);
+  // Messenger / Meta lead ad leads may legitimately have no email or phone.
+  const isMessenger = isOptionalContactLead(leadDetail);
+  const isMetaLead = isMetaLeadAdLead(leadDetail);
+  const sourceBadge = getLeadSourceBadge(leadDetail?.source);
   // Hides legacy Messenger placeholders (fb-…@pending.messenger.local, "+0 <PSID>").
   const cleanPhone = getCleanPhone(customer?.phone);
   const customerPhone = cleanPhone
@@ -592,6 +605,9 @@ export default function LeadDetailDialog({
               >
                 {formatBusinessUnit(leadDetail?.businessUnit, leadDetail?.businessUnitLabel)}
               </Badge>
+              {sourceBadge ? (
+                <ChannelBadge source={sourceBadge.source} label={sourceBadge.label} size="sm" />
+              ) : null}
               {/* badge or edit lead button */}
               {escalationReason ? (
                 <div className="bg-red-100 px-2 py-1 rounded  text-xs">
@@ -817,6 +833,11 @@ export default function LeadDetailDialog({
                   </div>
                 </div>
               </div>
+
+              <MetaLeadFormCard
+                metaLeadAd={leadDetailResponse?.data.metaLeadAd}
+                isMetaLead={isMetaLead}
+              />
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-3">

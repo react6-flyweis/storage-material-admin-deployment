@@ -62,7 +62,19 @@ import {
 } from "@/modules/leads/leads.api";
 import { formatBusinessUnit } from "@/modules/leads/business-unit";
 import { formatPhone } from "@/lib/utils";
-import { getCleanEmail, getCleanPhone, isMessengerLead } from "@/lib/chat-source";
+import {
+  getCleanEmail,
+  getCleanPhone,
+  getLeadSourceBadge,
+  isMetaLeadAdLead,
+  isOptionalContactLead,
+} from "@/lib/chat-source";
+import ChannelBadge from "@/components/leads/channel-badge";
+import MetaLeadFormCard from "@/components/leads/meta-lead-form-card";
+import LeadDetailsErrorState, {
+  getLeadDetailsErrorKind,
+  retryUnlessClientError,
+} from "@/components/leads/lead-details-error-state";
 import { useState } from "react";
 // import { useLeadQuotationsQuery } from "@/modules/quotations/quotations.hooks";
 // import LeadRfqTab from "./lead-rfq-tab";
@@ -112,10 +124,18 @@ export default function LeadDetails() {
   const [isAddFollowUpOpen, setIsAddFollowUpOpen] = useState(false);
   const [isAddMeetingOpen, setIsAddMeetingOpen] = useState(false);
 
-  const { data: response, isLoading } = useQuery({
+  const {
+    data: response,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isRefetching,
+  } = useQuery({
     queryKey: ["lead", "detail", leadId],
     queryFn: () => getLeadDetailProvider(leadId!),
     enabled: !!leadId,
+    retry: retryUnlessClientError,
   });
 
   const updateLifecycleMutation = useMutation({
@@ -140,10 +160,27 @@ export default function LeadDetails() {
     return <div className="p-6">Loading lead details...</div>;
   }
 
+  // No id in the URL, request failed, or the API answered without a lead.
+  if (!leadId || isError || !response?.data?.lead) {
+    return (
+      <LeadDetailsErrorState
+        kind={!leadId || !isError ? "not_found" : getLeadDetailsErrorKind(error)}
+        error={error}
+        leadId={leadId}
+        onBack={() => goBack("/leads")}
+        onRetry={() => refetch()}
+        isRetrying={isRefetching}
+      />
+    );
+  }
+
   const leadData = response?.data;
   const lead = leadData?.lead;
   const customer = leadData?.customer;
-  const isMessenger = isMessengerLead(lead);
+  // Messenger / Meta lead ad leads may legitimately have no email or phone.
+  const isMessenger = isOptionalContactLead(lead);
+  const isMetaLead = isMetaLeadAdLead(lead);
+  const sourceBadge = getLeadSourceBadge(lead?.source);
   // Hides legacy Messenger placeholders (fb-…@pending.messenger.local, "+0 <PSID>").
   const contactPhone = getCleanPhone(customer?.phone);
   const contactEmail = getCleanEmail(customer?.email);
@@ -387,6 +424,13 @@ export default function LeadDetails() {
                         >
                           {formatBusinessUnit(lead?.businessUnit, lead?.businessUnitLabel)}
                         </Badge>
+                        {sourceBadge ? (
+                          <ChannelBadge
+                            source={sourceBadge.source}
+                            label={sourceBadge.label}
+                            size="sm"
+                          />
+                        ) : null}
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">
                         {lead?.jobId || leadId}
@@ -540,6 +584,12 @@ export default function LeadDetails() {
                   </div>
                 </div>
               </div>
+
+              {/* Meta lead ad instant form — answers not already mapped to lead / customer */}
+              <MetaLeadFormCard
+                metaLeadAd={leadData?.metaLeadAd}
+                isMetaLead={isMetaLead}
+              />
 
               {/* Project Specifications Card */}
               <div

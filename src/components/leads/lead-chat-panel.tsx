@@ -19,6 +19,7 @@ import ChannelBadge from "@/components/leads/channel-badge";
 import {
   getMessageSource,
   getMessageSourceLabel,
+  isMetaLeadAdLead,
   resolveChatChannel,
 } from "@/lib/chat-source";
 
@@ -189,6 +190,8 @@ export default function LeadChatPanel({
 
   const channel = resolveChatChannel(statusChannel, { source: leadSource });
   const isFacebook = channel === "facebook";
+  // Meta instant form lead: no live thread — the first message is the form summary.
+  const isMetaLead = isMetaLeadAdLead({ source: leadSource });
   const name = customerName?.trim() || "Customer";
 
   const applyStatus = useCallback((status: ChatStatusSocketPayload) => {
@@ -291,18 +294,26 @@ export default function LeadChatPanel({
   // Website: the composer closes when the customer leaves the site.
   // Facebook: Messenger delivers replies while the customer is away, so only
   // lock when the backend says staff cannot send (e.g. chat ended).
-  const isComposerLocked = isFacebook
-    ? canStaffSend === false
-    : isCustomerOnline === false;
-  const lockedMessage = isFacebook
-    ? "Replies are disabled for this chat."
-    : "Customer is offline. Chat is closed.";
+  // Meta lead ad: locked unless the backend explicitly allows staff to send.
+  const isComposerLocked = isMetaLead
+    ? canStaffSend !== true
+    : isFacebook
+      ? canStaffSend === false
+      : isCustomerOnline === false;
+  const lockedMessage = isMetaLead
+    ? "This lead came from a Meta instant form — follow up by phone or email."
+    : isFacebook
+      ? "Replies are disabled for this chat."
+      : "Customer is offline. Chat is closed.";
   const showFacebookAwayHint =
-    isFacebook && !isComposerLocked && isCustomerOnline === false;
+    isFacebook && !isMetaLead && !isComposerLocked && isCustomerOnline === false;
 
   const presence = useMemo(() => {
     if (!isConnected) {
       return { dot: "bg-red-500", text: "Disconnected", tone: "text-red-500" };
+    }
+    if (isMetaLead) {
+      return { dot: "bg-gray-300", text: "Instant form lead", tone: "text-gray-500" };
     }
     if (isCustomerOnline) {
       return {
@@ -319,7 +330,7 @@ export default function LeadChatPanel({
       };
     }
     return { dot: "bg-gray-300", text: "Checking status…", tone: "text-gray-400" };
-  }, [isConnected, isCustomerOnline, isFacebook, lastSeenAt]);
+  }, [isConnected, isCustomerOnline, isFacebook, isMetaLead, lastSeenAt]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
@@ -358,8 +369,14 @@ export default function LeadChatPanel({
               <div className="flex flex-wrap items-center gap-2">
                 <TitleTag className="text-base font-semibold">Chat with {name}</TitleTag>
                 <ChannelBadge
-                  source={channel}
-                  label={isFacebook ? "Facebook Messenger" : "Website chat"}
+                  source={isMetaLead ? "facebook_lead_ad" : channel}
+                  label={
+                    isMetaLead
+                      ? "Meta lead ad"
+                      : isFacebook
+                        ? "Facebook Messenger"
+                        : "Website chat"
+                  }
                   size="sm"
                 />
               </div>
