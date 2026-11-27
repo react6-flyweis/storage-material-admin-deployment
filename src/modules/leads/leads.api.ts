@@ -359,6 +359,23 @@ export async function assignLeadSalesProvider(leadId: string, employeeId: string
   return response.data;
 }
 
+/** One answer from a Meta instant form (`name` = Meta field key). */
+export type MetaLeadAdField = {
+  name: string;
+  values: string[];
+};
+
+/** Stored Meta lead ad submission — present on detail when lead.source === "meta_lead_ads". */
+export type MetaLeadAd = {
+  leadgenId?: string;
+  formId?: string;
+  adId?: string;
+  adgroupId?: string;
+  pageId?: string;
+  submittedAt?: string | null;
+  fieldData?: MetaLeadAdField[];
+};
+
 export type GetLeadDetailResponse = {
   success: boolean;
   message: string;
@@ -480,6 +497,8 @@ export type GetLeadDetailResponse = {
     recentMessages?: any[];
     leadNotes?: any[];
     shipments?: any[];
+    /** Meta instant form answers; null for non-Meta leads (or legacy / failed ingest). */
+    metaLeadAd?: MetaLeadAd | null;
   };
 };
 
@@ -501,12 +520,12 @@ export type ChatMessage = {
   isRead?: boolean;
   createdAt: string;
   updatedAt?: string;
-  /** Storage enum: website widget, Facebook Messenger or phone call. */
-  origin?: "chat" | "messenger" | "call";
+  /** Storage enum: website widget, Facebook Messenger, phone call or Meta lead ad form. */
+  origin?: "chat" | "messenger" | "call" | "meta_lead";
   /** UI channel id. */
-  source?: "website" | "facebook" | "phone";
-  /** Human label for the bubble: "Website" | "Facebook" | "Phone". */
-  sourceLabel?: "Website" | "Facebook" | "Phone" | string;
+  source?: "website" | "facebook" | "phone" | "facebook_lead_ad";
+  /** Human label for the bubble: "Website" | "Facebook" | "Phone" | "Meta lead ad". */
+  sourceLabel?: "Website" | "Facebook" | "Phone" | "Meta lead ad" | string;
   callSessionId?: string | null;
   channel?: string | null;
 };

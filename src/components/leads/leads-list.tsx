@@ -15,6 +15,8 @@ import DeleteLeadDialog from "@/components/leads/delete-lead-dialog";
 import ArchiveLeadDialog from "@/components/leads/archive-lead-dialog";
 import RestoreLeadDialog from "@/components/leads/restore-lead-dialog";
 import ChatDialog from "@/components/leads/chat-dialog";
+import ChannelBadge from "@/components/leads/channel-badge";
+import { getLeadSourceBadge } from "@/lib/chat-source";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -187,6 +189,15 @@ export default function LeadsList({
                         >
                           {formatBusinessUnit(lead.businessUnit, lead.businessUnitLabel)}
                         </Badge>
+                        {(() => {
+                          const sourceBadge = getLeadSourceBadge(lead.source);
+                          return sourceBadge ? (
+                            <ChannelBadge
+                              source={sourceBadge.source}
+                              label={sourceBadge.label}
+                            />
+                          ) : null;
+                        })()}
                         <span className="text-xs text-gray-500">
                           · {lead.workshop || "-"} · {lead.category || "-"}
                         </span>

@@ -62,7 +62,13 @@ import {
 } from "@/modules/leads/leads.api";
 import { formatBusinessUnit } from "@/modules/leads/business-unit";
 import { formatPhone } from "@/lib/utils";
-import { getCleanEmail, getCleanPhone, isMessengerLead } from "@/lib/chat-source";
+import {
+  getCleanEmail,
+  getCleanPhone,
+  isMetaLeadAdLead,
+  isOptionalContactLead,
+} from "@/lib/chat-source";
+import MetaLeadFormCard from "@/components/leads/meta-lead-form-card";
 import { useState } from "react";
 // import { useLeadQuotationsQuery } from "@/modules/quotations/quotations.hooks";
 // import LeadRfqTab from "./lead-rfq-tab";
@@ -143,7 +149,9 @@ export default function LeadDetails() {
   const leadData = response?.data;
   const lead = leadData?.lead;
   const customer = leadData?.customer;
-  const isMessenger = isMessengerLead(lead);
+  // Messenger / Meta lead ad leads may legitimately have no email or phone.
+  const isMessenger = isOptionalContactLead(lead);
+  const isMetaLead = isMetaLeadAdLead(lead);
   // Hides legacy Messenger placeholders (fb-…@pending.messenger.local, "+0 <PSID>").
   const contactPhone = getCleanPhone(customer?.phone);
   const contactEmail = getCleanEmail(customer?.email);
@@ -540,6 +548,12 @@ export default function LeadDetails() {
                   </div>
                 </div>
               </div>
+
+              {/* Meta lead ad instant form — answers not already mapped to lead / customer */}
+              <MetaLeadFormCard
+                metaLeadAd={leadData?.metaLeadAd}
+                isMetaLead={isMetaLead}
+              />
 
               {/* Project Specifications Card */}
               <div
