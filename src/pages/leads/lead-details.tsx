@@ -69,6 +69,10 @@ import {
   isOptionalContactLead,
 } from "@/lib/chat-source";
 import MetaLeadFormCard from "@/components/leads/meta-lead-form-card";
+import LeadDetailsErrorState, {
+  getLeadDetailsErrorKind,
+  retryUnlessClientError,
+} from "@/components/leads/lead-details-error-state";
 import { useState } from "react";
 // import { useLeadQuotationsQuery } from "@/modules/quotations/quotations.hooks";
 // import LeadRfqTab from "./lead-rfq-tab";
@@ -118,10 +122,18 @@ export default function LeadDetails() {
   const [isAddFollowUpOpen, setIsAddFollowUpOpen] = useState(false);
   const [isAddMeetingOpen, setIsAddMeetingOpen] = useState(false);
 
-  const { data: response, isLoading } = useQuery({
+  const {
+    data: response,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isRefetching,
+  } = useQuery({
     queryKey: ["lead", "detail", leadId],
     queryFn: () => getLeadDetailProvider(leadId!),
     enabled: !!leadId,
+    retry: retryUnlessClientError,
   });
 
   const updateLifecycleMutation = useMutation({
@@ -144,6 +156,20 @@ export default function LeadDetails() {
 
   if (isLoading) {
     return <div className="p-6">Loading lead details...</div>;
+  }
+
+  // No id in the URL, request failed, or the API answered without a lead.
+  if (!leadId || isError || !response?.data?.lead) {
+    return (
+      <LeadDetailsErrorState
+        kind={!leadId || !isError ? "not_found" : getLeadDetailsErrorKind(error)}
+        error={error}
+        leadId={leadId}
+        onBack={() => goBack("/leads")}
+        onRetry={() => refetch()}
+        isRetrying={isRefetching}
+      />
+    );
   }
 
   const leadData = response?.data;
