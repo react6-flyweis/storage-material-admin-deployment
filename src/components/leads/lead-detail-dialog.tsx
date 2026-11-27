@@ -17,9 +17,11 @@ import ChatDialog from "./chat-dialog";
 import {
   getCleanEmail,
   getCleanPhone,
+  getLeadSourceBadge,
   isMetaLeadAdLead,
   isOptionalContactLead,
 } from "@/lib/chat-source";
+import ChannelBadge from "@/components/leads/channel-badge";
 import MetaLeadFormCard from "@/components/leads/meta-lead-form-card";
 import type { MetaLeadAd } from "@/modules/leads/leads.api";
 import QuoteSummaryDialog from "./quote-summary-dialog";
@@ -435,6 +437,7 @@ export default function LeadDetailDialog({
   // Messenger / Meta lead ad leads may legitimately have no email or phone.
   const isMessenger = isOptionalContactLead(leadDetail);
   const isMetaLead = isMetaLeadAdLead(leadDetail);
+  const sourceBadge = getLeadSourceBadge(leadDetail?.source);
   // Hides legacy Messenger placeholders (fb-…@pending.messenger.local, "+0 <PSID>").
   const cleanPhone = getCleanPhone(customer?.phone);
   const customerPhone = cleanPhone
@@ -602,6 +605,9 @@ export default function LeadDetailDialog({
               >
                 {formatBusinessUnit(leadDetail?.businessUnit, leadDetail?.businessUnitLabel)}
               </Badge>
+              {sourceBadge ? (
+                <ChannelBadge source={sourceBadge.source} label={sourceBadge.label} size="sm" />
+              ) : null}
               {/* badge or edit lead button */}
               {escalationReason ? (
                 <div className="bg-red-100 px-2 py-1 rounded  text-xs">

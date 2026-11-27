@@ -65,9 +65,11 @@ import { formatPhone } from "@/lib/utils";
 import {
   getCleanEmail,
   getCleanPhone,
+  getLeadSourceBadge,
   isMetaLeadAdLead,
   isOptionalContactLead,
 } from "@/lib/chat-source";
+import ChannelBadge from "@/components/leads/channel-badge";
 import MetaLeadFormCard from "@/components/leads/meta-lead-form-card";
 import LeadDetailsErrorState, {
   getLeadDetailsErrorKind,
@@ -178,6 +180,7 @@ export default function LeadDetails() {
   // Messenger / Meta lead ad leads may legitimately have no email or phone.
   const isMessenger = isOptionalContactLead(lead);
   const isMetaLead = isMetaLeadAdLead(lead);
+  const sourceBadge = getLeadSourceBadge(lead?.source);
   // Hides legacy Messenger placeholders (fb-…@pending.messenger.local, "+0 <PSID>").
   const contactPhone = getCleanPhone(customer?.phone);
   const contactEmail = getCleanEmail(customer?.email);
@@ -421,6 +424,13 @@ export default function LeadDetails() {
                         >
                           {formatBusinessUnit(lead?.businessUnit, lead?.businessUnitLabel)}
                         </Badge>
+                        {sourceBadge ? (
+                          <ChannelBadge
+                            source={sourceBadge.source}
+                            label={sourceBadge.label}
+                            size="sm"
+                          />
+                        ) : null}
                       </div>
                       <p className="text-sm text-muted-foreground mt-1">
                         {lead?.jobId || leadId}
